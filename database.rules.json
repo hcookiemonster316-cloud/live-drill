@@ -32,12 +32,70 @@
         "$game": {
           "$period": {
             ".read": true,
-            ".indexOn": ["s"],
+            ".indexOn": [
+              "s"
+            ],
             "$key": {
               ".write": "auth != null && !data.exists() && newData.exists()",
               ".validate": "newData.child('name').isString() && newData.child('name').val().length >= 2 && newData.child('name').val().length <= 16 && newData.child('s').isNumber() && newData.child('s').val() >= 0 && newData.child('s').val() <= 60000 && newData.child('t').val() === now && newData.child('u').val() === auth.uid && $key.matches(/^[0-9a-z]{1,8}$/) && $game.matches(/^(speed|streak|tf|board|boss|match|memory|typing)_[ENH]$/)"
             }
           }
+        }
+      }
+    },
+    "secrets": {
+      "$pid": {
+        ".read": false,
+        ".write": "auth != null && !data.exists() && $pid.matches(/^[a-z0-9]{10}$/)",
+        ".validate": "newData.isString() && newData.val().length === 16"
+      }
+    },
+    "links": {
+      "$pid": {
+        ".read": false,
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isString() && newData.val() === root.child('secrets/' + $pid).val()"
+        }
+      }
+    },
+    "players": {
+      ".read": true,
+      "$pid": {
+        ".write": "auth != null && root.child('links/' + $pid + '/' + auth.uid).exists()",
+        "n": {
+          ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 16"
+        }
+      }
+    },
+    "squads": {
+      ".read": true,
+      "$sid": {
+        ".write": "auth != null && ((!data.exists() && root.child('links/' + newData.child('owner').val() + '/' + auth.uid).exists()) || (data.exists() && root.child('links/' + data.child('owner').val() + '/' + auth.uid).exists()))",
+        ".validate": "$sid.matches(/^[A-Z2-9]{5}$/) && newData.hasChildren(['name','owner'])",
+        "name": {
+          ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 24"
+        },
+        "members": {
+          "$pid": {
+            ".write": "auth != null && root.child('links/' + $pid + '/' + auth.uid).exists()"
+          }
+        },
+        "week": {
+          "$wk": {
+            "$pid": {
+              ".write": "auth != null && root.child('links/' + $pid + '/' + auth.uid).exists() && root.child('squads/' + $sid + '/members/' + $pid).exists()"
+            }
+          }
+        }
+      }
+    },
+    "feed": {
+      "$sid": {
+        ".read": true,
+        "$key": {
+          ".write": "auth != null && !data.exists() && root.child('links/' + newData.child('p').val() + '/' + auth.uid).exists() && root.child('squads/' + $sid + '/members/' + newData.child('p').val()).exists()",
+          ".validate": "newData.hasChildren(['p','n','kind','text']) && newData.child('text').isString() && newData.child('text').val().length <= 160"
         }
       }
     }

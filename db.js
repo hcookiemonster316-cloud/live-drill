@@ -29,6 +29,7 @@ async function firebase(cfg) {
     remove: (p) => D.remove(D.ref(db, p)),
     on: (p, cb) => D.onValue(D.ref(db, p), (s) => cb(s.val()), (e) => console.warn('listen failed', p, e && e.message)),
     onLeave: (p, v) => D.onDisconnect(D.ref(db, p)).set(v),
+    last: async (p, n) => { const out = []; (await D.get(D.query(D.ref(db, p), D.orderByKey(), D.limitToLast(n)))).forEach((c) => { out.push(Object.assign({ k: c.key }, c.val())); }); return out.reverse(); },
     top: async (p, n, low) => {
       const q = D.query(D.ref(db, p), D.orderByChild('s'), low ? D.limitToFirst(n) : D.limitToLast(n));
       const out = []; (await D.get(q)).forEach((c) => { out.push(Object.assign({ k: c.key }, c.val())); });
@@ -65,6 +66,7 @@ function mock() {
     remove: (p) => write((t) => put(t, p, null)),
     on: (p, cb) => { const s = { p, cb, last: undefined }; subs.add(s); setTimeout(fire, 0); return () => subs.delete(s); },
     onLeave: () => {},
+    last: async (p, n) => { const v = at(read(), p) || {}; return Object.keys(v).sort().slice(-n).reverse().map((k) => Object.assign({ k }, v[k])); },
     top: async (p, n, low) => { const v = at(read(), p) || {}; return Object.entries(v).map(([k, x]) => Object.assign({ k }, x)).sort((a, b) => (low ? a.s - b.s : b.s - a.s)).slice(0, n); }
   };
 }

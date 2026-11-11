@@ -1,4 +1,5 @@
 import { connect } from './db.js';
+import * as SQ from './squads.js';
 
 // ================================================================ shared
 const CFG = window.LIVE_CONFIG || {};
@@ -17,12 +18,21 @@ const SHAPES = [
 ];
 const shape = (i) => '<svg viewBox="0 0 24 24" class="shp" aria-hidden="true">' + SHAPES[i] + '</svg>';
 const TEAMS = ['Alpha', 'Bravo', 'Charlie', 'Delta'];
+const tn = (g, t) => String((g && g.tnames && g.tnames[t]) || TEAMS[t] || 'Team');
 const MODES = {
   classic: ['Classic quiz', 'Quick-fire multiple choice on everyone\'s phone. Faster right answers score more.'],
   raid: ['Boss Raid', 'The whole group fights one boss together. Every right answer is a hit; fast ones hit twice.'],
   tf: ['True/False Showdown', 'One statement at a time, straight from the chapter or with one detail changed. Call it fast.'],
   board: ['Team Category Board', 'Jeopardy-style clues by lesson. Teams take turns picking tiles; answer in the form of a question.']
 };
+const DANGLE = {
+  win: ['First place. Do not let it go to your head; there is not much room up there.', 'You won. I will allow one (1) smile. Not that one. Smaller.', 'Top of the board. Your instructors will be told. They will not care, but they will be told.'],
+  podium: ['Podium finish. Respectable. Barely, but respectable.', 'Top three. The academy has seen worse. Recently. From you.', 'Close to the top. Close does not count, except here, where it does. Slightly.'],
+  rest: ['That was a performance. Of what, I am still deciding.', 'You finished. That is the nicest thing I can say about it.', 'Back to the hub, cadet. The book is not going to read itself, and neither, apparently, are you.'],
+  report: ['Report received. Your squad thanks you. I do not, but your squad does.', 'Logged. Filed. Initialed. Do it again tomorrow.', 'You reported in. Somewhere, a sergeant nodded. Once.'],
+  squad: ['A squad is only as strong as its least-studied member. Do not be that member.', 'Teamwork makes the dream work. I do not have dreams. I have checklists.', 'Your squad is watching. So am I. I am always watching.']
+};
+export const dangle = (k) => { const a = DANGLE[k] || DANGLE.rest; return '<div class="dangle"><span class="dgIcon" aria-hidden="true">DD</span><p><b>Deputy Dangle:</b> ' + a[Math.floor(Math.random() * a.length)] + '</p></div>'; };
 const store = {
   get: (k) => { try { return JSON.parse(localStorage.getItem('live:' + k)); } catch (e) { return null; } },
   set: (k, v) => { try { localStorage.setItem('live:' + k, JSON.stringify(v)); } catch (e) {} }
@@ -44,8 +54,25 @@ function setHub(chId) {
   HUB = c;
 }
 let HUB = null;
-const hubBtn = () => (HUB && HUB.hub ? '<a class="btn hubBtn" href="' + esc(HUB.hub) + '">Back to ' + esc(HUB.title) + ' Study Hub</a>' : '');
+const hubBtn = () => (HUB && HUB.hub ? '<a class="btn hubBtn backHub" href="' + esc(HUB.hub) + '">Back to ' + esc(HUB.title) + ' Study Hub</a>' : '');
+// opened from the hub: going back closes this tab, which leaves the hub showing; otherwise it goes to the hub here
+const FROM_HUB = params.get('from') === 'hub' || sessionStorage.getItem('fromHub') === '1';
+if (FROM_HUB) { try { sessionStorage.setItem('fromHub', '1'); } catch (e) {} }
+document.addEventListener('click', (e) => {
+  const a = e.target.closest && e.target.closest('#hubLink, .backHub'); if (!a || !FROM_HUB) return;
+  e.preventDefault();
+  // close this tab (the hub is still open in the one before it); if the phone won't allow that, say where the hub is instead of opening another copy
+  try { window.close(); } catch (x) {}
+  setTimeout(() => {
+    if (document.hidden) return;
+    let m = $('backNote');
+    if (!m) { m = document.createElement('div'); m.id = 'backNote'; m.className = 'backNote'; document.body.appendChild(m); }
+    m.innerHTML = '<b>Your study hub is still open in your other tab.</b><span>Switch back to it with your browser\'s tab button, or close this tab. Nothing here is lost.</span><button type="button">OK</button>';
+    m.querySelector('button').onclick = () => m.remove();
+  }, 300);
+});
 function toast(t) { const e = document.createElement('div'); e.className = 'toast'; e.textContent = t; document.body.appendChild(e); setTimeout(() => e.remove(), 2600); }
+const CTX = { CFG, params, MQ, MOCK, store, esc: (x) => esc(x), fmt: (x) => fmt(x), view: (h) => view(h), toast: (t) => toast(t), hubBtn: () => hubBtn(), dangle: (k) => dangle(k), ready: () => ready(), weekKey: (t) => weekKey(t), get api() { return api; } };
 async function ready() {
   if (api) return api;
   if (!MOCK && !(CFG.firebase && CFG.firebase.apiKey)) throw new Error('setup');
@@ -86,7 +113,7 @@ function home(msg) {
     '<form id="joinF" autocomplete="off"><label>Game PIN<input id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="123456" value="' + esc(pin) + '"></label>' +
     '<label>Nickname<input id="nick" maxlength="16" placeholder="Your name" value="' + esc(store.get('nick') || '') + '"></label>' +
     '<button type="submit" class="main">Enter</button></form>' + (msg ? '<p class="err" role="alert">' + esc(msg) + '</p>' : '') +
-    '<p class="small"><a href="?host' + MQ + '">Host a game</a> · <a href="?boards' + MQ + '">Leaderboards</a></p></section>');
+    '<p class="small"><a href="?host' + MQ + '">Host a game</a> · <a href="?boards' + MQ + '">Leaderboards</a> · <a href="?squads' + MQ + '">Squads</a></p></section>');
   $('joinF').onsubmit = (e) => { e.preventDefault(); join($('pin').value.trim(), $('nick').value.trim()); };
   (pin ? $('nick') : $('pin')).focus();
 }
@@ -102,7 +129,8 @@ async function join(pin, nick) {
   const taken = Object.entries(g.players || {}).some(([u, p]) => u !== api.uid && p.name.toLowerCase() === nick.toLowerCase());
   if (taken) return home('Someone already has that nickname in this game.');
   if (!(g.players || {})[api.uid] && Object.keys(g.players || {}).length >= (CFG.maxPlayers || 50)) return home('That game is full.');
-  await api.set('games/' + pin + '/players/' + api.uid, { name: nick, at: api.TS });
+  let info = {}; try { info = await SQ.joinInfo(); } catch (e) {}
+  await api.set('games/' + pin + '/players/' + api.uid, Object.assign({ name: nick, at: api.TS }, info));
   store.set('nick', nick); store.set('player', { pin });
   play(pin);
 }
@@ -124,11 +152,11 @@ function play(pin) {
   function render() {
     const name = g.players[me()].name, list = ranked(g), mine = list.findIndex((x) => x.u === me()), myS = list[mine] || { s: 0, st: 0 };
     const team = (g.team || {})[me()];
-    const head = '<div class="pbar"><b>' + esc(name) + (team != null ? ' <em class="tm t' + team + '">' + TEAMS[team] + '</em>' : '') + '</b><span>' + fmt(myS.s) + ' pts</span></div>';
-    if (g.state === 'lobby') return view(head + '<section class="card center"><h2>You\'re in</h2><p>' + esc(MODES[g.mode][0]) + '. ' + (team != null ? 'You are on team <b>' + TEAMS[team] + '</b>. ' : '') + 'Watch the host screen; the game starts soon.</p><div class="pulse"></div></section>');
+    const head = '<div class="pbar"><b>' + esc(name) + (team != null ? ' <em class="tm t' + team + '">' + tn(g, team) + '</em>' : '') + '</b><span>' + fmt(myS.s) + ' pts</span></div>';
+    if (g.state === 'lobby') return view(head + '<section class="card center"><h2>You\'re in</h2><p>' + esc(MODES[g.mode][0]) + '. ' + (team != null ? 'You are on team <b>' + tn(g, team) + '</b>. ' : '') + 'Watch the host screen; the game starts soon.</p><div class="pulse"></div></section>');
     if (g.state === 'pick') {
-      if (team !== g.turn) return view(head + '<section class="card center"><h2>' + TEAMS[g.turn] + ' is choosing</h2><p>Get ready to answer.</p><div class="pulse"></div></section>');
-      view(head + '<section class="card"><h2>Your team\'s pick</h2><p class="small">Anyone on ' + TEAMS[team] + ' can choose. The first tap counts.</p>' + boardGrid(g, true) + '</section>');
+      if (team !== g.turn) return view(head + '<section class="card center"><h2>' + tn(g, g.turn) + ' is choosing</h2><p>Get ready to answer.</p><div class="pulse"></div></section>');
+      view(head + '<section class="card"><h2>Your team\'s pick</h2><p class="small">Anyone on ' + tn(g, team) + ' can choose. The first tap counts.</p>' + boardGrid(g, true) + '</section>');
       document.querySelectorAll('.btile:not(:disabled)').forEach((x) => x.onclick = () => { document.querySelectorAll('.btile').forEach((y) => y.disabled = true); x.classList.add('picked'); api.set('games/' + pin + '/picks/' + me(), { c: +x.dataset.c, r: +x.dataset.r, t: api.TS }).catch(() => {}); });
       return;
     }
@@ -140,7 +168,7 @@ function play(pin) {
         '<div class="pans' + (show ? ' txt' : '') + (g.mode === 'tf' ? ' tf' : '') + '">' + opts.map((o) => '<button class="opt o' + (g.mode === 'tf' ? (o.k ? 3 : 2) : o.k) + '" data-k="' + o.k + '">' + shape(g.mode === 'tf' ? (o.k ? 3 : 2) : o.k) + '<span>' + esc(show || g.mode === 'tf' ? o.t : 'ABCD'[o.k]) + '</span></button>').join('') + '</div>');
       document.querySelectorAll('.pans .opt').forEach((x) => x.onclick = async () => {
         document.querySelectorAll('.pans .opt').forEach((y) => { y.disabled = true; y.classList.toggle('picked', y === x); });
-        try { await api.set('games/' + pin + '/answers/' + g.qk + '/' + me(), { a: +x.dataset.k, t: api.TS }); } catch (e) { toast('Too late for that one.'); }
+        try { await api.set('games/' + pin + '/answers/' + g.qk + '/' + me(), { a: +x.dataset.k, t: api.TS }); } catch (e) { console.warn('answer not saved', e); toast(/permission/i.test(String(e && (e.code || e.message))) ? 'That answer came in after the question closed.' : 'Could not send your answer: ' + String(e && (e.code || e.message) || 'connection problem')); document.querySelectorAll('.pans .opt').forEach((y) => { y.disabled = false; y.classList.remove('picked'); }); }
       });
       tick = setInterval(() => { const p = $('pt'); if (p && typeof g.qStart === 'number') p.textContent = Math.max(0, Math.ceil((g.qStart + g.dur * 1000 - api.now()) / 1000)) + 's'; }, 250);
       return;
@@ -149,7 +177,7 @@ function play(pin) {
       const sc = (g.scores || {})[me()] || {}, ok = sc.ok && sc.q === g.qk;
       let extra = '';
       if (g.mode === 'raid') extra = '<p>' + (ok ? 'You hit the boss for <b>' + sc.h + '</b>.' : '') + ' Boss health: <b>' + Math.max(0, g.hp) + '</b> of ' + g.hpMax + '</p>';
-      if (g.mode === 'board' && team != null) { const ts = g.tscore || {}, order = Object.keys(ts).sort((x, y) => ts[y] - ts[x]); extra = '<p>Team ' + TEAMS[team] + ': <b>' + fmt(ts[team]) + '</b> (' + place(order.indexOf(String(team)) + 1) + ')</p>'; }
+      if (g.mode === 'board' && team != null) { const ts = g.tscore || {}, order = Object.keys(ts).sort((x, y) => ts[y] - ts[x]); extra = '<p>Team ' + tn(g, team) + ': <b>' + fmt(ts[team]) + '</b> (' + place(order.indexOf(String(team)) + 1) + ')</p>'; }
       return view(head + '<section class="card center res ' + (ok ? 'ok' : 'no') + '"><h2>' + (ok ? 'Correct' : sc.q === g.qk && sc.none ? 'Time\'s up' : 'Not this time') + '</h2>' +
         (ok ? '<p class="gain">+' + fmt(sc.g) + '</p>' + (sc.st >= 2 ? '<p>Answer streak ' + sc.st + '</p>' : '') : '<p>' + (sc.q === g.qk ? 'Streak reset. Get the next one.' : '') + '</p>') + extra +
         '<p class="rank">You are in <b>' + place(mine + 1) + '</b> place' + (mine > 0 ? ', ' + fmt(list[mine - 1].s - myS.s) + ' behind ' + esc(list[mine - 1].name) : '') + '.</p></section>');
@@ -158,15 +186,16 @@ function play(pin) {
       store.set('player', null);
       let head2 = mine === 0 ? 'You won' : 'Final: ' + place(mine + 1) + ' place';
       if (g.mode === 'raid') head2 = g.hp <= 0 ? 'Boss defeated' : 'The boss escaped';
-      if (g.mode === 'board' && team != null) { const ts = g.tscore || {}, order = Object.keys(ts).sort((x, y) => ts[y] - ts[x]); head2 = order[0] === String(team) ? 'Team ' + TEAMS[team] + ' wins' : 'Team ' + TEAMS[team] + ': ' + place(order.indexOf(String(team)) + 1); }
-      return view(head + '<section class="card center"><h2>' + head2 + '</h2><p class="gain">' + fmt(myS.s) + ' points</p><p>You finished ' + place(mine + 1) + ' of ' + list.length + (g.mode === 'raid' ? ', with ' + (myS.d || 0) + ' hits on the boss' : '') + '.</p><a class="btn main" href="./' + (MOCK ? '?mock' : '') + '">Play again</a>' + hubBtn() + '</section>');
+      if (g.mode === 'board' && team != null) { const ts = g.tscore || {}, order = Object.keys(ts).sort((x, y) => ts[y] - ts[x]); head2 = order[0] === String(team) ? 'Team ' + tn(g, team) + ' wins' : 'Team ' + tn(g, team) + ': ' + place(order.indexOf(String(team)) + 1); }
+      try { const ck = 'live:credit:' + pin + ':' + (g.created || ''); if (!sessionStorage.getItem(ck)) { sessionStorage.setItem(ck, '1'); SQ.liveCredit(myS.s, MODES[g.mode][0], mine + 1, list.length).catch(() => {}); } } catch (e) {}
+      return view(head + '<section class="card center"><h2>' + head2 + '</h2><p class="gain">' + fmt(myS.s) + ' points</p><p>You finished ' + place(mine + 1) + ' of ' + list.length + (g.mode === 'raid' ? ', with ' + (myS.d || 0) + ' hits on the boss' : '') + '.</p>' + dangle(mine === 0 ? 'win' : mine < 3 ? 'podium' : 'rest') + '<a class="btn main" href="./' + (MOCK ? '?mock' : '') + '">Play again</a>' + (SQ.me() ? '<a class="btn hubBtn" href="?squads' + MQ + '">My squads</a>' : '') + hubBtn() + '</section>');
     }
   }
 }
 function boardGrid(g, tappable) {
   const cols = g.cols, t = g.tiles || {};
   return '<div class="bgrid" style="grid-template-columns:repeat(' + cols.length + ',minmax(0,1fr))">' + cols.map((c) => '<div class="bhead">' + esc(c.t) + '</div>').join('') +
-    [0, 1, 2, 3, 4].map((r) => cols.map((c, ci) => { const k = ci + '_' + r, done = t[k]; return '<button class="btile' + (done ? ' done t' + (done - 1) : '') + '" data-c="' + ci + '" data-r="' + r + '"' + (done || !tappable ? ' disabled' : '') + '>' + (done ? TEAMS[done - 1][0] : tileVal(r)) + '</button>'; }).join('')).join('') + '</div>';
+    [0, 1, 2, 3, 4].map((r) => cols.map((c, ci) => { const k = ci + '_' + r, done = t[k]; return '<button class="btile' + (done ? ' done t' + (done - 1) : '') + '" data-c="' + ci + '" data-r="' + r + '"' + (done || !tappable ? ' disabled' : '') + '>' + (done ? tn(g, done - 1)[0] : tileVal(r)) + '</button>'; }).join('')).join('') + '</div>';
 }
 
 // ================================================================ host setup
@@ -191,9 +220,10 @@ async function hostSetup(msg) {
     '<div class="row3"><label id="hnL">Questions<select id="hn">' + [5, 10, 15, 20, 30].map((n) => '<option' + (n === (last.n || 10) ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label>' +
     '<label id="htL">Teams<select id="ht">' + [2, 3, 4].map((n) => '<option' + (n === (last.teams || 2) ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label>' +
     '<label>Seconds each<select id="hd">' + [10, 15, 20, 30, 45].map((n) => '<option' + (n === (last.dur || 20) ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label></div>' +
+    '<label class="tick" id="hsqL"><input type="checkbox" id="hsq"' + (last.bySquad ? ' checked' : '') + '> Team Category Board: make teams from players\' squads (squad vs squad)</label>' +
     '<label class="tick"><input type="checkbox" id="hp"' + (last.phones === false ? '' : ' checked') + '> Show the question and answers on players\' phones (turn off when everyone can see your screen)</label>' +
     '<button class="main" id="hgo">Create game</button><p class="small"><a href="./' + (MOCK ? '?mock' : '') + '">Join a game</a> · <a href="?boards' + MQ + '">Leaderboards</a></p></section>');
-  const showOpts = () => { $('hnL').hidden = mode === 'board'; $('htL').hidden = mode !== 'board'; };
+  const showOpts = () => { $('hnL').hidden = mode === 'board'; $('htL').hidden = mode !== 'board'; $('hsqL').hidden = mode !== 'board'; };
   showOpts();
   if ($('hc')) $('hc').onchange = () => { store.set('hostSet', Object.assign(last, { ch: $('hc').value, les: [] })); hostSetup(); };
   $('hm').onclick = (e) => { const m = e.target.closest('.mode'); if (!m) return; mode = m.dataset.m; document.querySelectorAll('.mode').forEach((x) => x.classList.toggle('on', x === m)); showOpts(); };
@@ -203,7 +233,7 @@ async function hostSetup(msg) {
     document.querySelectorAll('#hl .chip').forEach((x) => x.classList.toggle('on', x.dataset.l === 'all' ? !chosen.size : chosen.has(+x.dataset.l)));
   };
   $('hgo').onclick = async () => {
-    const n = +$('hn').value, dur = +$('hd').value, phones = $('hp').checked, teams = +$('ht').value;
+    const n = +$('hn').value, dur = +$('hd').value, phones = $('hp').checked, teams = +$('ht').value, bySquad = $('hsq').checked;
     // Kahoot-sized multiple choice (question up to 120 characters, answers up to 75), true/false statements, or Jeopardy clues
     const src = mode === 'tf' ? b.tq : mode === 'board' ? b.jq : b.q, lesOf = (r) => (mode === 'tf' ? r[2] : r[3]);
     const fits = (r) => mode !== 'classic' && mode !== 'raid' || (r[0].length <= 120 && r[1].every((o) => o.length <= 75));
@@ -220,12 +250,12 @@ async function hostSetup(msg) {
       const used = new Set(game.cols.flatMap((c) => c.q));
       game.fin = uniq.find((i) => !used.has(i));
       game.dd = Math.floor(Math.random() * game.cols.length) + '_' + (1 + Math.floor(Math.random() * 4));
-      game.teams = teams; game.turn = 0; game.tscore = Object.fromEntries([...Array(teams).keys()].map((t) => [t, 0]));
+      game.teams = teams; game.bySquad = bySquad; game.turn = 0; game.tscore = Object.fromEntries([...Array(teams).keys()].map((t) => [t, 0]));
     } else {
       if (uniq.length < n) return hostSetup('Only ' + uniq.length + ' different questions in those lessons. Pick more lessons or fewer questions.');
       game.set = uniq.slice(0, n);
     }
-    store.set('hostSet', { ch: chId, les: [...chosen], n, dur, phones, mode, teams });
+    store.set('hostSet', { ch: chId, les: [...chosen], n, dur, phones, mode, teams, bySquad });
     $('hgo').disabled = true;
     let pin = '';
     for (let t = 0; t < 8; t++) { const p = String(100000 + Math.floor(Math.random() * 900000)); if (!(await api.get('games/' + p))) { pin = p; break; } }
@@ -247,7 +277,18 @@ function host(pin) {
     // board mode: put new players on the smallest team, and take the active team's first pick
     if (g.mode === 'board') {
       const tm = g.team || {}, ps = Object.keys(g.players || {}), need = ps.filter((u) => tm[u] == null);
-      if (need.length) { const size = [...Array(g.teams).keys()].map((t) => ps.filter((u) => tm[u] === t).length), patch = {}; need.forEach((u) => { const t = size.indexOf(Math.min(...size)); size[t]++; patch['team/' + u] = t; }); set(patch); }
+      if (need.length) {
+        const size = [...Array(g.teams).keys()].map((t) => ps.filter((u) => tm[u] === t).length), patch = {};
+        const sqTeam = Object.assign({}, g.sqTeam || {}), names = arr(g.tnames).slice();
+        need.forEach((u) => {
+          const pl = g.players[u] || {}; let t = -1;
+          // squad vs squad: each squad gets its own team while there are teams left; others fill the smallest team
+          if (g.bySquad && pl.sq) { if (sqTeam[pl.sq] != null) t = sqTeam[pl.sq]; else { const free = size.findIndex((x, i) => x === 0 && !names[i]); if (free >= 0) { t = free; sqTeam[pl.sq] = t; names[t] = String(pl.sqn || pl.sq).slice(0, 24); patch['sqTeam/' + pl.sq] = t; patch['tnames/' + t] = names[t]; } } }
+          if (t < 0) t = size.indexOf(Math.min(...size));
+          size[t]++; patch['team/' + u] = t;
+        });
+        set(patch);
+      }
       if (g.state === 'pick' && g.picks && !busy) {
         const first = Object.entries(g.picks).filter(([u, p]) => tm[u] === g.turn && !(g.tiles || {})[p.c + '_' + p.r] && g.cols[p.c]).sort((x, y) => x[1].t - y[1].t)[0];
         if (first) { busy = true; await openTile(first[1].c, first[1].r); busy = false; return; }
@@ -309,7 +350,7 @@ function host(pin) {
     if (g.mode === 'board') { const left = g.cols.length * 5 - Object.keys(g.tiles || {}).length; return left > 0 ? set({ state: 'pick' }) : (g.fin != null ? openFinal() : set({ state: 'end' })); }
     return ask(g.qi + 1);
   }
-  const teamBar = () => '<div class="tbar">' + [...Array(g.teams).keys()].map((t) => '<div class="tcard t' + t + (g.state === 'pick' && t === g.turn ? ' turn' : '') + '"><span>' + TEAMS[t] + ' · ' + Object.values(g.team || {}).filter((x) => x === t).length + '</span><b>' + fmt((g.tscore || {})[t]) + '</b></div>').join('') + '</div>';
+  const teamBar = () => '<div class="tbar">' + [...Array(g.teams).keys()].map((t) => '<div class="tcard t' + t + (g.state === 'pick' && t === g.turn ? ' turn' : '') + '"><span>' + tn(g, t) + ' · ' + Object.values(g.team || {}).filter((x) => x === t).length + '</span><b>' + fmt((g.tscore || {})[t]) + '</b></div>').join('') + '</div>';
   const bossBar = () => '<div class="boss"><div class="bname">The Chapter Boss<span>' + Math.max(0, g.hp) + ' / ' + g.hpMax + '</span></div><div class="hp"><i style="width:' + Math.max(0, 100 * g.hp / g.hpMax) + '%"></i></div></div>';
   function render(ans) {
     clearInterval(tick);
@@ -324,14 +365,14 @@ function host(pin) {
       document.querySelectorAll('.pl').forEach((x) => x.onclick = () => { if (window.confirm('Remove ' + x.textContent + ' from the game?')) api.remove(base + '/players/' + x.dataset.u); });
       $('hStart').onclick = startGame;
     } else if (g.state === 'pick') {
-      view(top + '<section class="card"><h2>' + TEAMS[g.turn] + ', pick a tile</h2><p class="small">Anyone on team ' + TEAMS[g.turn] + ' picks on their phone, or tap a tile here. One tile hides a Daily Double.</p>' + boardGrid(g, true) + '</section>');
+      view(top + '<section class="card"><h2>' + tn(g, g.turn) + ', pick a tile</h2><p class="small">Anyone on team ' + tn(g, g.turn) + ' picks on their phone, or tap a tile here. One tile hides a Daily Double.</p>' + boardGrid(g, true) + '</section>');
       document.querySelectorAll('.btile:not(:disabled)').forEach((x) => x.onclick = () => openTile(+x.dataset.c, +x.dataset.r));
     } else if (g.state === 'q') {
       const row = rowOf(g, b), opts = optionsOf(g, row);
-      view(top + '<div class="qcount">' + esc(qLabel(g)) + '</div><section class="card hq">' + (g.cur && g.cur.dd ? '<p class="dd">Daily Double for ' + TEAMS[g.turn] + '</p>' : '') + '<p class="lesson">' + esc(b.lessons[row[3]] || '') + (g.mode === 'tf' ? ' · True or false?' : '') + '</p><h2 class="stem' + (g.mode === 'board' ? ' clue' : '') + '">' + esc(row[0]) + '</h2>' +
+      view(top + '<div class="qcount">' + esc(qLabel(g)) + '</div><section class="card hq">' + (g.cur && g.cur.dd ? '<p class="dd">Daily Double for ' + tn(g, g.turn) + '</p>' : '') + '<p class="lesson">' + esc(b.lessons[row[3]] || '') + (g.mode === 'tf' ? ' · True or false?' : '') + '</p><h2 class="stem' + (g.mode === 'board' ? ' clue' : '') + '">' + esc(row[0]) + '</h2>' +
         '<div class="timer"><div class="ring" id="ring">' + g.dur + '</div><div class="acount"><b>' + ans + '</b><span>of ' + players.length + ' answered</span></div></div>' +
         '<div class="hans' + (g.mode === 'tf' ? ' tf' : '') + '">' + opts.map((o) => { const s = g.mode === 'tf' ? (o.k ? 3 : 2) : o.k; return '<div class="opt o' + s + '">' + shape(s) + '<span>' + esc(o.t) + '</span></div>'; }).join('') + '</div>' +
-        '<button class="ghost" id="hSkip">Show answer now</button></section>');
+        '<p class="small">Players answer on their own phones at the join link.</p><button class="ghost" id="hSkip">Show answer now</button></section>');
       $('hSkip').onclick = reveal;
       const run = () => { const left = (g.qStart + g.dur * 1000 - api.now()) / 1000, r = $('ring'); if (r) { r.textContent = Math.max(0, Math.ceil(left)); r.classList.toggle('low', left <= 5); } if (left <= 0 || (players.length && ans >= players.length)) reveal(); };
       if (typeof g.qStart === 'number') { run(); tick = setInterval(run, 200); }
@@ -341,7 +382,7 @@ function host(pin) {
       const max = Math.max(1, ...cnt), right = rightIndex(g, row);
       const sym = (k) => (g.mode === 'tf' ? (k ? 3 : 2) : k);
       let note = '';
-      if (g.mode === 'board') note = '<div class="tgain">' + [...Array(g.teams).keys()].map((t) => '<span class="t' + t + '">' + TEAMS[t] + ' ' + ((g.tgain || {})[t] >= 0 ? '+' : '') + fmt((g.tgain || {})[t]) + '</span>').join('') + '</div>';
+      if (g.mode === 'board') note = '<div class="tgain">' + [...Array(g.teams).keys()].map((t) => '<span class="t' + t + '">' + tn(g, t) + ' ' + ((g.tgain || {})[t] >= 0 ? '+' : '') + fmt((g.tgain || {})[t]) + '</span>').join('') + '</div>';
       if (g.mode === 'raid') note = '<p class="tgain">' + (g.hp <= 0 ? '<b>The boss is down!</b>' : 'The group dealt <b>' + Object.values(g.scores || {}).reduce((a, x) => a + (x.q === g.qk ? x.h : 0), 0) + '</b> damage.') + '</p>';
       view(top + '<div class="qcount">' + esc(qLabel(g)) + '</div><section class="card hq"><h2 class="stem' + (g.mode === 'board' ? ' clue' : '') + '">' + esc(row[0]) + '</h2>' + note +
         '<div class="bars">' + opts.map((o) => '<div class="barc o' + sym(o.k) + (o.k === right ? ' right' : ' dim') + '"><b>' + cnt[o.k] + '</b><div class="bw"><i style="height:' + (6 + 94 * cnt[o.k] / max) + '%"></i></div>' + shape(sym(o.k)) + '</div>').join('') + '</div>' +
@@ -351,11 +392,11 @@ function host(pin) {
       $('hNext').onclick = next;
     } else if (g.state === 'board') {
       let body;
-      if (g.mode === 'board') body = '<h2>Standings</h2>' + boardGrid(g, false) + '<h3>Top players</h3><ol class="lb">' + ranked(g).slice(0, 5).map((x) => '<li><span>' + esc(x.name) + (x.team != null ? ' <em>' + TEAMS[x.team] + '</em>' : '') + '</span><b>' + fmt(x.s) + '</b></li>').join('') + '</ol>';
+      if (g.mode === 'board') body = '<h2>Standings</h2>' + boardGrid(g, false) + '<h3>Top players</h3><ol class="lb">' + ranked(g).slice(0, 5).map((x) => '<li><span>' + esc(x.name) + (x.team != null ? ' <em>' + tn(g, x.team) + '</em>' : '') + '</span><b>' + fmt(x.s) + '</b></li>').join('') + '</ol>';
       else if (g.mode === 'raid') body = '<h2>Damage dealt</h2><ol class="lb">' + ranked(g).sort((x, y) => y.d - x.d).slice(0, 5).map((x) => '<li><span>' + esc(x.name) + '</span><b>' + x.d + ' hits</b></li>').join('') + '</ol>';
       else body = '<h2>Leaderboard</h2><ol class="lb">' + ranked(g).slice(0, 5).map((x) => '<li><span>' + esc(x.name) + (x.st >= 3 ? ' <em>' + x.st + ' in a row</em>' : '') + '</span><b>' + fmt(x.s) + '</b></li>').join('') + '</ol>';
       const leftTiles = g.mode === 'board' ? g.cols.length * 5 - Object.keys(g.tiles || {}).length : 1;
-      view(top + '<section class="card board">' + body + '<button class="main" id="hNext">' + (g.mode === 'board' ? (leftTiles > 0 ? TEAMS[g.turn] + ' picks next' : 'Final question') : 'Next question') + '</button></section>');
+      view(top + '<section class="card board">' + body + '<button class="main" id="hNext">' + (g.mode === 'board' ? (leftTiles > 0 ? tn(g, g.turn) + ' picks next' : 'Final question') : 'Next question') + '</button></section>');
       $('hNext').onclick = afterBoard;
     } else if (g.state === 'end') {
       const list = ranked(g), top3 = list.slice(0, 3);
@@ -363,8 +404,8 @@ function host(pin) {
       if (g.mode === 'raid') { title = g.hp <= 0 ? 'Boss defeated' : 'The boss escaped'; extra = '<p class="center">' + (g.hp <= 0 ? 'The group brought it down. Top damage below.' : 'It had ' + g.hp + ' health left. Run it back.') + '</p>'; }
       if (g.mode === 'board') {
         const ts = g.tscore || {}, order = Object.keys(ts).sort((x, y) => ts[y] - ts[x]);
-        title = 'Team ' + TEAMS[order[0]] + ' wins';
-        extra = '<div class="tbar end">' + order.map((t) => '<div class="tcard t' + t + '"><span>' + TEAMS[t] + '</span><b>' + fmt(ts[t]) + '</b></div>').join('') + '</div><h3>Most valuable players</h3>';
+        title = 'Team ' + tn(g, order[0]) + ' wins';
+        extra = '<div class="tbar end">' + order.map((t) => '<div class="tcard t' + t + '"><span>' + tn(g, t) + '</span><b>' + fmt(ts[t]) + '</b></div>').join('') + '</div><h3>Most valuable players</h3>';
       }
       const podium = [1, 0, 2].filter((i) => top3[i]).map((i) => '<div class="pod p' + (i + 1) + '"><span>' + esc(top3[i].name) + '</span><b>' + fmt(top3[i].s) + '</b><i>' + (i + 1) + '</i></div>').join('');
       view('<section class="card end"><h1>' + esc(title) + '</h1>' + extra + '<div class="podium">' + podium + '</div><ol class="lb all">' + list.map((x) => '<li><span>' + esc(x.name) + '</span><b>' + fmt(x.s) + '</b></li>').join('') + '</ol>' +
@@ -396,6 +437,9 @@ const GAMES = {
 const DIFF = { E: 'Easy', N: 'Normal', H: 'Hard' };
 const MAX = { speed: 400, streak: 600, tf: 600, board: 60000, boss: 3000, match: 3600, memory: 999, typing: 10 };
 function check(s) { let h = 2166136261; const t = s + '|fbrtp-live'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }
+function readBlob(code) {
+  try { const [body, k] = String(code).split('.'); if (check(body) !== k) return null; return JSON.parse(decodeURIComponent(escape(atob(body.replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return null; }
+}
 function readCode(code) {
   try {
     const [body, k] = code.split('.'); if (check(body) !== k) return null;
@@ -420,13 +464,16 @@ async function postScore(code, msg) {
     const name = $('nick').value.trim().replace(/\s+/g, ' ').slice(0, 16);
     if (name.length < 2) return postScore(code, 'Use at least 2 characters.');
     store.set('nick', name);
-    const entry = { name, s: j.s, t: api.TS, u: api.uid };
+    const rep = params.get('rep') ? readBlob(params.get('rep')) : null;
+    const entry = { name, s: j.s, t: api.TS, u: api.uid }; if (rep && rep.r) entry.r = String(rep.r).slice(0, 20);
     const k = j.g + '_' + j.d;
     try {
       await api.set('lb/' + j.ch + '/' + k + '/all/' + j.key, entry);
       await api.set('lb/' + j.ch + '/' + k + '/w' + weekKey(j.t) + '/' + j.key, entry);
     } catch (err) { return postScore(code, 'Could not post that score. It may already be on the board.'); }
     posted[j.key] = 1; store.set('posted', posted);
+    if (rep) { try { await SQ.report(rep, true); } catch (x) {} }
+    try { const wk = await api.top('lb/' + j.ch + '/' + k + '/w' + weekKey(j.t), 25, !!G[2]); const at = wk.findIndex((r) => r.k === j.key); if (at >= 0) await SQ.scoreFeed(G[0] + ' (' + DIFF[j.d] + ')', at + 1); } catch (x) {}
     boards(j.ch, j.g, j.d, 'Posted.', j.key);
   };
 }
@@ -444,7 +491,7 @@ async function boards(ch, game, diff, note, mineKey) {
       '<div class="chips" id="lbg">' + Object.keys(GAMES).map((x) => '<button class="chip' + (x === game ? ' on' : '') + '" data-g="' + x + '">' + GAMES[x][0] + '</button>').join('') + '</div>' +
       '<div class="seg" id="lbd">' + Object.keys(DIFF).map((x) => '<button class="' + (x === diff ? 'on' : '') + '" data-d="' + x + '">' + DIFF[x] + '</button>').join('') + '</div>' +
       '<div class="seg" id="lbp"><button class="' + (period === 'w' ? 'on' : '') + '" data-p="w">This week</button><button class="' + (period === 'a' ? 'on' : '') + '" data-p="a">All time</button></div>' +
-      (rows.length ? '<ol class="lb all">' + rows.map((r) => '<li class="' + (r.k === mineKey || r.u === api.uid ? 'me' : '') + '"><span>' + esc(r.name) + '</span><b>' + fmt(r.s) + ' <small>' + esc(G[1]) + '</small></b></li>').join('') + '</ol>' : '<p class="small">No scores yet. Finish ' + esc(G[0]) + ' on ' + DIFF[diff] + ' in the study hub and tap Post score.</p>') +
+      (rows.length ? '<ol class="lb all">' + rows.map((r) => '<li class="' + (r.k === mineKey || r.u === api.uid ? 'me' : '') + '"><span>' + esc(r.name) + (r.r ? ' <em class="rk">' + esc(r.r) + '</em>' : '') + '</span><b>' + fmt(r.s) + ' <small>' + esc(G[1]) + '</small></b></li>').join('') + '</ol>' : '<p class="small">No scores yet. Finish ' + esc(G[0]) + ' on ' + DIFF[diff] + ' in the study hub and tap Post score.</p>') +
       hubBtn() + '<p class="small"><a href="./' + (MOCK ? '?mock' : '') + '">Join a game</a> · <a href="?host' + MQ + '">Host a game</a></p></section>');
     if ($('lbc')) $('lbc').onchange = () => { ch = $('lbc').value; note = ''; draw(); };
     $('lbg').onclick = (e) => { const c = e.target.closest('.chip'); if (c) { game = c.dataset.g; note = ''; draw(); } };
@@ -458,6 +505,13 @@ async function boards(ch, game, diff, note, mineKey) {
 (async function start() {
   try { if (CFG.siteName) document.title = CFG.siteName; } catch (e) {}
   setHub(params.get('ch'));
+  SQ.init(CTX);
+  if (params.get('id')) { try { await ready(); await SQ.fromLink(); } catch (e) {} }
+  if (params.get('report')) { const j = readBlob(params.get('report')); if (!j) return view('<section class="card center"><h1>That report link is broken</h1><p>Go back to the study hub and tap Report in again.</p></section>'); try { await ready(); } catch (e) { return view(notReady(e)); } setHub(j.ch); return SQ.report(j); }
+  if (params.has('tv')) return SQ.tvPage();
+  if (params.has('squads')) return SQ.squadsPage();
+  if (params.get('squad')) return SQ.squadPage(params.get('squad'));
+  if (params.has('squadboard')) return SQ.boardPage();
   if (params.get('post')) return postScore(params.get('post'));
   if (params.has('boards')) return boards();
   if (params.has('host')) return hostSetup();
