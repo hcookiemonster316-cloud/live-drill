@@ -405,7 +405,7 @@ const myTokens = () => ['o' + (S.outfit || 'std')].concat(Object.values(S.gear |
 // gear that changes how you look: hats swap the kit's cover; the rest is drawn on top
 function kitWith(kit, L) { if (!L.hat && !L.boots && !L.camelbak) return kit; const k = Object.assign({}, kit); if (L.hat && !(k.shorts)) { k.hat = L.hat; k.hatCol = L.hatCol; } if (L.boots) k.boots = L.boots; if (L.camelbak) k.camelbak = true; return k; }
 function flair(L, sx, sy, now, s) {
-  if (L.twinkle && !L.shine) { const k = ((now + sx * 37) % 3200) / 3200; if (k < .14) { const a = k / .14, r = (1 - Math.abs(a * 2 - 1)) * 5 * s; ctx.save(); ctx.translate(sx + (a < .5 ? -3 : 3) * s, sy - 1); ctx.fillStyle = '#ffffff'; ctx.globalAlpha = .95; ctx.beginPath(); for (let i = 0; i < 8; i++) { const ang = i * Math.PI / 4, rr = i % 2 ? r * .25 : r; ctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr); } ctx.closePath(); ctx.fill(); ctx.restore(); } }
+  if (L.twinkle && !L.shine) { const k = (((now + sx * 37) % 3200) + 3200) % 3200 / 3200; if (k < .14) { const a = k / .14, r = (1 - Math.abs(a * 2 - 1)) * 5 * s; ctx.save(); ctx.translate(sx + (a < .5 ? -3 : 3) * s, sy - 1); ctx.fillStyle = '#ffffff'; ctx.globalAlpha = .95; ctx.beginPath(); for (let i = 0; i < 8; i++) { const ang = i * Math.PI / 4, rr = i % 2 ? r * .25 : r; ctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr); } ctx.closePath(); ctx.fill(); ctx.restore(); } }
   if (L.shine) for (let k = 0; k < L.shine; k++) { const a = now / 300 + k * 2.1; sparkle(sx + Math.cos(a) * 7 * s, sy - 2 + Math.sin(a * 1.3) * 2, now + k * 200, '#ffffff'); }
   if (L.vest) { ctx.fillStyle = 'rgba(214,255,58,.9)'; ctx.beginPath(); ctx.roundRect(sx - 9 * s, sy - 25 * s, 18 * s, 16 * s, 3 * s); ctx.fill(); ctx.fillStyle = '#c0c0c0'; ctx.fillRect(sx - 9 * s, sy - 17 * s, 18 * s, 2 * s); }
   if (L.cord) { ctx.strokeStyle = L.cord; ctx.lineWidth = 1.6 * s; ctx.beginPath(); ctx.moveTo(sx - 6 * s, sy - 23 * s); ctx.quadraticCurveTo(sx - 9 * s, sy - 17 * s, sx - 5 * s, sy - 15 * s); ctx.stroke(); }
@@ -509,28 +509,6 @@ function regsDraw(list, vis, now) {
   });
 }
 const hearts = (f) => '<span class="hearts">' + [1, 2, 3, 4, 5, 6].map((k) => '<i class="' + (k <= f ? 'on' : '') + '">★</i>').join('') + '</span>';
-function npcTalk(r) {
-  const n = r.n, f = S.npc[n.id] || 0, first = !talkedNow[n.id]; talkedNow[n.id] = talkedNow[n.id] || 1;
-  const line = n.lines[(f + (S.calls || 0)) % n.lines.length];
-  const tier = f >= 6 ? 'Best friends' : f >= 3 ? 'Friend' : f >= 1 ? 'Knows your name' : 'Stranger';
-  openModal('<div class="npcHead"><span class="npcIco">' + n.icon + '</span><div><b>' + esc(n.name) + '</b><small>' + esc(n.role) + (n.gen ? '' : ' · ' + esc(W.D.name)) + '</small>' + hearts(f) + '<em>' + tier + '</em></div></div><p class="npcLine">' + esc(line) + '</p>' +
-    '<div class="qAct">' + (talkedNow[n.id] === 2 ? '' : '<button type="button" id="npHelp">' + (n.cat ? 'Earn its respect' : 'Help ' + esc(n.name.split(' ')[0]) + ' out') + '</button>') + '<button type="button" class="ghost" id="npBye">' + (n.cat ? 'Back away slowly' : 'Talk later') + '</button></div>');
-  if (first) award(2, 'small talk');
-  $('npBye').onclick = closeModal;
-  if ($('npHelp')) $('npHelp').onclick = () => {
-    const les = W.D.lessons.indexOf(n.help) >= 0 ? n.help : rnd(W.D.lessons), qs = L.pick(S, [les], 'q', 1);
-    runQuestions('<div class="npcHead small"><span class="npcIco">' + n.icon + '</span><div><b>' + esc(n.name) + ' has a question</b><small>' + (n.cat ? 'The cat waits. Answer correctly.' : 'Get it right and they will remember you.') + '</small></div></div>', qs, (res) => {
-      talkedNow[n.id] = 2;
-      if (res.right) { ord('regular'); stat('helped');
-        const nf = Math.min(6, f + 1); S.npc[n.id] = nf; saveS();
-        closeModal(); award(Math.round(15 * rapMult() * (1 + gp('rpCit') / 100)), n.name + ' remembers that');
-        if (nf === 3 && f < 3) { banner(n.icon, n.name + ' is your friend now', 'They have something for you.'); queueLoot('A gift from ' + n.name, 1, 'u'); }
-        else if (nf === 6 && f < 6) { banner(n.icon, 'Best friends with ' + n.name, 'They saved the good stuff for you.'); queueLoot('A gift from ' + n.name, 1, 'e'); }
-      } else { closeModal(); toast(n.cat ? 'The cat looks unimpressed and licks a paw.' : '"No worries, cadet. Look it up and come back tomorrow."'); award(3, 'gave it a shot'); }
-    });
-  };
-}
-
 // ---------- going inside buildings ----------
 function doorSpot(l) { if (l.bld) return [l.bld.x + l.bld.w / 2, l.bld.y + l.bld.d + .05]; const b = W.buildings.find((b2) => b2.x >= l.ox && b2.x <= l.ox + 8 && b2.y >= l.oy && b2.y <= l.oy + 8); if (!b) return [l.door[0] + .5, l.door[1] - .2]; return [b.x + b.w / 2, b.y + b.d + .05]; }
 function doorMarks(list, vis, now) {
@@ -627,28 +605,68 @@ function applyChoice(o) {
   if (o.npc) Object.keys(o.npc).forEach((id) => { S.npc[id] = Math.max(0, Math.min(6, (S.npc[id] || 0) + o.npc[id])); });
   saveS();
 }
-function dialogue(lines, done) {
-  const box = $('dlg'); let seq = lines.slice(), i = -1, typing = null, full = '';
-  const who = (id) => CAST[id] || NPCS.find((n) => n.id === id) || { name: id, icon: '💬', role: '' };
+// ---------- cinematic scenes ----------
+// dialogue(lines, done, opts) plays a letterboxed scene over the live world. Line types:
+//   [speakerId, text, cond?]      a spoken line (speaker from CAST, NPCS or TEMP); '(over the radio)' marks radio
+//   ['narr', text]                narration, no portrait
+//   ['choice', [{ t, reply, ... }]] the player chooses; each option can set flags, trust and friendships
+//   ['q', question, speakerId]    a chapter question asked inside the scene; the speaker reacts to the answer
+//   ['fx', fn]                    run something mid-scene
+// opts: { focus: [x, y], zoom, kicker } frames the camera on the scene and labels it.
+const TEMP = {};
+const PRAISE = ['Exactly right.', 'That\'s it, by the book.', 'Good. That\'s how it\'s done.', 'Right answer. You were listening in class.', 'Correct. Nice.'];
+const CORRECT = ['Not quite. Here\'s how it actually works:', 'Close, but no. Remember this:', 'Careful. The chapter says otherwise:', 'That\'s not it. For next time:'];
+const CINE = { on: false, x: 0, y: 0, z: 1, z0: 1, back: 0 };
+function cineFocus(x, y, z) { const [ix, iy] = iso(x, y); CINE.on = true; CINE.x = ix; CINE.y = iy - 18; CINE.z0 = CINE.z0 && CINE.back > 0 ? CINE.z0 : cam.z; CINE.z = Math.min(2.2, Math.max(cam.z, z || (innerWidth < 600 ? 1.35 : 1.7))); CINE.back = 0; }
+function cineRelease() { if (!CINE.on) return; CINE.on = false; CINE.back = 1; }
+function cineCam(dt) {
+  if (!S.cfg || S.cfg.motion === false) { if (CINE.on) { cam.x = CINE.x; cam.y = CINE.y; } return; }
+  const k = Math.min(1, dt * 2.6);
+  if (CINE.on) { cam.free = true; cam.x += (CINE.x - cam.x) * k; cam.y += (CINE.y - cam.y) * k; cam.z += (CINE.z - cam.z) * k; }
+  else if (CINE.back > 0) { cam.z += (CINE.z0 - cam.z) * k; CINE.back -= dt * 1.2; if (CINE.back <= 0) { cam.z = CINE.z0; cam.free = false; CINE.z0 = 0; } }
+}
+function scoreAnswer(q, ans) {
+  const ok = L.isRight(q, ans); L.record(S, q, ok); SS.answered++;
+  if (ok) { SS.right++; stat('right'); S.bestCombo = Math.max(S.bestCombo || 0, COMBO + 1); COMBO++; bestCombo = Math.max(bestCombo, COMBO); ord('right'); if (COMBO === 5) ord('streak'); good(); } else { COMBO = 0; bad(); }
+  comboHud(); return ok;
+}
+function dialogue(lines, done, opts) {
+  opts = opts || {}; const box = $('dlg'); let seq = lines.slice(), i = -1, typing = null, full = '';
+  const res = { right: 0, n: 0, choices: [] };
+  const who = (id) => TEMP[id] || CAST[id] || NPCS.find((n) => n.id === id) || { name: id, icon: '💬', role: '' };
+  const kick = opts.kicker ? '<div class="dlgKick">' + esc(opts.kicker) + '</div>' : '';
   const next = () => { do { i++; } while (i < seq.length && !condOk(seq[i])); if (i < seq.length) show(); else end(); };
+  const frame = (inner, cls) => { box.innerHTML = '<div class="dlgBar top">' + kick + '</div><div class="dlgBar bot"></div><div class="dlgPanel' + (cls || '') + '">' + inner + '</div>'; box.hidden = false; requestAnimationFrame(() => box.classList.add('on')); };
   const show = () => {
     const ln = seq[i];
+    if (ln[0] === 'fx') { try { ln[1](res); } catch (e) {} return next(); }
     if (ln[0] === 'choice') {
-      const opts = ln[1];
-      box.innerHTML = '<div class="dlgBar top"></div><div class="dlgBar bot"></div><div class="dlgPanel dlgChoice"><div class="dlgTxt"><b>Your call</b><small>What do you do?</small><div class="dlgOpts">' + opts.map((o, k) => '<button type="button" data-k="' + k + '">' + esc(o.t) + '</button>').join('') + '</div></div></div>';
-      box.hidden = false; requestAnimationFrame(() => box.classList.add('on')); box.onclick = null;
-      box.querySelectorAll('[data-k]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const o = opts[+b.dataset.k]; applyChoice(o); beep(660, .08, 'triangle', .04); seq.splice(i + 1, 0, ...(o.reply || [])); box.onclick = click; next(); });
+      const opts2 = ln[1];
+      frame('<div class="dlgTxt"><b>Your call</b><small>' + esc(ln[2] || 'What do you do?') + '</small><div class="dlgOpts">' + opts2.map((o, k) => '<button type="button" data-k="' + k + '"><span class="kk">' + (k + 1) + '</span>' + esc(o.t) + '</button>').join('') + '</div></div>', ' dlgChoice'); box.onclick = null;
+      box.querySelectorAll('[data-k]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const o = opts2[+b.dataset.k]; res.choices.push(o); applyChoice(o); beep(660, .08, 'triangle', .04); if (o.fx) { try { o.fx(res); } catch (er) {} } seq.splice(i + 1, 0, ...(o.reply || [])); box.onclick = click; next(); });
       return;
     }
-    const [id, text] = ln, c = who(id), radio = /^\(over the radio\)/.test(text); full = text.replace(/^\(over the radio\)\s*/, '');
-    box.innerHTML = '<div class="dlgBar top"></div><div class="dlgBar bot"></div><div class="dlgPanel"><div class="dlgPort' + (radio ? ' radio' : '') + '"><span>' + (radio ? '📻' : c.icon) + '</span></div><div class="dlgTxt"><b>' + esc(c.name) + (radio ? ' <em>on the radio</em>' : '') + '</b><small>' + esc(c.role || '') + '</small><p id="dlgP"></p></div><i class="dlgNext">▸</i></div>';
-    box.hidden = false; requestAnimationFrame(() => box.classList.add('on'));
+    if (ln[0] === 'q') {
+      const q = ln[1], sp = ln[2] || 'castillo', c = who(sp); let picked = []; window.__curQ = q;
+      frame('<div class="dlgPort"><span>' + c.icon + '</span></div><div class="dlgTxt"><b>' + esc(c.name) + '</b><small>' + esc(L.lessonName(q.les != null ? q.les : W.D.lessons[0]) || '') + '</small><p class="dlgQ">' + esc(q.stem) + '</p>' + (q.multi ? '<em class="dlgHint">Select all that apply, then confirm.</em>' : '') + '<div class="dlgOpts q">' + q.opts.map((o, k) => '<button type="button" data-k="' + k + '"><span class="kk">' + 'ABCDEF'[k] + '</span>' + esc(o) + '</button>').join('') + '</div>' + (q.multi ? '<div class="dlgConfirm"><button type="button" id="dlgOk" disabled>Confirm</button></div>' : '') + '</div>', ' dlgChoice dlgQuiz'); box.onclick = null;
+      const finish = () => { const ans = q.multi ? picked.slice() : picked[0], ok = scoreAnswer(q, ans); res.n++; if (ok) res.right++;
+        box.querySelectorAll('[data-k]').forEach((b) => { const k = +b.dataset.k, isC = q.multi ? q.c.indexOf(k) >= 0 : k === q.c; b.disabled = true; b.classList.add(isC ? 'ok' : picked.indexOf(k) >= 0 ? 'no' : 'dim'); });
+        const fact = (q.fact || q.ex || '').trim(); setTimeout(() => { seq.splice(i + 1, 0, [sp, (ok ? rnd(PRAISE) : rnd(CORRECT)) + (fact ? ' ' + fact : ''), { quiz: ok ? 'ok' : 'no' }]); box.onclick = click; next(); }, 750); };
+      box.querySelectorAll('[data-k]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const k = +b.dataset.k; if (q.multi) { const at = picked.indexOf(k); if (at >= 0) picked.splice(at, 1); else picked.push(k); b.classList.toggle('sel'); $('dlgOk').disabled = !picked.length; } else { picked = [k]; finish(); } });
+      if (q.multi) $('dlgOk').onclick = (e) => { e.stopPropagation(); if (picked.length) finish(); };
+      return;
+    }
+    const narr = ln[0] === 'narr', id = narr ? '' : ln[0], text = narr ? ln[1] : ln[1], c = narr ? null : who(id), radio = !narr && /^\(over the radio\)/.test(text), mood = ln[2] && ln[2].quiz;
+    full = text.replace(/^\(over the radio\)\s*/, '');
+    frame(narr ? '<div class="dlgTxt narr"><p id="dlgP"></p></div><i class="dlgNext">▸</i>' : '<div class="dlgPort' + (radio ? ' radio' : '') + (mood ? ' ' + mood : '') + '"><span>' + (radio ? '📻' : c.icon) + '</span></div><div class="dlgTxt"><b>' + esc(c.name) + (radio ? ' <em>on the radio</em>' : '') + '</b><small>' + esc(c.role || '') + '</small><p id="dlgP"></p></div><i class="dlgNext">▸</i>', narr ? ' dlgNarr' : '');
     const spd = { slow: 1, normal: 2, fast: 4, instant: 999 }[S.cfg.text] || 2; let k = 0; const el = $('dlgP'); clearInterval(typing); typing = setInterval(() => { k += spd; el.textContent = full.slice(0, k); if (k >= full.length) { clearInterval(typing); typing = null; } }, 22);
-    if (radio) chirp(); else if (S.sound) beep(520 + (id.length * 37) % 300, .05, 'triangle', .025);
+    if (radio) chirp(); else if (!narr && S.sound) beep(520 + (id.length * 37) % 300, .05, 'triangle', .025);
   };
-  document.body.classList.add('cine');
-  const end = () => { document.body.classList.remove('cine'); box.classList.remove('on'); setTimeout(() => { if (!box.classList.contains('on')) { box.hidden = true; box.innerHTML = ''; } }, 250); box.onclick = null; done && done(); };
+  document.body.classList.add('cine'); if (opts.focus) cineFocus(opts.focus[0], opts.focus[1], opts.zoom);
+  const end = () => { document.body.classList.remove('cine'); box.classList.remove('on'); if (opts.focus) cineRelease(); setTimeout(() => { if (!box.classList.contains('on')) { box.hidden = true; box.innerHTML = ''; } }, 250); box.onclick = null; removeEventListener('keydown', keys); done && done(res); };
   const click = () => { if (typing) { clearInterval(typing); typing = null; $('dlgP').textContent = full; return; } next(); };
+  const keys = (e) => { if (box.hidden) return; const b = box.querySelector('[data-k="' + (parseInt(e.key, 10) - 1) + '"]') || (/^[a-f]$/i.test(e.key) ? box.querySelector('.dlgOpts.q [data-k="' + ('abcdef'.indexOf(e.key.toLowerCase())) + '"]') : null); if (b && !b.disabled) { b.click(); e.preventDefault(); return; } if ((e.key === ' ' || e.key === 'Enter') && box.onclick) { e.preventDefault(); click(); } };
+  addEventListener('keydown', keys);
   box.onclick = click;
   next();
 }
@@ -660,15 +678,16 @@ function playStep(st) {
     if (last) (A.side ? sideDone(c) : chapterDone(c)); else { const nx = chStep(); if (nx) objectiveFlash(nx.goal); }
   };
   const afterQuiz = () => { if (st.after) dialogue(st.after, finish); else finish(); };
+  const tg = stepTarget();
   dialogue(st.say || [], () => {
     if (!st.quiz) return afterQuiz();
-    paused = false; const qs = L.pick(S, [W.D.lessons.indexOf(st.quiz.les) >= 0 ? st.quiz.les : rnd(W.D.lessons)], 'q', st.quiz.n || 2), w = CAST[st.who] || NPCS.find((n) => n.id === st.who) || {};
-    runQuestions('<div class="npcHead small"><span class="npcIco">' + (w.icon || '🎖️') + '</span><div><b>' + esc(c.title) + '</b><small>' + esc(st.goal) + '</small></div></div>', qs, (r) => {
-      closeModal(); paused = true; award(r.right * 20, 'story');
+    const qs = L.pick(S, [W.D.lessons.indexOf(st.quiz.les) >= 0 ? st.quiz.les : rnd(W.D.lessons)], 'q', st.quiz.n || 2), sp = st.who || 'castillo';
+    dialogue(qs.map((q, k) => ['q', q, k % 2 && st.who !== 'castillo' ? 'castillo' : sp]), (r) => {
+      paused = true; award(r.right * 20, 'story');
       if (r.right < Math.ceil(qs.length / 2)) { dialogue([[st.who || 'castillo', r.right ? 'Close, but not by the book yet. Think it through and try me again.' : 'Not quite. Review it, then come back and we will run it again.']], () => { storyBusy = false; paused = false; storyCool = 4; }); return; }
       afterQuiz();
     });
-  });
+  }, { focus: tg ? [tg.x, tg.y] : [P.x, P.y], kicker: (A.side ? 'SIDE CASE · ' : '') + c.title.toUpperCase() });
 }
 function chapterDone(c) {
   const rw = c.steps[c.steps.length - 1].reward || {}; S.lore['ch' + c.d] = 1; saveS();
@@ -882,7 +901,11 @@ function tap(px, py) {
   if (pcar && !P.inCar && !P.boat && near(pcar.x, pcar.y, 34)) return reach(pcar.x, pcar.y, enterCar);
   if (inside) {
     if (near(W.door[0], W.door[1], 30)) return reach(W.door[0], W.door[1] - .6, exitBuilding);
-    for (const st of W.staff) if (near(st.x, st.y, 30)) return reach(st.x, st.y + 1, () => { if (st.npc) return npcTalk({ n: st.npc }); const L2 = STAFF_LINES(W.key); toast(L2[Math.floor(Math.random() * L2.length)]); if (!st.talked) { st.talked = true; award(3, 'small talk'); } });
+    for (const st of W.staff) if (near(st.x, st.y, 30)) return reach(st.x, st.y + 1, () => { if (st.npc) return npcTalk({ n: st.npc, x: st.x, y: st.y }); const L2 = STAFF_LINES(W.key), id = sayAs('staff', { name: st.name || 'Staff', icon: st.icon || '🙂', role: st.role || W.name }); if (!st.talked) { st.talked = true; award(3, 'small talk'); }
+      dialogue([[id, L2[Math.floor(Math.random() * L2.length)]], ['choice', [
+        { t: 'Anything I should know about this place?', reply: [[id, W.blurb || 'Not much to tell. We keep it running, that\'s all.']] },
+        { t: 'Mind if I take a look around?', reply: [[id, 'Go right ahead, officer. Just don\'t touch the coffee machine. It\'s temperamental.']], fx: () => { const sc = (W.secrets || []).find((x) => !S.found[x.id]); if (sc) PINGS.push({ x: sc.x, y: sc.y, t: performance.now(), c: '#a855f7' }); } },
+        { t: 'Thanks. Have a good shift.', reply: [[id, 'You too. Stay safe.']] }]]], null, { focus: [st.x, st.y], kicker: (W.name || '').toUpperCase() }); });
   } else if (!P.inCar && !P.boat) {
     for (const l of W.lots) { if (!ENTER[l.kind] || Math.hypot(l.door[0] + .5 - P.x, l.door[1] - P.y) > 9) continue; const [dx, dy] = doorSpot(l); if (near(dx, dy, 26)) return reach(dx, dy + .7, () => enterBuilding(l)); }
   }
@@ -998,43 +1021,104 @@ function consequence(eff, c) {
   if (eff === 'observe' && Math.random() < .5) setTimeout(() => queueLoot('Spotted while you watched: dropped by the subject', 1, 'c'), 1200);
 }
 const APPROACH_BONUS = { quiet: 1.25, smart: 1.2, neighbors: 1.1, observe: 1.2, loud: .9, front: .85, direct: 1, contact: .95 };
-function openCallScene(c) {
-  const a = Math.random() < .65 ? approachFor(c.les) : null;
-  if (a) { paused = true; LASTCHOICE = null; return dialogue([['velvet', '(over the radio) ' + c.title + ', ' + c.where + '. ' + a.q], ['choice', a.opts]], () => { paused = false; const eff = LASTCHOICE && LASTCHOICE.eff; c.eff = eff; consequence(eff, c); openCallSceneQ(c); }); }
-  openCallSceneQ(c);
+// ---------- every interaction is a scene with choices ----------
+const sayAs = (id, o) => { TEMP[id] = { name: o.name, icon: o.icon || '💬', role: o.role || '' }; return id; };
+const CALLER = [['Caller', '📞'], ['Witness', '👀'], ['Neighbor', '🏠'], ['Store clerk', '🧾'], ['Resident', '🚪']];
+function sceneEnd(kind, x, y) { stat('scenes'); }
+// regulars: a conversation with real options, not a menu
+function npcTalk(r) {
+  const n = r.n, f = S.npc[n.id] || 0, first = !talkedNow[n.id]; talkedNow[n.id] = talkedNow[n.id] || 1;
+  const id = NPCS.find((x) => x.id === n.id) ? n.id : sayAs('reg_' + n.id, { name: n.name, icon: n.icon, role: n.role });
+  const tier = f >= 6 ? 'best friends' : f >= 3 ? 'friends' : f >= 1 ? 'knows your name' : 'stranger';
+  const line = n.lines[(f + (S.calls || 0)) % n.lines.length], helped = talkedNow[n.id] === 2;
+  if (first) award(2, 'small talk');
+  const help = () => { const les = W.D.lessons.indexOf(n.help) >= 0 ? n.help : rnd(W.D.lessons), q = L.pick(S, [les], 'q', 1)[0];
+    return [[id, n.cat ? '(The cat stares at you, waiting for the correct answer.)' : rnd(['Since you asked. Settle something for me.', 'Okay, cadet. Quick one, I\'ve been wondering about this.', 'You\'re the expert. Tell me this:'])], ['q', q, id],
+      ['fx', (res) => { talkedNow[n.id] = 2; if (res.right) { ord('regular'); stat('helped'); const nf = Math.min(6, f + 1); S.npc[n.id] = nf; saveS(); award(Math.round(15 * rapMult() * (1 + gp('rpCit') / 100)), n.name + ' remembers that'); if (nf === 3 && f < 3) setTimeout(() => { banner(n.icon, n.name + ' is your friend now', 'They have something for you.'); queueLoot('A gift from ' + n.name, 1, 'u'); }, 600); else if (nf === 6 && f < 6) setTimeout(() => { banner(n.icon, 'Best friends with ' + n.name, 'They saved the good stuff for you.'); queueLoot('A gift from ' + n.name, 1, 'e'); }, 600); } else award(3, 'gave it a shot'); }]]; };
+  const tip = () => { const sec = (W.secrets || []).filter((x) => !S.found[x.id]).sort((a, b) => Math.hypot(a.x - P.x, a.y - P.y) - Math.hypot(b.x - P.x, b.y - P.y))[0];
+    if (f >= 1 && sec) return [[id, 'Between you and me? People keep poking around near ' + (nearestLotTo(sec.x, sec.y) || 'the old lot') + '. Never found out why.'], ['fx', () => { PINGS.push({ x: sec.x, y: sec.y, t: performance.now(), c: '#a855f7' }); stat('tips'); }]];
+    if (f >= 1) return [[id, 'Something felt off over that way, earlier. Might be nothing.'], ['fx', () => { const o = newObserve(); observes.push(o); o.seen = true; PINGS.push({ x: o.x, y: o.y, t: performance.now(), c: '#a855f7' }); stat('tips'); }]];
+    return [[id, 'I don\'t really know you yet, cadet. Maybe next time.']]; };
+  const opts = [{ t: n.cat ? 'Crouch down and say hello' : 'How\'s it going today?', reply: [[id, line]], fx: () => { if (f < 1 && !n.cat && Math.random() < .5) { S.npc[n.id] = Math.max(S.npc[n.id] || 0, 1); saveS(); } } }];
+  if (!helped) opts.push({ t: n.cat ? 'Offer an answer to the silent question' : 'Anything I can help you with?', reply: help() });
+  if (!n.cat) opts.push({ t: 'Seen anything unusual around here?', reply: tip() });
+  opts.push({ t: n.cat ? 'Back away slowly' : 'Take care. I\'ll check on you later.', reply: [[id, n.cat ? '(The cat blinks once. You have been dismissed.)' : rnd(['Stay safe out there, cadet.', 'You too, officer. Well, almost-officer.', 'See you around.'])]] });
+  dialogue([[id, n.cat ? '(Exhibit A regards you from a sunny spot.)' : f >= 3 ? rnd(['There\'s my favorite cadet!', 'Hey, you! Come here, come here.', 'Look who it is.']) : f >= 1 ? rnd(['Oh, hey. Back again?', 'Cadet! Good to see you.']) : rnd(['Can I help you, officer?', 'Oh! Hello there.', 'Afternoon, officer.'])], ['choice', opts, 'You and ' + n.name.split(' ')[0] + ' are ' + tier + '.']], () => sceneEnd('npc'), { focus: [r.x || P.x, r.y || P.y], kicker: n.name.toUpperCase() + ' · ' + (n.role || '').toUpperCase() });
 }
+function nearestLotTo(x, y) { let best = null, bd = 1e9; (inside ? inside.O.W : W).lots.forEach((l) => { if (!l.name) return; const d = Math.hypot(l.door[0] - x, l.door[1] - y); if (d < bd) { bd = d; best = l.name; } }); return best; }
+// calls: dispatch, arrival, your approach, the people on scene, then how you wrap it up
+function openCallScene(c) { openCallSceneQ(c); }
 function openCallSceneQ(c) {
-  if (net) net.status('call');
-  const n = c.prio === 1 ? 4 : 3, qs = L.pick(S, [c.les], 'q', n), fast = clock - c.t0 < 40;
-  runQuestions('<div class="sceneHead p' + c.prio + '"><b>ON SCENE · ' + esc(c.where) + '</b><h2>' + esc(c.title) + '</h2><p>' + esc(c.text) + '</p></div>', qs, (r) => {
-    S.calls++; SS.calls++; stat('p' + c.prio); if (inside) stat('inCall'); if (NIGHT) stat('nightCalls'); const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 && hasSk('tac2') ? 1.15 : 1) * (c.prio === 1 && hasSk('tac4') ? 1.25 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM, xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
-    openModal('<div class="sceneHead done"><b>CALL CLEARED</b><h2>' + r.right + ' of ' + r.n + ' handled by the book</h2><p>' + (fast ? 'Quick response bonus. ' : '') + (mult > 1.01 ? U().icon + ' ' + esc(U().perk) + ' bonus. ' : '') + (r.right === r.n ? 'Clean call. ' : 'Review what you missed in the hub.') + '</p></div>' + masteryLine() + '<div class="qAct"><button type="button" id="mDone">Back in service</button></div>');
+  if (net) net.status('call'); paused = true;
+  const n = c.prio === 1 ? 4 : 3, qs = L.pick(S, [c.les], 'q', n), fast = clock - c.t0 < 40, a = approachFor(c.les), cl = rnd(CALLER), cid = sayAs('caller', { name: cl[0], icon: cl[1], role: c.where });
+  const lines = [['narr', c.title + '. ' + c.where + '.'], ['velvet', '(over the radio) ' + S.cs + ', you\'re on scene. ' + c.text]];
+  if (a) lines.push(['choice', a.opts, a.q]);
+  lines.push([cid, rnd(['Officer! Over here. Thank goodness.', 'You got here fast. Okay, here\'s what happened.', 'I\'m the one who called. It\'s been a whole thing.', 'Finally. Let me tell you what I saw.'])]);
+  qs.forEach((q, k) => { lines.push(['q', q, k % 2 ? 'castillo' : cid]); if (k === 0 && qs.length > 2) lines.push(['choice', [
+    { t: 'Keep the scene calm and explain each step', eff2: 'calm', trust: 1, reply: [[cid, 'Okay. Okay, thank you for telling me what\'s happening.']] },
+    { t: 'Stay focused and keep it brief', eff2: 'brief', reply: [[cid, 'Sure. Right. Whatever you need.']] },
+    { t: 'Ask if anyone else saw what happened', eff2: 'canvass', reply: [[cid, 'The lady in the blue house was outside. She might know more.']], fx: () => { const z = newCitizen(); z.les = c.les; citizens.push(z); } }], 'Everyone is watching how you handle this.']); });
+  lines.push(['choice', [
+    { t: 'Give them a case number and your contact info', trust: 1, reply: [[cid, 'A case number. Okay. I feel better knowing someone wrote it down.']], fx: () => { c.wrap = 'case'; } },
+    { t: 'Point them to resources that can help next time', reply: [[cid, 'I didn\'t know half of that existed. Thank you.']], fx: () => { c.wrap = 'resources'; } },
+    { t: 'Clear the scene and get back in service', reply: [[cid, 'Oh. Okay. Bye, then.']], fx: () => { c.wrap = 'quick'; nextCall = Math.max(8, nextCall - 10); } }], 'How do you wrap it up?']);
+  dialogue(lines, (res) => {
+    paused = false; const eff = (res.choices.find((o) => o.eff) || {}).eff; c.eff = eff; if (eff) consequence(eff, c);
+    const r = { right: res.right, n: res.n };
+    S.calls++; SS.calls++; stat('p' + c.prio); if (inside) stat('inCall'); if (NIGHT) stat('nightCalls'); const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 && hasSk('tac2') ? 1.15 : 1) * (c.prio === 1 && hasSk('tac4') ? 1.25 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM, xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0) + (c.wrap === 'case' || c.wrap === 'resources' ? 10 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
+    openModal('<div class="sceneHead done"><b>CALL CLEARED</b><h2>' + r.right + ' of ' + r.n + ' handled by the book</h2><p>' + (fast ? 'Quick response bonus. ' : '') + (mult > 1.01 ? U().icon + ' ' + esc(U().perk) + ' bonus. ' : '') + (c.wrap === 'case' ? 'You left them a case number. ' : c.wrap === 'resources' ? 'You connected them with resources. ' : '') + (r.right === r.n ? 'Clean call. ' : 'Review what you missed in the hub.') + '</p></div>' + masteryLine() + '<div class="qAct"><button type="button" id="mDone">Back in service</button></div>');
     $('mDone').onclick = () => { closeModal(); radio(S.cs, 'Clear, back in service.'); award(xp, 'call cleared'); queueLoot('Found on scene: ' + c.title, r.right === r.n ? .6 : .3); nextCall = (25 + Math.random() * 25) * (S.unit === 'patrol' ? .75 : 1); if (net) net.backup(null); };
-  });
+  }, { focus: [c.x, c.y], kicker: (c.prio === 1 ? 'PRIORITY 1' : c.prio === 2 ? 'PRIORITY 2' : 'ROUTINE') + ' · ' + c.where.toUpperCase() });
 }
 function streetLife(e) {
-  if (e.k === 'music') { const lines = ['The musician nods and plays the academy fight song. There is no academy fight song. He made one up.', 'He takes requests. You request "anything but the PT playlist." He respects that.', 'He plays a slow ballad called "Ode to the Gig Line." It hits different.']; toast(lines[Math.floor(Math.random() * lines.length)]); if (!e.tipped) { e.tipped = true; award(5, 'community morale'); } }
-  if (e.k === 'truck') { const lines = ['"Officer! First taco is on the house." You politely pay anyway. Integrity is a lifestyle.', 'The owner asks if you are a real cop. You say "In training." She gives you extra salsa for honesty.', 'The line is twelve people deep. Eleven are from the fire station.']; toast(lines[Math.floor(Math.random() * lines.length)]); if (!e.tipped) { e.tipped = true; award(5, 'community morale'); queueLoot(e.name, .35, 'c'); } }
+  if (e.k === 'music') { const id = sayAs('busker', { name: 'Street Musician', icon: '🎸', role: 'Founders Plaza regular' });
+    dialogue([[id, rnd(['Officer! Any requests? I know three songs and one of them is the academy fight song. There is no academy fight song. I made one up.', 'Evening, officer. This next one is called "Ode to the Gig Line."'])], ['choice', [
+      { t: 'Drop a dollar in the case', reply: [[id, 'A patron of the arts! This one\'s for you.']], fx: () => { if (!e.tipped) { e.tipped = true; award(8, 'community morale'); } } },
+      { t: 'Request "anything but the PT playlist"', reply: [[id, 'A man of taste. Or woman of taste. Cadet of taste.']], fx: () => { if (!e.tipped) { e.tipped = true; award(5, 'community morale'); } } },
+      { t: 'Remind him about the noise ordinance after 2200', reply: [[id, 'Fair. I\'ll wrap it up by ten. Promise.']], fx: () => { stat('ordinance'); } }]]], null, { focus: [e.x, e.y], kicker: 'STREET LIFE' }); }
+  if (e.k === 'truck') { const id = sayAs('truck', { name: e.name || 'Food Truck', icon: '🌮', role: 'Parked for the shift' });
+    dialogue([[id, rnd(['Officer! First taco is on the house.', 'Hungry? You look hungry. Cadets always look hungry.'])], ['choice', [
+      { t: 'Thank her and pay anyway', trust: 1, reply: [[id, 'Ha! Okay, okay. Extra salsa for the honest one.']], fx: () => { if (!e.tipped) { e.tipped = true; award(6, 'integrity'); queueLoot(e.name, .45, 'c'); } S.flags.paidTruck = Date.now(); } },
+      { t: 'Accept the free taco', reply: [[id, 'Enjoy! Tell your friends.'], ['narr', 'It is a very good taco. Somewhere, Sgt. Castillo frowns and does not know why.']], fx: () => { if (!e.tipped) { e.tipped = true; queueLoot(e.name, .35, 'c'); } S.flags.freeTaco = Date.now(); } },
+      { t: 'Politely decline, you\'re on a call schedule', reply: [[id, 'Next time, then. I\'m here all week.']] }]]], null, { focus: [e.x, e.y], kicker: 'STREET LIFE' }); }
 }
 function citizenTalk(c) {
-  const qs = L.pick(S, [c.les], 'jq', 1);
-  runQuestions('<div class="sceneHead cit"><b>CITIZEN CONTACT</b><h2>"Officer, quick question about something I read..."</h2></div>', qs, (r) => { closeModal(); if (r.right) ord('citizen'); award(Math.round((r.right ? 15 : 5) * rapMult() * (S.unit === 'hoi' ? 1.5 : 1) * (1 + gp('rpCit') / 100)), 'citizen contact'); queueLoot('A thankful citizen hands you something', .15); const i = citizens.indexOf(c); if (i >= 0) citizens[i] = newCitizen(); });
+  const q = L.pick(S, [c.les], 'jq', 1)[0], id = sayAs('cit', { name: rnd(['Curious resident', 'Local business owner', 'Commuter', 'College student', 'Retired teacher']), icon: rnd(['🙋', '🧑‍💼', '🧑‍🎓', '👵', '🧔']), role: 'Has a question' });
+  let rude = false;
+  dialogue([[id, rnd(['Excuse me, officer? Quick question about something I read.', 'Officer, can I ask you something? My cousin says one thing, my neighbor says another.', 'Hi! Settle a bet for me?'])], ['choice', [
+    { t: 'Of course. What\'s on your mind?', trust: 1, reply: [[id, 'Okay, so:']] },
+    { t: 'Sure, but I\'ve only got a minute', reply: [[id, 'I\'ll be quick:']] },
+    { t: 'I\'m busy. Call the non-emergency line', trust: -1, reply: [[id, 'Wow. Okay. I\'ll ask somebody else, I guess.']], fx: () => { rude = true; } }]],
+    ['fx', () => {}]], (res) => {
+    if (rude) { const i0 = citizens.indexOf(c); if (i0 >= 0) citizens[i0] = newCitizen(); radio('Dispatch', 'Complaint line got a call about a short-tempered cadet. Just so you know.'); return; }
+    dialogue([['q', q, id]], (r) => { if (r.right) ord('citizen'); award(Math.round((r.right ? 15 : 5) * rapMult() * (S.unit === 'hoi' ? 1.5 : 1) * (1 + gp('rpCit') / 100)), 'citizen contact'); if (r.right && Math.random() < .35) radio('Dispatch', 'A resident called in to say a cadet was really helpful. Nice work.'); queueLoot('A thankful citizen hands you something', .15); const i0 = citizens.indexOf(c); if (i0 >= 0) citizens[i0] = newCitizen(); }, { focus: [c.x, c.y], kicker: 'CITIZEN CONTACT' });
+  }, { focus: [c.x, c.y], kicker: 'CITIZEN CONTACT' });
 }
 function observeScene(o) {
-  const qs = L.pick(S, [o.les], 'q', 1);
-  runQuestions('<div class="sceneHead obs"><b>SOMETHING\'S OFF</b><h2>' + esc(o.text) + '</h2><p>What does the chapter say?</p></div>', qs, (r) => { closeModal(); award(r.right ? 25 : 5, 'sharp eyes'); queueLoot('Something\'s off: ' + o.text, .25); const i = observes.indexOf(o); if (i >= 0) observes[i] = newObserve(); });
+  const q = L.pick(S, [o.les], 'q', 1)[0];
+  dialogue([['narr', 'Something\'s off. ' + o.text + '.'], ['choice', [
+    { t: 'Hang back and watch a little longer', reply: [['narr', 'You take a minute. Details start to line up.']], fx: () => { o.watch = 1; } },
+    { t: 'Walk up and take a closer look', reply: [['narr', 'Up close, it\'s clearer what you\'re looking at.']] },
+    { t: 'Radio it in before doing anything', reply: [['velvet', '(over the radio) Copy, ' + S.cs + '. Logging it. Let me know what you find.']], fx: () => { o.radioed = 1; } }], 'How do you handle it?'],
+    ['q', q, 'castillo']], (r) => { award(r.right ? 25 + (o.watch ? 5 : 0) + (o.radioed ? 5 : 0) : 5, 'sharp eyes'); queueLoot('Something\'s off: ' + o.text, o.watch ? .4 : .25); const i0 = observes.indexOf(o); if (i0 >= 0) observes[i0] = newObserve(); }, { focus: [o.x, o.y], kicker: 'SOMETHING\'S OFF' });
 }
 function infoPoint(i) {
   if (i.cool > 0) { toast('You checked ' + i.name + ' recently. Come back in a bit.'); return; }
-  const f = L.fact(S, i.les); if (!f) return;
-  openModal('<div class="sceneHead info"><b>' + esc(i.name.toUpperCase()) + ' · ' + esc(L.lessonName(i.les)) + '</b><h2>Know this</h2></div><p class="fact">' + esc(f.text) + ' <em>p. ' + esc(f.pg) + '</em></p><div class="qAct"><button type="button" id="mGo">Got it · quick check</button></div>');
-  $('mGo').onclick = () => { const qs = L.pick(S, [i.les], 'tq', 1); runQuestions('<div class="sceneHead info"><b>QUICK CHECK</b></div>', qs, (r) => { closeModal(); i.cool = S.unit === 'det' ? 60 : 120; ord('study'); award(Math.round((r.right ? 10 : 3) * rapMult() * (S.unit === 'sro' ? 2 : 1) * (1 + gp('rpStudy') / 100)), 'study point'); queueLoot('Left behind at ' + i.name, .1); }); };
+  const f = L.fact(S, i.les); if (!f) return; const q = L.pick(S, [i.les], 'tq', 1)[0];
+  dialogue([['narr', i.name + '. ' + L.lessonName(i.les) + '.'], ['narr', f.text], ['choice', [
+    { t: 'Quiz yourself on it now', reply: [['q', q, 'navarro']] },
+    { t: 'Copy it into your notebook and move on', reply: [['narr', 'You write it down. Neatly. Navarro would be proud.']], fx: () => { award(4, 'notes'); } }], 'Study point']], (r) => { i.cool = S.unit === 'det' ? 60 : 120; ord('study'); if (r.n) award(Math.round((r.right ? 10 : 3) * rapMult() * (S.unit === 'sro' ? 2 : 1) * (1 + gp('rpStudy') / 100)), 'study point'); queueLoot('Left behind at ' + i.name, .1); }, { focus: [i.x, i.y], kicker: 'STUDY POINT · ' + i.name.toUpperCase() });
 }
 function backupScene(uid, o) {
-  const ls = W.D.lessons.indexOf(6) >= 0 ? [6] : W.D.lessons, qs = L.pick(S, ls, 'q', 2);
+  const ls = W.D.lessons.indexOf(6) >= 0 ? [6] : W.D.lessons, qs = L.pick(S, ls, 'q', 2), id = sayAs('mate', { name: o.c, icon: (unitOf(o.u) || {}).icon || '🚓', role: 'Cadet requesting backup' });
   if (net) net.assist(uid); stat('assists'); if (S.squad && others[uid] && others[uid].g === S.squad.code) stat('sqAssist');
-  runQuestions('<div class="sceneHead p2"><b>BACKUP · COVER OFFICER</b><h2>You arrive to back up ' + esc(o.c) + '</h2><p>' + esc(o.b.l || '') + '</p></div>', qs, (r) => { closeModal(); award(20 + r.right * 15, 'backup'); if (net) net.assist(null); });
+  dialogue([[id, '(over the radio) ' + S.cs + ', glad you\'re here. ' + (o.b.l || 'Need a second set of eyes.')], ['choice', [
+    { t: 'Take cover position and watch the hands', reply: [[id, 'Copy, you\'re cover. I\'ll make contact.']] },
+    { t: 'Watch the exits and the crowd', reply: [[id, 'Good call. Eyes out, I\'ve got the subject.']] },
+    { t: 'Ask what they need from you', reply: [[id, 'Just be here. And maybe check this with me:']] }], 'You\'re the cover officer.'],
+    ['q', qs[0], id], ['q', qs[1], 'castillo']], (r) => { award(20 + r.right * 15, 'backup'); if (net) net.assist(null); }, { focus: [o.b.x, o.b.y], kicker: 'BACKUP · COVER OFFICER' });
 }
+
 function masteryLine() {
   const m = L.districtMastery(S, W.did);
   return '<div class="mLine"><b>' + esc(W.D.name) + ' mastery</b><div class="mBars">' + W.D.lessons.map((l, k) => { const x = m.lessons[k]; return '<span title="' + esc(L.lessonName(l)) + '" class="' + (x.done ? 'done' : '') + '"><i style="width:' + Math.round(Math.min(1, x.n / 8) * x.pct * 100) + '%"></i></span>'; }).join('') + '</div><small>' + m.done + ' of ' + m.total + ' lessons mastered' + (m.ready ? ' · District Final Call is ready' : '') + '</small></div>';
@@ -1637,7 +1721,7 @@ const FAST = /[?&]skiptitle\b/.test(location.search); // test / dev: no logos or
 function resize() { const q = (S.cfg || {}).quality || 'high', dev = window.devicePixelRatio || 1; dpr = q === 'ultra' ? Math.min(3, Math.max(dev, 3840 / Math.max(innerWidth, innerHeight))) : Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : 2, dev);
   { const want = Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : q === 'ultra' ? 3 : 2, Math.ceil(dpr * 1.25 * 2) / 2); if (want !== RES) { setRes(want); if (G && G.chunks) G.chunks.clear(); SPR.forEach((x) => { x.canvas = null; x.lights = []; }); } } cw = innerWidth; ch = innerHeight; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; if (!S.zoom) cam.z = cw < 600 ? .85 : 1.15; else cam.z = S.zoom; }
 addEventListener('resize', resize); resize();
-function frame(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; shakeUpdate(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); } render(now); } requestAnimationFrame(frame); }
+function frame(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); } render(now); } requestAnimationFrame(frame); }
 // ---------- the unlock from the study hub ----------
 // The hub opens this page with a pass code once the cadet passes a 100-question test at 85% or better.
 function hubCheck(s) { let h = 2166136261; const t = s + '|patrol-city'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }
@@ -1668,4 +1752,4 @@ function lockedScreen() {
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { S, closeModal: () => closeModal(), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { S, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
