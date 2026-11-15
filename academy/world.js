@@ -575,7 +575,7 @@ export function person(g, sx, sy, o, t) {
   if (acc === 'backpack') RR(sx + (face > 0 ? -W2(9.4) : W2(3.6)) * s, Y - 24.5 * s, 6 * s, 11 * s, 2.2 * s, shade(jacket, 1.2), true);
   if (top === 'hoodie') { g.fillStyle = shade(outer, .8); g.beginPath(); g.ellipse(sx - face * 1.2 * s, Y - 26.5 * s, 5.4 * s, 3.4 * s, 0, 0, Math.PI * 2); g.fill(); }
   // legs: back leg first, a step forward and back when walking
-  const shoe = K && K.boots ? K.boots : K && K.plain ? '#1f2937' : o.shoes || ['#16181d', '#f2f2f2', '#5d4037', '#16181d', '#b91c1c'][Math.floor(rr(6) * 5)];
+  const shoe = K ? (K.boots || '#0b0b0b') : o.shoes || ['#16181d', '#f2f2f2', '#5d4037', '#16181d', '#b91c1c'][Math.floor(rr(6) * 5)];
   const bare = (K && K.shorts) || top === 'dress' || (civ && rr(7) < .12);
   const leg = (x, sw, back) => {
     const lift = mv ? Math.max(0, Math.cos(cyc + (back ? Math.PI : 0)) * (x < 0 ? 1 : -1)) * 1.6 * s : 0, lx = sx + x * s * bw + sw * 1.8 * s * face, tp = Y - 12 * s, len = 11 * s - Math.max(0, -sw) * .6 * s - lift;

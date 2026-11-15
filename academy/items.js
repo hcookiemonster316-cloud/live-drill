@@ -11,7 +11,7 @@ export const ORDER = ['c', 'u', 'r', 'e', 'l'];
 // the cadet outfit: everybody has these; pick one in the locker or at roll call
 export const OUTFITS = {
   std: { name: 'Academy Standard', icon: '👔', kit: { shirt: '#7c8189', pants: '#4b5320', hat: 'cap', hatCol: '#111827', patch: '#f5b800', boots: '#0b0b0b' }, look: { twinkle: true }, perk: { rap: 1 }, text: 'Ironed medium grey academy polo, ironed OD green BDU pants, black boots shined until they twinkle, belt, name tag and the baseball cap.' },
-  pt: { name: 'Academy PT', icon: '🏃', kit: { shirt: '#c9cdd2', pants: '#111827', shorts: true, socks: '#111', hat: 'none', boots: '#e5e7eb', camelbak: true }, perk: { speed: 10 }, text: 'Light gray PT shirt (tucked), PT shorts, PT shoes, all-black ankle socks and a full CamelBak with your agency ID inside.' },
+  pt: { name: 'Academy PT', icon: '🏃', kit: { shirt: '#c9cdd2', pants: '#111827', shorts: true, socks: '#111', hat: 'none', boots: '#111111', camelbak: true }, perk: { speed: 10 }, text: 'Light gray PT shirt (tucked), PT shorts, PT shoes, all-black ankle socks and a full CamelBak with your agency ID inside.' },
   unit: { name: 'Specialty Unit Kit', icon: '⭐', kit: null, perk: {}, text: 'Your specialty unit\'s training uniform.' }
 };
 // equipment slots: limited, and two of them open up as you rank up (RP needed)
@@ -129,7 +129,7 @@ ITEMS.push(
   { id: 'jungle', r: 'c', icon: '🥾', name: 'Jungle Boots (Previously Loved)', slot: 'boots', perk: { speed: 4, explore: 1 }, text: 'Drainage holes. Canvas sides. A name written inside that is not yours.' },
   { id: 'insoles', r: 'c', icon: '🦶', name: 'Gel Insoles', slot: 'boots', perk: { speed: 6, com: -1 }, text: 'Your feet feel like clouds. Your boots squeak like a duck.' },
   { id: 'showershoes', r: 'u', icon: '🩴', name: 'Shower Shoes (Never Forget)', slot: 'boots', look: { boots: '#1f2937' }, perk: { secret: 1, speed: 2 }, text: 'Required equipment. Wearing them on patrol is not recommended. You are doing it anyway.' },
-  { id: 'trailrunners', r: 'u', icon: '👟', name: 'PT Shoes, Broken In', slot: 'boots', look: { boots: '#e5e7eb' }, perk: { speed: 10 }, text: 'Fourteen miles of track this month. They know the way around the oval on their own.' },
+  { id: 'trailrunners', r: 'u', icon: '👟', name: 'PT Shoes, Broken In', slot: 'boots', look: { boots: '#111111' }, perk: { speed: 10 }, text: 'Fourteen miles of track this month. They know the way around the oval on their own.' },
   { id: 'bootcandle', r: 'r', icon: '🕯️', name: 'Boots Shined by Candlelight', slot: 'boots', look: { shine: 2 }, perk: { speed: 8, rap: 1, light: 8 }, text: 'Midnight, one candle, one tin of polish, zero regrets.' },
   { id: 'paradeboots', r: 'e', icon: '🥾', name: 'Parade Boots (Do Not Walk In)', slot: 'boots', look: { shine: 3 }, perk: { rap: 2, rpCit: 10, speed: -4 }, text: 'Too shiny to scuff. Too stiff to bend. Perfect for standing completely still and looking amazing.' },
   { id: 'cloudboots', r: 'l', icon: '☁️', name: 'Boots That Never Get Blisters', slot: 'boots', look: { shine: 2, glow: true }, perk: { speed: 16, res: 1, com: 1 }, text: 'Scientists cannot explain them. Podiatrists want to study them. You just want to keep them.' },

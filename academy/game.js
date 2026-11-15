@@ -5,6 +5,8 @@ import * as L from './learn.js';
 import { startNet } from './net.js';
 import { peopleFor } from './npcgen.js';
 import { WORLD, LORE, CAST, CHAPTERS, SIDE, MAIN_TITLE } from './story.js';
+import { SIDE2, SIDE_CAST, LORE2 } from './sidequests.js';
+SIDE2.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); LORE2.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); });
 import { createMusic } from './music.js';
 import { BRANCHES, SKILLS, skillById, skillPoints, canLearn } from './skills.js';
 import { ITEMS, RARITY, SLOTS, OUTFITS, itemById, slotOf, roll, reveal, collectionHTML, equipHTML, itemCardHTML, gearTotals, looks } from './items.js';
@@ -121,7 +123,7 @@ function load(did) {
   for (let i = 0; i < 2 + (S.unit === 'det' ? 1 : 0); i++) observes.push(newObserve());
   pboat = null; P.boat = false; K9.x = P.x - .8; K9.y = P.y + .4;
   if (W.river && S.unit === 'marine') { const y = Math.max(2, Math.min(N - 3, Math.round(P.y))); pboat = { x: 36.6, y: y + .5, dir: 1, dock: [35.5, y + .5] }; }
-  exploreInit(); liveInit(); placeRegulars(); ambienceInit(); SS = { rp: 0, calls: 0, right: 0, answered: 0, ords: {} }; COMBO = 0; bestCombo = 0; ordersInit(); comboHud(); unlockLore(); abilitiesInit(); $('hExp').textContent = 'Explored ' + Math.floor(exCount / exTotal * 100) + '%';
+  exploreInit(); liveInit(); placeRegulars(); ambienceInit(); SS = { rp: 0, calls: 0, right: 0, answered: 0, ords: {} }; COMBO = 0; bestCombo = 0; ordersInit(); comboHud(); abilitiesInit(); $('hExp').textContent = 'Explored ' + Math.floor(exCount / exTotal * 100) + '%';
   cam.x = iso(P.x, P.y)[0]; cam.y = iso(P.x, P.y)[1]; cam.free = false;
   hud(); radio('Dispatch', 'All units, ' + shiftOf().name.toLowerCase() + ' in ' + W.D.name + ' is on. ' + S.cs + ', you are in service.');
   CHAT.list = []; CHAT.seen = new Set(); if (net && net.chatOn) net.chatOn(did, chatIn);
@@ -188,7 +190,7 @@ function update(dt, now) {
   traffic.forEach((c) => { if (!c.path.length) { for (let k = 0; k < 6; k++) { const x = Math.floor(c.x + (Math.random() - .5) * 40), y = Math.floor(c.y + (Math.random() - .5) * 40); if (roadPass(x, y)) { const p = astar(c.x, c.y, x, y, roadPass, false); if (p && p.length > 3) { c.path = p; break; } } } return; } stepAlong(c, dt, c.sp); });
   // arrive on a call
   if (call && !inside && Math.hypot(call.x - P.x, call.y - P.y) < 1.7 && !scene) { const c = call; call = null; callCard(); openCallScene(c); }
-  if (!call && !scene) { nextCall -= dt; if (nextCall <= 0) dispatchCall(); }
+  if (!call && !scene && !S.x6) { nextCall -= dt; if (nextCall <= 0) dispatchCall(); }
   if (call && clock - call.t0 > callWait() + BUFF.wait) { radio('Dispatch', S.cs + ', disregard; another unit took that call.'); call = null; callCard(); nextCall = 20; if (net) { net.status('patrol'); net.backup(null); } }
   // observation moments appear only up close
   observes.forEach((o) => { if (!o.seen && Math.hypot(o.x - P.x, o.y - P.y) < spotR()) { o.seen = true; toast((S.unit === 'k9' ? 'Your K9 alerts. ' : '') + 'Something\'s off: ' + o.text + '. Tap the ! to check it out.'); beep(880, .08, 'sine', .04); if (S.unit === 'k9') { beep(520, .07, 'square', .03, .1); beep(520, .07, 'square', .03, .22); } } });
@@ -199,7 +201,7 @@ function update(dt, now) {
   if ((P.inCar || P.boat) && call && call.accepted) { sirenT -= dt; if (sirenT <= 0) { sirenT = .9; beep(720, .42, 'sine', .018); beep(980, .42, 'sine', .018, .45); } }
   if (net && now - moveSent > 120) { moveSent = now; net.move(P.x, P.y, P.boat ? 2 : P.inCar ? 1 : 0, P.dir); }
   liveUpdate(dt);
-  storyUpdate(dt); objectiveHud(); tipsUpdate(dt); musicUpdate(dt); trophyCheck(dt); squadTick(dt); factWatch(); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
+  storyUpdate(dt); objectiveHud(); trackerHud(dt); trailUpdate(dt); loreCheck(dt); tipsUpdate(dt); musicUpdate(dt); trophyCheck(dt); squadTick(dt); factWatch(); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
   if (inside && !P.path.length && Math.hypot(W.door[0] - P.x, W.door[1] - P.y) < .45) exitBuilding();
   hudClock();
   if (clock >= SHIFT_MIN && !scene) endOfWatch();
@@ -243,7 +245,7 @@ function render(now) {
   Object.keys(others).forEach((k) => { const o = others[k]; if ((o.n == null ? -1 : o.n) !== (inside ? inside.idx : -1)) return; const [sx, sy] = iso(o.rx, o.ry); if (!vis(sx, sy)) return; list.push({ d: o.rx + o.ry, f: () => { const ou = unitOf(o.u); if (o.v) vehicle(ctx, sx, sy, o.d || 0, o.v === 2 ? { kind: 'boat' } : ou.ride, now, NIGHT, o.st === 'call'); else { person(ctx, sx, sy, { kit: kitWith(kitOf((String(o.f || '').split(',').find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1), o.u), o.f ? looks(String(o.f).split(',')) : {}), moving: o.moving, face: o.face || 1, back: o.back, stride: o.stride, skin: o.skin, s: 1 }, now); if (o.u === 'k9') dog(ctx, sx - 14, sy + 6, 1, o.moving, now); { const tk = String(o.f || 'ostd').split(','), of = (tk.find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1); flair(Object.assign({}, outfitLook(of), looks(tk)), sx, sy, now, 1); } } const mate = S.squad && o.g === S.squad.code; if (mate) { ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, 15, 7.5, 0, 0, Math.PI * 2); ctx.stroke(); } label(sx, sy - (o.v ? 40 : 50), (o.k ? '[' + o.k + '] ' : '') + ou.icon + ' ' + o.c + (o.sh && o.sh !== S.shift ? ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') : ''), '#9cc3ff'); if (o.say && performance.now() - o.sayAt < 7000) speech(sx, sy - (o.v ? 52 : 68), o.say.length > 34 ? o.say.slice(0, 32) + '…' : o.say); else if (o.q && now - o.qAt < 6000) speech(sx, sy - (o.v ? 52 : 68), QUICK[o.q.k] || ''); } }); });
   if (!ATTRACT) { const [sx, sy] = iso(P.x, P.y); list.push({ d: P.x + P.y, f: () => { if (P.boat) vehicle(ctx, sx, sy, P.dir, { kind: 'boat' }, now, NIGHT, call && call.accepted); else if (P.inCar) vehicle(ctx, sx, sy, P.dir, U().ride, now, NIGHT, call && call.accepted); else person(ctx, sx, sy, { kit: kitWith(myKit(), myLooks()), moving: P.moving, face: P.face, back: P.back, stride: P.stride, glance: false, skin: S.skin || '#c68e63', s: 1.08 }, now); } }); }
   liveDraw(list, vis, now); if (!ATTRACT) storyCast(list, vis, now);
-  ambienceGround(); vfxGround(now, vis);
+  ambienceGround(); vfxGround(now, vis); if (!ATTRACT) trailDraw(now);
   list.sort((a, b) => a.d - b.d).forEach((e) => e.f());
   ambienceWorld(now); sirenWash(now);
   // player ghost outline so you never lose yourself behind a building
@@ -286,7 +288,7 @@ function render(now) {
   grade(); rainDraw();
   // markers drawn above the lighting so they stay readable
   ctx.setTransform(z, 0, 0, z, cv.width / 2 - cam.x * z, cv.height / 2 - cam.y * z);
-  if (!ATTRACT) { storyMarker(now); floatsDraw(now); pingsDraw(now); if (SELF_SAY.text && performance.now() - SELF_SAY.at < 6000) { const [sx, sy] = iso(P.x, P.y); speech(sx, sy - (P.inCar ? 52 : 70), SELF_SAY.text.length > 34 ? SELF_SAY.text.slice(0, 32) + '…' : SELF_SAY.text); } }
+  if (!ATTRACT) { guideDraw(now, z); storyMarker(now); floatsDraw(now); pingsDraw(now); if (SELF_SAY.text && performance.now() - SELF_SAY.at < 6000) { const [sx, sy] = iso(P.x, P.y); speech(sx, sy - (P.inCar ? 52 : 70), SELF_SAY.text.length > 34 ? SELF_SAY.text.slice(0, 32) + '…' : SELF_SAY.text); } }
   if (call) { const [sx, sy] = iso(call.x, call.y); ring(sx, sy, call.prio === 1 ? '#ff4d4d' : '#f5b800', now); bubble(sx, sy - 40, '📻', call.prio === 1 ? '#ff4d4d' : '#f5b800', now); label(sx, sy - 66, call.title, '#ffffff'); }
   infos.forEach((i) => { const [sx, sy] = iso(i.x, i.y); bubble(sx, sy - 30, 'i', i.cool > 0 ? '#6b7280' : '#3b82f6', now); });
   observes.forEach((o) => { if (!o.seen) return; const [sx, sy] = iso(o.x, o.y); ring(sx, sy, '#a855f7', now); bubble(sx, sy - 30, '!', '#a855f7', now); });
@@ -613,7 +615,18 @@ function applyChoice(o) {
 //   ['q', question, speakerId]    a chapter question asked inside the scene; the speaker reacts to the answer
 //   ['fx', fn]                    run something mid-scene
 // opts: { focus: [x, y], zoom, kicker } frames the camera on the scene and labels it.
-const TEMP = {};
+const TEMP = Object.assign({}, SIDE_CAST);
+// after a right answer: praise, then a tip about something else worth doing nearby
+function hintLine() {
+  const opts = [], nm = (id) => { const n = NPCS.find((x) => x.id === id); return n ? n.name : id; };
+  const av = inside ? [] : SIDE.filter(sideAvail); if (av.length) { const q = rnd(av); opts.push(nm(q.giver) + ' has been asking for an officer. Look for the blue mark.', 'Word is ' + nm(q.giver) + ' could use a hand. Might be worth a stop.'); }
+  const live = SIDE.filter((q) => sideLive(q) && S.track !== q.id); if (live.length) { const q = rnd(live); opts.push('Don\'t forget "' + q.title + '". Next up: ' + q.steps[S.side[q.id]].goal.toLowerCase() + '.'); }
+  try { const m = L.districtMastery(S, W.did); if (!m.ready) opts.push((m.facts.total - m.facts.done) + ' facts left in ' + W.D.name + ' before your Final Call. Navarro runs fact drills from the City board.'); else opts.push('You\'re cleared for the ' + W.D.name + ' Final Call. Open the City board when you\'re ready.'); } catch (e) {}
+  if (citizens.length) opts.push('There\'s a citizen out there flagging down an officer. Keep an eye out for the yellow question mark.');
+  const un = SIDE.filter((q) => q.d === W.did && !sideOpen(q)).length; if (un) opts.push('Keep the main case moving and more people in ' + W.D.name + ' will start trusting you with their problems.');
+  if (S.x6) opts.push('You\'re still X6. Go X8 when you want calls again.');
+  return opts.length ? rnd(opts) : 'Keep it up.';
+}
 const PRAISE = ['Exactly right.', 'That\'s it, by the book.', 'Good. That\'s how it\'s done.', 'Right answer. You were listening in class.', 'Correct. Nice.'];
 const CORRECT = ['Not quite. Here\'s how it actually works:', 'Close, but no. Remember this:', 'Careful. The chapter says otherwise:', 'That\'s not it. For next time:'];
 const CINE = { on: false, x: 0, y: 0, z: 1, z0: 1, back: 0 };
@@ -658,7 +671,7 @@ function dialogue(lines, done, opts) {
           const tx = box.querySelector('.dlgTxt small'); if (tx) tx.innerHTML = '<b class="dlgRetry">Not quite. One more try.</b>'; if (q.multi && $('dlgOk')) $('dlgOk').disabled = true; return; }
         const ok = scoreAnswer(q, ans, tries > 0); res.n++; if (ok) res.right++; if (tries && ok) res.retry = (res.retry || 0) + 1;
         box.querySelectorAll('[data-k]').forEach((b) => { const k = +b.dataset.k, isC = q.multi ? q.c.indexOf(k) >= 0 : k === q.c; b.disabled = true; b.classList.add(isC ? 'ok' : picked.indexOf(k) >= 0 ? 'no' : 'dim'); });
-        const fact = (q.fact || q.ex || '').trim(); setTimeout(() => { seq.splice(i + 1, 0, [sp, (ok ? (tries ? rnd(['There it is. Second time\'s the charm.', 'Better. That\'s the one.', 'Yes. Now remember why:']) : rnd(PRAISE)) : rnd(CORRECT)) + (fact ? ' ' + fact : ''), { quiz: ok ? 'ok' : 'no' }]); box.onclick = click; next(); }, 750); };
+        const fact = (q.fact || q.ex || '').trim(); setTimeout(() => { seq.splice(i + 1, 0, [sp, ok ? (tries ? rnd(['There it is. Second time\'s the charm.', 'Better. That\'s the one.', 'Got it on the second look. Good.']) : rnd(PRAISE)) + ' ' + hintLine() : rnd(CORRECT) + (fact ? ' ' + fact : ''), { quiz: ok ? 'ok' : 'no' }]); box.onclick = click; next(); }, 750); };
       box.querySelectorAll('[data-k]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const k = +b.dataset.k; if (q.multi) { const at = picked.indexOf(k); if (at >= 0) picked.splice(at, 1); else picked.push(k); b.classList.toggle('sel'); $('dlgOk').disabled = !picked.length; } else { picked = [k]; finish(); } });
       if (q.multi) $('dlgOk').onclick = (e) => { e.stopPropagation(); if (picked.length) finish(); };
       return;
@@ -688,7 +701,7 @@ function playStep(st) {
   const tg = stepTarget();
   dialogue(st.say || [], () => {
     if (!st.quiz) return afterQuiz();
-    const qs = L.pick(S, [W.D.lessons.indexOf(st.quiz.les) >= 0 ? st.quiz.les : rnd(W.D.lessons)], 'q', st.quiz.n || 2), sp = st.who || 'castillo';
+    const les = W.D.lessons.indexOf(st.quiz.les) >= 0 ? [st.quiz.les] : W.D.lessons; const qs = L.pickFacts(S, les, st.quiz.n || 2); const sp = st.who || 'castillo';
     dialogue(qs.map((q, k) => ['q', q, k % 2 && st.who !== 'castillo' ? 'castillo' : sp]), (r) => {
       paused = true; award(r.right * 20, 'story');
       if (r.right < Math.ceil(qs.length / 2)) { dialogue([[st.who || 'castillo', r.right ? 'Close, but not by the book yet. Think it through and try me again.' : 'Not quite. Review it, then come back and we will run it again.']], () => { storyBusy = false; paused = false; storyCool = 4; }); return; }
@@ -706,6 +719,9 @@ function chapterDone(c) {
 function objectiveFlash(text) { const el = $('objBar'); if (!el) return; el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
 function objectiveHud() {
   const el = $('objBar'), A = activeQ(), st = A && A.step, t = stepTarget();
+  if ((!st || !t) && !scene) { const G = guideTarget(), q = S.track !== 'main' ? sideQ(S.track) : null; if (G && q && sideLive(q)) { const d = Math.hypot(G.x - P.x, G.y - P.y), [tx, ty] = iso(G.x, G.y), [px, py] = iso(P.x, P.y), txt = (inside ? 'Head outside, then to ' : 'Head to ') + DISTRICTS[q.d].name + ': ' + q.steps[S.side[q.id]].goal;
+    if (el.dataset.t !== txt) { el.dataset.t = txt; el.innerHTML = '<i class="objArr">➤</i><span><small>Side case · ' + esc(q.title) + '</small><b>' + esc(txt) + '</b></span><em id="objD"></em>'; el.classList.add('side'); }
+    el.hidden = false; el.querySelector('.objArr').style.transform = 'rotate(' + Math.atan2(ty - py, tx - px) + 'rad)'; $('objD').textContent = Math.round(d * 4) * 5 + ' ft'; return; } }
   if (!st || !t || scene) { el.hidden = true; return; }
   const d = Math.hypot(t.x - P.x, t.y - P.y), [tx, ty] = iso(t.x, t.y), [px, py] = iso(P.x, P.y), ang = Math.atan2(ty - py, tx - px);
   const txt = t.exit ? 'Head outside: ' + st.goal : st.goal;
@@ -722,33 +738,138 @@ function storyMarker(now) {
 }
 // story characters stand where their scene happens
 function storyCast(list, vis, now) {
-  const st = chStep(); if (!st || st.npc) return; const c = CAST[st.who], n = !c && NPCS.find((x) => x.id === st.who); if (!c && !n) return; const t = stepTarget(); if (!t || t.exit || t.door) return;
+  const st = chStep(); if (!st || (st.npc && !st.inside)) return; const tmp = TEMP[st.who] && !CAST[st.who] && !NPCS.some((x) => x.id === st.who) ? TEMP[st.who] : null, c = CAST[st.who], n = !c && !tmp && NPCS.find((x) => x.id === st.who); if (!c && !n && !tmp) return; const t = stepTarget(); if (!t || t.exit || t.door) return;
   if (!inside && st.inside) return;
   const x = inside ? t.x : t.x + .8, y = inside ? t.y : t.y - .2, [sx, sy] = iso(x, y);
   if (!vis(sx, sy)) return;
-  list.push({ d: x + y, f: () => { if (c) { person(ctx, sx, sy, { kit: c.look, skin: c.skin, hair: '#1a1a1a', moving: false, face: -1, s: 1.04 }, now); label(sx, sy - 50, c.icon + ' ' + c.name, '#f5b800'); return; } if (n.cat) cat(sx, sy, now); else { const lk = n.look || {}; person(ctx, sx, sy, { kit: npcKit(lk), hair: lk.hair, skin: lk.skin, moving: false, face: -1 }, now); } label(sx, sy - (n.cat ? 26 : 48), n.icon + ' ' + n.name, '#7dd3fc'); } });
+  list.push({ d: x + y, f: () => { if (tmp) { { const h = [...st.who].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7); person(ctx, sx, sy, { ph: h % 997, shirt: ['#c0392b', '#2e86de', '#16a085', '#8e44ad', '#e67e22', '#2c3e50', '#d35400', '#27ae60'][h % 8], skin: ['#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#ffdbac', '#a0662f'][(h >> 3) % 6], hair: ['#2b1d14', '#5a3825', '#1a1a1a', '#b07b3c', '#9a9a9a'][(h >> 5) % 5], moving: false, face: -1, s: /age 9|teen/i.test(tmp.name) ? .82 : 1 }, now); } label(sx, sy - 50, tmp.icon + ' ' + tmp.name, '#7dd3fc'); return; } if (c) { person(ctx, sx, sy, { kit: c.look, skin: c.skin, hair: '#1a1a1a', moving: false, face: -1, s: 1.04 }, now); label(sx, sy - 50, c.icon + ' ' + c.name, '#f5b800'); return; } if (n.cat) cat(sx, sy, now); else { const lk = n.look || {}; person(ctx, sx, sy, { kit: npcKit(lk), hair: lk.hair, skin: lk.skin, moving: false, face: -1 }, now); } label(sx, sy - (n.cat ? 26 : 48), n.icon + ' ' + n.name, '#7dd3fc'); } });
 }
 function unlockLore() { let n = 0; LORE.forEach((e) => { if (S.lore[e.id]) return; const w = e.when; if (w === 'start' || (w[0] === 'd' && S.unlocked.includes(+w.slice(1))) || (w.slice(0, 2) === 'ch' && S.lore[w])) { S.lore[e.id] = 1; n++; } }); if (n) saveS(); return n; }
 let jTab = 'story';
 function journal() {
-  unlockLore();
   const tabs = '<div class="lkTabs"><button type="button" data-j="map" class="' + (jTab === 'map' ? 'on' : '') + '">Districts</button><button type="button" data-j="story" class="' + (jTab === 'story' ? 'on' : '') + '">Quests</button><button type="button" data-j="cast" class="' + (jTab === 'cast' ? 'on' : '') + '">People</button><button type="button" data-j="lore" class="' + (jTab === 'lore' ? 'on' : '') + '">Lore</button></div>';
   if (jTab === 'map') return districtBoard(tabs);
   let body = '';
   if (jTab === 'story') body = CHAPTERS.map((c) => { const i = S.story[c.d] || 0, done = i >= c.steps.length, open = S.unlocked.includes(c.d); return '<div class="jCh' + (done ? ' done' : '') + (open ? '' : ' locked') + '"><div class="jChH"><span>Chapter ' + (c.d + 1) + '</span><b>' + (open ? esc(c.title) : '🔒 Locked') + '</b><small>' + esc(c.sub) + '</small></div><div class="jSteps">' + c.steps.map((st, k) => '<i class="' + (k < i ? 'ok' : k === i && open ? 'cur' : '') + '" title="' + esc(st.goal) + '"></i>').join('') + '</div>' + (open && !done ? '<p>Now: ' + esc(c.steps[i].goal) + '</p>' : done ? '<p>Case closed.</p>' : '<p>Opens with ' + esc(DISTRICTS[c.d].name) + '.</p>') + '</div>'; }).join('');
   if (jTab === 'story') {
     const tr = (id) => '<button type="button" class="jTrack' + (S.track === id ? ' on' : '') + '" data-tr="' + id + '">' + (S.track === id ? 'Tracking' : 'Track') + '</button>';
-    body = '<div class="jSec"><b>Main storyline · ' + esc(MAIN_TITLE) + '</b>' + tr('main') + '</div>' + body + '<div class="jSec"><b>Side cases · ' + SIDE.filter(sideClosed).length + '/' + SIDE.length + ' closed</b></div>' + SIDE.map((q) => {
+    body = '<div class="jSec"><b>Main storyline · ' + esc(MAIN_TITLE) + '</b>' + tr('main') + '</div>' + body + '<div class="jSec"><b>Side cases · ' + SIDE.filter(sideClosed).length + '/' + SIDE.length + ' closed</b></div>' + DISTRICTS.map((D) => { const qs = SIDE.filter((q) => q.d === D.id), live = qs.filter(sideLive).length, av = qs.filter((q) => sideOpen(q) && S.side[q.id] == null).length; return '<details class="jDist"' + (D.id === W.did || live ? ' open' : '') + '><summary><i style="background:' + D.color + '"></i><b>' + esc(D.name) + '</b><span>' + qs.filter(sideClosed).length + '/' + qs.length + ' closed' + (live ? ' · ' + live + ' active' : '') + (av ? ' · <em>' + av + ' new</em>' : '') + '</span></summary>' + qs.map((q) => {
       const open = sideOpen(q), st = S.side[q.id], done = sideClosed(q), live = sideLive(q), giver = NPCS.find((n) => n.id === q.giver) || {};
       return '<div class="jCh side' + (done ? ' done' : '') + (open ? '' : ' locked') + '"><div class="jChH"><span>' + esc(DISTRICTS[q.d].name) + '</span><b>' + (open || st != null ? esc(q.title) : '🔒 Not yet') + '</b><small>' + (open || st != null ? esc(q.blurb) : 'Keep going with the main story in ' + esc(DISTRICTS[q.d].name) + '.') + '</small></div>' +
         (live ? '<div class="jSteps">' + q.steps.map((x, k) => '<i class="' + (k < st ? 'ok' : k === st ? 'cur' : '') + '"></i>').join('') + '</div><p>Now: ' + esc(q.steps[st].goal) + '</p>' + tr(q.id) : done ? '<p>Case closed.</p>' : open ? '<p>Find ' + esc(giver.icon || '') + ' ' + esc(giver.name || 'someone') + ' in ' + esc(DISTRICTS[q.d].name) + '. Look for the blue <b>!</b></p>' : '') + '</div>';
-    }).join('');
+    }).join('') + '</details>'; }).join('');
   }
   if (jTab === 'cast') { const met = (id) => Object.keys(CAST).indexOf(id) >= 0 ? CHAPTERS.some((c) => c.steps.slice(0, S.story[c.d] || 0).some((st) => st.who === id || (st.say || []).some((l) => l[0] === id))) : false; body = Object.keys(CAST).map((id) => { const c = CAST[id], m = met(id); return '<div class="jP' + (m ? '' : ' unk') + '"><span>' + (m ? c.icon : '❔') + '</span><div><b>' + (m ? esc(c.name) : 'Not met yet') + '</b><small>' + (m ? esc(c.role) : '') + '</small>' + (m ? '<p>' + esc(c.bio) + '</p>' : '') + '</div></div>'; }).join('') + '<p class="lkSum">Regulars you have befriended: ' + Object.keys(S.npc || {}).filter((k) => S.npc[k] > 0).length + '</p>'; }
-  if (jTab === 'lore') body = LORE.map((e) => S.lore[e.id] ? '<details class="jLore"><summary>' + esc(e.title) + '</summary><p>' + esc(e.text) + '</p></details>' : '<div class="jLore unk">??? <small>Keep patrolling to uncover this.</small></div>').join('');
+  if (jTab === 'lore') { const hint = (w) => w === 'start' ? '' : /^d\d$/.test(w) ? 'Opens with ' + DISTRICTS[+w[1]].name + '.' : w.slice(0, 2) === 'ch' ? 'Keep going with the main story.' : w.slice(0, 5) === 'side:' ? 'Close a side case in ' + ((sideQ(w.slice(5)) && DISTRICTS[sideQ(w.slice(5)).d].name) || 'the city') + '.' : w.slice(0, 6) === 'visit:' ? 'Explore ' + (LORE_DIST[w.slice(6)] || 'the city') + '.' : '';
+    const grp = [['The city', (e) => e.when === 'start' || /^d\d$/.test(e.when)], ['The story', (e) => e.when.slice(0, 2) === 'ch'], ['Places', (e) => e.when.slice(0, 6) === 'visit:'], ['Side cases', (e) => e.when.slice(0, 5) === 'side:']];
+    body = '<p class="lkSum">' + LORE.filter((e) => S.lore[e.id]).length + ' of ' + LORE.length + ' entries discovered</p>' + grp.map(([nm, f]) => { const es = LORE.filter(f); return '<div class="jSec"><b>' + nm + ' · ' + es.filter((e) => S.lore[e.id]).length + '/' + es.length + '</b></div>' + es.map((e) => S.lore[e.id] ? '<details class="jLore"' + (JLORE === e.id ? ' open' : '') + '><summary>' + esc(e.title) + '</summary><p>' + esc(e.text) + '</p></details>' : '<div class="jLore unk">??? <small>' + esc(hint(e.when) || 'Keep patrolling to uncover this.') + '</small></div>').join(''); }).join(''); JLORE = null; }
   openModal('<div class="sceneHead"><b>FIELD JOURNAL · ' + esc(WORLD.city.toUpperCase()) + '</b><h2>' + ({ story: 'Quests', cast: 'The people you know', lore: 'Port Meridian' })[jTab] + '</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + '</p></div>' + tabs + '<div class="jBody">' + body + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
   $('mClose').onclick = closeModal; document.querySelectorAll('[data-j]').forEach((b) => b.onclick = () => { jTab = b.dataset.j; journal(); }); document.querySelectorAll('[data-tr]').forEach((b) => b.onclick = () => { S.track = b.dataset.tr; saveS(); beep(660, .06, 'triangle', .04); journal(); });
 }
+
+// ---------- quest tracker: every open case at a glance, plus a GPS trail on the ground ----------
+const TRAIL = { t: 0, path: null };
+function trailUpdate(dt) {
+  TRAIL.t -= dt; if (TRAIL.t > 0) return; TRAIL.t = .7;
+  const t = stepTarget(); if (!t || scene || ATTRACT || (S.cfg && S.cfg.trail === false) || Math.hypot(t.x - P.x, t.y - P.y) < 3) { TRAIL.path = null; return; }
+  const pass = P.boat ? (a, b) => W.at(a, b) === T.WATER : P.inCar ? (a, b) => W.drivable(a, b) : (a, b) => W.walkable(a, b) && !gateBlock(a, b) && W.at(a, b) !== T.WATER;
+  TRAIL.path = astar(P.x, P.y, t.x, t.y, pass, !P.inCar);
+}
+function trailDraw(now) {
+  const p = TRAIL.path; if (!p || p.length < 3 || document.body.classList.contains('cine')) return; const A = activeQ(), col = A && A.side ? '56,189,248' : '245,184,0', n = Math.min(p.length - 1, 80);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (let i = 1; i < n; i += 2) {
+    const a = p[i], b = p[i + 1], [x0, y0] = iso(a[0], a[1]), [x1, y1] = iso(b[0], b[1]);
+    const al = (.28 + .6 * Math.pow((Math.sin(i * .55 - now / 170) + 1) / 2, 3)) * Math.min(1, (n - i) / 12 + .25);
+    ctx.save(); ctx.translate(x0, y0); ctx.scale(1, .5); ctx.rotate(Math.atan2((y1 - y0) * 2, x1 - x0));
+    ctx.strokeStyle = 'rgba(0,0,0,' + (al * .35) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(-6, -7); ctx.lineTo(3, 0); ctx.lineTo(-6, 7); ctx.stroke();
+    ctx.strokeStyle = 'rgba(' + col + ',' + al + ')'; ctx.lineWidth = 3.4; ctx.beginPath(); ctx.moveTo(-6, -7); ctx.lineTo(3, 0); ctx.lineTo(-6, 7); ctx.stroke(); ctx.restore();
+  }
+}
+let trkT = 0;
+function trackerList() {
+  const A = activeQ(), out = [], seen = new Set();
+  const add = (side, q, cur) => { const key = side ? q.id : 'main' + q.d; if (seen.has(key)) return; seen.add(key); const i = side ? S.side[q.id] : (S.story[q.d] || 0); out.push({ side, q, i, cur, here: q.d === W.did, key, track: side ? q.id : 'main' }); };
+  if (A) add(A.side, A.q, true);
+  const c = chap(); if (c && (S.story[c.d] || 0) < c.steps.length) add(false, c, false);
+  SIDE.filter((q) => q.d === W.did && sideLive(q)).forEach((q) => add(true, q, false));
+  SIDE.filter((q) => q.d !== W.did && sideLive(q)).forEach((q) => add(true, q, false));
+  return out;
+}
+function trackerHud(dt) {
+  const el = $('qTrack'); if (!el) return; trkT -= dt; if (trkT > 0) return; trkT = .4;
+  if (ATTRACT || scene) { el.hidden = true; return; }
+  const list = trackerList(), avail = inside ? 0 : SIDE.filter(sideAvail).length, mini = S.cfg && S.cfg.trackMin != null ? S.cfg.trackMin : innerWidth < 620;
+  if (!list.length && !avail) { el.hidden = true; return; }
+  const t = stepTarget(), dist = t ? Math.hypot(t.x - P.x, t.y - P.y) : 0;
+  const key = mini + '|' + avail + '|' + list.map((r) => r.key + r.i + r.cur).join(',') + '|' + S.track;
+  if (el.dataset.k !== key) {
+    el.dataset.k = key; el.classList.toggle('min', !!mini);
+    const rows = list.slice(0, 4).map((r) => { const st = r.q.steps[r.i]; return '<div class="qtRow' + (r.cur ? ' cur' : '') + (r.side ? ' side' : '') + '" data-qt="' + r.track + '"><i>' + (r.side ? '📁' : '★') + '</i><div><small>' + (r.side ? 'Side case' : 'Main · Ch. ' + (r.q.d + 1)) + (r.here ? '' : ' · ' + esc(DISTRICTS[r.q.d].name)) + '</small><b>' + esc(r.q.title) + '</b><p>' + esc(st ? st.goal : '') + '</p><span class="qtPips">' + r.q.steps.map((x, k) => '<u class="' + (k < r.i ? 'ok' : k === r.i ? 'now' : '') + '"></u>').join('') + '</span></div>' + (r.cur ? '<button type="button" class="qtGo" title="Guide me there">🧭<em id="qtD"></em></button>' : '') + '</div>'; }).join('');
+    el.innerHTML = '<button type="button" class="qtHead" id="qtTog"><span>📋 Cases</span><b>' + list.length + (avail ? ' <em>+' + avail + ' new</em>' : '') + '</b><i>' + (mini ? '▸' : '▾') + '</i></button>' + (mini ? '' : rows + (list.length > 4 ? '<div class="qtMore">+' + (list.length - 4) + ' more in your Field Journal</div>' : '') + (avail ? '<div class="qtNew">' + avail + ' new case' + (avail > 1 ? 's' : '') + ' in ' + esc(W.D.name) + '. Look for the blue <b>!</b></div>' : ''));
+    $('qtTog').onclick = (e) => { e.stopPropagation(); S.cfg.trackMin = !mini; saveS(); trkT = 0; el.dataset.k = ''; };
+    el.querySelectorAll('[data-qt]').forEach((rw) => rw.onclick = (e) => { if (e.target.closest('.qtGo')) return; S.track = rw.dataset.qt; saveS(); beep(660, .06, 'triangle', .04); objectiveFlash(); TRAIL.t = 0; trkT = 0; });
+    const go = el.querySelector('.qtGo'); if (go) go.onclick = (e) => { e.stopPropagation(); const tg = stepTarget(); if (!tg) return; if (tg.exit && inside) { exitBuilding(); return; } goTo(tg.x, tg.y); beep(880, .06, 'triangle', .04); };
+  }
+  el.hidden = false; const dd = $('qtD'); if (dd) dd.textContent = !t ? '' : t.exit ? 'exit' : dist < 2.5 ? 'here' : Math.round(dist * 4) * 5 + ' ft';
+}
+
+// the guide arrow: whenever a case is tracked, an arrow at your feet points the way (and one at the screen edge when it's off screen)
+function guideTarget() {
+  const t = stepTarget(); if (t) { const p = TRAIL.path, a = p && p.length > 4 ? p[Math.min(4, p.length - 1)] : null; return { x: t.x, y: t.y, ax: a ? a[0] : t.x, ay: a ? a[1] : t.y, side: (activeQ() || {}).side, lab: t.exit ? 'Exit' : '' }; }
+  const q = S.track !== 'main' ? sideQ(S.track) : null, d = q && sideLive(q) ? q.d : null; if (d == null || d === W.did) return null;
+  if (inside) return { x: W.door[0], y: W.door[1], ax: W.door[0], ay: W.door[1], side: true, lab: 'Exit' };
+  const g = W.gates.find((x) => x.to === d) || W.gates.find((x) => S.unlocked.includes(x.to)); if (!g) return null;
+  return { x: g.x + .5, y: g.y + .5, ax: g.x + .5, ay: g.y + .5, side: true, lab: DISTRICTS[d].name };
+}
+function guideDraw(now, z) {
+  if (scene || document.body.classList.contains('cine')) return; const G = guideTarget(); if (!G) return; const dist = Math.hypot(G.x - P.x, G.y - P.y); if (dist < 2) return;
+  const col = G.side ? '56,189,248' : '245,184,0', [px, py] = iso(P.x, P.y), [ax, ay] = iso(G.ax, G.ay), ang = Math.atan2((ay - py) * 2, ax - px), pul = 1 + Math.sin(now / 220) * .08;
+  ctx.save(); ctx.translate(px, py); ctx.scale(1, .5); ctx.rotate(ang); ctx.translate(40 + Math.sin(now / 260) * 4, 0); ctx.scale(pul, pul);
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.moveTo(16, 2); ctx.lineTo(-8, -14); ctx.lineTo(-3, 2); ctx.lineTo(-8, 18); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(' + col + ',.95)'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-8, -16); ctx.lineTo(-3, 0); ctx.lineTo(-8, 16); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+  // off screen: pin an arrow to the edge of the screen
+  const [tx, ty] = iso(G.x, G.y), sx = cv.width / 2 + (tx - cam.x) * z, sy = cv.height / 2 + (ty - 40 - cam.y) * z, m = 46 * (cv.width / innerWidth);
+  if (sx > m && sy > m && sx < cv.width - m && sy < cv.height - m) return;
+  const cx = cv.width / 2, cy = cv.height / 2, a2 = Math.atan2(sy - cy, sx - cx), k = Math.min((cv.width / 2 - m) / Math.abs(Math.cos(a2) || 1e-6), (cv.height / 2 - m * 1.6) / Math.abs(Math.sin(a2) || 1e-6)), ex = cx + Math.cos(a2) * k, ey = cy + Math.sin(a2) * k, sc = cv.width / innerWidth;
+  ctx.save(); ctx.setTransform(sc, 0, 0, sc, 0, 0); const X = ex / sc, Y = ey / sc;
+  ctx.fillStyle = 'rgba(8,14,28,.85)'; ctx.beginPath(); ctx.arc(X, Y, 22, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(' + col + ',1)'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.translate(X, Y); ctx.rotate(a2); ctx.fillStyle = 'rgba(' + col + ',1)'; ctx.beginPath(); ctx.moveTo(13, 0); ctx.lineTo(-6, -9); ctx.lineTo(-2, 0); ctx.lineTo(-6, 9); ctx.closePath(); ctx.fill(); ctx.rotate(-a2);
+  ctx.font = '800 10px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const lab = G.lab || (Math.round(dist * 4) * 5 + ' ft'); const w = ctx.measureText(lab).width + 10, ly = Y > cv.height / sc / 2 ? -34 : 34;
+  ctx.fillStyle = 'rgba(8,14,28,.85)'; ctx.beginPath(); ctx.roundRect(-w / 2, ly - 8, w, 16, 8); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(lab, 0, ly); ctx.restore();
+}
+
+// ---------- lore: discovered by exploring, by the story and by closing side cases ----------
+const loreQ = []; let loreT = 3, loreBusy = false;
+function loreCheck(dt) {
+  loreT -= dt; if (loreT > 0 || ATTRACT) return; loreT = 1.2; const fresh = [];
+  LORE.forEach((e) => {
+    if (S.lore[e.id]) return; const w = e.when; let ok = false;
+    if (w === 'start') { S.lore[e.id] = 1; saveS(); return; } // the opening entries are in the journal from day one
+    if (w[0] === 'd' && /^d\d$/.test(w)) ok = S.unlocked.includes(+w.slice(1));
+    else if (w.slice(0, 2) === 'ch') ok = !!S.lore[w];
+    else if (w.slice(0, 5) === 'side:') { const q = sideQ(w.slice(5)); ok = !!q && sideClosed(q); }
+    else if (w.slice(0, 6) === 'visit:' && !inside) { const nm = w.slice(6), l = W.lots.find((x) => x.name && x.name.indexOf(nm) >= 0); if (l) { const [dx, dy] = doorSpot(l); ok = Math.hypot(dx - P.x, dy - P.y) < 4.5; } }
+    if (ok) { S.lore[e.id] = 1; fresh.push(e); }
+  });
+  if (fresh.length) { saveS(); loreQ.push(fresh); stat('lore', fresh.length); setTimeout(lorePop, 300); }
+}
+function lorePop() {
+  if (loreBusy || !loreQ.length) return; if (scene || storyBusy || looting || !$('modal').hidden || !$('dlg').hidden) { setTimeout(lorePop, 700); return; }
+  loreBusy = true; const es = loreQ.shift(), e = es[0], many = es.length > 1, tot = LORE.length, have = LORE.filter((x) => S.lore[x.id]).length;
+  const el = document.createElement('div'); el.className = 'lorePop';
+  el.innerHTML = '<canvas class="lpFx"></canvas><div class="lpCard"><div class="lpBook"><span>📜</span></div><small>' + (many ? es.length + ' lore entries discovered' : 'Lore discovered') + ' · ' + have + ' of ' + tot + '</small><h2>' + esc(many ? es.map((x) => x.title).join(' · ') : e.title) + '</h2><p>' + esc(many ? 'New pages in your Field Journal.' : e.text) + '</p><div class="lpBtns"><button type="button" data-a="read">' + 'Read in journal' + '</button><button type="button" class="ghost" data-a="ok">Back to patrol</button></div></div>';
+  document.body.appendChild(el); paused = true;
+  const fx = el.querySelector('.lpFx'), g = fx.getContext('2d'), dpr = Math.min(2, devicePixelRatio || 1); fx.width = innerWidth * dpr; fx.height = innerHeight * dpr;
+  let parts = [], raf = 0; for (let i = 0; i < 70; i++) { const a = Math.random() * Math.PI * 2, v = (2 + Math.random() * 6) * dpr; parts.push({ x: fx.width / 2, y: fx.height * .42, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2 * dpr, s: (1.5 + Math.random() * 3) * dpr, life: 1 }); }
+  const loop = () => { g.clearRect(0, 0, fx.width, fx.height); parts.forEach((p) => { p.x += p.vx; p.y += p.vy; p.vx *= .97; p.vy = p.vy * .97 + .03 * dpr; p.life -= .007; g.globalAlpha = Math.max(0, p.life); g.fillStyle = '#ffe9a8'; g.beginPath(); g.arc(p.x, p.y, p.s, 0, 7); g.fill(); }); parts = parts.filter((p) => p.life > 0); if (Math.random() < .25) parts.push({ x: Math.random() * fx.width, y: fx.height + 5, vx: 0, vy: -1.2 * dpr, s: 1.6 * dpr, life: 1 }); raf = requestAnimationFrame(loop); }; loop();
+  requestAnimationFrame(() => el.classList.add('in'));
+  if (S.sound) [523, 659, 784, 1047, 1319].forEach((f, i) => beep(f, .5, 'sine', .025, i * .11));
+  const close = (read) => { el.classList.remove('in'); el.classList.add('out'); setTimeout(() => { cancelAnimationFrame(raf); el.remove(); paused = false; loreBusy = false; if (read) { jTab = 'lore'; JLORE = e.id; journal(); } else setTimeout(lorePop, 400); }, 380); };
+  el.querySelectorAll('[data-a]').forEach((b) => b.onclick = (ev) => { ev.stopPropagation(); close(b.dataset.a === 'read'); });
+}
+let JLORE = null;
+const LORE_DIST = {}; DISTRICTS.forEach((D) => { const put = (x) => { if (Array.isArray(x) && x[1]) LORE_DIST[x[1]] = D.name; else if (x && x.strip) x.strip.forEach(put); }; D.lots.forEach(put); });
 
 // ---------- field abilities from the skill tree ----------
 let ABIL = {};
@@ -1045,7 +1166,7 @@ function npcTalk(r) {
   const tier = f >= 6 ? 'best friends' : f >= 3 ? 'friends' : f >= 1 ? 'knows your name' : 'stranger';
   const line = n.lines[(f + (S.calls || 0)) % n.lines.length], helped = talkedNow[n.id] === 2;
   if (first) award(2, 'small talk');
-  const help = () => { const les = W.D.lessons.indexOf(n.help) >= 0 ? n.help : rnd(W.D.lessons), q = Math.random() < .5 ? L.pickFacts(S, [les], 1)[0] : L.pick(S, [les], 'q', 1)[0];
+  const help = () => { const les = W.D.lessons.indexOf(n.help) >= 0 ? n.help : rnd(W.D.lessons), q = L.pickFacts(S, [les], 1)[0];
     return [[id, n.cat ? '(The cat stares at you, waiting for the correct answer.)' : rnd(['Since you asked. Settle something for me.', 'Okay, cadet. Quick one, I\'ve been wondering about this.', 'You\'re the expert. Tell me this:'])], ['q', q, id],
       ['fx', (res) => { talkedNow[n.id] = 2; if (res.right) { ord('regular'); stat('helped'); const nf = Math.min(6, f + 1); S.npc[n.id] = nf; saveS(); award(Math.round(15 * rapMult() * (1 + gp('rpCit') / 100)), n.name + ' remembers that'); if (nf === 3 && f < 3) setTimeout(() => { banner(n.icon, n.name + ' is your friend now', 'They have something for you.'); queueLoot('A gift from ' + n.name, 1, 'u'); }, 600); else if (nf === 6 && f < 6) setTimeout(() => { banner(n.icon, 'Best friends with ' + n.name, 'They saved the good stuff for you.'); queueLoot('A gift from ' + n.name, 1, 'e'); }, 600); } else award(3, 'gave it a shot'); }]]; };
   const tip = () => { const sec = (W.secrets || []).filter((x) => !S.found[x.id]).sort((a, b) => Math.hypot(a.x - P.x, a.y - P.y) - Math.hypot(b.x - P.x, b.y - P.y))[0];
@@ -1063,7 +1184,7 @@ function nearestLotTo(x, y) { let best = null, bd = 1e9; (inside ? inside.O.W : 
 function openCallScene(c) { openCallSceneQ(c); }
 function openCallSceneQ(c) {
   if (net) net.status('call'); paused = true;
-  const n = c.prio === 1 ? 4 : 3, qs = L.pick(S, [c.les], 'q', n - 1).concat(L.pickFacts(S, [c.les], 1)), fast = clock - c.t0 < 40, a = approachFor(c.les), cl = rnd(CALLER), cid = sayAs('caller', { name: cl[0], icon: cl[1], role: c.where });
+  const n = c.prio === 1 ? 4 : 3, qs = L.pickFacts(S, [c.les], n), fast = clock - c.t0 < 40, a = approachFor(c.les), cl = rnd(CALLER), cid = sayAs('caller', { name: cl[0], icon: cl[1], role: c.where });
   const lines = [['narr', c.title + '. ' + c.where + '.'], ['velvet', '(over the radio) ' + S.cs + ', you\'re on scene. ' + c.text]];
   if (a) lines.push(['choice', a.opts, a.q]);
   lines.push([cid, rnd(['Officer! Over here. Thank goodness.', 'You got here fast. Okay, here\'s what happened.', 'I\'m the one who called. It\'s been a whole thing.', 'Finally. Let me tell you what I saw.'])]);
@@ -1096,7 +1217,7 @@ function streetLife(e) {
       { t: 'Politely decline, you\'re on a call schedule', reply: [[id, 'Next time, then. I\'m here all week.']] }]]], null, { focus: [e.x, e.y], kicker: 'STREET LIFE' }); }
 }
 function citizenTalk(c) {
-  const q = Math.random() < .6 ? L.pickFacts(S, [c.les], 1)[0] : L.pick(S, [c.les], 'jq', 1)[0], id = sayAs('cit', { name: rnd(['Curious resident', 'Local business owner', 'Commuter', 'College student', 'Retired teacher']), icon: rnd(['🙋', '🧑‍💼', '🧑‍🎓', '👵', '🧔']), role: 'Has a question' });
+  const q = L.pickFacts(S, [c.les], 1)[0], id = sayAs('cit', { name: rnd(['Curious resident', 'Local business owner', 'Commuter', 'College student', 'Retired teacher']), icon: rnd(['🙋', '🧑‍💼', '🧑‍🎓', '👵', '🧔']), role: 'Has a question' });
   let rude = false;
   dialogue([[id, rnd(['Excuse me, officer? Quick question about something I read.', 'Officer, can I ask you something? My cousin says one thing, my neighbor says another.', 'Hi! Settle a bet for me?'])], ['choice', [
     { t: 'Of course. What\'s on your mind?', trust: 1, reply: [[id, 'Okay, so:']] },
@@ -1123,7 +1244,7 @@ function infoPoint(i) {
     { t: 'Copy it into your notebook and move on', reply: [['narr', 'You write it down. Neatly. Navarro would be proud.']], fx: () => { award(4, 'notes'); } }], 'Study point']], (r) => { i.cool = S.unit === 'det' ? 60 : 120; ord('study'); if (r.n) award(Math.round((r.right ? 10 : 3) * rapMult() * (S.unit === 'sro' ? 2 : 1) * (1 + gp('rpStudy') / 100)), 'study point'); queueLoot('Left behind at ' + i.name, .1); }, { focus: [i.x, i.y], kicker: 'STUDY POINT · ' + i.name.toUpperCase() });
 }
 function backupScene(uid, o) {
-  const ls = W.D.lessons.indexOf(6) >= 0 ? [6] : W.D.lessons, qs = L.pick(S, ls, 'q', 1).concat(L.pickFacts(S, W.D.lessons, 1)), id = sayAs('mate', { name: o.c, icon: (unitOf(o.u) || {}).icon || '🚓', role: 'Cadet requesting backup' });
+  const ls = W.D.lessons.indexOf(6) >= 0 ? [6] : W.D.lessons, qs = L.pickFacts(S, ls, 2), id = sayAs('mate', { name: o.c, icon: (unitOf(o.u) || {}).icon || '🚓', role: 'Cadet requesting backup' });
   if (net) net.assist(uid); stat('assists'); if (S.squad && others[uid] && others[uid].g === S.squad.code) stat('sqAssist');
   dialogue([[id, '(over the radio) ' + S.cs + ', glad you\'re here. ' + (o.b.l || 'Need a second set of eyes.')], ['choice', [
     { t: 'Take cover position and watch the hands', reply: [[id, 'Copy, you\'re cover. I\'ll make contact.']] },
@@ -1163,7 +1284,7 @@ function factDrill() {
 // the District Final Call: a major incident built from this district's facts. Pass to transfer.
 function finalCall() {
   const m = L.districtMastery(S, W.did); if (!m.ready) { toast('Complete every fact in ' + W.D.name + ' first (' + m.facts.done + '/' + m.facts.total + ').'); return; }
-  const facts = L.pickFacts(S, W.D.lessons, 10).map((q) => q), qs = L.pick(S, W.D.lessons, 'q', 5), nx = (W.did + 1) % 5, cid = sayAs('ic', { name: 'Incident Command', icon: '🛡️', role: W.D.name + ' · Final Call' });
+  const facts = L.pickFacts(S, W.D.lessons, 10, { exam: true }), qs = L.pickFacts(S, W.D.lessons, 5, { exam: true }), nx = (W.did + 1) % 5, cid = sayAs('ic', { name: 'Incident Command', icon: '🛡️', role: W.D.name + ' · Final Call' });
   paused = true; music.set && music.start('urgent');
   const lines = [['narr', 'Major incident. ' + W.D.name + '. Every unit in the district is rolling.'], ['okonkwo', '(over the radio) ' + S.cs + ', this is your Final Call. Everything you learned in ' + W.D.name + ', all at once. Thirteen of fifteen by the book and you transfer out.'],
     ['choice', [{ t: 'Copy. Show me the scene.', reply: [['castillo', 'Breathe. Slow is smooth. Smooth is fast.']] }, { t: 'Request a moment to check my notes', reply: [['navarro', '(over the radio) You know this. You did every fact. Go.']] }], 'Ready?']];
@@ -1179,7 +1300,7 @@ function finalCall() {
 }
 // after all five districts: the Chapter 5 Final Exam, facts from the whole chapter, 85% to pass
 function chapterExam() {
-  const all = [0, 1, 2, 3, 4].flatMap((d) => DISTRICTS[d].lessons), facts = L.pickFacts(S, all, 50), sp = ['castillo', 'okonkwo', 'navarro'];
+  const all = [0, 1, 2, 3, 4].flatMap((d) => DISTRICTS[d].lessons), facts = L.pickFacts(S, all, 50, { exam: true }), sp = ['castillo', 'okonkwo', 'navarro'];
   paused = true; music.start('story');
   dialogue([['narr', 'Patrol HQ, the training room. Fifty facts from the whole chapter.'], ['castillo', 'This is the whole chapter, cadet. Eighty-five percent. You\'ve done every one of these on the street already.'], ['choice', [{ t: 'Ready.', reply: [] }, { t: 'Give me a second.', reply: [['castillo', 'Take two. Then we start.']] }], 'Chapter 5 Final Exam']].concat(facts.map((q, k) => ['q', q, sp[k % 3]])), (r) => {
     paused = false; const pass = r.right / r.n >= .85; if (pass) { S.graduated = Date.now(); stat('exam'); } saveS();
@@ -1241,6 +1362,15 @@ $('bMap').onclick = () => { jTab = chStep() ? 'story' : 'map'; journal(); }; $('
 $('bPause').onclick = () => pauseMenu();
 $('bSnd').onclick = () => { S.sound = !S.sound; saveS(); hud(); if (S.sound) { audio(); music.start(moodNow()); } else music.stop(); };
 $('bMe').onclick = () => { cam.free = false; };
+// X6 (busy): dispatch stops sending you calls. X8 (available): back in the rotation.
+function statusBtn() { const b = $('bX'); if (!b) return; b.classList.toggle('busy', !!S.x6); b.innerHTML = '<i class="xCode">' + (S.x6 ? 'X6' : 'X8') + '</i><span>' + (S.x6 ? 'Busy' : 'Available') + '</span>'; b.title = S.x6 ? 'X6 (Busy): no calls. Tap to go X8 (Available).' : 'X8 (Available): taking calls. Tap to go X6 (Busy).'; }
+function setStatus(busy) {
+  if (busy && call && call.accepted) { toast('Clear your current call before going X6.'); return; }
+  S.x6 = !!busy; saveS(); chirp(); statusBtn();
+  if (busy) { radio(S.cs, 'X6.'); if (call) { call = null; callCard(); } setTimeout(() => radio('Dispatch', '10-4, ' + S.cs + ', X6. Holding your calls.'), 900); if (net) net.status('busy'); }
+  else { radio(S.cs, 'X8.'); nextCall = Math.min(nextCall, 10); setTimeout(() => radio('Dispatch', '10-4, ' + S.cs + ', X8. Back in service.'), 900); if (net) net.status('patrol'); }
+}
+if ($('bX')) { $('bX').onclick = () => setStatus(!S.x6); statusBtn(); }
 $('zIn').onclick = () => setZoom(cam.z * 1.2); $('zOut').onclick = () => setZoom(cam.z / 1.2);
 $('bRadio').onclick = () => { const m = $('quick'); m.hidden = !m.hidden; $('bRadio').classList.remove('ping'); if (!m.hidden) { commsPanel(); setTimeout(() => { if (innerWidth > 700) { const i = $('chIn'); if (i) i.focus(); } }, 50); } };
 
@@ -1649,6 +1779,7 @@ TROPHIES.push(
   ['squadchat', 'Squad Chatter', 'Send 25 squad messages.', 's', () => st('sqMsg') >= 25]
 );
 TROPHIES.push(['fact1', 'Know This', 'Complete your first fact.', 'b', () => Object.keys(S.facts || {}).length >= 1], ['fact100', 'Fact Finder', 'Complete 100 facts.', 's', () => Object.keys(S.facts || {}).length >= 100], ['factall', 'Every Fact in the Chapter', 'Complete all 558 facts.', 'g', () => Object.keys(S.facts || {}).length >= 558], ['final1', 'Transfer Orders', 'Pass a District Final Call.', 's', () => st('finals') >= 1], ['exam', 'Chapter 5: Passed', 'Pass the Chapter 5 Final Exam.', 'g', () => !!S.graduated]);
+TROPHIES.push(['lore1', 'Local History', 'Discover a piece of lore out in the city.', 'b', () => LORE.some((e) => e.when.slice(0, 6) === 'visit:' && S.lore[e.id])], ['lore20', 'Town Historian', 'Discover 20 lore entries.', 's', () => LORE.filter((e) => S.lore[e.id]).length >= 20], ['loreall', 'Keeper of Port Meridian', 'Discover every lore entry.', 'g', () => LORE.every((e) => S.lore[e.id])], ['side10d', 'Neighborhood Fixture', 'Close all ten side cases in one district.', 's', () => DISTRICTS.some((D) => SIDE.filter((q) => q.d === D.id).every(sideClosed))], ['side25', 'Busy Beat', 'Close 25 side cases.', 's', () => SIDE.filter(sideClosed).length >= 25]);
 TROPHIES.push(['plat', 'Port Meridian\'s Finest', 'Earn every other trophy.', 'p', () => TROPHIES.every((t) => t[0] === 'plat' || (S.trophies || {})[t[0]])]);
 const TIER = { b: ['Bronze', '#cd7f32'], s: ['Silver', '#c9d2dd'], g: ['Gold', '#f5b800'], p: ['Platinum', '#9ee7ff'] };
 let trT = 3, trQ = [], trBusy = false;

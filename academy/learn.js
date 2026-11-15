@@ -53,15 +53,29 @@ export const factCount = () => FACTS.length;
 export function factList(lessons) { const set = new Set(lessons); return FACTS.filter((f) => set.has(f.les)); }
 export function factProgress(S, lessons) { const all = factList(lessons), f = S.facts || {}; return { done: all.filter((x) => f[x.id]).length, total: all.length }; }
 function factQuestion(f) {
-  const qi = f.qs[Math.floor(Math.random() * f.qs.length)], r = POOL[qi], multi = Array.isArray(r[2]), order = shuffle(r[1].map((_, i) => i));
+  const simple = f.qs.filter((k) => POOL[k] && !Array.isArray(POOL[k][2])), from = simple.length ? simple : f.qs;
+  const qi = from[Math.floor(Math.random() * from.length)], r = POOL[qi], multi = Array.isArray(r[2]), order = shuffle(r[1].map((_, i) => i));
   return { id: 'P' + qi, fid: f.id, kind: 'fact', les: f.les, stem: r[0], opts: order.map((i) => r[1][i]), c: multi ? r[2].map((k) => order.indexOf(k)) : order.indexOf(r[2]), multi, ex: r[4] || f.text, pg: r[5] || f.pg, fact: f.text };
 }
 export function fact(S, lesson) { const p = FACTS.filter((f) => f.les === lesson); if (!p.length) return null; const open = p.filter((f) => !(S.facts || {})[f.id]), from = open.length ? open : p, f = from[Math.floor(Math.random() * from.length)]; return { id: f.id, text: f.text, pg: f.pg, les: lesson, done: !!(S.facts || {})[f.id] }; }
 export function factQ(id) { const f = FACTS.find((x) => x.id === id); return f ? factQuestion(f) : null; }
 // questions for n facts, open facts first (then ones missed recently)
-export function pickFacts(S, lessons, n) { const done = S.facts || {}, all = shuffle(factList(lessons)); all.sort((a, b) => (done[a.id] ? 2 : 0) - (done[b.id] ? 2 : 0)); return all.slice(0, n).map(factQuestion); }
+// every question is a fact: facts you haven't learned come first and a learned fact never comes back while any are left.
+// opts.wide (default true): if these lessons are all learned, draw unlearned facts from the rest of the chapter instead of repeating.
+// opts.exam: an exam may re-test learned facts in these lessons (oldest first).
+export function pickFacts(S, lessons, n, opts) {
+  opts = opts || {}; const done = S.facts || {}, seen = S.fseen || {}, out = [], used = new Set(OUT_NOW);
+  const take = (list) => { for (const f of list) { if (out.length >= n) return; if (used.has(f.id)) continue; used.add(f.id); out.push(f); } };
+  take(shuffle(factList(lessons).filter((f) => !done[f.id])));
+  if (out.length < n && !opts.exam && opts.wide !== false) take(shuffle(FACTS.filter((f) => !done[f.id])));
+  if (out.length < n) take(shuffle(factList(lessons)).sort((a, b) => (seen[a.id] || 0) - (seen[b.id] || 0)));
+  out.forEach((f) => { OUT_NOW.push(f.id); if (OUT_NOW.length > 12) OUT_NOW.shift(); });
+  return out.map(factQuestion);
+}
+const OUT_NOW = []; // facts handed out recently, so two scenes in a row don't ask the same one
 export function record(S, q, ok) {
   S.seen[q.id] = Date.now(); if (ok) delete S.miss[q.id]; else S.miss[q.id] = 1;
+  if (q.fid) { S.fseen = S.fseen || {}; S.fseen[q.fid] = Date.now(); }
   if (ok && q.fid) { S.facts = S.facts || {}; if (!S.facts[q.fid]) { S.facts[q.fid] = 1; S.newFact = (S.newFact || 0) + 1; } }
   const L = (S.log[q.les] = S.log[q.les] || []); L.push(ok ? 1 : 0); while (L.length > 10) L.shift();
   S.answered++; if (ok) S.right++;
