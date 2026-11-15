@@ -379,16 +379,37 @@ export function drawBuilding(b, night, sun) {
       poly([up(pa, v0 - 1.6), up(pb, v0 - 1.6), up(pb, v0), up(pa, v0)], 'rgba(235,238,242,.55)');
       if (opts.wh > 9 && Math.abs(pb[0] - pa[0]) > 7) { const m0 = [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2], q0 = tx(up(m0, v0)), q1 = tx(up(m0, v1)); g.strokeStyle = 'rgba(20,26,36,.55)'; g.lineWidth = .8; g.beginPath(); g.moveTo(q0[0], q0[1]); g.lineTo(q1[0], q1[1]); g.stroke(); }
       if (lit && opts.onLit) opts.onLit(pa, pb, v0);
+      if (opts.deco) opts.deco(pa, pb, v0, v1, lit, r);
     }
     return len;
   };
   const st = b.style;
   const winLit = [];
+  const qa = (pa, pb, f) => [pa[0] + (pb[0] - pa[0]) * f, pa[1] + (pb[1] - pa[1]) * f];
+  // brick and stone: mortar courses with staggered joints
+  if (st === 'brick' || st === 'stone' || st === 'motel' || st === 'jail') {
+    const step = st === 'stone' ? 6 : 3.2, jw = st === 'stone' ? 12 : 6;
+    [[Dp, C, b.w], [C, Bp, b.d]].forEach(([P0, P1, n]) => { const len = Math.hypot(P1[0] - P0[0], P1[1] - P0[1]), cnt = Math.floor(len / jw);
+      g.strokeStyle = st === 'stone' ? 'rgba(0,0,0,.08)' : 'rgba(255,240,225,.10)'; g.lineWidth = .5;
+      for (let y = step; y < h - 3; y += step) { const a1 = tx(up(P0, y)), b1 = tx(up(P1, y)); g.beginPath(); g.moveTo(a1[0], a1[1]); g.lineTo(b1[0], b1[1]); g.stroke();
+        const off = (Math.round(y / step) % 2) * .5; for (let k = 0; k < cnt; k++) { const p0 = tx(up(qa(P0, P1, (k + off) / cnt), y)); g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p0[0], p0[1] - step); g.stroke(); } } });
+  }
+  // plinth: a darker base course for solid buildings
+  if (st !== 'house' && st !== 'storage' && st !== 'stadium' && st !== 'shop' && st !== 'diner') { poly([Dp, C, up(C, 4), up(Dp, 4)], shade(base, .6)); poly([C, Bp, up(Bp, 4), up(C, 4)], shade(base, .5)); }
+  const deco = (pa, pb, v0, v1, lit, r) => {
+    const wv = v1 - v0;
+    if (!lit && wv > 8 && R() < .3) { g.strokeStyle = night ? 'rgba(255,255,255,.05)' : 'rgba(235,240,245,.45)'; g.lineWidth = .6; for (let k = 1; k <= 3; k++) { const y = v1 - k * 1.6, a1 = tx(up(pa, y)), b1 = tx(up(pb, y)); g.beginPath(); g.moveTo(a1[0], a1[1]); g.lineTo(b1[0], b1[1]); g.stroke(); } }
+    if (lit && R() < .35) { const cc = ['rgba(200,60,60,.35)', 'rgba(60,110,200,.3)', 'rgba(240,240,220,.35)'][Math.floor(R() * 3)]; poly([up(pa, v0), up(qa(pa, pb, .22), v0), up(qa(pa, pb, .22), v1), up(pa, v1)], cc); poly([up(qa(pa, pb, .78), v0), up(pb, v0), up(pb, v1), up(qa(pa, pb, .78), v1)], cc); }
+    if (st === 'apartments' && r > 0) {
+      if (R() < .22) { const m0 = qa(pa, pb, .3), m1 = qa(pa, pb, .7); poly([up(m0, v0 - 5), up(m1, v0 - 5), up(m1, v0 - 1.5), up(m0, v0 - 1.5)], '#cfd3d8'); poly([up(m0, v0 - 1.5), up(m1, v0 - 1.5), [m1[0] + 1.5, m1[1] - v0 + 2.2], [m0[0] + 1.5, m0[1] - v0 + 2.2]], '#e5e8eb'); }
+      else if (R() < .35) { const e0 = [pa[0] - 2, pa[1] + 1], e1 = [pb[0] + 2, pb[1] + 1]; poly([up(e0, v0 - 2), up(e1, v0 - 2), [e1[0] + 4, e1[1] + 2 - v0 + 2], [e0[0] + 4, e0[1] + 2 - v0 + 2]], shade(base, .9)); g.strokeStyle = 'rgba(30,34,40,.7)'; g.lineWidth = .6; const r0 = tx([e0[0] + 4, e0[1] + 2 - v0 + 2 - 5]), r1 = tx([e1[0] + 4, e1[1] + 2 - v0 + 2 - 5]); g.beginPath(); g.moveTo(r0[0], r0[1]); g.lineTo(r1[0], r1[1]); g.stroke(); for (let k = 0; k <= 4; k++) { const q = qa([e0[0] + 4, e0[1] + 2 - v0 + 2], [e1[0] + 4, e1[1] + 2 - v0 + 2], k / 4), a1 = tx(q); g.beginPath(); g.moveTo(a1[0], a1[1]); g.lineTo(a1[0], a1[1] - 5); g.stroke(); } }
+    }
+  };
   const onLit = (pa, pb, v0) => { if (winLit.length < 6) winLit.push([(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2 - v0 - 6]); };
   if (st === 'glass') {
     const rows = Math.floor((h - 10) / 14);
-    face(Dp, C, 1.0, b.w * 3, rows, { base: 8, step: 14, wh: 10, glass: shade('#5b7aa0', .9), lit: .4, onLit });
-    face(C, Bp, .8, b.d * 3, rows, { base: 8, step: 14, wh: 10, glass: shade('#4a6788', .9), lit: .4, onLit });
+    face(Dp, C, 1.0, b.w * 3, rows, { base: 8, step: 14, wh: 10, glass: shade('#5b7aa0', .9), lit: .4, onLit, deco });
+    face(C, Bp, .8, b.d * 3, rows, { base: 8, step: 14, wh: 10, glass: shade('#4a6788', .9), lit: .4, onLit, deco });
   } else if (st === 'house') {
     face(Dp, C, 1, 2, 1, { base: 8, step: 10, wh: 10, lit: .6, onLit });
     face(C, Bp, .8, 2, 1, { base: 8, step: 10, wh: 10, lit: .5, onLit });
@@ -402,12 +423,16 @@ export function drawBuilding(b, night, sun) {
     if (st === 'stadium') { face(Dp, C, 1, b.w * 2, 2, { base: 10, step: 18, wh: 8, lit: .9, onLit }); }
   } else {
     const rows = Math.max(1, Math.floor((h - 14) / 18));
-    face(Dp, C, 1, b.w * 2, rows, { base: st === 'shop' || st === 'diner' ? 4 : 10, step: 18, wh: st === 'shop' || st === 'diner' ? 16 : 11, lit: st === 'apartments' ? .5 : .35, onLit, glass: st === 'shop' || st === 'diner' ? shade('#a9c7dd', .85) : null });
-    face(C, Bp, .8, b.d * 2, rows, { base: 10, step: 18, wh: 11, lit: .3, onLit });
+    face(Dp, C, 1, b.w * 2, rows, { base: st === 'shop' || st === 'diner' ? 4 : 10, step: 18, wh: st === 'shop' || st === 'diner' ? 16 : 11, lit: st === 'apartments' ? .5 : .35, onLit, deco, glass: st === 'shop' || st === 'diner' ? shade('#a9c7dd', .85) : null });
+    face(C, Bp, .8, b.d * 2, rows, { base: 10, step: 18, wh: 11, lit: .3, onLit, deco });
+    if (st === 'shop' || st === 'diner') { poly([Dp, C, up(C, 4), up(Dp, 4)], shade(base, .45)); g.strokeStyle = 'rgba(30,34,40,.75)'; g.lineWidth = 1; const n = b.w * 4; for (let k = 0; k <= n; k++) { const p0 = qa(Dp, C, k / n), a1 = tx(up(p0, 4)), b1 = tx(up(p0, 20)); g.beginPath(); g.moveTo(a1[0], a1[1]); g.lineTo(b1[0], b1[1]); g.stroke(); } const a1 = tx(up(Dp, 20.5)), b1 = tx(up(C, 20.5)); g.lineWidth = 1.6; g.beginPath(); g.moveTo(a1[0], a1[1]); g.lineTo(b1[0], b1[1]); g.stroke(); }
     if (st === 'apartments') { g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 2; for (let r = 1; r < rows; r++) { const a = tx(up(Dp, r * 18 + 2)), bb = tx(up(C, r * 18 + 2)); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(bb[0], bb[1]); g.stroke(); } }
     if (b.columns) { for (let k = 0; k <= b.w * 2; k++) { const t = k / (b.w * 2), p = [Dp[0] + (C[0] - Dp[0]) * t, Dp[1] + (C[1] - Dp[1]) * t]; poly([[p[0] - 2, p[1] - 1], [p[0] + 2, p[1] + 1], up([p[0] + 2, p[1] + 1], h * .62), up([p[0] - 2, p[1] - 1], h * .62)], '#f6f2ea'); } poly([up(Dp, h * .62), up(C, h * .62), up(C, h * .7), up(Dp, h * .7)], shade(base, .95)); }
   }
   if (b.awning) { const aw = 7; poly([up(Dp, 18), up(C, 18), [C[0] + 8, C[1] + 4 - 18 + aw], [Dp[0] + 8, Dp[1] + 4 - 18 + aw]], b.awning); g.globalAlpha = .25; for (let k = 0; k < b.w * 3; k += 2) { const t0 = k / (b.w * 3), t1 = (k + 1) / (b.w * 3), pa = [Dp[0] + (C[0] - Dp[0]) * t0, Dp[1] + (C[1] - Dp[1]) * t0], pb = [Dp[0] + (C[0] - Dp[0]) * t1, Dp[1] + (C[1] - Dp[1]) * t1]; poly([up(pa, 18), up(pb, 18), [pb[0] + 8, pb[1] - 7], [pa[0] + 8, pa[1] - 7]], '#ffffff'); } g.globalAlpha = 1; }
+  if (st !== 'house' && st !== 'stadium' && st !== 'storage' && st !== 'corrugated' && st !== 'bays' && st !== 'garage') { // cornice with a shadow under it
+    const o2 = 1.6; poly([up(Dp, h - 3.5), up(C, h - 3.5), [C[0] + o2, C[1] + o2 * .5 - h + 3.5], [Dp[0] + o2, Dp[1] + o2 * .5 - h + 3.5]], 'rgba(0,0,0,.18)');
+    poly([up(Dp, h - 3), up(C, h - 3), up(C, h), up(Dp, h)], shade(base, 1.15)); poly([up(C, h - 3), up(Bp, h - 3), up(Bp, h), up(C, h)], shade(base, .9)); }
   if (b.trim) { poly([up(Dp, h - 5), up(C, h - 5), up(C, h), up(Dp, h)], b.trim); poly([up(C, h - 5), up(Bp, h - 5), up(Bp, h), up(C, h)], shade(b.trim, .8)); }
   // roof
   if (st === 'house') {
@@ -418,6 +443,8 @@ export function drawBuilding(b, night, sun) {
     poly([up(C, h), up(Bp, h), up(m2, h + rh)], shade(base, .55));
     g.strokeStyle = 'rgba(0,0,0,.14)'; g.lineWidth = .7; for (let k = 1; k < 5; k++) { const f = k / 5, a1 = tx([Dp[0] + (m1[0] - Dp[0]) * f, Dp[1] + (m1[1] - Dp[1]) * f - h - rh * f]), b1 = tx([C[0] + (m2[0] - C[0]) * f, C[1] + (m2[1] - C[1]) * f - h - rh * f]); g.beginPath(); g.moveTo(a1[0], a1[1]); g.lineTo(b1[0], b1[1]); g.stroke(); }
     mini(g, tx, b.x + b.w * .7, b.y + b.d * .3, .35, .35, rh + 4, h, '#8a5a44');
+    if (R() < .4) { g.save(); poly([up(Dp, h), up(C, h), up(m2, h + rh), up(m1, h + rh)]); g.clip(); for (let k = 0; k < 3; k++) { const f0 = .15 + k * .22, a0 = qa(Dp, C, f0), a1 = qa(Dp, C, f0 + .18), lift = (z) => [z[0] + (m1[0] - Dp[0]) * .3, z[1] + (m1[1] - Dp[1]) * .3 - h - rh * .3]; const lift2 = (z) => [z[0] + (m1[0] - Dp[0]) * .75, z[1] + (m1[1] - Dp[1]) * .75 - h - rh * .75]; g.beginPath(); [lift(a0), lift(a1), lift2(a1), lift2(a0)].forEach((q, i) => { const t2 = tx(q); i ? g.lineTo(t2[0], t2[1]) : g.moveTo(t2[0], t2[1]); }); g.closePath(); g.fillStyle = '#1e3a5f'; g.fill(); g.strokeStyle = 'rgba(180,210,240,.5)'; g.lineWidth = .5; g.stroke(); } g.restore(); }
+    { const p0 = qa(Dp, C, .55), p1 = qa(Dp, C, .82), o3 = 6; poly([p0, p1, [p1[0] + o3, p1[1] + o3 * .5], [p0[0] + o3, p0[1] + o3 * .5]], '#cdbfa8'); [p0, p1].forEach((q) => { const a1 = tx([q[0] + o3 - .5, q[1] + o3 * .5]); g.fillStyle = '#f2efe8'; g.fillRect(a1[0] - .8, a1[1] - 14, 1.6, 14); }); poly([up(p0, 14), up(p1, 14), [p1[0] + o3, p1[1] + o3 * .5 - 14], [p0[0] + o3, p0[1] + o3 * .5 - 14]], shade(b.roof || '#7a5a3a', .9)); }
     { const d0 = [Dp[0] + (C[0] - Dp[0]) * .62, Dp[1] + (C[1] - Dp[1]) * .62], d1 = [Dp[0] + (C[0] - Dp[0]) * .74, Dp[1] + (C[1] - Dp[1]) * .74]; poly([d0, d1, up(d1, 14), up(d0, 14)], '#5b3a22'); poly([up(d0, 14), up(d1, 14), up(d1, 15.5), up(d0, 15.5)], '#f2efe8'); if (night) { const q = up([(d0[0] + d1[0]) / 2, (d0[1] + d1[1]) / 2], 18); winLit.push([q[0], q[1]]); } }
   } else {
     { const r0 = tx(up(A, h)), r1 = tx(up(C, h)), rg = g.createLinearGradient(r0[0], r0[1], r1[0], r1[1]); rg.addColorStop(0, shade(st === 'stadium' ? '#3f8a3a' : top, 1.08)); rg.addColorStop(1, shade(st === 'stadium' ? '#3f8a3a' : top, .9)); poly([up(A, h), up(Bp, h), up(C, h), up(Dp, h)], rg); }
@@ -427,7 +454,13 @@ export function drawBuilding(b, night, sun) {
     // parapet
     g.strokeStyle = shade(base, 1.25); g.lineWidth = 2; poly([up(A, h), up(Bp, h), up(C, h), up(Dp, h)]); g.stroke();
     // roof units
-    if (st !== 'stadium' && st !== 'storage') for (let k = 0; k < Math.min(3, b.w); k++) { const cx = b.x + 1 + R() * (b.w - 1.5), cy = b.y + .5 + R() * (b.d - 1.2); mini(g, tx, cx, cy, .5, .4, 7, h, '#c7ccd2'); }
+    if (st !== 'stadium' && st !== 'storage') {
+      for (let k = 0; k < Math.min(3, b.w); k++) { const cx = b.x + 1 + R() * (b.w - 1.5), cy = b.y + .5 + R() * (b.d - 1.2); mini(g, tx, cx, cy, .5, .4, 7, h, '#c7ccd2'); const q = tx(up(iso(cx + .25, cy + .2), h + 7)); g.fillStyle = '#5b636d'; g.beginPath(); g.ellipse(q[0], q[1], 5, 2.5, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#8b939d'; g.lineWidth = .7; g.beginPath(); g.moveTo(q[0] - 4, q[1]); g.lineTo(q[0] + 4, q[1]); g.moveTo(q[0], q[1] - 2); g.lineTo(q[0], q[1] + 2); g.stroke(); }
+      for (let k = 0; k < 2; k++) { const q = tx(up(iso(b.x + .4 + R() * (b.w - .8), b.y + .4 + R() * (b.d - .8)), h)); g.fillStyle = '#9aa1a9'; g.fillRect(q[0] - 1, q[1] - 6, 2.2, 6); g.fillStyle = '#6b7280'; g.beginPath(); g.ellipse(q[0] + .1, q[1] - 6, 1.6, .8, 0, 0, Math.PI * 2); g.fill(); }
+      if (b.w >= 3) mini(g, tx, b.x + .3, b.y + .3, .8, .7, 9, h, shade(base, .95));
+      if ((st === 'apartments' || (st === 'brick' && h > 60)) && b.w >= 4) { const q = tx(up(iso(b.x + b.w - 1.2, b.y + 1.1), h)); g.strokeStyle = '#4b3a2a'; g.lineWidth = 1.2; [-5, 5].forEach((d) => { g.beginPath(); g.moveTo(q[0] + d, q[1]); g.lineTo(q[0] + d * .8, q[1] - 10); g.stroke(); }); const tg = g.createLinearGradient(q[0] - 7, 0, q[0] + 7, 0); tg.addColorStop(0, '#8a6a4a'); tg.addColorStop(1, '#5a4330'); g.fillStyle = tg; g.fillRect(q[0] - 7, q[1] - 24, 14, 14); g.beginPath(); g.ellipse(q[0], q[1] - 10, 7, 2.5, 0, 0, Math.PI); g.fill(); g.fillStyle = '#6b5038'; g.beginPath(); g.moveTo(q[0] - 7.5, q[1] - 24); g.lineTo(q[0], q[1] - 31); g.lineTo(q[0] + 7.5, q[1] - 24); g.fill(); g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = .6; for (let k = 1; k < 4; k++) { g.beginPath(); g.moveTo(q[0] - 7, q[1] - 24 + k * 3.5); g.lineTo(q[0] + 7, q[1] - 24 + k * 3.5); g.stroke(); } }
+      if (st === 'glass' && h > 120) { const q = tx(up(iso(b.x + b.w / 2, b.y + b.d / 2), h)); g.strokeStyle = '#c7ccd1'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(q[0], q[1]); g.lineTo(q[0], q[1] - 26); g.stroke(); g.fillStyle = '#ff3b3b'; g.beginPath(); g.arc(q[0], q[1] - 26, 1.6, 0, Math.PI * 2); g.fill(); if (night) winLit.push([q[0] + minX, q[1] - 26 + minY]); }
+    }
     if (b.dishes) { const p = tx(up(iso(b.x + b.w * .6, b.y + b.d * .4), h + 10)); g.fillStyle = '#eef1f4'; g.beginPath(); g.ellipse(p[0], p[1], 8, 5, -.5, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#8a9099'; g.stroke(); }
     if (b.dome) { const p = tx(up(iso(b.x + b.w / 2, b.y + b.d / 2), h)); const gr = g.createRadialGradient(p[0] - 8, p[1] - 30, 4, p[0], p[1] - 16, 34); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, '#9aa9b5'); g.fillStyle = gr; g.beginPath(); g.ellipse(p[0], p[1] - 4, 28, 14, 0, Math.PI, 0); g.lineTo(p[0] + 28, p[1] - 4); g.ellipse(p[0], p[1] - 4, 28, 30, 0, 0, Math.PI, true); g.fill(); }
   }
