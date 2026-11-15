@@ -199,7 +199,7 @@ function update(dt, now) {
   if ((P.inCar || P.boat) && call && call.accepted) { sirenT -= dt; if (sirenT <= 0) { sirenT = .9; beep(720, .42, 'sine', .018); beep(980, .42, 'sine', .018, .45); } }
   if (net && now - moveSent > 120) { moveSent = now; net.move(P.x, P.y, P.boat ? 2 : P.inCar ? 1 : 0, P.dir); }
   liveUpdate(dt);
-  storyUpdate(dt); objectiveHud(); tipsUpdate(dt); musicUpdate(dt); trophyCheck(dt); squadTick(dt); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
+  storyUpdate(dt); objectiveHud(); tipsUpdate(dt); musicUpdate(dt); trophyCheck(dt); squadTick(dt); factWatch(); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
   if (inside && !P.path.length && Math.hypot(W.door[0] - P.x, W.door[1] - P.y) < .45) exitBuilding();
   hudClock();
   if (clock >= SHIFT_MIN && !scene) endOfWatch();
@@ -1025,6 +1025,12 @@ const APPROACH_BONUS = { quiet: 1.25, smart: 1.2, neighbors: 1.1, observe: 1.2, 
 const sayAs = (id, o) => { TEMP[id] = { name: o.name, icon: o.icon || '💬', role: o.role || '' }; return id; };
 const CALLER = [['Caller', '📞'], ['Witness', '👀'], ['Neighbor', '🏠'], ['Store clerk', '🧾'], ['Resident', '🚪']];
 function sceneEnd(kind, x, y) { stat('scenes'); }
+let factReady = null;
+function factWatch() {
+  if (inside || ATTRACT) return; const m = L.districtMastery(S, W.did);
+  if (S.newFact) { FLOATS.push({ x: P.x, y: P.y, t: performance.now() + 200, text: 'FACT ✓' + (S.newFact > 1 ? ' ×' + S.newFact : ''), sub: m.facts.done + ' / ' + m.facts.total + ' in ' + W.D.name }); S.newFact = 0; saveS(); hud(); }
+  if (factReady === null) factReady = m.ready; else if (m.ready && !factReady) { factReady = true; banner('🚨', 'District Final Call unlocked', 'Every fact in ' + W.D.name + ' is complete. Open the City map to take it.'); music.sting('done'); } else factReady = m.ready;
+}
 // regulars: a conversation with real options, not a menu
 function npcTalk(r) {
   const n = r.n, f = S.npc[n.id] || 0, first = !talkedNow[n.id]; talkedNow[n.id] = talkedNow[n.id] || 1;
@@ -1032,7 +1038,7 @@ function npcTalk(r) {
   const tier = f >= 6 ? 'best friends' : f >= 3 ? 'friends' : f >= 1 ? 'knows your name' : 'stranger';
   const line = n.lines[(f + (S.calls || 0)) % n.lines.length], helped = talkedNow[n.id] === 2;
   if (first) award(2, 'small talk');
-  const help = () => { const les = W.D.lessons.indexOf(n.help) >= 0 ? n.help : rnd(W.D.lessons), q = L.pick(S, [les], 'q', 1)[0];
+  const help = () => { const les = W.D.lessons.indexOf(n.help) >= 0 ? n.help : rnd(W.D.lessons), q = Math.random() < .5 ? L.pickFacts(S, [les], 1)[0] : L.pick(S, [les], 'q', 1)[0];
     return [[id, n.cat ? '(The cat stares at you, waiting for the correct answer.)' : rnd(['Since you asked. Settle something for me.', 'Okay, cadet. Quick one, I\'ve been wondering about this.', 'You\'re the expert. Tell me this:'])], ['q', q, id],
       ['fx', (res) => { talkedNow[n.id] = 2; if (res.right) { ord('regular'); stat('helped'); const nf = Math.min(6, f + 1); S.npc[n.id] = nf; saveS(); award(Math.round(15 * rapMult() * (1 + gp('rpCit') / 100)), n.name + ' remembers that'); if (nf === 3 && f < 3) setTimeout(() => { banner(n.icon, n.name + ' is your friend now', 'They have something for you.'); queueLoot('A gift from ' + n.name, 1, 'u'); }, 600); else if (nf === 6 && f < 6) setTimeout(() => { banner(n.icon, 'Best friends with ' + n.name, 'They saved the good stuff for you.'); queueLoot('A gift from ' + n.name, 1, 'e'); }, 600); } else award(3, 'gave it a shot'); }]]; };
   const tip = () => { const sec = (W.secrets || []).filter((x) => !S.found[x.id]).sort((a, b) => Math.hypot(a.x - P.x, a.y - P.y) - Math.hypot(b.x - P.x, b.y - P.y))[0];
@@ -1050,7 +1056,7 @@ function nearestLotTo(x, y) { let best = null, bd = 1e9; (inside ? inside.O.W : 
 function openCallScene(c) { openCallSceneQ(c); }
 function openCallSceneQ(c) {
   if (net) net.status('call'); paused = true;
-  const n = c.prio === 1 ? 4 : 3, qs = L.pick(S, [c.les], 'q', n), fast = clock - c.t0 < 40, a = approachFor(c.les), cl = rnd(CALLER), cid = sayAs('caller', { name: cl[0], icon: cl[1], role: c.where });
+  const n = c.prio === 1 ? 4 : 3, qs = L.pick(S, [c.les], 'q', n - 1).concat(L.pickFacts(S, [c.les], 1)), fast = clock - c.t0 < 40, a = approachFor(c.les), cl = rnd(CALLER), cid = sayAs('caller', { name: cl[0], icon: cl[1], role: c.where });
   const lines = [['narr', c.title + '. ' + c.where + '.'], ['velvet', '(over the radio) ' + S.cs + ', you\'re on scene. ' + c.text]];
   if (a) lines.push(['choice', a.opts, a.q]);
   lines.push([cid, rnd(['Officer! Over here. Thank goodness.', 'You got here fast. Okay, here\'s what happened.', 'I\'m the one who called. It\'s been a whole thing.', 'Finally. Let me tell you what I saw.'])]);
@@ -1083,7 +1089,7 @@ function streetLife(e) {
       { t: 'Politely decline, you\'re on a call schedule', reply: [[id, 'Next time, then. I\'m here all week.']] }]]], null, { focus: [e.x, e.y], kicker: 'STREET LIFE' }); }
 }
 function citizenTalk(c) {
-  const q = L.pick(S, [c.les], 'jq', 1)[0], id = sayAs('cit', { name: rnd(['Curious resident', 'Local business owner', 'Commuter', 'College student', 'Retired teacher']), icon: rnd(['🙋', '🧑‍💼', '🧑‍🎓', '👵', '🧔']), role: 'Has a question' });
+  const q = Math.random() < .6 ? L.pickFacts(S, [c.les], 1)[0] : L.pick(S, [c.les], 'jq', 1)[0], id = sayAs('cit', { name: rnd(['Curious resident', 'Local business owner', 'Commuter', 'College student', 'Retired teacher']), icon: rnd(['🙋', '🧑‍💼', '🧑‍🎓', '👵', '🧔']), role: 'Has a question' });
   let rude = false;
   dialogue([[id, rnd(['Excuse me, officer? Quick question about something I read.', 'Officer, can I ask you something? My cousin says one thing, my neighbor says another.', 'Hi! Settle a bet for me?'])], ['choice', [
     { t: 'Of course. What\'s on your mind?', trust: 1, reply: [[id, 'Okay, so:']] },
@@ -1095,7 +1101,7 @@ function citizenTalk(c) {
   }, { focus: [c.x, c.y], kicker: 'CITIZEN CONTACT' });
 }
 function observeScene(o) {
-  const q = L.pick(S, [o.les], 'q', 1)[0];
+  const q = L.pickFacts(S, [o.les], 1)[0];
   dialogue([['narr', 'Something\'s off. ' + o.text + '.'], ['choice', [
     { t: 'Hang back and watch a little longer', reply: [['narr', 'You take a minute. Details start to line up.']], fx: () => { o.watch = 1; } },
     { t: 'Walk up and take a closer look', reply: [['narr', 'Up close, it\'s clearer what you\'re looking at.']] },
@@ -1104,13 +1110,13 @@ function observeScene(o) {
 }
 function infoPoint(i) {
   if (i.cool > 0) { toast('You checked ' + i.name + ' recently. Come back in a bit.'); return; }
-  const f = L.fact(S, i.les); if (!f) return; const q = L.pick(S, [i.les], 'tq', 1)[0];
-  dialogue([['narr', i.name + '. ' + L.lessonName(i.les) + '.'], ['narr', f.text], ['choice', [
-    { t: 'Quiz yourself on it now', reply: [['q', q, 'navarro']] },
+  const f = L.fact(S, i.les); if (!f) return; const q = L.factQ(f.id);
+  dialogue([['narr', i.name + '. ' + L.lessonName(i.les) + (f.done ? '. A fact you already know.' : '. A new fact.')], ['narr', f.text], ['choice', [
+    { t: f.done ? 'Check yourself on it again' : 'Lock it in: check yourself now', reply: [['q', q, 'navarro']] },
     { t: 'Copy it into your notebook and move on', reply: [['narr', 'You write it down. Neatly. Navarro would be proud.']], fx: () => { award(4, 'notes'); } }], 'Study point']], (r) => { i.cool = S.unit === 'det' ? 60 : 120; ord('study'); if (r.n) award(Math.round((r.right ? 10 : 3) * rapMult() * (S.unit === 'sro' ? 2 : 1) * (1 + gp('rpStudy') / 100)), 'study point'); queueLoot('Left behind at ' + i.name, .1); }, { focus: [i.x, i.y], kicker: 'STUDY POINT · ' + i.name.toUpperCase() });
 }
 function backupScene(uid, o) {
-  const ls = W.D.lessons.indexOf(6) >= 0 ? [6] : W.D.lessons, qs = L.pick(S, ls, 'q', 2), id = sayAs('mate', { name: o.c, icon: (unitOf(o.u) || {}).icon || '🚓', role: 'Cadet requesting backup' });
+  const ls = W.D.lessons.indexOf(6) >= 0 ? [6] : W.D.lessons, qs = L.pick(S, ls, 'q', 1).concat(L.pickFacts(S, W.D.lessons, 1)), id = sayAs('mate', { name: o.c, icon: (unitOf(o.u) || {}).icon || '🚓', role: 'Cadet requesting backup' });
   if (net) net.assist(uid); stat('assists'); if (S.squad && others[uid] && others[uid].g === S.squad.code) stat('sqAssist');
   dialogue([[id, '(over the radio) ' + S.cs + ', glad you\'re here. ' + (o.b.l || 'Need a second set of eyes.')], ['choice', [
     { t: 'Take cover position and watch the hands', reply: [[id, 'Copy, you\'re cover. I\'ll make contact.']] },
@@ -1120,8 +1126,8 @@ function backupScene(uid, o) {
 }
 
 function masteryLine() {
-  const m = L.districtMastery(S, W.did);
-  return '<div class="mLine"><b>' + esc(W.D.name) + ' mastery</b><div class="mBars">' + W.D.lessons.map((l, k) => { const x = m.lessons[k]; return '<span title="' + esc(L.lessonName(l)) + '" class="' + (x.done ? 'done' : '') + '"><i style="width:' + Math.round(Math.min(1, x.n / 8) * x.pct * 100) + '%"></i></span>'; }).join('') + '</div><small>' + m.done + ' of ' + m.total + ' lessons mastered' + (m.ready ? ' · District Final Call is ready' : '') + '</small></div>';
+  const m = L.districtMastery(S, W.did), f = m.facts;
+  return '<div class="mLine"><b>' + esc(W.D.name) + ' facts</b><div class="mBars">' + W.D.lessons.map((l, k) => { const x = m.lessons[k].facts; return '<span title="' + esc(L.lessonName(l)) + ': ' + x.done + '/' + x.total + '" class="' + (x.done >= x.total ? 'done' : '') + '"><i style="width:' + Math.round(x.total ? x.done / x.total * 100 : 0) + '%"></i></span>'; }).join('') + '</div><small>' + f.done + ' of ' + f.total + ' facts completed' + (m.ready ? ' · District Final Call is ready' : '') + '</small></div>';
 }
 
 // ---------- district board and final call ----------
@@ -1129,27 +1135,55 @@ function districtBoard(tabs) {
   const rows = DISTRICTS.map((d) => {
     const un = S.unlocked.includes(d.id), cl = S.cleared.includes(d.id), m = L.districtMastery(S, d.id), here = W.did === d.id;
     return '<div class="dRow' + (here ? ' here' : '') + (un ? '' : ' locked') + '" style="--dc:' + d.color + '"><div class="dHead"><b>' + (un ? '' : '🔒 ') + esc(d.name) + '</b><span>' + esc(d.unit) + '</span></div>' +
-      (un ? '<div class="dLes">' + d.lessons.map((l, k) => { const x = m.lessons[k]; return '<div class="dL"><span>' + esc(L.lessonName(l)) + '</span><i><b style="width:' + Math.round(Math.min(1, x.n / 8) * x.pct * 100) + '%" class="' + (x.done ? 'ok' : '') + '"></b></i></div>'; }).join('') + '</div>' : '<p class="dLock">Master the district before it to unlock.</p>') +
-      '<div class="dAct">' + (cl ? '<span class="cleared">★ District cleared</span>' : '') + (un && !here ? '<button type="button" data-go="' + d.id + '">Patrol here</button>' : '') + (here && !cl ? '<button type="button" data-final="1" ' + (m.ready ? '' : 'disabled') + '>' + (m.ready ? 'Take the District Final Call' : 'Final Call · master every lesson first') + '</button>' : '') + '</div></div>';
+      (un ? '<div class="dFacts"><b>' + m.facts.done + '</b> of ' + m.facts.total + ' facts completed</div><div class="dLes">' + d.lessons.map((l, k) => { const x = m.lessons[k].facts; return '<div class="dL"><span>' + esc(L.lessonName(l)) + ' <em>' + x.done + '/' + x.total + '</em></span><i><b style="width:' + Math.round(x.total ? x.done / x.total * 100 : 0) + '%" class="' + (x.done >= x.total ? 'ok' : '') + '"></b></i></div>'; }).join('') + '</div>' : '<p class="dLock">Complete every fact in the district before it and pass its Final Call.</p>') +
+      '<div class="dAct">' + (cl ? '<span class="cleared">★ District cleared</span>' : '') + (un && !here ? '<button type="button" data-go="' + d.id + '">Patrol here</button>' : '') + (here && m.facts.done < m.facts.total ? '<button type="button" data-drill="1">Fact drill with Navarro</button>' : '') + (here && !cl ? '<button type="button" data-final="1" ' + (m.ready ? '' : 'disabled') + '>' + (m.ready ? 'Take the District Final Call' : 'Final Call · ' + (m.facts.total - m.facts.done) + ' facts to go') + '</button>' : '') + '</div></div>';
   }).join('');
-  openModal('<div class="uNow" style="--uc:' + U().color + '"><span>' + U().icon + '</span><div><b>' + esc(unitName(U())) + '</b><small>' + esc(U().perk) + '</small></div><button type="button" id="uSw">Switch unit</button></div><div class="sceneHead"><b>CITY MAP · DISTRICTS</b><h2>Master a district to open the next one</h2><p>A lesson is mastered at 80% or better over your last ten answers on it (at least eight).</p></div>' + (tabs || '') + '<div class="dList">' + rows + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
+  openModal('<div class="uNow" style="--uc:' + U().color + '"><span>' + U().icon + '</span><div><b>' + esc(unitName(U())) + '</b><small>' + esc(U().perk) + '</small></div><button type="button" id="uSw">Switch unit</button></div><div class="sceneHead"><b>CITY MAP · DISTRICTS</b><h2>Complete every fact to unlock the Final Call</h2><p>A fact is complete once you get its check right: at study points, on calls, with citizens and regulars, or in a fact drill. Pass a district\'s Final Call to transfer to the next district.</p></div>' + (S.cleared.length >= 5 ? '<div class="dExam"><b>Chapter 5 Final Exam</b><span>' + (S.graduated ? '★ Passed' : 'Every district cleared. Facts from the whole chapter, 85% to pass.') + '</span><button type="button" data-exam="1">' + (S.graduated ? 'Retake the exam' : 'Take the Chapter Exam') + '</button></div>' : '') + '' + (tabs || '') + '<div class="dList">' + rows + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
   $('mClose').onclick = closeModal; $('uSw').onclick = unitPicker; document.querySelectorAll('[data-j]').forEach((b) => b.onclick = () => { jTab = b.dataset.j; journal(); }); document.querySelectorAll('[data-tr]').forEach((b) => b.onclick = () => { S.track = b.dataset.tr; saveS(); beep(660, .06, 'triangle', .04); journal(); });
   document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { closeModal(); S.home = S.home == null ? +b.dataset.go : S.home; saveS(); clock = 0; travel(+b.dataset.go); });
-  const fb = document.querySelector('[data-final]'); if (fb) fb.onclick = finalCall;
+  const fb = document.querySelector('[data-final]'); if (fb) fb.onclick = () => { closeModal(); finalCall(); };
+  const dr = document.querySelector('[data-drill]'); if (dr) dr.onclick = () => { closeModal(); factDrill(); };
+  const ex = document.querySelector('[data-exam]'); if (ex) ex.onclick = () => { closeModal(); chapterExam(); };
 }
+// fact drill: Navarro runs open facts with you, eight at a time
+function factDrill() {
+  const qs = L.pickFacts(S, W.D.lessons, 8), id = 'navarro';
+  dialogue([[id, rnd(['Okay. Flashcards. Real ones, not the ones Pike drew on.', 'Fact drill. True or false, fast. I timed myself last night. Don\'t ask.', 'Let\'s knock out some facts. You\'ll thank me at the Final Call.'])]].concat(qs.map((q) => ['q', q, id])).concat([['fx', () => {}]]), (r) => {
+    const fp = L.districtMastery(S, W.did).facts; award(r.right * 6, 'fact drill'); ord('study', 1);
+    dialogue([[id, r.right + ' of ' + r.n + '. ' + (fp.done >= fp.total ? 'That\'s every fact in ' + W.D.name + '. The Final Call is open. Go.' : (fp.total - fp.done) + ' facts left in ' + W.D.name + '. Same time tomorrow?')]], null, { focus: [P.x, P.y] });
+  }, { focus: [P.x, P.y], kicker: 'FACT DRILL · ' + W.D.name.toUpperCase() });
+}
+// the District Final Call: a major incident built from this district's facts. Pass to transfer.
 function finalCall() {
-  const qs = L.pick(S, W.D.lessons, 'q', 10);
-  runQuestions('<div class="sceneHead p1"><b>DISTRICT FINAL CALL · ' + esc(W.D.name.toUpperCase()) + '</b><h2>Major incident. Everything you have learned here.</h2><p>Handle 8 of 10 by the book to clear the district.</p></div>', qs, (r) => {
-    const pass = r.right >= 8, nx = (W.did + 1) % 5;
-    if (pass) { if (!S.cleared.includes(W.did)) S.cleared.push(W.did); if (!S.unlocked.includes(nx)) S.unlocked.push(nx); }
-    saveS();
-    openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'DISTRICT CLEARED' : 'NOT YET') + '</b><h2>' + r.right + ' of 10</h2><p>' + (pass ? DISTRICTS[nx].name + ' is now open. The barricade on the road out is down.' : 'You need 8 of 10. Keep working calls, then try again.') + '</p></div><div class="qAct"><button type="button" id="mDone">Back to patrol</button></div>');
+  const m = L.districtMastery(S, W.did); if (!m.ready) { toast('Complete every fact in ' + W.D.name + ' first (' + m.facts.done + '/' + m.facts.total + ').'); return; }
+  const facts = L.pickFacts(S, W.D.lessons, 10).map((q) => q), qs = L.pick(S, W.D.lessons, 'q', 5), nx = (W.did + 1) % 5, cid = sayAs('ic', { name: 'Incident Command', icon: '🛡️', role: W.D.name + ' · Final Call' });
+  paused = true; music.set && music.start('urgent');
+  const lines = [['narr', 'Major incident. ' + W.D.name + '. Every unit in the district is rolling.'], ['okonkwo', '(over the radio) ' + S.cs + ', this is your Final Call. Everything you learned in ' + W.D.name + ', all at once. Thirteen of fifteen by the book and you transfer out.'],
+    ['choice', [{ t: 'Copy. Show me the scene.', reply: [['castillo', 'Breathe. Slow is smooth. Smooth is fast.']] }, { t: 'Request a moment to check my notes', reply: [['navarro', '(over the radio) You know this. You did every fact. Go.']] }], 'Ready?']];
+  [...facts, ...qs].sort(() => Math.random() - .5).forEach((q, k) => lines.push(['q', q, k % 3 === 0 ? 'castillo' : k % 3 === 1 ? 'okonkwo' : cid]));
+  dialogue(lines, (r) => {
+    const pass = r.right >= 13; if (pass) { if (!S.cleared.includes(W.did)) S.cleared.push(W.did); if (!S.unlocked.includes(nx)) S.unlocked.push(nx); stat('finals'); } saveS(); paused = false;
+    const allDone = S.cleared.length >= 5;
+    openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'DISTRICT CLEARED · TRANSFER APPROVED' : 'FINAL CALL · NOT YET') + '</b><h2>' + r.right + ' of ' + r.n + ' by the book</h2><p>' + (pass ? (allDone ? 'Every district cleared. The Chapter 5 Final Exam is open on the City map.' : 'Transfer orders are signed: ' + esc(DISTRICTS[nx].name) + ' is open. ' + esc(DISTRICTS[nx].unit) + '.') : 'You need 13 of 15. Review the facts you missed and come back.') + '</p></div><div class="qAct">' + (pass && !allDone ? '<button type="button" id="mGo">Transfer to ' + esc(DISTRICTS[nx].name) + '</button>' : '') + '<button type="button" class="' + (pass && !allDone ? 'ghost' : '') + '" id="mDone">' + (pass && !allDone ? 'Stay in ' + esc(W.D.name) + ' for now' : 'Back to patrol') + '</button></div>');
+    if (pass) { good(); music.sting('promo'); shake(6, .5); }
     $('mDone').onclick = () => { closeModal(); award(pass ? 300 : 40, pass ? 'district cleared' : 'final call attempt'); if (pass) queueLoot('District cleared: ' + W.D.name, 1, 'r'); };
-  });
+    if ($('mGo')) $('mGo').onclick = () => { closeModal(); award(300, 'district cleared'); queueLoot('District cleared: ' + W.D.name, 1, 'r'); S.home = nx; saveS(); clock = 0; travel(nx); };
+  }, { focus: [P.x, P.y], kicker: 'DISTRICT FINAL CALL · ' + W.D.name.toUpperCase() });
+}
+// after all five districts: the Chapter 5 Final Exam, facts from the whole chapter, 85% to pass
+function chapterExam() {
+  const all = [0, 1, 2, 3, 4].flatMap((d) => DISTRICTS[d].lessons), facts = L.pickFacts(S, all, 30), sp = ['castillo', 'okonkwo', 'navarro'];
+  paused = true; music.start('story');
+  dialogue([['narr', 'Patrol HQ, the training room. Thirty facts from the whole chapter.'], ['castillo', 'This is the whole chapter, cadet. Eighty-five percent. You\'ve done every one of these on the street already.'], ['choice', [{ t: 'Ready.', reply: [] }, { t: 'Give me a second.', reply: [['castillo', 'Take two. Then we start.']] }], 'Chapter 5 Final Exam']].concat(facts.map((q, k) => ['q', q, sp[k % 3]])), (r) => {
+    paused = false; const pass = r.right / r.n >= .85; if (pass) { S.graduated = Date.now(); stat('exam'); } saveS();
+    openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'CHAPTER 5 · PASSED' : 'CHAPTER EXAM · NOT YET') + '</b><h2>' + r.right + ' of ' + r.n + ' (' + Math.round(r.right / r.n * 100) + '%)</h2><p>' + (pass ? 'Every district, every fact, and the whole chapter on one exam. Port Meridian is proud of you.' : 'You need 85%. Run fact drills in any district and try again.') + '</p></div><div class="qAct"><button type="button" id="mDone">' + (pass ? 'Carry on' : 'Back to patrol') + '</button></div>');
+    if (pass) { music.sting('promo'); shake(8, .6); }
+    $('mDone').onclick = () => { closeModal(); award(pass ? 1000 : 50, pass ? 'chapter exam passed' : 'exam attempt'); if (pass) queueLoot('Chapter 5 Final Exam', 1, 'l'); };
+  }, { focus: [P.x, P.y], kicker: 'CHAPTER 5 FINAL EXAM' });
 }
 function gatePrompt(g) {
   const d = DISTRICTS[g.to];
-  if (!S.unlocked.includes(g.to)) { toast('🔒 ' + d.name + ' is locked. Master ' + W.D.name + ' and pass its Final Call to open it.'); return; }
+  if (!S.unlocked.includes(g.to)) { toast('🔒 ' + d.name + ' is locked. Complete every fact in ' + W.D.name + ' and pass its Final Call to transfer.'); return; }
   openModal('<div class="sceneHead"><b>DISTRICT LINE</b><h2>Head into ' + esc(d.name) + '?</h2><p>' + esc(d.unit) + '. ' + esc(d.blurb) + '</p></div><div class="qAct"><button type="button" id="gGo">Patrol ' + esc(d.name) + '</button><button type="button" class="ghost" id="gNo">Stay here</button></div>');
   $('gGo').onclick = () => { closeModal(); travel(g.to); }; $('gNo').onclick = closeModal;
 }
@@ -1185,7 +1219,7 @@ function hud() {
   const r = L.rankOf(S.xp), m = L.districtMastery(S, W.did);
   $('hCs').textContent = U().icon + ' ' + S.cs; $('hUnit').textContent = unitName(U()); $('hUnit').style.setProperty('--uc', U().color); $('hRank').textContent = r.name + ' · ' + S.xp + ' RP';
   $('hDist').textContent = inside ? W.name : W.D.name; $('hDist').style.setProperty('--dc', W.D.color);
-  $('hMast').style.setProperty('--p', Math.round(m.pct * 100)); $('hMastN').textContent = m.done + '/' + m.total;
+  $('hMast').style.setProperty('--p', Math.round(m.pct * 100)); $('hMastN').textContent = Math.floor(m.pct * 100) + '%'; $('hMast').title = m.facts.done + ' of ' + m.facts.total + ' facts in ' + W.D.name;
   { const k = U().ride.kind, lab = P.boat ? 'Dock' : P.inCar ? 'Exit' : k === 'van' ? 'Van' : k === 'armored' || k === 'truck' ? 'Truck' : k === 'suv' ? 'SUV' : 'Car'; $('bCar').innerHTML = '<i>' + ico(P.boat ? 'anchor' : P.inCar ? 'walk' : 'car') + '</i><span>' + lab + '</span>'; } $('bCar').classList.toggle('on', P.inCar || P.boat);
   $('bSnd').innerHTML = '<i>' + ico(S.sound ? 'sound' : 'mute') + '</i><span>Sound</span>'; if (!setIcons.done) { setIcons.done = 1; setIcons(); }
 }
@@ -1607,6 +1641,7 @@ TROPHIES.push(
   ['wave', 'Friendly Wave', 'Wave at another cadet.', 'b', () => st('waves') >= 1],
   ['squadchat', 'Squad Chatter', 'Send 25 squad messages.', 's', () => st('sqMsg') >= 25]
 );
+TROPHIES.push(['fact1', 'Know This', 'Complete your first fact.', 'b', () => Object.keys(S.facts || {}).length >= 1], ['fact100', 'Fact Finder', 'Complete 100 facts.', 's', () => Object.keys(S.facts || {}).length >= 100], ['factall', 'Every Fact in the Chapter', 'Complete all 296 facts.', 'g', () => Object.keys(S.facts || {}).length >= 296], ['final1', 'Transfer Orders', 'Pass a District Final Call.', 's', () => st('finals') >= 1], ['exam', 'Chapter 5: Passed', 'Pass the Chapter 5 Final Exam.', 'g', () => !!S.graduated]);
 TROPHIES.push(['plat', 'Port Meridian\'s Finest', 'Earn every other trophy.', 'p', () => TROPHIES.every((t) => t[0] === 'plat' || (S.trophies || {})[t[0]])]);
 const TIER = { b: ['Bronze', '#cd7f32'], s: ['Silver', '#c9d2dd'], g: ['Gold', '#f5b800'], p: ['Platinum', '#9ee7ff'] };
 let trT = 3, trQ = [], trBusy = false;

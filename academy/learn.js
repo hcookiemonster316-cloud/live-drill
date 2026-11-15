@@ -41,16 +41,23 @@ function prepare(q) {
   const order = shuffle(q.opts.map((_, i) => i)), multi = Array.isArray(q.c);
   return { id: q.id, kind: q.kind, les: q.les, stem: q.stem, opts: order.map((i) => q.opts[i]), c: multi ? q.c.map((k) => order.indexOf(k)) : order.indexOf(q.c), multi, ex: q.ex, pg: q.pg };
 }
-export function fact(S, lesson) { const p = (BANK.by.tq[lesson] || []); if (!p.length) return null; const q = p[Math.floor(Math.random() * p.length)]; return { text: q.truth, pg: q.pg, les: lesson }; }
+// facts: every true statement in the chapter. A fact is complete once you get its check right.
+export function factList(lessons) { const out = []; lessons.forEach((l) => (BANK.by.tq[l] || []).forEach((q) => out.push(q))); return out; }
+export function factProgress(S, lessons) { const all = factList(lessons), f = S.facts || {}; return { done: all.filter((q) => f[q.id]).length, total: all.length }; }
+export function fact(S, lesson) { const p = (BANK.by.tq[lesson] || []); if (!p.length) return null; const open = p.filter((q) => !(S.facts || {})[q.id]), from = open.length ? open : p, q = from[Math.floor(Math.random() * from.length)]; return { id: q.id, text: q.truth, pg: q.pg, les: lesson, done: !!(S.facts || {})[q.id] }; }
+export function factQ(id) { for (const l in BANK.by.tq) { const q = BANK.by.tq[l].find((x) => x.id === id); if (q) return prepare(q); } return null; }
+// fact checks, open facts first (then the ones missed most recently)
+export function pickFacts(S, lessons, n) { const f = S.facts || {}, all = shuffle(factList(lessons)); all.sort((a, b) => ((f[a.id] ? 2 : 0) + (S.miss[a.id] ? -1 : 0)) - ((f[b.id] ? 2 : 0) + (S.miss[b.id] ? -1 : 0))); return all.slice(0, n).map(prepare); }
 
 export function record(S, q, ok) {
   S.seen[q.id] = Date.now(); if (ok) delete S.miss[q.id]; else S.miss[q.id] = 1;
+  if (ok && q.kind === 'tf') { S.facts = S.facts || {}; if (!S.facts[q.id]) { S.facts[q.id] = 1; S.newFact = (S.newFact || 0) + 1; } }
   const L = (S.log[q.les] = S.log[q.les] || []); L.push(ok ? 1 : 0); while (L.length > 10) L.shift();
   S.answered++; if (ok) S.right++;
 }
 // a lesson is mastered at 80% or better over its last ten answers, with at least eight answered
 export function mastery(S, les) { const L = S.log[les] || []; const pct = L.length ? L.reduce((a, b) => a + b, 0) / L.length : 0; return { n: L.length, pct, done: L.length >= 8 && pct >= .8 }; }
-export function districtMastery(S, did) { const ls = DISTRICTS[did].lessons, m = ls.map((l) => mastery(S, l)); return { lessons: m, done: m.filter((x) => x.done).length, total: ls.length, ready: m.every((x) => x.done), pct: m.reduce((a, x) => a + Math.min(1, x.n / 8) * x.pct, 0) / ls.length }; }
+export function districtMastery(S, did) { const ls = DISTRICTS[did].lessons, m = ls.map((l) => Object.assign(mastery(S, l), { facts: factProgress(S, [l]) })), fp = factProgress(S, ls); return { lessons: m, done: m.filter((x) => x.done).length, total: ls.length, facts: fp, ready: fp.total > 0 && fp.done >= fp.total, pct: fp.total ? fp.done / fp.total : 0 }; }
 // lesson the next call should teach: the weakest one in the district
 export function weakest(S, did) { const ls = DISTRICTS[did].lessons.slice(); return shuffle(ls).sort((a, b) => { const A = mastery(S, a), B = mastery(S, b); return (A.done - B.done) || (A.n - B.n) || (A.pct - B.pct); })[0]; }
 export function isRight(q, ans) { return q.multi ? (Array.isArray(ans) && ans.length === q.c.length && ans.every((k) => q.c.indexOf(k) >= 0)) : ans === q.c; }
