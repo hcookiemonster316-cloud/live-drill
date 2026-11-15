@@ -523,7 +523,21 @@ body.cine .qTrack,body.attract .qTrack,body.photo .qTrack{display:none!important
 .lpCard p{margin:0 0 16px;font:400 .92rem/1.55 Georgia,'Times New Roman',serif;color:#3d2f1a;text-align:left}
 .lpBtns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}.lpBtns button{padding:9px 16px;border-radius:10px;border:0;background:#2a1c08;color:#f6ecd2;font-weight:800;cursor:pointer}.lpBtns button.ghost{background:transparent;color:#5a3f15;box-shadow:inset 0 0 0 1.5px rgba(90,63,21,.5)}
 .hBot button.bX i.xCode{font:900 1rem 'Barlow Condensed',system-ui;letter-spacing:.04em;width:auto;color:#22c55e}
-.hBot button.bX span{color:#86efac;letter-spacing:.04em;font-size:.56rem}.hBot button.bX.busy{border-color:rgba(239,68,68,.65);background:linear-gradient(180deg,rgba(80,16,20,.92),rgba(30,8,12,.94))}.hBot button.bX.busy i.xCode{color:#f87171}.hBot button.bX.busy span{color:#fca5a5}
+.hBot button.bX span{color:#86efac;letter-spacing:0;font-size:.52rem}.hBot button.bX.busy{border-color:rgba(239,68,68,.65);background:linear-gradient(180deg,rgba(80,16,20,.92),rgba(30,8,12,.94))}.hBot button.bX.busy i.xCode{color:#f87171}.hBot button.bX.busy span{color:#fca5a5}
+
+/* bottom bar on phones: everything fits, nothing overlaps */
+.hBot button.bX span em{font-style:normal}.hBot button.bX span .sm{display:none}
+@media (max-width:480px){
+  .hBot{left:4px;right:4px;gap:3px}
+  .hBot button{padding:5px 1px;min-height:52px;border-radius:12px}
+  .hBot button span{font-size:.5rem!important;letter-spacing:.04em!important;white-space:nowrap;overflow:hidden;text-overflow:clip;max-width:100%}
+  .hBot button i{width:22px;height:22px}.hBot button i svg{width:20px;height:20px}
+  #bMe{display:none!important}
+  .hBot button.bX span .lg{display:none}.hBot button.bX span .sm{display:inline}
+  .hBot button.bX i.xCode{font-size:.92rem}
+  .ordList{max-height:30vh;overflow:auto}
+  .orders{width:min(190px,calc(100% - 120px))}
+}
 </style>
 </head>
 <body>

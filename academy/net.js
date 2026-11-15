@@ -18,14 +18,21 @@ export async function startNet(onPlayers) {
       await db.set(base + '/' + db.uid, me);
       db.onLeave(base + '/' + db.uid, null);
       // listen to every shift this one can see (midshift sees day and night; they each see midshift)
-      const got = {}; const emit = () => { const all = {}; Object.keys(got).forEach((sh) => Object.assign(all, got[sh])); onPlayers(all, db.uid); };
-      stops = (SEES[shift] || [shift]).map((sh) => db.on('mmo/' + did + '/' + sh + '/p', (v) => { got[sh] = v || {}; emit(); }));
+      // presence arrives player by player (child events) and the game hears about it at most ~6 times a second,
+      // however many people are on shift: 60 players moving is a trickle of small updates, not 60 full lists a second
+      const got = {}; let pend = 0; N.count = 0;
+      const emit = () => { pend = 0; const all = {}; Object.keys(got).forEach((sh) => Object.assign(all, got[sh])); N.count = Object.keys(all).length; onPlayers(all, db.uid); };
+      const soon = () => { if (!pend) pend = setTimeout(emit, 160); };
+      stops = (SEES[shift] || [shift]).map((sh) => { got[sh] = {}; return db.onKids ? db.onKids('mmo/' + did + '/' + sh + '/p', { put: (k, v) => { got[sh][k] = v; soon(); }, del: (k) => { delete got[sh][k]; soon(); } }) : db.on('mmo/' + did + '/' + sh + '/p', (v) => { got[sh] = v || {}; soon(); }); });
       clearInterval(timer); timer = setInterval(() => N.beat(), 10000);
     },
     move(x, y, v, dir) {
-      if (!base) return; me.x = Math.round(x * 10) / 10; me.y = Math.round(y * 10) / 10; me.v = v ? +v : 0; me.d = dir;
-      const now = Date.now(); if (now - lastSent < 350) return; lastSent = now;
-      db.update(base + '/' + db.uid, { x: me.x, y: me.y, v: me.v, d: me.d || 0, t: db.TS });
+      if (!base) return; const nx = Math.round(x * 10) / 10, ny = Math.round(y * 10) / 10, nv = v ? +v : 0, nd = dir || 0;
+      // send only real movement, and send it less often the busier the district is (others smooth between updates)
+      const now = Date.now(), gap = N.count > 40 ? 900 : N.count > 15 ? 600 : 350, moved = Math.hypot(nx - (me.sx || 0), ny - (me.sy || 0)) >= .2 || nv !== me.sv || nd !== me.sd;
+      me.x = nx; me.y = ny; me.v = nv; me.d = nd;
+      if (now - lastSent < gap || (!moved && now - lastSent < 8000)) return; lastSent = now; me.sx = nx; me.sy = ny; me.sv = nv; me.sd = nd;
+      db.update(base + '/' + db.uid, { x: nx, y: ny, v: nv, d: nd, t: db.TS });
     },
     beat() { if (base) db.update(base + '/' + db.uid, { t: db.TS }); },
     status(st) { if (base) db.update(base + '/' + db.uid, { st }); },
@@ -35,11 +42,11 @@ export async function startNet(onPlayers) {
     flair(f) { if (base) db.update(base + '/' + db.uid, { f: f || null }); },
     assist(uid) { if (base) db.update(base + '/' + db.uid, { a: uid || null }); },
     // district chat: one list per district per day, each message written once by its sender
-    chatOn(did, cb) { if (N._chatStop) N._chatStop(); const day = new Date().toISOString().slice(0, 10).replace(/-/g, ''); N._chatPath = 'mmo/chat/' + did + '/' + day; const f = db.on(N._chatPath, (v) => cb(v || {})); N._chatStop = typeof f === 'function' ? f : null; },
+    chatOn(did, cb) { if (N._chatStop) N._chatStop(); const day = new Date().toISOString().slice(0, 10).replace(/-/g, ''); N._chatPath = 'mmo/chat/' + did + '/' + day; const f = db.onLast ? db.onLast(N._chatPath, 60, (v) => cb(v || {})) : db.on(N._chatPath, (v) => cb(v || {})); N._chatStop = typeof f === 'function' ? f : null; },
     chatSend(m, cs, sh) { if (!N._chatPath) return; const k = Date.now().toString(36) + db.uid.slice(0, 6).replace(/[^a-zA-Z0-9]/g, ''); return db.set(N._chatPath + '/' + k, { u: db.uid, c: cs, m: m, s: sh, t: db.TS }); },
     // ---- channels: district (above), city-wide, squad and direct messages ----
     squadTag(g, k) { if (base) db.update(base + '/' + db.uid, { g: g || null, k: k || null }); },
-    listen(path, cb) { const f = db.on(path, (v) => cb(v || {})); return typeof f === 'function' ? f : () => {}; },
+    listen(path, cb, n) { const f = n && db.onLast ? db.onLast(path, n, (v) => cb(v || {})) : db.on(path, (v) => cb(v || {})); return typeof f === 'function' ? f : () => {}; },
     post(path, msg) { const k = Date.now().toString(36) + db.uid.slice(0, 6).replace(/[^a-zA-Z0-9]/g, ''); return db.set(path + '/' + k, Object.assign({ u: db.uid, t: db.TS }, msg)); },
     day: () => new Date().toISOString().slice(0, 10).replace(/-/g, ''),
     cityPath() { return 'mmo/chat/city/' + N.day(); },

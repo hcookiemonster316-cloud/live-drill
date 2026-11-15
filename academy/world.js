@@ -23,26 +23,36 @@ export function buildDistrict(did) {
   const W = { did, D, g, at, set, buildings: [], props: [], lots: [], lights: [], doors: {}, parking: [], walk: [], gates: [], spawn: null, carSpot: null, river: !!D.river };
   const RIVX = 2 + (NB - 1) * 11; // Riverside: the last block column is river
   if (D.river) for (let y = 0; y < N; y++) for (let x = RIVX; x < N; x++) set(x, y, x === RIVX ? T.SAND : T.WATER);
-  // the hand-built places go in the middle of the district, spiraling out from the station; the rest fills in by theme
-  const order = []; for (let by = 0; by < NB; by++) for (let bx = 0; bx < NB; bx++) if (!(D.river && bx === NB - 1)) order.push([bx, by]);
-  order.sort((a, b) => (Math.hypot(a[0] - 6, a[1] - 6) - Math.hypot(b[0] - 6, b[1] - 6)) || (a[1] - b[1]) || (a[0] - b[0]));
-  const used = new Set(D.lots.flatMap((e) => (e && e.strip ? e.strip.map((x) => x[1]) : Array.isArray(e) ? [e[1]] : [])));
-  order.forEach(([bx, by], li) => {
-    const ox = 2 + bx * 11, oy = 2 + by * 11;
-    const entry = li < D.lots.length ? D.lots[li] : genEntry(W.D.theme, R, used, bx, by);
+  // zoning: every block belongs to a zone (downtown core, commercial, residential, industrial, rural, waterfront, civic),
+  // the named places go in the zone they belong to, next to the places they belong with, and the rest fills in by zone
+  const plan = PLAN[did], zoneAt = [], blocks = [];
+  for (let by = 0; by < NB; by++) for (let bx = 0; bx < NB; bx++) { if (D.river && bx === NB - 1) continue; const z = plan.zone(bx, by); zoneAt[by * NB + bx] = z; blocks.push({ bx, by, z }); }
+  W.zoneAt = (x, y) => zoneAt[Math.floor((y - 2) / 11) * NB + Math.floor((x - 2) / 11)] || null;
+  const hand = D.lots.filter((e) => e !== 'parking'), used = new Set(hand.flatMap((e) => (e && e.strip ? e.strip.map((x) => x[1]) : Array.isArray(e) ? [e[1]] : [])));
+  const nameOf = (e) => (e && e.strip ? e.strip[0][1] : Array.isArray(e) ? e[1] : (LANDMARKS[e] || {}).name || e), kindOf = (e) => (e && e.strip ? 'strip' : Array.isArray(e) ? e[0] : e);
+  const taken = new Map(), placedAt = {};
+  hand.forEach((e) => {
+    const nm = nameOf(e), want = (plan.put && plan.put[nm]) || ZONE_OF[kindOf(e)] || 'commercial', near = plan.near && plan.near[nm] && placedAt[plan.near[nm]];
+    const anchor = near || plan.center || [6, 6], free = blocks.filter((b) => !taken.has(b.by * NB + b.bx));
+    const score = (b) => Math.hypot(b.bx - anchor[0], b.by - anchor[1]) + (b.z === want ? 0 : (ZONE_OK[want] || []).indexOf(b.z) >= 0 ? 4 : 40);
+    const b = free.sort((a, c) => score(a) - score(c))[0]; taken.set(b.by * NB + b.bx, e); placedAt[nm] = [b.bx, b.by];
+  });
+  blocks.forEach(({ bx, by, z }) => {
+    const ox = 2 + bx * 11, oy = 2 + by * 11, hk = taken.has(by * NB + bx), entry = hk ? taken.get(by * NB + bx) : genEntry(z, W.D.theme, R, used, bx, by);
     for (let y = oy + 1; y <= oy + 7; y++) for (let x = ox + 1; x <= ox + 7; x++) set(x, y, T.GRASS);
-    if (entry && entry.strip) { strip(W, entry.strip, ox, oy, R); if (li >= D.lots.length) W.lots.slice(-4).forEach((l) => { l.gen = true; }); }
+    if (entry && entry.strip) { strip(W, entry.strip, ox, oy, R); if (!hk) W.lots.slice(-4).forEach((l) => { l.gen = true; }); }
     else {
       const [kind, nm, sg] = Array.isArray(entry) ? entry : [entry];
-      const lot = { kind, ox, oy, bx, by, name: nm || (LANDMARKS[kind] || {}).name || '', sign: sg, door: [ox + 4, oy + 8], info: [ox + 6, oy + 8], gen: li >= D.lots.length };
+      const lot = { kind, ox, oy, bx, by, zone: z, name: nm || (LANDMARKS[kind] || {}).name || '', sign: sg, door: [ox + 4, oy + 8], info: [ox + 6, oy + 8], gen: !hk };
       W.lots.push(lot);
       fill(W, lot, R);
       lot.bld = W.buildings.filter((b) => b.x >= ox + 1 && b.x <= ox + 7 && b.y >= oy + 1 && b.y <= oy + 7).sort((a, b) => b.w * b.d - a.w * a.d)[0] || null;
     }
-    [[ox, oy], [ox + 8, oy], [ox, oy + 8], [ox + 8, oy + 8]].forEach(([x, y]) => W.props.push({ t: 'lamp', x: x + .5, y: y + .5 }));
+    if (z !== 'rural') [[ox, oy], [ox + 8, oy], [ox, oy + 8], [ox + 8, oy + 8]].forEach(([x, y]) => W.props.push({ t: 'lamp', x: x + .5, y: y + .5 }));
+    else if ((bx + by) % 2 === 0) W.props.push({ t: 'lamp', x: ox + .5, y: oy + 8.5 });
   });
   // every business gets a customer parking row along its front, with curb cuts to the street
-  const OPEN = new Set(['houses', 'park', 'plaza', 'lot', 'railyard', 'stadium', 'apartments', 'radio', 'church', 'parking', 'garage', 'storage', 'scrapyard', 'jail', 'warehouse', 'lumber', 'marina', 'firestation']);
+  const OPEN = new Set(['farm', 'woods', 'houses', 'park', 'plaza', 'lot', 'railyard', 'stadium', 'apartments', 'radio', 'church', 'parking', 'garage', 'storage', 'scrapyard', 'jail', 'warehouse', 'lumber', 'marina', 'firestation']);
   W.lots.forEach((l) => {
     if (l.sub || OPEN.has(l.kind)) return; const y = l.oy + 7;
     for (let x = l.ox + 1; x <= l.ox + 7; x++) { if (at(x, y) === T.BLDG || at(x, y) === T.FENCE) return; }
@@ -73,6 +83,48 @@ const OWN = ['Rosa', 'Tony', 'Big Mike', 'Lucky', 'Sunny', 'Mama Lu', 'Hector', 
 const TREE = ['Cypress', 'Magnolia', 'Palmetto', 'Live Oak', 'Sabal', 'Mangrove', 'Pecan', 'Orange Blossom', 'Hibiscus', 'Bayberry', 'Jasmine', 'Sawgrass', 'Heron', 'Pelican', 'Ibis', 'Osprey', 'Manatee', 'Seminole', 'Ponce', 'Coquina'];
 const STREET = ['Lane', 'Court', 'Way', 'Circle', 'Drive', 'Terrace', 'Row', 'Place'];
 const NOUN = { shop: ['Market', 'Grocery', 'Mini Mart', 'Variety', 'Corner Store', 'Bodega'], cafe: ['Coffee', 'Bakery', 'Bagels', 'Donuts', 'Café', 'Juice Bar'], pizza: ['Pizza', 'Pizzeria', 'Slice Shop', 'Subs & Pizza'], barber: ['Barbershop', 'Cuts', 'Fades'], laundromat: ['Laundry', 'Wash & Fold', 'Laundromat'], nails: ['Nails', 'Salon', 'Beauty Bar'], books: ['Books', 'Comics', 'Used Books'], pharmacy: ['Pharmacy', 'Drugs', 'Rx'], clinic: ['Family Clinic', 'Dental', 'Urgent Care', 'Animal Hospital'], diner: ['Diner', 'Grill', 'Kitchen', 'Lunch Counter'], autoshop: ['Auto Repair', 'Tire & Lube', 'Transmission', 'Body Shop'], gym: ['Gym', 'Fitness', 'Boxing Club', 'CrossTrain'], office: ['Insurance', 'Tax Service', 'Law Office', 'Realty', 'Accounting'] };
+// ---------- zoning ----------
+// which zone each kind of place belongs in, and which other zones it can sit in at a pinch
+const ZONE_OF = { hq: 'core', dispatch: 'core', records: 'core', bank: 'core', tower: 'core', plaza: 'core', library: 'core', garage: 'core', transit: 'core', clinic: 'core', radio: 'residential',
+  substation: 'commercial', diner: 'commercial', strip: 'commercial', shop: 'commercial', gas: 'commercial', mall: 'commercial', motel: 'commercial', autoshop: 'commercial', carwash: 'commercial', gym: 'commercial', pawn: 'commercial', center: 'residential',
+  houses: 'residential', apartments: 'residential', park: 'residential', church: 'residential', school: 'residential', firestation: 'residential', stadium: 'residential', marina: 'waterfront',
+  warehouse: 'industrial', storage: 'industrial', railyard: 'industrial', scrapyard: 'industrial', lumber: 'industrial', truckstop: 'industrial', lot: 'industrial',
+  courthouse: 'civic', jail: 'civic', sallyport: 'civic', bonds: 'commercial', defender: 'civic', farm: 'rural', woods: 'rural' };
+const ZONE_OK = { core: ['civic', 'commercial'], civic: ['core', 'commercial'], commercial: ['core', 'civic', 'residential'], residential: ['commercial', 'waterfront', 'rural'], industrial: ['rural', 'commercial'], waterfront: ['residential'], rural: ['residential', 'industrial'] };
+const ZMIX = {
+  core: [['tower', 32], ['strip', 14], ['apartments', 10], ['plaza', 5], ['bank', 4], ['garage', 3], ['diner', 3], ['clinic', 3], ['park', 4]],
+  civic: [['tower', 26], ['strip', 18], ['plaza', 8], ['park', 6], ['bonds', 5], ['apartments', 8], ['diner', 4], ['shop', 4]],
+  commercial: [['strip', 30], ['shop', 8], ['diner', 6], ['gas', 6], ['autoshop', 5], ['mall', 5], ['motel', 3], ['carwash', 3], ['gym', 3], ['apartments', 6], ['clinic', 3]],
+  residential: [['houses', 58], ['apartments', 12], ['park', 10], ['church', 4], ['school', 3], ['shop', 3]],
+  industrial: [['warehouse', 42], ['storage', 10], ['scrapyard', 6], ['lumber', 6], ['railyard', 4], ['autoshop', 5], ['gas', 2]],
+  rural: [['farm', 45], ['woods', 38], ['houses', 6]],
+  waterfront: [['park', 34], ['marina', 14], ['strip', 14], ['houses', 14]]
+};
+const cheb = (bx, by, cx, cy) => Math.max(Math.abs(bx - cx), Math.abs(by - cy));
+// one plan per district: zone(bx, by) for the 13 x 13 blocks; near: named places that sit next to another named place
+const PLAN = [
+  { // Central District: a downtown core around the station and the plaza, shops around it, neighborhoods at the edges
+    zone: (bx, by) => { const d = cheb(bx, by, 6, 6); return d <= 2 ? 'core' : d <= 4 ? 'commercial' : 'residential'; },
+    put: { 'Radio Tower': 'residential', 'Founders Park': 'core', 'Downtown Urgent Care': 'commercial', 'Night Owl Diner': 'commercial' },
+    near: { 'Dispatch Center': 'Patrol HQ', 'Records · FCIC Terminal': 'Patrol HQ', 'Founders Plaza': 'Patrol HQ', 'Downtown Transit Center': 'Founders Plaza', 'Founders Park': 'Founders Plaza', 'Central Library': 'Founders Park', 'First Coast Bank': 'Founders Plaza', 'City Garage': 'Meridian Office Tower', 'Grind & Badge Coffee': 'Patrol HQ', 'Night Owl Diner': 'Downtown Transit Center' } },
+  { // Eastside: the highway corridor of gas, auto and motels through the middle, neighborhoods north and south, a fuel and auto corner by the east gate
+    zone: (bx, by) => (by >= 5 && by <= 7) ? (bx >= 10 ? 'industrial' : 'commercial') : (bx >= 4 && bx <= 8 && (by === 4 || by === 8)) ? 'commercial' : (by <= 1 && bx <= 2) || (by >= 11 && bx >= 10) ? 'rural' : 'residential',
+    put: { 'Fuel Depot': 'industrial', 'Eastside Community Center': 'residential', 'Iron Will Boxing Gym': 'commercial', 'Eastside Dog Park': 'residential' },
+    near: { 'Maple Court': 'Eastside Community Center', 'Eastgate Apartments': 'Eastgate Motel', 'Birch Lane': 'Maple Court', 'Eastside Dog Park': 'Maple Court', "Big Earl's Auto": 'Gas & Go', 'Bubbles Car Wash': "Big Earl's Auto", 'Eastgate Motel': 'Eastside Plaza' } },
+  { // Riverside: old neighborhoods, a small main street, the waterfront along the river, farmland and woods to the northwest
+    zone: (bx, by) => bx >= 10 ? 'waterfront' : (bx <= 3 && by <= 3) ? 'rural' : (by === 6 && bx >= 3 && bx <= 8) ? 'commercial' : 'residential',
+    put: { 'Hook, Line & Sinker': 'waterfront', 'Riverside Park': 'waterfront', 'River Stadium': 'waterfront', 'River Pawn': 'commercial' },
+    near: { 'Hook, Line & Sinker': 'Riverside Marina', 'Riverside Marina': 'Riverside Park', 'River Stadium': 'Riverside Park', 'Riverside School': 'Community Church', 'Little Paddlers Daycare': 'Riverside School', 'River Bend Apartments': 'Willow Street', 'Fire Station 3': 'Willow Street' },
+    center: [8, 6] },
+  { // Industrial Park: warehouses and yards along the freight line, worker housing in the northeast, scrubland and pines on the far edges
+    zone: (bx, by) => (bx <= 1 && by >= 8) || (by >= 11 && bx <= 4) ? 'rural' : (bx >= 9 && by <= 2) ? 'residential' : (by >= 5 && by <= 7 && bx >= 11) ? 'commercial' : 'industrial',
+    put: { 'Substation': 'industrial', 'Big Rig Truck Stop': 'commercial', 'The Lunch Pail': 'commercial', 'Eastline Rail Yard': 'industrial', 'North Spur Yard': 'industrial' },
+    near: { 'Eastline Rail Yard': 'Substation', 'North Spur Yard': 'Eastline Rail Yard', 'County Evidence Storage': 'Substation', "Rusty's Scrap & Salvage": 'Green Bin Recycling', 'Big Rig Truck Stop': 'Fuel Depot', 'The Lunch Pail': 'Big Rig Truck Stop' } },
+  { // Justice Row: the courthouse square in the middle, law offices and bail bonds around it, homes at the edges
+    zone: (bx, by) => { const d = cheb(bx, by, 6, 6); return d <= 2 ? 'civic' : d <= 4 ? 'commercial' : 'residential'; },
+    put: { 'Veterans Memorial Park': 'residential', 'Freedom Bail Bonds': 'commercial', 'Courthouse Newsstand': 'civic' },
+    near: { 'Justice Plaza': 'County Courthouse', 'Clerk of Court': 'County Courthouse', 'County Jail': 'County Courthouse', 'Sally Port': 'County Jail', 'Freedom Bail Bonds': 'County Jail', 'Public Defender': 'County Courthouse', "State Attorney's Office": 'County Courthouse', 'Barnes & Ruiz, Attorneys': 'Public Defender', 'Probation & Parole': 'County Jail' } }
+];
 const SIGNS = { shop: 'MARKET', cafe: 'CAFE', pizza: 'PIZZA', barber: 'BARBER', laundromat: 'LAUNDRY', nails: 'NAILS', books: 'BOOKS', pharmacy: 'Rx', clinic: 'CLINIC', diner: 'DINER', autoshop: 'AUTO', gym: 'GYM', office: 'OFFICE' };
 const MIX = {
   downtown: [['strip', 26], ['tower', 18], ['apartments', 10], ['parking', 7], ['park', 7], ['plaza', 4], ['diner', 4], ['clinic', 4], ['bank', 3], ['garage', 3], ['library', 2], ['shop', 6], ['gym', 3], ['houses', 3]],
@@ -82,15 +134,15 @@ const MIX = {
   civic: [['tower', 18], ['strip', 18], ['parking', 11], ['apartments', 10], ['plaza', 7], ['park', 8], ['shop', 7], ['diner', 5], ['bonds', 4], ['houses', 8], ['clinic', 4]]
 };
 const STRIPMIX = { downtown: ['cafe', 'barber', 'books', 'pizza', 'nails', 'office', 'shop', 'laundromat'], commercial: ['laundromat', 'shop', 'pharmacy', 'nails', 'pizza', 'cafe', 'barber', 'gym'], residential: ['cafe', 'shop', 'barber', 'laundromat', 'pizza', 'pharmacy', 'books'], industrial: ['diner', 'shop', 'autoshop', 'cafe'], civic: ['office', 'cafe', 'shop', 'office', 'pizza', 'books'] };
-function genEntry(theme, R, used, bx, by) {
-  const pick = (a) => a[Math.floor(R() * a.length)], mix = MIX[theme] || MIX.downtown, tot = mix.reduce((a, m) => a + m[1], 0);
+function genEntry(zone, theme, R, used, bx, by) {
+  const pick = (a) => a[Math.floor(R() * a.length)], mix = ZMIX[zone] || MIX[theme] || MIX.downtown, tot = mix.reduce((a, m) => a + m[1], 0);
   let t = R() * tot, kind = mix[0][0]; for (const m of mix) { t -= m[1]; if (t <= 0) { kind = m[0]; break; } }
   const uniq = (fn) => { let n = ''; for (let k = 0; k < 20 && (!n || used.has(n)); k++) n = fn(); used.add(n); return n; };
   const biz = (k) => { const n = uniq(() => pick(OWN) + '’s ' + pick(NOUN[k] || ['Shop'])); return [k, n, SIGNS[k] || n.split(' ').pop().toUpperCase().slice(0, 9)]; };
-  if (kind === 'strip') { const pool = STRIPMIX[theme] || STRIPMIX.downtown; return { strip: [0, 1, 2, 3].map(() => biz(pick(pool))) }; }
+  if (kind === 'strip') { const pool = zone === 'waterfront' ? ['cafe', 'shop', 'pizza', 'bait'] : zone === 'core' ? STRIPMIX.downtown : STRIPMIX[theme] || STRIPMIX.downtown; return { strip: [0, 1, 2, 3].map(() => biz(pick(pool))) }; }
   if (NOUN[kind]) return biz(kind);
   const named = {
-    houses: () => uniq(() => pick(TREE) + ' ' + pick(STREET)), apartments: () => uniq(() => pick(TREE) + ' ' + pick(['Apartments', 'Gardens', 'Towers', 'Commons', 'Village'])),
+    houses: () => uniq(() => pick(TREE) + ' ' + pick(STREET)), farm: () => uniq(() => pick(OWN).replace(/^Big |^Mama /, '') + ' Family ' + pick(['Farm', 'Groves', 'Ranch', 'Nursery'])), woods: () => uniq(() => pick(TREE) + ' ' + pick(['Woods', 'Hammock', 'Preserve', 'Pines'])), apartments: () => uniq(() => pick(TREE) + ' ' + pick(['Apartments', 'Gardens', 'Towers', 'Commons', 'Village'])),
     park: () => uniq(() => pick(TREE) + ' ' + pick(['Park', 'Green', 'Commons', 'Playground'])), plaza: () => uniq(() => pick(TREE) + ' Plaza'),
     tower: () => uniq(() => pick(['Harbor', 'Meridian', 'Bayfront', 'Gulf', 'Sunbelt', 'Citrus', 'Coastal', 'Riverview']) + ' ' + pick(['Tower', 'Center', 'Building', 'Plaza Tower'])),
     parking: () => uniq(() => pick(['Lot', 'Parking', 'Park & Pay']) + ' ' + (10 + Math.floor(R() * 89))), garage: () => uniq(() => pick(TREE) + ' Parking Garage'),
@@ -185,6 +237,19 @@ function fill(W, L, R) {
   const tree = (x, y, k) => P(W, k || (W.river ? 'palm' : 'tree'), x + .5, y + .5, { block: true, s: .8 + R() * .4 });
   const park = (cars) => { for (let i = 0; i < cars; i++) { const x = x0 + Math.floor(R() * 7), y = y1 - Math.floor(R() * 2); if (W.at(x, y) === T.LOT) P(W, 'car', x + .5, y + .5, { parked: true, color: pick(CAR_COLORS), dir: R() < .5 ? 0 : 2, block: true }); } };
   switch (kind) {
+    case 'farm': { // a farmhouse and barn by the road, crop rows behind, fence along the back
+      const crop = pick(['#5f8f2f', '#7a9a2c', '#4f7f3a', '#8aa53a']);
+      for (let y = y0; y <= y0 + 3; y++) for (let x = x0; x <= x1; x++) W.set(x, y, y % 2 ? T.SAND : T.GRASS);
+      for (let y = y0; y <= y0 + 3; y++) if (y % 2 === 0) for (let x = x0; x <= x1; x++) if (R() < .85) P(W, 'bush', x + .5, y + .5, { s: .45 + R() * .2, c: crop });
+      B(W, x0, y0 + 4, 3, 2, 30, { style: 'house', color: '#a0362b', roof: '#5b6470' }); B(W, x0 + 4, y0 + 4, 2, 2, 24, { style: 'house', color: pick(['#f1e3c6', '#e8d8b8', '#d4dbe6']), roof: '#7a5a3a' });
+      for (let y = oy + 6; y <= oy + 8; y++) W.set(x0 + 6, y, T.GRAVEL); if (R() < .7) P(W, 'car', x0 + 6.5, oy + 6.5, { parked: true, color: pick(['#7a2e2e', '#2c3e50', '#556b2f', '#f2f2f2']), dir: 1, block: true });
+      tree(x1, y1); break;
+    }
+    case 'woods': { // pines and oaks with a gravel trail through the middle
+      for (let x = x0; x <= x1; x++) W.set(x, y0 + 3, T.GRAVEL); for (let y = y0 + 3; y <= y1; y++) W.set(x0 + 3, y, T.GRAVEL);
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (W.at(x, y) === T.GRASS && R() < .55) tree(x, y, R() < .5 ? 'tree' : (W.river ? 'palm' : 'tree'));
+      P(W, 'bench', x0 + 3.5, y0 + 3.5); break;
+    }
     case 'tower': area(W, x0, y0, x1, y1, T.PLAZA); B(W, x0 + 1, y0 + 1, 5, 4, 150 + Math.floor(R() * 140), { style: 'glass', color: pick(pal), sign: L.sign || '' }); tree(x0, y1); tree(x1, y1); break;
     case 'hq': case 'substation': {
       area(W, x0, y0, x1, y1, T.LOT); const big = kind === 'hq';
@@ -554,6 +619,19 @@ function box(g, sx, sy, w, h, color, len) {
 // people: civilians, or cadets in a unit kit (o.kit from data.js UNITS). Shaded, outlined, with faces, hair styles,
 // body types, outfits (tee, jacket, hoodie, dress, tank top, button-up) and accessories for civilians.
 const JACKETS = ['#2f3b4c', '#5a3e2b', '#3b5249', '#7a2e2e', '#1f2937', '#4b4f8a', '#6b5b3e'];
+// a crowd-friendly person: each pose is drawn once into a small canvas and reused (8 walk frames per look and facing),
+// so sixty cadets on screen cost sixty image copies instead of sixty full drawings
+const PCACHE = new Map(), TAU = Math.PI * 2; let SHSPR = null;
+export function personFast(g, sx, sy, o, t, key) {
+  const s = o.s || 1, mv = !!o.moving, cyc = mv ? (o.stride != null ? o.stride * 6.4 : t / 95) + (o.ph || 0) : 0, fr = mv ? Math.floor((((cyc % TAU) + TAU) % TAU) / TAU * 8) : 0;
+  const k = key + '|' + fr + '|' + (o.face || 1) + '|' + (mv && o.back ? 1 : 0) + '|' + (mv ? 1 : 0) + '|' + s + '|' + RES;
+  let c = PCACHE.get(k);
+  if (!c) { if (PCACHE.size > 900) PCACHE.clear(); const [cv, cg] = hiCanvas(56, 84, RES); person(cg, 28, 74, Object.assign({}, o, { noShadow: true, glance: false, stride: mv ? ((fr + .5) / 8 * TAU - (o.ph || 0)) / 6.4 : null, moving: mv }), 0); c = cv; PCACHE.set(k, c); }
+  castShadow(g, sx, sy, 9 * s, .9 * s);
+  if (!SHSPR) { const [cv, cg] = hiCanvas(24, 12, 2), gr = cg.createRadialGradient(12, 6, 0, 12, 6, 9); gr.addColorStop(0, 'rgba(0,0,0,.38)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); cg.fillStyle = gr; cg.beginPath(); cg.ellipse(12, 6, 9, 4, 0, 0, TAU); cg.fill(); SHSPR = cv; }
+  g.drawImage(SHSPR, sx + 1 - 12 * s, sy - 6 * s, 24 * s, 12 * s);
+  g.drawImage(c, sx - 28, sy - 74, c.lw, c.lh);
+}
 export function person(g, sx, sy, o, t) {
   const s = o.s || 1, ph = o.ph || 0, mv = !!o.moving, cyc = (o.stride != null ? o.stride * 6.4 : t / 95) + ph, walk = mv ? Math.sin(cyc) : 0;
   const bob = mv ? (1 - Math.abs(Math.cos(cyc))) * 1.2 : Math.sin(t / 1100 + ph) * .3, back = !!o.back && mv;
@@ -568,9 +646,9 @@ export function person(g, sx, sy, o, t) {
   const outer = top === 'jacket' ? jacket : top === 'hoodie' ? shade(shirt, .85) : shirt, sleeve = top === 'tank' ? 0 : top === 'tee' || top === 'dress' ? .45 : 1;
   const OL = 'rgba(12,16,26,.55)', lw = .7 * s, Y = sy - bob * s, W2 = (x) => x * bw, sx0 = sx;
   const RR = (x, y, w, h, r, fill, stroke) => { g.beginPath(); g.roundRect(x, y, w, h, r); g.fillStyle = fill; g.fill(); if (stroke) { g.strokeStyle = OL; g.lineWidth = lw; g.stroke(); } };
-  castShadow(g, sx, sy, 9 * s * bw, .9 * s);
+  if (!o.noShadow) { castShadow(g, sx, sy, 9 * s * bw, .9 * s);
   // contact shadow
-  const sh = g.createRadialGradient(sx + 1, sy, 0, sx + 1, sy, 9 * s); sh.addColorStop(0, 'rgba(0,0,0,.38)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = sh; g.beginPath(); g.ellipse(sx + 1, sy, 9 * s * bw, 4 * s, 0, 0, Math.PI * 2); g.fill();
+  const sh = g.createRadialGradient(sx + 1, sy, 0, sx + 1, sy, 9 * s); sh.addColorStop(0, 'rgba(0,0,0,.38)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = sh; g.beginPath(); g.ellipse(sx + 1, sy, 9 * s * bw, 4 * s, 0, 0, Math.PI * 2); g.fill(); }
   if (K && K.camelbak) RR(sx + (face > 0 ? -8.5 : 2.5) * s, Y - 25 * s, 6 * s, 12 * s, 2 * s, '#1f2937', true);
   if (acc === 'backpack') RR(sx + (face > 0 ? -W2(9.4) : W2(3.6)) * s, Y - 24.5 * s, 6 * s, 11 * s, 2.2 * s, shade(jacket, 1.2), true);
   if (top === 'hoodie') { g.fillStyle = shade(outer, .8); g.beginPath(); g.ellipse(sx - face * 1.2 * s, Y - 26.5 * s, 5.4 * s, 3.4 * s, 0, 0, Math.PI * 2); g.fill(); }

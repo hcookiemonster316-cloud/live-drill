@@ -29,6 +29,10 @@ async function firebase(cfg) {
     remove: (p) => D.remove(D.ref(db, p)),
     on: (p, cb) => D.onValue(D.ref(db, p), (s) => cb(s.val()), (e) => console.warn('listen failed', p, e && e.message)),
     onLeave: (p, v) => D.onDisconnect(D.ref(db, p)).set(v),
+    // only the newest n children (chat): the download stays small however busy the channel gets
+    onLast: (p, n, cb) => D.onValue(D.query(D.ref(db, p), D.orderByKey(), D.limitToLast(n)), (s) => cb(s.val()), (e) => console.warn('listen failed', p, e && e.message)),
+    // child events (presence): each player's update arrives on its own instead of re-sending the whole list
+    onKids: (p, h) => { const r = D.ref(db, p), err = (e) => console.warn('listen failed', p, e && e.message); const st = [D.onChildAdded(r, (s) => h.put(s.key, s.val()), err), D.onChildChanged(r, (s) => h.put(s.key, s.val()), err), D.onChildRemoved(r, (s) => h.del(s.key), err)]; return () => st.forEach((f) => f()); },
     last: async (p, n) => { const out = []; (await D.get(D.query(D.ref(db, p), D.orderByKey(), D.limitToLast(n)))).forEach((c) => { out.push(Object.assign({ k: c.key }, c.val())); }); return out.reverse(); },
     top: async (p, n, low) => {
       const q = D.query(D.ref(db, p), D.orderByChild('s'), low ? D.limitToFirst(n) : D.limitToLast(n));
@@ -66,6 +70,8 @@ function mock() {
     remove: (p) => write((t) => put(t, p, null)),
     on: (p, cb) => { const s = { p, cb, last: undefined }; subs.add(s); setTimeout(fire, 0); return () => subs.delete(s); },
     onLeave: () => {},
+    onLast: (p, n, cb) => { const s = { p, cb: (v) => { if (!v) return cb(null); const ks = Object.keys(v).sort().slice(-n), o = {}; ks.forEach((k) => { o[k] = v[k]; }); cb(o); }, last: undefined }; subs.add(s); setTimeout(fire, 0); return () => subs.delete(s); },
+    onKids: (p, h) => { let prev = {}; const s = { p, cb: (v) => { v = v || {}; Object.keys(v).forEach((k) => { if (JSON.stringify(v[k]) !== JSON.stringify(prev[k])) h.put(k, v[k]); }); Object.keys(prev).forEach((k) => { if (!(k in v)) h.del(k); }); prev = v; }, last: undefined }; subs.add(s); setTimeout(fire, 0); return () => subs.delete(s); },
     last: async (p, n) => { const v = at(read(), p) || {}; return Object.keys(v).sort().slice(-n).reverse().map((k) => Object.assign({ k }, v[k])); },
     top: async (p, n, low) => { const v = at(read(), p) || {}; return Object.entries(v).map(([k, x]) => Object.assign({ k }, x)).sort((a, b) => (low ? a.s - b.s : b.s - a.s)).slice(0, n); }
   };
