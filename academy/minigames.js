@@ -7,6 +7,10 @@ export const GAMES = {
   bowl: { name: 'Fact Bowl', icon: '🧠', blurb: 'Everyone gets the same chapter fact. Fastest right answer scores most, and every right answer counts toward your facts.', rounds: 8, round: 21000, ans: 18000, tag: '8 questions · 3 min' },
   relay: { name: 'Phonetic Relay', icon: '📻', blurb: 'A plate comes over the radio. Pick the correct phonetic read-back before anyone else.', rounds: 8, round: 9000, ans: 7000, tag: '8 plates · 75 sec' },
   bolo: { name: 'BOLO Spotter', icon: '🔎', blurb: 'Study the BOLO for three seconds, then find the exact vehicle in the lot. Near-misses everywhere.', rounds: 6, round: 13500, show: 3500, ans: 10500, tag: '6 lots · 80 sec' },
+  gauntlet: { name: 'Trivia Gauntlet', icon: '⚡', blurb: 'Chapter facts, one after another. Miss one and you\'re out. Last cadet standing wins.', rounds: 12, round: 15000, ans: 12000, tag: 'Elimination · up to 3 min' },
+  spot: { name: 'Spot the Change', icon: '👀', blurb: 'Study the street for four seconds. Something changes. Tap what\'s different.', rounds: 6, round: 12000, show: 4000, ans: 10000, tag: '6 scenes · 75 sec' },
+  dispatch: { name: 'Dispatch Desk', icon: '🎧', blurb: 'Calls are stacking up. Send the right unit to each one, fast.', rounds: 8, round: 9000, ans: 7000, tag: '8 calls · 75 sec' },
+  squad: { name: 'Squad Scenario', icon: '🛡️', blurb: 'A sim-round team exercise. Each cadet gets a role: contact, cover, perimeter or radio. The squad only succeeds together.', rounds: 5, round: 20000, ans: 16000, tag: '2–4 cadets · 5 steps' },
   run: { name: 'PT Cadence Run', icon: '🏃', blurb: 'A 100-meter run called in cadence. Tap on the beat to stretch your stride. Off-beat taps barely move you.', dur: 25000, dist: 100, beat: 500, tag: '1 race · 25 sec' }
 };
 const BOTS = [{ id: 'bot_pike', c: 'Cadet Pike', u: '😎', acc: .66, fast: .9 }, { id: 'bot_navarro', c: 'Cadet Navarro', u: '📓', acc: .86, fast: 1.25 }, { id: 'bot_brooks', c: 'Cadet Brooks', u: '🚓', acc: .74, fast: 1 }];
@@ -39,6 +43,29 @@ function boloRound(seed, k) {
   for (let i = cars.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [cars[i], cars[j]] = [cars[j], cars[i]]; }
   return { bolo, cars, c: cars.findIndex((o) => key(o) === key(bolo)) };
 }
+const SPOT = ['🚗', '🚲', '🌳', '🗑️', '🚦', '🏪', '🐕', '🧍', '🛴', '📦', '🪧', '🚌', '🐦', '☂️', '🪑', '🚧', '🛒', '🌴', '🚐', '🐈'];
+function spotRound(seed, k) { const r = mul(seed * 13 + k * 389), grid = Array.from({ length: 16 }, () => SPOT[Math.floor(r() * SPOT.length)]), i = Math.floor(r() * 16), after = grid.slice(); let n = after[i]; while (n === grid[i]) n = SPOT[Math.floor(r() * SPOT.length)]; after[i] = n; return { grid, after, c: i }; }
+const UNITS_D = ['Patrol', 'Traffic Unit', 'Marine Patrol', 'K9 Unit', 'Fire Rescue', 'EMS', 'Animal Control', 'Crisis Negotiator', 'Public Works', 'Wildlife Trapper', 'Power Company'];
+const CALLS_D = [['Boat taking on water near the marina', 'Marine Patrol'], ['Missing kayaker on the river at dusk', 'Marine Patrol'], ['Three-car crash blocking the interstate', 'Traffic Unit'], ['Kitchen fire with smoke showing', 'Fire Rescue'], ['Man barricaded alone in his apartment, refusing to come out', 'Crisis Negotiator'], ['Suspect ran into the pine woods and lost sight of', 'K9 Unit'], ['Downed power line across Willow Street', 'Power Company'], ['Man unresponsive at the bus stop', 'EMS'], ['Alligator in a neighborhood pool', 'Wildlife Trapper'], ['Two neighbors arguing over a fence line', 'Patrol'], ['Lost child at the stadium gate', 'Patrol'], ['Pothole swallowed a car tire on Main Street', 'Public Works'], ['Loose dog chasing kids at the bus stop', 'Animal Control'], ['Traffic light out at a busy intersection', 'Traffic Unit'], ['Elderly woman fell and can\'t get up', 'EMS'], ['Search a fenced lot for a hidden suspect', 'K9 Unit']];
+function dispatchRound(seed, k) { const r = mul(seed * 7 + k * 613), order = CALLS_D.map((_, i) => i); for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; } const call = CALLS_D[order[k % order.length]], opts = [call[1]]; while (opts.length < 4) { const u = UNITS_D[Math.floor(r() * UNITS_D.length)]; if (opts.indexOf(u) < 0) opts.push(u); } for (let i = 3; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [opts[i], opts[j]] = [opts[j], opts[i]]; } return { call: call[0], opts, c: opts.indexOf(call[1]) }; }
+// squad scenarios: every role sees its own choices; the squad succeeds when everyone does their part
+const ROLES = [['contact', 'Contact', '🗣️'], ['cover', 'Cover', '👀'], ['perimeter', 'Perimeter', '🚧'], ['radio', 'Radio', '📻']];
+const SCEN = [
+  { name: 'Alarm at Palmetto Paper (sim round)', steps: [
+    { n: 'Night. Burglar alarm at Palmetto Paper Co. Your squad arrives.', o: { contact: [['Stage a block away and wait for the squad', 1], ['Drive right up to the front door', 0], ['Go in alone to save time', 0]], cover: [['Study the exits and blind corners from the car', 1], ['Turn on the siren so they know you\'re here', 0], ['Wait in the car for instructions', 0]], perimeter: [['Take the back corner where you can see two sides', 1], ['Stand at the front door with the others', 0], ['Check the building next door first', 0]], radio: [['Tell dispatch: on scene, units, and the plan', 1], ['Stay silent so nobody hears the radio', 0], ['Ask for the helicopter for a door alarm', 0]] } },
+    { n: 'The loading dock door is propped open with a brick. Fresh scuff marks.', o: { contact: [['Announce "Police!" loudly before entering', 1], ['Slip in quietly without announcing', 0], ['Kick the brick out of the way and go', 0]], cover: [['Position to see into the doorway while contact announces', 1], ['Stand right behind contact in the doorway', 0], ['Go check the front office', 0]], perimeter: [['Hold the outside and watch the dock and fence line', 1], ['Follow the team inside', 0], ['Move your car closer', 0]], radio: [['Update dispatch: open door, entering, location', 1], ['Wait until it\'s over to update', 0], ['Turn the radio down', 0]] } },
+    { n: 'Inside: a long warehouse with racks, an office and a break room.', o: { contact: [['Search one area at a time, slowly and completely', 1], ['Split up and cover more ground fast', 0], ['Skip the office, it\'s locked', 0]], cover: [['Keep eyes ahead and on high racks while contact clears', 1], ['Check your phone for the floor plan', 0], ['Lead and let contact follow', 0]], perimeter: [['Stay outside on the perimeter', 1], ['Come inside to help search', 0], ['Leave to grab coffee', 0]], radio: [['Track which areas are cleared and relay it', 1], ['Ask the others to repeat everything', 0], ['Chat about the game', 0]] } },
+    { n: 'In the break room, a man startles awake on the couch. He says he works here.', o: { contact: [['Calm voice: ask for his name and work ID, explain why you\'re here', 1], ['Yell at him to get on the ground', 0], ['Ignore him and keep searching', 0]], cover: [['Keep distance and watch his hands while contact talks', 1], ['Walk right up to him', 0], ['Look away to check the vending machine', 0]], perimeter: [['Stay on the perimeter until it\'s confirmed', 1], ['Run inside to see what\'s happening', 0], ['Release the scene', 0]], radio: [['Ask dispatch to confirm him with the keyholder', 1], ['Announce the call is over', 0], ['Say nothing', 0]] } },
+    { n: 'The keyholder confirms: night shift worker, fell asleep after propping the door for air.', o: { contact: [['Finish the search, then explain to him what happened', 1], ['Leave right away', 0], ['Lecture him for an hour', 0]], cover: [['Check the last unsearched area before calling it clear', 1], ['Assume the rest is clear', 0], ['Head to the car', 0]], perimeter: [['Hold until contact calls it clear', 1], ['Leave as soon as you hear he\'s an employee', 0], ['Go home', 0]], radio: [['Report: building clear, no entry, keyholder notified', 1], ['Forget to clear the call', 0], ['Clear the call before the search finishes', 0]] } }] },
+  { name: 'Missing hiker in the pines (sim round)', steps: [
+    { n: 'A 70-year-old hiker hasn\'t come back from the pine trails. It\'s two hours to sunset.', o: { contact: [['Interview the hiker\'s wife: clothing, route, medical needs', 1], ['Start walking into the woods right away', 0], ['Wait for the hiker to come back', 0]], cover: [['Get the trail map and mark the last known point', 1], ['Search the parking lot again', 0], ['Wait for the K9', 0]], perimeter: [['Post at the trailhead to log who goes in and out', 1], ['Wander the trails alone', 0], ['Leave to get supplies', 0]], radio: [['Broadcast the description and request more units', 1], ['Keep it quiet until you know more', 0], ['Call the news', 0]] } },
+    { n: 'Three trails split from the last known point.', o: { contact: [['Divide the area into sectors and assign them', 1], ['Everyone takes the main trail', 0], ['Pick the prettiest trail', 0]], cover: [['Search your sector in tight, overlapping lines', 1], ['Run your sector as fast as you can', 0], ['Only look at the trail itself', 0]], perimeter: [['Hold the trailhead and the parking area', 1], ['Join the search', 0], ['Drive around the block', 0]], radio: [['Track each sector\'s progress and time', 1], ['Let everyone check in whenever', 0], ['Turn off the radio to save battery', 0]] } },
+    { n: 'You find a water bottle with his name on it, off the trail.', o: { contact: [['Mark it, don\'t move it, and search outward from there', 1], ['Pick it up and keep walking', 0], ['Ignore it', 0]], cover: [['Look for tracks and broken branches nearby', 1], ['Shout and run in circles', 0], ['Go back to the car', 0]], perimeter: [['Keep the trailhead covered', 1], ['Come see the bottle', 0], ['Leave', 0]], radio: [['Report the clue and its location to everyone', 1], ['Tell only your partner', 0], ['Wait to report', 0]] } },
+    { n: 'A faint voice from a ravine. He\'s down there with a hurt ankle.', o: { contact: [['Talk to him calmly and keep him talking', 1], ['Climb down without a plan', 0], ['Yell at him for wandering off', 0]], cover: [['Find a safe way down and watch footing', 1], ['Jump down to him', 0], ['Film it', 0]], perimeter: [['Guide EMS and Fire Rescue in from the trailhead', 1], ['Stay put and say nothing', 0], ['Head home', 0]], radio: [['Request EMS and give exact location', 1], ['Announce he\'s fine and cancel everyone', 0], ['Forget to call EMS', 0]] } },
+    { n: 'Rescue carries him out. His wife is crying with relief.', o: { contact: [['Stay with the family and explain what happens next', 1], ['Leave as soon as he\'s out', 0], ['Tell her it was his fault', 0]], cover: [['Help account for every searcher before leaving', 1], ['Assume everyone made it out', 0], ['Leave first', 0]], perimeter: [['Close the trailhead log and release the scene', 1], ['Just drive away', 0], ['Keep the trail closed forever', 0]], radio: [['Clear the call: found, transported, all searchers out', 1], ['Clear it before everyone is out', 0], ['Forget to clear it', 0]] } }] }];
+function squadRound(seed, k) { const S = SCEN[seed % SCEN.length], st = S.steps[k], r = mul(seed * 3 + k * 101), o = {}; ROLES.forEach(([id]) => { const list = st.o[id].map((x) => x.slice()); for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; } o[id] = { opts: list.map((x) => x[0]), c: list.findIndex((x) => x[1]) }; }); return { scen: S.name, n: st.n, o }; }
+const roleIds = (players) => Object.keys(players || {}).sort((a, b) => ((players[a].t || 0) - (players[b].t || 0)) || (a < b ? -1 : 1));
+export const roleOf = (players, id) => { const i = roleIds(players).indexOf(id); return ROLES[(i < 0 ? 0 : i) % 4]; };
 const carTxt = (c) => VC[c.c][0] + ' ' + VT[c.t][0] + ', plate ' + c.p + ', ' + VD[c.d];
 
 // ---------- scoring, worked out the same way on every screen ----------
@@ -51,7 +78,9 @@ function roundPts(g, a, ans) {
 export function standings(meta, players, answerOf) {
   const g = meta.g, rows = Object.keys(players || {}).map((id) => { const p = players[id]; let s = 0;
     if (g === 'run') s = p.f ? 2000 + Math.floor((GAMES.run.dur - p.f) / 10) : Math.floor((p.x || 0) * 10);
-    else for (let k = 0; k < GAMES[g].rounds; k++) s += roundPts(g, (p.a || {})[k], answerOf(k));
+    else if (g === 'gauntlet') { for (let k = 0; k < GAMES[g].rounds; k++) { const a = (p.a || {})[k], c = answerOf(k, id); if (!a || a.k !== c) break; s += 300 + Math.max(0, Math.floor(200 * (1 - a.ms / GAMES[g].ans))); } }
+    else if (g === 'squad') { for (let k = 0; k < GAMES[g].rounds; k++) { const a = (p.a || {})[k]; if (a && a.k === answerOf(k, id)) s += 300 + Math.max(0, Math.floor(100 * (1 - a.ms / GAMES[g].ans))); } }
+    else for (let k = 0; k < GAMES[g].rounds; k++) s += roundPts(g, (p.a || {})[k], answerOf(k, id));
     return { id, c: p.c, u: p.u, s, bot: /^bot_/.test(id) }; });
   return rows.sort((a, b) => b.s - a.s);
 }
@@ -114,7 +143,7 @@ export function createMiniGames(dep) {
   // host: start the game for everyone
   async function start() {
     const g = room.meta.g, seed = Math.floor(Math.random() * 1e9), m = { st: 'play', seed, t0: now() + LEAD };
-    if (g === 'bowl') m.fq = dep.L.pickFactIds(dep.S, dep.lessons(), GAMES.bowl.rounds).map((x) => x.join(':')).join(',');
+    if (g === 'bowl' || g === 'gauntlet') m.fq = dep.L.pickFactIds(dep.S, dep.lessons(), GAMES[g].rounds).map((x) => x.join(':')).join(',');
     Object.keys(room.players).forEach((id) => { const p = room.players[id]; delete p.a; delete p.x; delete p.f; });
     room.mine = {}; room.awarded = false; room.bot = {};
     if (room.local) { Object.assign(room.meta, m); return; }
@@ -139,6 +168,7 @@ export function createMiniGames(dep) {
     if (t < 0) return { pre: true, left: -t };
     if (m.g === 'run') return t < G.dur ? { run: true, t } : t < G.dur + 3000 ? { runEnd: true, t } : { done: true };
     const k = Math.floor(t / G.round); if (k >= G.rounds) return { done: true };
+    if (m.g === 'gauntlet' && k > 0 && !Object.keys(room.players).some((id) => outAlive(room.players[id], k, id))) return { done: true }; // everyone is out
     const rt = t - k * G.round, show = G.show || 0;
     return { k, rt, memo: rt < show, open: rt >= show && rt < G.ans, reveal: rt >= G.ans, left: (rt < show ? show - rt : G.ans - rt) };
   }
@@ -148,19 +178,24 @@ export function createMiniGames(dep) {
     let c = null;
     if (m.g === 'relay') c = relayRound(m.seed, k, dep.PHON);
     else if (m.g === 'bolo') c = boloRound(m.seed, k);
-    else if (m.g === 'bowl') { const ids = String(m.fq || '').split(','), x = (ids[k] || '').split(':'); const q = x[0] ? dep.L.factQFixed(x[0], +x[1], mul(m.seed + k * 131)) : null; c = q ? { q, c: q.c } : null; }
+    else if (m.g === 'spot') c = spotRound(m.seed, k);
+    else if (m.g === 'dispatch') c = dispatchRound(m.seed, k);
+    else if (m.g === 'squad') c = squadRound(m.seed, k);
+    else if (m.g === 'bowl' || m.g === 'gauntlet') { const ids = String(m.fq || '').split(','), x = (ids[k] || '').split(':'); const q = x[0] ? dep.L.factQFixed(x[0], +x[1], mul(m.seed + k * 131)) : null; c = q ? { q, c: q.c } : null; }
     qCache[key] = c; return c;
   }
-  const answerOf = (k) => { const c = content(k); return c ? c.c : -1; };
+  const answerOf = (k, id) => { const c = content(k); if (!c) return -1; if (room.meta.g === 'squad') return c.o[roleOf(room.players, id || room.uid)[0]].c; return c.c; };
+  const myOpts = (c) => (room.meta.g === 'squad' ? c.o[roleOf(room.players, room.uid)[0]] : null);
   // practice classmates: answer each round with their own speed and accuracy
   function botsTick(P) {
     if (!room.local || !room.meta || room.meta.st !== 'play') return; const m = room.meta, G = GAMES[m.g]; room.bot = room.bot || {};
     BOTS.forEach((b) => { const p = room.players[b.id]; if (!p) return;
       if (m.g === 'run') { if (P.run) { const st = room.bot[b.id] = room.bot[b.id] || { x: 0, next: 0 }; if (P.t >= st.next) { st.next = P.t + G.beat; st.x += (Math.random() < b.acc ? 3 : Math.random() < .5 ? 1.5 : .3) * (.9 + Math.random() * .2); p.x = Math.min(G.dist, st.x); if (p.x >= G.dist && !p.f) p.f = P.t; } } return; }
-      if (P.k == null || !P.open) return; const key = b.id + P.k; if (room.bot[key] == null) room.bot[key] = (G.show || 0) + Math.min(G.ans - (G.show || 0) - 400, (1200 + Math.random() * 4200) * b.fast);
-      if (P.rt >= room.bot[key] && !((p.a || {})[P.k])) { const right = Math.random() < b.acc, c = content(P.k); let k2 = right ? c.c : (c.c + 1 + Math.floor(Math.random() * 3)) % (c.q ? c.q.opts.length : c.opts ? c.opts.length : c.cars.length); p.a = p.a || {}; p.a[P.k] = { k: k2, ms: Math.round(room.bot[key] - (G.show || 0)) }; }
+      if (P.k == null || !P.open) return; if (m.g === 'gauntlet' && P.k > 0 && !outAlive(p, P.k, b.id)) return; const key = b.id + P.k; if (room.bot[key] == null) room.bot[key] = (G.show || 0) + Math.min(G.ans - (G.show || 0) - 400, (1200 + Math.random() * 4200) * b.fast);
+      if (P.rt >= room.bot[key] && !((p.a || {})[P.k])) { const right = Math.random() < b.acc, c = content(P.k), cc = answerOf(P.k, b.id), nOpt = m.g === 'squad' ? 3 : c.q ? c.q.opts.length : c.opts ? c.opts.length : c.cars ? c.cars.length : c.grid ? 16 : 4; let k2 = right ? cc : (cc + 1 + Math.floor(Math.random() * (nOpt - 1))) % nOpt; p.a = p.a || {}; p.a[P.k] = { k: k2, ms: Math.round(room.bot[key] - (G.show || 0)) }; }
     });
   }
+  const outAlive = (p, k, id) => { for (let i = 0; i < k; i++) { const a = (p.a || {})[i]; if (!a || a.k !== answerOf(i, id)) return false; } return true; };
   // ---------- drawing ----------
   let tapAt = [], runX = 0, runSent = 0, lastBeat = -1;
   function loop() {
@@ -201,6 +236,12 @@ export function createMiniGames(dep) {
       if (m.g === 'relay') body = '<div class="mgPlate"><small>Read this plate back over the radio</small><b>' + c.plate + '</b></div>' + opts(c.opts, mine, c.c, P, false);
       if (m.g === 'bolo') body = P.memo ? '<div class="mgBolo"><small>BE ON THE LOOKOUT</small><span>' + VT[c.bolo.t][1] + '</span><b>' + esc(carTxt(c.bolo)) + '</b><i style="background:' + VC[c.bolo.c][1] + '"></i></div>' :
         '<p class="mgQ">Which vehicle matches the BOLO exactly?</p><div class="mgLot">' + c.cars.map((v, i) => '<button type="button" data-o="' + i + '" class="mgCar' + cls(i, mine, c.c, P) + '"' + (mine || !P.open ? ' disabled' : '') + '><span>' + VT[v.t][1] + '</span><i style="background:' + VC[v.c][1] + '"></i><b>' + v.p + '</b><small>' + esc(VC[v.c][0] + ' ' + VT[v.t][0]) + '<br>' + esc(VD[v.d]) + '</small></button>').join('') + '</div>' + (P.reveal ? '<p class="mgEx">BOLO: ' + esc(carTxt(c.bolo)) + '</p>' : '');
+      const dead = m.g === 'gauntlet' && !outAlive(room.players[room.uid] || {}, k, room.uid) && k > 0;
+      if (m.g === 'gauntlet') body = (dead ? '<p class="mgRetry">You\'re out. Watching the survivors…</p>' : '') + '<p class="mgQ">' + esc(c.q.stem) + '</p>' + opts(c.q.opts, dead ? { k: -1 } : mine, c.c, P, false) + '<p class="mgNote">' + Object.keys(room.players).filter((id) => outAlive(room.players[id], k, id)).length + ' still standing</p>';
+      if (m.g === 'spot') body = P.memo ? '<p class="mgQ">Study the street…</p><div class="mgGrid">' + c.grid.map((e) => '<span>' + e + '</span>').join('') + '</div>' : '<p class="mgQ">What changed?</p><div class="mgGrid">' + c.after.map((e, i) => '<button type="button" data-o="' + i + '" class="' + cls(i, mine, c.c, P) + '"' + (mine || !P.open ? ' disabled' : '') + '>' + e + '</button>').join('') + '</div>' + (P.reveal ? '<p class="mgEx">It was a ' + c.grid[c.c] + ' before. Now: ' + c.after[c.c] + '</p>' : '');
+      if (m.g === 'dispatch') body = '<div class="mgCall"><small>INCOMING CALL</small><b>' + esc(c.call) + '</b></div><p class="mgQ">Who do you send?</p>' + opts(c.opts, mine, c.c, P, false);
+      if (m.g === 'squad') { const role = roleOf(room.players, room.uid), mo = myOpts(c); body = '<div class="mgScen"><small>' + esc(c.scen) + '</small><p>' + esc(c.n) + '</p></div><div class="mgRole">' + role[2] + ' Your role: <b>' + role[1] + '</b></div>' + opts(mo.opts, mine, mo.c, P, false) +
+        (P.reveal ? '<div class="mgTeam">' + roleIds(room.players).map((id) => { const p = room.players[id], r2 = roleOf(room.players, id), a = (p.a || {})[k], okk = a && a.k === answerOf(k, id); return '<span class="' + (okk ? 'ok' : 'no') + '">' + r2[2] + ' ' + esc(r2[1]) + ': ' + esc((p.c || '').replace(/^Cadet /, '')) + (okk ? ' ✓' : a ? ' ✗' : ' (no call)') + '</span>'; }).join('') + '</div>' : ''); }
       if (P.reveal && m.g === 'bowl') body += '<p class="mgEx">' + esc(c.q.fact || c.q.ex || '') + '</p>';
       if (P.reveal && m.g === 'relay') body += '<p class="mgEx">Plate ' + c.plate + ': ' + esc(c.opts[c.c]) + '</p>';
       const rows = standings(m, room.players, answerOf).slice(0, 5);
@@ -208,10 +249,10 @@ export function createMiniGames(dep) {
       el.querySelectorAll('[data-o]').forEach((b) => b.onclick = () => {
         const P2 = phase(); if (!P2.open || P2.k !== k) return; const o = +b.dataset.o, ms = Math.round(P2.rt - (G.show || 0)), cur = (room.mine || {})[k];
         if (cur && !(m.g === 'bowl' && cur.k !== c.c && cur.k2 == null)) return;
-        const sec = !!cur; answer(k, o, ms, sec); const ok = o === c.c; dep.beep(ok ? 880 : 220, .12, ok ? 'triangle' : 'sawtooth', .04);
-        if (m.g === 'bowl' && (ok || sec)) { dep.L.record(dep.S, c.q, ok); dep.saveS(); }
+        const sec = !!cur; if (m.g === 'gauntlet' && k > 0 && !outAlive(room.players[room.uid] || {}, k, room.uid)) return; answer(k, o, ms, sec); const ok = o === answerOf(k); dep.beep(ok ? 880 : 220, .12, ok ? 'triangle' : 'sawtooth', .04);
+        if ((m.g === 'bowl' && (ok || sec)) || m.g === 'gauntlet') { dep.L.record(dep.S, c.q, ok); dep.saveS(); }
       });
-      if (P.reveal) { const got = roundPts(m.g, mine, c.c); dep.beep(got ? 1047 : 330, .15, 'triangle', .03); }
+      if (P.reveal) { const got = mine && mine.k === answerOf(k); dep.beep(got ? 1047 : 330, .15, 'triangle', .03); }
     }
     const t = el.querySelector('#mgT'); if (t) t.textContent = P.reveal ? 'next…' : Math.ceil(P.left / 1000) + 's';
   }
@@ -240,6 +281,8 @@ export function createMiniGames(dep) {
     const m = room.meta, G = GAMES[m.g]; if (el._key) { removeEventListener('keydown', el._key); el._key = null; }
     if (m.g === 'run' && !room.local) { const p = room.players[room.uid]; if (p && runX > (p.x || 0)) p.x = runX; }
     const rows = standings(m, room.players, answerOf), humans = rows.filter((r) => !r.bot).length, myRank = rows.findIndex((r) => r.id === room.uid), key = 'res' + rows.map((r) => r.id + r.s).join(',');
+    let team = null; if (m.g === 'squad') { let ok = 0, tot = 0; Object.keys(room.players).forEach((id) => { for (let k = 0; k < G.rounds; k++) { tot++; const a = (room.players[id].a || {})[k]; if (a && a.k === answerOf(k, id)) ok++; } }); team = tot ? ok / tot : 0; }
+    if (!room.awarded && team != null) { room.awarded = true; dep.award(Math.round(60 + team * 160), 'squad scenario'); dep.stat('mg'); dep.stat('mg_squad'); if (team >= .8) dep.stat('squadwin'); dep.beep(team >= .8 ? 1047 : 659, .4, 'triangle', .05); }
     if (!room.awarded) {
       room.awarded = true; const place = myRank + 1, vs = room.local ? rows.length : humans, rp = room.local ? 20 + (place === 1 ? 30 : 0) : 40 + (vs >= 2 ? [0, 120, 70, 40][place] || 10 : 0);
       dep.award(rp, G.name); dep.stat('mg'); dep.stat('mg_' + m.g); if (place === 1 && vs >= 2 && !room.local) dep.stat('mgwin'); if (place === 1 && room.local) dep.stat('mgpwin');
@@ -249,7 +292,7 @@ export function createMiniGames(dep) {
     }
     if (lastRender === key) return; lastRender = key;
     const isHost = room.local || m.h === me();
-    el.innerHTML = '<div class="mgCard"><div class="mgHead"><span>' + G.icon + ' ' + esc(G.name) + ' · final</span><h2>' + (myRank === 0 ? 'You won!' : 'You placed ' + (myRank + 1) + ' of ' + rows.length) + '</h2><p>' + (m.g === 'bowl' ? 'Every right answer counted toward your chapter facts.' : 'Good training. Same time next shift?') + '</p></div><div class="mgList">' + podium(rows) + '</div>' +
+    el.innerHTML = '<div class="mgCard"><div class="mgHead"><span>' + G.icon + ' ' + esc(G.name) + ' · final</span><h2>' + (team != null ? (team >= .8 ? 'Mission success' : team >= .5 ? 'Partial success' : 'Debrief needed') : myRank === 0 ? 'You won!' : 'You placed ' + (myRank + 1) + ' of ' + rows.length) + '</h2><p>' + (team != null ? 'The squad made ' + Math.round(team * 100) + '% of its calls correctly. Sim rounds only: this is how teams get good before it counts.' : m.g === 'bowl' || m.g === 'gauntlet' ? 'Every right answer counted toward your chapter facts.' : 'Good training. Same time next shift?') + '</p></div><div class="mgList">' + podium(rows) + '</div>' +
       '<div class="mgAct">' + (isHost ? '<button type="button" id="mgAgain">Play again</button>' : '<p class="mgNote">The host can start another round.</p>') + '<button type="button" class="ghost" id="mgHub">Other games</button><button type="button" class="ghost" id="mgX">Back to patrol</button></div></div>';
     const a = el.querySelector('#mgAgain'); if (a) a.onclick = () => again();
     el.querySelector('#mgHub').onclick = () => hub(); el.querySelector('#mgX').onclick = close;
