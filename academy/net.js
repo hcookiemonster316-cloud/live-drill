@@ -14,7 +14,7 @@ export async function startNet(onPlayers) {
     async join(did, shift, info) {
       if (base) N.leave();
       base = 'mmo/' + did + '/' + shift + '/p';
-      me = Object.assign({ s: shift, u: info.unit || 'swat', c: info.cs, x: info.x, y: info.y, v: 0, st: 'patrol', r: info.rank || 'Cadet' }, { t: db.TS });
+      me = Object.assign({ s: shift, u: info.unit || 'swat', n: -1, f: info.flair || null, c: info.cs, x: info.x, y: info.y, v: 0, st: 'patrol', r: info.rank || 'Cadet' }, { t: db.TS });
       await db.set(base + '/' + db.uid, me);
       db.onLeave(base + '/' + db.uid, null);
       // listen to every shift this one can see (midshift sees day and night; they each see midshift)
@@ -31,6 +31,8 @@ export async function startNet(onPlayers) {
     status(st) { if (base) db.update(base + '/' + db.uid, { st }); },
     quick(k) { if (base) db.update(base + '/' + db.uid, { q: { k, t: db.TS } }); },
     backup(b) { if (base) db.update(base + '/' + db.uid, { b: b ? Object.assign({}, b, { t: db.TS }) : null }); },
+    inside(n) { if (base) db.update(base + '/' + db.uid, { n: n == null ? -1 : n }); },
+    flair(f) { if (base) db.update(base + '/' + db.uid, { f: f || null }); },
     assist(uid) { if (base) db.update(base + '/' + db.uid, { a: uid || null }); },
     leave() { if (base) { try { db.remove(base + '/' + db.uid); } catch (e) {} } stops.forEach((f) => typeof f === 'function' && f()); stops = []; base = null; clearInterval(timer); }
   };

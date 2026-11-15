@@ -172,6 +172,12 @@
               },
               "$o": {
                 ".validate": false
+              },
+              "n": {
+                ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() <= 15"
+              },
+              "f": {
+                ".validate": "newData.isString() && newData.val().matches(/^(vest|clipboard|brass|boots)$/)"
               }
             }
           }

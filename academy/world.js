@@ -33,6 +33,7 @@ export function buildDistrict(did) {
     // street lights at block corners
     [[ox, oy], [ox + 8, oy], [ox, oy + 8], [ox + 8, oy + 8]].forEach(([x, y]) => W.props.push({ t: 'lamp', x: x + .5, y: y + .5 }));
   }
+  features(W, R);
   // gates to the neighbouring districts (west road and east road)
   W.gates.push({ to: (did + 4) % 5, x: 0, y: 11, dir: 'w' }, { to: (did + 1) % 5, x: D.river ? 33 : N - 1, y: D.river ? 0 : 22, dir: D.river ? 'n' : 'e' });
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = at(x, y); if (v === T.WALK) W.walk.push([x, y]); if (v === T.LOT) W.parking.push([x, y]); }
@@ -43,6 +44,53 @@ export function buildDistrict(did) {
   W.blocked = new Set();
   W.props.forEach((p) => { if (p.block) W.blocked.add(Math.floor(p.y) * N + Math.floor(p.x)); });
   return W;
+}
+
+// ---------- what makes each district its own place ----------
+// a walk-only promenade over one road segment, street dressing, Riverside's pier, Industrial's rail line,
+// and secret spots that only show up when you wander close
+const SECRETS = [
+  [['The Bench Where Cadets Cry', 'Quiet. Shady. Slightly damp. Many a PT test has been mourned here.'], ['The Pigeon Council', 'Twelve pigeons. One agenda. They have been watching your patrol technique.'], ['The Mystery Puddle', 'It has not rained in nine days. The puddle remains.']],
+  [['The Cart Return Nobody Uses', 'A monument to human nature. Every cart is somewhere else.'], ['The Legendary Vending Machine', 'It only takes exact change and it only gives exact disappointment.'], ['Shortcut Behind the Plaza', 'Every delivery driver in Eastside knows it. Now you do too.']],
+  [['The Lucky Fishing Spot', 'Old-timers say the bass here know the Florida Statutes.'], ['The Tree Fort Treaty', 'Neighborhood kids signed a peace accord here in 2019. It mostly holds.'], ['The Gator Lookout', 'He is not here right now. That is the scary part.']],
+  [['The Forklift Graveyard', 'Where forklifts go when they have seen too much.'], ['The Echo Corner', 'Say "clear" and the warehouse says it back. Spooky. Helpful.'], ['The Break Room Microwave', 'Abandoned behind Warehouse C. Still smells like fish. From 2016.']],
+  [['The Bailiff\'s Secret Smoke Bench', 'Officially it does not exist. Unofficially it has a cushion.'], ['The Courthouse Cat', 'Has attended more trials than most attorneys. Undefeated.'], ['The Lost Parking Ticket Wall', 'Hundreds of tickets taped up by someone with a lot of feelings.']]
+];
+function features(W, R) {
+  const at = W.at, set = W.set, d = W.did, rnd = (a) => a[Math.floor(R() * a.length)];
+  // a road segment between two blocks becomes a walk-only promenade
+  const prom = [[22, 13, 'v', 'fountain'], [33, 2, 'v', 'stall'], [11, 24, 'v', 'tree'], [22, 2, 'v', 'tree'], [22, 2, 'v', 'flag']][d];
+  if (prom) { const [px, py, , k] = prom; for (let y = py; y <= py + 8; y++) for (let x = px; x <= px + 1; x++) set(x, y, T.PLAZA);
+    for (let y = py + 1; y <= py + 7; y += 2) { const left = (y - py) % 4 === 1; if (k === 'stall') P(W, 'stall', px + (left ? .5 : 1.5), y + .5, { color: rnd(['#d22d3d', '#1f7a5a', '#2c5aa0', '#d98a1c', '#8e44ad']), block: true }); else if (k === 'fountain' && y === py + 3) P(W, 'fountain', px + 1, y + 1, { block: true }); else if (k === 'flag') P(W, left ? 'flag' : 'bench', px + (left ? .3 : 1.6), y + .5, { block: left }); else P(W, left ? 'tree' : 'bench', px + (left ? .4 : 1.6), y + .5, { block: left, s: .8 }); }
+    W.promenade = { x: px, y: py, name: ['Main Street Promenade', 'Eastside Market Street', 'Riverside Greenway', 'Old Freight Path', 'Civic Mall'][d] };
+  }
+  // street dressing on sidewalks next to roads
+  for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
+    if (at(x, y) !== T.WALK) continue; const nearRoad = at(x + 1, y) === T.ROAD || at(x - 1, y) === T.ROAD || at(x, y + 1) === T.ROAD || at(x, y - 1) === T.ROAD; if (!nearRoad) continue;
+    const r = R(); if (r < .025) P(W, 'hydrant', x + .5, y + .5); else if (r < .045) P(W, 'bin', x + .5, y + .5); else if (r < .085 && W.D.theme !== 'industrial') P(W, 'bush', x + .5, y + .5, { s: .7 + R() * .5, c: rnd(['#3f7d3a', '#4b8b3f', '#356b34']) }); else if (r < .1 && W.D.theme === 'residential') P(W, 'flowers', x + .5, y + .5, { c: rnd(['#e84a5f', '#f6c445', '#c77dff', '#ff8fab']) });
+  }
+  if (W.river) { // fishing pier into the river, a boardwalk bench line and boats
+    const py = 17; for (let x = 36; x <= 41; x++) { set(x, py, T.PLAZA); set(x, py + 1, T.PLAZA); }
+    P(W, 'bench', 41.3, py + 1); P(W, 'lamp', 36.5, py + .5); P(W, 'lamp', 40.5, py + .5);
+    for (let y = 4; y < N - 2; y += 6) P(W, 'bench', 35.5, y + .5);
+    W.pier = { x: 36, y: py };
+  }
+  if (W.D.theme === 'industrial') { // a freight line crossing the whole district; trains run on it during the shift
+    const ry = 32; for (let x = 0; x < N; x++) if (at(x, ry) !== T.BLDG) set(x, ry, T.RAIL);
+    for (let x = 0; x < N; x++) if (at(x, ry - 1) === T.ROAD && at(x - 1, ry - 1) !== T.ROAD) { P(W, 'xing', x - .3, ry - .3); P(W, 'xing', x + 2.3, ry + 1.3); }
+    W.railY = ry;
+  }
+  // secret spots: quiet tiles away from the road
+  const quiet = []; for (let y = 2; y < N - 2; y++) for (let x = 2; x < N - 2; x++) { const v = at(x, y); if ((v === T.GRASS || v === T.GRAVEL || v === T.PLAZA || v === T.SAND) && ![[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]].some(([a, b]) => at(x + a, y + b) === T.ROAD)) quiet.push([x, y]); }
+  const picked = [];
+  W.secrets = (SECRETS[d] || []).map((s2, i) => {
+    let q = null;
+    if (W.river && i === 0) q = [41, 18];
+    for (let k = 0; !q && k < 200; k++) { const c = quiet[Math.floor(R() * quiet.length)]; if (c && picked.every((o) => Math.hypot(o[0] - c[0], o[1] - c[1]) > 12)) q = c; }
+    q = q || quiet[Math.floor(R() * quiet.length)] || [5 + i * 9, 5]; picked.push(q);
+    return { id: d + ':' + i, name: s2[0], text: s2[1], x: q[0] + .5, y: q[1] + .5 };
+  });
+  W.quiet = quiet;
 }
 
 const PAL = {
@@ -246,6 +294,13 @@ function mini(g, tx, x, y, w, d, h, base, color) {
 // props, people and cars are drawn each frame (cheap shapes)
 export function drawProp(g, p, sx, sy, t, night) {
   switch (p.t) {
+    case 'hydrant': g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 2, sy + 1, 5, 2.5, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#c0392b'; g.fillRect(sx - 3, sy - 10, 6, 10); g.fillRect(sx - 5, sy - 7, 10, 3); g.fillStyle = '#e74c3c'; g.beginPath(); g.arc(sx, sy - 10, 3, Math.PI, 0); g.fill(); return;
+    case 'bin': g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 2, sy + 1, 6, 3, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#2f4f3a'; g.fillRect(sx - 4, sy - 12, 8, 12); g.fillStyle = '#3d6b4c'; g.fillRect(sx - 5, sy - 13, 10, 2.5); return;
+    case 'bush': { const s = p.s || 1; g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(sx + 3, sy + 2, 10 * s, 4 * s, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = p.c || '#3f7d3a'; [[-4, -5, 6], [4, -5, 6], [0, -8, 7]].forEach(([a, b, r]) => { g.beginPath(); g.arc(sx + a * s, sy + b * s, r * s, 0, Math.PI * 2); g.fill(); }); g.fillStyle = 'rgba(255,255,255,.12)'; g.beginPath(); g.arc(sx - 1 * s, sy - 11 * s, 3 * s, 0, Math.PI * 2); g.fill(); return; }
+    case 'flowers': g.fillStyle = '#3f7d3a'; g.beginPath(); g.ellipse(sx, sy - 2, 9, 4, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = p.c || '#e84a5f'; for (let k = 0; k < 7; k++) { const a = k * 2.4; g.beginPath(); g.arc(sx + Math.cos(a) * 6, sy - 3 + Math.sin(a) * 2.5, 1.8, 0, Math.PI * 2); g.fill(); } return;
+    case 'stall': { const c = p.color || '#d22d3d'; g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 3, sy + 3, 16, 7, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#8a6a48'; g.fillRect(sx - 11, sy - 12, 22, 10); g.fillStyle = '#c9a77a'; g.fillRect(sx - 12, sy - 14, 24, 3); g.fillStyle = '#555'; g.fillRect(sx - 11, sy - 30, 2, 18); g.fillRect(sx + 9, sy - 30, 2, 18); g.fillStyle = c; g.beginPath(); g.moveTo(sx - 15, sy - 28); g.lineTo(sx, sy - 38); g.lineTo(sx + 15, sy - 28); g.lineTo(sx, sy - 22); g.closePath(); g.fill(); g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.moveTo(sx - 7, sy - 33); g.lineTo(sx, sy - 38); g.lineTo(sx + 1, sy - 22); g.closePath(); g.fill(); ['#e74c3c', '#f1c40f', '#27ae60', '#e67e22'].forEach((f, k) => { g.fillStyle = f; g.beginPath(); g.arc(sx - 7 + k * 4.5, sy - 15, 2, 0, Math.PI * 2); g.fill(); }); return; }
+    case 'xing': { const on = p.on && Math.floor(t / 300) % 2; g.fillStyle = '#ddd'; g.fillRect(sx - 1, sy - 30, 2, 30); g.save(); g.translate(sx, sy - 26); g.rotate(.6); g.fillStyle = '#fff'; g.fillRect(-8, -1.5, 16, 3); g.rotate(-1.2); g.fillRect(-8, -1.5, 16, 3); g.restore(); g.fillStyle = '#222'; g.fillRect(sx - 6, sy - 21, 12, 5); g.fillStyle = on ? '#ff3b3b' : '#4a1515'; g.beginPath(); g.arc(sx - 3, sy - 18.5, 2, 0, Math.PI * 2); g.fill(); g.fillStyle = !on && p.on ? '#ff3b3b' : '#4a1515'; g.beginPath(); g.arc(sx + 3, sy - 18.5, 2, 0, Math.PI * 2); g.fill(); return; }
+    case 'cone': g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 1, sy + 1, 5, 2.5, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ff6b1a'; g.beginPath(); g.moveTo(sx - 4, sy); g.lineTo(sx, sy - 12); g.lineTo(sx + 4, sy); g.closePath(); g.fill(); g.fillStyle = '#fff'; g.fillRect(sx - 2.4, sy - 6, 4.8, 2); return;
     case 'tree': case 'palm': {
       const s = p.s || 1; g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 6, sy + 4, 16 * s, 7 * s, 0, 0, Math.PI * 2); g.fill();
       g.fillStyle = '#5b3d25'; g.fillRect(sx - 2, sy - (p.t === 'palm' ? 34 : 18) * s, 4, (p.t === 'palm' ? 34 : 18) * s);
