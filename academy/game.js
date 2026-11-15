@@ -318,7 +318,7 @@ function drawMini() {
   infos.forEach((i) => dot(i.x, i.y, '#3b82f6', 2.5)); if (!inside) SIDE.forEach((q) => { if (!sideAvail(q)) return; const r = regs.find((x) => x.n.id === q.giver); if (r) dot(r.x, r.y, '#38bdf8', 3.4); }); citizens.forEach((c) => dot(c.x, c.y, '#f5b800', 2.2));
   if (!inside) { if (!fogC || fogC.did !== W.did) { fogC = document.createElement('canvas'); fogC.width = m.width; fogC.height = m.height; fogC.did = W.did; const fg = fogC.getContext('2d'); fg.fillStyle = 'rgba(6,10,20,.84)'; fg.fillRect(0, 0, m.width, m.height); const str = S.explored[exKey()] || ''; for (let i = 0; i < N * N; i++) if (str[i] === '1') fg.clearRect((i % N) * s, Math.floor(i / N) * s, s + .6, s + .6); } g.drawImage(fogC, 0, 0); W.secrets.forEach((x) => { if (S.found[x.id]) dot(x.x, x.y, '#a78bfa', 3); }); regs.forEach((r) => { if ((S.npc || {})[r.n.id]) dot(r.x, r.y, '#fde68a', 2.6); }); }
   { const t = stepTarget(); if (t && !t.exit) { g.fillStyle = '#f5b800'; g.beginPath(); const q = 1 / Z; g.moveTo(t.x * s, t.y * s - 6 * q); g.lineTo(t.x * s + 5 * q, t.y * s); g.lineTo(t.x * s, t.y * s + 6 * q); g.lineTo(t.x * s - 5 * q, t.y * s); g.closePath(); g.fill(); } }
-  dot(P.x, P.y, '#ffffff', 4.2); dot(P.x, P.y, '#f5b800', 2.6);
+  { const d = [[1, 0], [0, 1], [-1, 0], [0, -1]][(P.dir || 0) & 3], q = 1 / Z, px = P.x * s, py = P.y * s, L2 = 7 * q, W3 = 4.5 * q, nx = -d[1], ny = d[0]; g.fillStyle = 'rgba(245,184,0,.18)'; g.beginPath(); g.arc(px, py, 11 * q, 0, Math.PI * 2); g.fill(); g.fillStyle = '#f5b800'; g.strokeStyle = '#fff'; g.lineWidth = 1.4 * q; g.beginPath(); g.moveTo(px + d[0] * L2, py + d[1] * L2); g.lineTo(px - d[0] * L2 * .6 + nx * W3, py - d[1] * L2 * .6 + ny * W3); g.lineTo(px - d[0] * L2 * .25, py - d[1] * L2 * .25); g.lineTo(px - d[0] * L2 * .6 - nx * W3, py - d[1] * L2 * .6 - ny * W3); g.closePath(); g.fill(); g.stroke(); }
   g.restore();
 }
 
@@ -1082,13 +1082,28 @@ function endOfWatch() {
 }
 
 // ---------- HUD ----------
+// crisp line icons for the bottom bar (drawn, not emoji)
+const ICON = {
+  car: '<path d="M5 16h14M6.5 16l1.4-5.2A2 2 0 0 1 9.8 9.3h4.4a2 2 0 0 1 1.9 1.5L17.5 16"/><rect x="3.5" y="13" width="17" height="5" rx="1.6"/><circle cx="7.5" cy="18.5" r="1.6"/><circle cx="16.5" cy="18.5" r="1.6"/><path d="M10 6.5h4M12 4.5v2"/>',
+  walk: '<circle cx="13" cy="4.5" r="1.8"/><path d="M12.5 8l-2.5 5 3 2.5 1 5M10 13l-2.5 7M12.5 8l3 3.5 3 .5M12.5 8L9 9.5 7.5 12.5"/>',
+  anchor: '<circle cx="12" cy="5" r="2"/><path d="M12 7v13M8 10h8M4.5 13.5A7.5 7.5 0 0 0 12 20a7.5 7.5 0 0 0 7.5-6.5"/>',
+  comms: '<rect x="6" y="7" width="12" height="14" rx="2"/><path d="M9 3l3 4M9 11h6M9 14h6M9 17h3"/><circle cx="15" cy="17" r=".6"/>',
+  target: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/>',
+  locker: '<path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3h3A2.5 2.5 0 0 1 16 5.5V7"/><rect x="4.5" y="7" width="15" height="13.5" rx="3"/><path d="M4.5 12.5h15M10.5 12.5v2.5h3v-2.5"/>',
+  map: '<path d="M3.5 6.5l5.5-2.5 6 2.5 5.5-2.5v13.5l-5.5 2.5-6-2.5-5.5 2.5z"/><path d="M9 4v13.5M15 6.5V20"/>',
+  sound: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>',
+  mute: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>',
+  menu: '<path d="M4.5 7h15M4.5 12h15M4.5 17h15"/>'
+};
+const ico = (k) => '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICON[k] + '</svg>';
+function setIcons() { [['bRadio', 'comms', 'Comms'], ['bMe', 'target', 'Center'], ['bLock', 'locker', 'Locker'], ['bMap', 'map', 'City'], ['bPause', 'menu', 'Menu']].forEach(([id, k, t]) => { const b = $(id); if (!b) return; const badge = b.querySelector('.bBadge'); b.innerHTML = '<i>' + ico(k) + '</i><span>' + t + '</span>'; if (badge) b.appendChild(badge); }); }
 function hud() {
   const r = L.rankOf(S.xp), m = L.districtMastery(S, W.did);
   $('hCs').textContent = U().icon + ' ' + S.cs; $('hUnit').textContent = unitName(U()); $('hUnit').style.setProperty('--uc', U().color); $('hRank').textContent = r.name + ' · ' + S.xp + ' RP';
   $('hDist').textContent = inside ? W.name : W.D.name; $('hDist').style.setProperty('--dc', W.D.color);
   $('hMast').style.setProperty('--p', Math.round(m.pct * 100)); $('hMastN').textContent = m.done + '/' + m.total;
-  { const k = U().ride.kind, lab = P.boat ? 'Dock' : P.inCar ? 'Exit' : k === 'van' ? 'Van' : k === 'armored' || k === 'truck' ? 'Truck' : k === 'suv' ? 'SUV' : 'Car'; $('bCar').innerHTML = '<i>' + (P.boat ? '⚓' : P.inCar ? '🚶' : '🚓') + '</i>' + lab; } $('bCar').classList.toggle('on', P.inCar || P.boat);
-  $('bSnd').innerHTML = '<i>' + (S.sound ? '🔊' : '🔇') + '</i>Sound';
+  { const k = U().ride.kind, lab = P.boat ? 'Dock' : P.inCar ? 'Exit' : k === 'van' ? 'Van' : k === 'armored' || k === 'truck' ? 'Truck' : k === 'suv' ? 'SUV' : 'Car'; $('bCar').innerHTML = '<i>' + ico(P.boat ? 'anchor' : P.inCar ? 'walk' : 'car') + '</i><span>' + lab + '</span>'; } $('bCar').classList.toggle('on', P.inCar || P.boat);
+  $('bSnd').innerHTML = '<i>' + ico(S.sound ? 'sound' : 'mute') + '</i><span>Sound</span>'; if (!setIcons.done) { setIcons.done = 1; setIcons(); }
 }
 function hudClock() { const t = (shiftOf().start * 60 + Math.floor(clock)) % 1440; const s = String(Math.floor(t / 60)).padStart(2, '0') + String(t % 60).padStart(2, '0') + ' hrs'; const el = $('hClock'); if (el.textContent !== s) el.textContent = shiftOf().name + ' · ' + s; }
 const feed = [];
