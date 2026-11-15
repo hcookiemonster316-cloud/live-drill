@@ -4,7 +4,8 @@ import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC
 import * as L from './learn.js';
 import { startNet } from './net.js';
 import { peopleFor } from './npcgen.js';
-import { WORLD, LORE, CAST, CHAPTERS } from './story.js';
+import { WORLD, LORE, CAST, CHAPTERS, SIDE, MAIN_TITLE } from './story.js';
+import { createMusic } from './music.js';
 import { BRANCHES, SKILLS, skillById, skillPoints, canLearn } from './skills.js';
 import { ITEMS, RARITY, SLOTS, OUTFITS, itemById, slotOf, roll, reveal, collectionHTML, equipHTML, itemCardHTML, gearTotals, looks } from './items.js';
 import { ENTER, buildInterior, drawFurn, staffDraw, visitorDraw, STAFF_LINES } from './interiors.js';
@@ -75,15 +76,17 @@ let ATTRACT = false, attractHour = 21.4;
 const hourNow = () => (ATTRACT ? attractHour : (shiftOf().start + clock / 60) % 24);
 const isNight = (h) => h >= 18.75 || h < 6;
 function sunFor(h) { return isNight(h) ? { len: 0, a: 0 } : { len: Math.round(18 + Math.abs(h - 12.5) * 6), a: .2 }; }
-let SUN = null;
+let SUN = null, SPR_LIT = 1, lampT = 0;
 // building sprites are drawn the first time they come on screen and dropped again when long unseen
 function buildSprites() {
-  const h = hourNow(); NIGHT = isNight(h); SUN = sunFor(h);
+  const h = hourNow(); NIGHT = isNight(h); SUN = sunFor(h); SPR_LIT = !NIGHT ? 0 : h >= 18 && h < 23 ? 1.5 : h >= 23 || h < 2 ? 1 : .5; lampsUpdate(h);
   SPR = W.buildings.map((b) => { const A = iso(b.x, b.y), Bp = iso(b.x + b.w, b.y), C = iso(b.x + b.w, b.y + b.d), Dp = iso(b.x, b.y + b.d), ex = b.dome ? 60 : 30;
     return { b, depth: b.x + b.w - 1 + b.y + b.d - 1 + .9, bx: Dp[0] - 6, by: A[1] - b.h - ex, bw: Bp[0] - Dp[0] + 80, bh: C[1] - A[1] + b.h + ex + 40, canvas: null, lights: [] }; });
 }
-function spriteOf(s) { if (!s.canvas) Object.assign(s, drawBuilding(s.b, NIGHT, SUN)); s.used = performance.now(); return s; }
+function spriteOf(s) { if (!s.canvas) Object.assign(s, drawBuilding(s.b, NIGHT ? SPR_LIT : false, SUN)); s.used = performance.now(); return s; }
 function trimSprites() { const live = SPR.filter((s) => s.canvas); if (live.length < 140) return; live.sort((a, b) => a.used - b.used).slice(0, live.length - 110).forEach((s) => { s.canvas = null; s.lights = []; }); }
+// street lights come on one by one at dusk and go off one by one at dawn; each has its own photocell
+function lampsUpdate(h) { if (!W || !W.props) return; if (h == null) h = hourNow(); W.props.forEach((p) => { if (p.t !== 'lamp') return; const k = ((p.x * 7.13 + p.y * 3.71) % 1 + 1) % 1; p.on = inside ? true : (h >= 18.1 + k * .9 || h < 5.7 + k * .7); }); }
 function focus() { return ATTRACT || !P ? unIso(cam.x, cam.y) : [P.x, P.y]; }
 // ground chunks around the camera
 function groundDraw(z) {
@@ -194,7 +197,7 @@ function update(dt, now) {
   if ((P.inCar || P.boat) && call && call.accepted) { sirenT -= dt; if (sirenT <= 0) { sirenT = .9; beep(720, .42, 'sine', .018); beep(980, .42, 'sine', .018, .45); } }
   if (net && now - moveSent > 120) { moveSent = now; net.move(P.x, P.y, P.boat ? 2 : P.inCar ? 1 : 0, P.dir); }
   liveUpdate(dt);
-  storyUpdate(dt); objectiveHud(); tipsUpdate(dt);
+  storyUpdate(dt); objectiveHud(); tipsUpdate(dt); musicUpdate(dt); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
   if (inside && !P.path.length && Math.hypot(W.door[0] - P.x, W.door[1] - P.y) < .45) exitBuilding();
   hudClock();
   if (clock >= SHIFT_MIN && !scene) endOfWatch();
@@ -255,7 +258,7 @@ function render(now) {
     lx.globalCompositeOperation = 'destination-out';
     const toS = (ix, iy) => [(cv.width / 2 + (ix - cam.x) * z) * s, (cv.height / 2 + (iy - cam.y) * z) * s];
     const hole = (ix, iy, r, k) => { const [x, y] = toS(ix, iy), rr = r * z * s; if (x < -rr || y < -rr || x > lc.width + rr || y > lc.height + rr) return; const gr = lx.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, 'rgba(0,0,0,' + k + ')'); gr.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = gr; lx.beginPath(); lx.arc(x, y, rr, 0, Math.PI * 2); lx.fill(); };
-    W.props.forEach((p) => { if (p.t === 'lamp') { const [ix, iy] = iso(p.x, p.y); hole(ix + 10, iy - 6, 92, .85); } if (p.t === 'canopy') { const [ix, iy] = iso(p.x, p.y); hole(ix, iy, 110, .9); } if (p.t === 'mast') { const [ix, iy] = iso(p.x, p.y); hole(ix, iy - 200, 16, .9); } });
+    W.props.forEach((p) => { if (p.t === 'lamp' && p.on) { const [ix, iy] = iso(p.x, p.y); hole(ix + 10, iy - 6, 92, .85); } if (p.t === 'canopy') { const [ix, iy] = iso(p.x, p.y); hole(ix, iy, 110, .9); } if (p.t === 'mast') { const [ix, iy] = iso(p.x, p.y); hole(ix, iy - 200, 16, .9); } });
     SPR.forEach((sp) => { if (sp.canvas) sp.lights.forEach((q) => hole(q[0], q[1], 34, .55)); }); trimSprites();
     traffic.forEach((c) => { const off = laneOff(c), [ix, iy] = iso(c.x + off[0], c.y + off[1]), f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][c.dir]; hole(ix + f[0] * 34, iy + f[1] * 34, 56, .7); });
     { const [ix, iy] = iso(P.x, P.y); hole(ix, iy - 10, (P.inCar || P.boat ? 120 : 96) * BUFF.light * (1 + gp('light') / 100), .8); }
@@ -266,7 +269,10 @@ function render(now) {
     // additive glows
     ctx.globalCompositeOperation = 'lighter';
     const glow = (ix, iy, r, col) => { const x = cv.width / 2 + (ix - cam.x) * z, y = cv.height / 2 + (iy - cam.y) * z, rr = r * z; if (x < -rr || y < -rr || x > cv.width + rr || y > cv.height + rr) return; const gr = ctx.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.fill(); };
-    W.props.forEach((p) => { if (p.t === 'lamp') { const [ix, iy] = iso(p.x, p.y); glow(ix + 10, iy - 37, 18, 'rgba(255,220,150,.55)'); glow(ix + 10, iy - 37, 46, 'rgba(255,200,120,.12)'); } });
+    W.props.forEach((p) => { if (p.t === 'lamp' && p.on) { const [ix, iy] = iso(p.x, p.y); glow(ix + 10, iy - 37, 18, 'rgba(255,220,150,.55)'); glow(ix + 10, iy - 37, 46, 'rgba(255,200,120,.12)'); glow(ix + 10, iy - 2, 40, 'rgba(255,190,110,.10)'); } });
+    // lit windows and signs spill a little warm light; cars show headlights and taillights
+    SPR.forEach((sp) => { if (sp.canvas) sp.lights.forEach((q, k) => { if (k % 2 === 0) glow(q[0], q[1], 16, 'rgba(255,214,140,.10)'); }); });
+    if (dk.a > .3) traffic.forEach((c) => { const off = laneOff(c), [ix, iy] = iso(c.x + off[0], c.y + off[1]), f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][c.dir]; glow(ix + f[0] * 22, iy + f[1] * 22 - 6, 26, 'rgba(255,245,210,.20)'); glow(ix - f[0] * 14, iy - f[1] * 14 - 6, 9, 'rgba(255,40,30,.45)'); });
     ambienceGlow(glow, now);
     const bar = (x, y, on) => { const ph = Math.floor(now / 180) % 2; glow(x, y - 22, 46, on ? (ph ? 'rgba(255,40,40,.45)' : 'rgba(40,90,255,.45)') : 'rgba(0,0,0,0)'); };
     if ((P.inCar || P.boat) && call && call.accepted) { const [ix, iy] = iso(P.x, P.y); bar(ix, iy, true); }
@@ -305,7 +311,7 @@ function drawMini() {
   const dot = (x, y, c, r) => { g.fillStyle = c; g.beginPath(); g.arc(x * s, y * s, r / Z, 0, Math.PI * 2); g.fill(); };
   if (call) dot(call.x, call.y, call.prio === 1 ? '#ff4d4d' : '#f5b800', 5);
   Object.keys(others).forEach((k) => dot(others[k].rx, others[k].ry, '#60a5fa', 3.2));
-  infos.forEach((i) => dot(i.x, i.y, '#3b82f6', 2.5)); citizens.forEach((c) => dot(c.x, c.y, '#f5b800', 2.2));
+  infos.forEach((i) => dot(i.x, i.y, '#3b82f6', 2.5)); if (!inside) SIDE.forEach((q) => { if (!sideAvail(q)) return; const r = regs.find((x) => x.n.id === q.giver); if (r) dot(r.x, r.y, '#38bdf8', 3.4); }); citizens.forEach((c) => dot(c.x, c.y, '#f5b800', 2.2));
   if (!inside) { if (!fogC || fogC.did !== W.did) { fogC = document.createElement('canvas'); fogC.width = m.width; fogC.height = m.height; fogC.did = W.did; const fg = fogC.getContext('2d'); fg.fillStyle = 'rgba(6,10,20,.84)'; fg.fillRect(0, 0, m.width, m.height); const str = S.explored[exKey()] || ''; for (let i = 0; i < N * N; i++) if (str[i] === '1') fg.clearRect((i % N) * s, Math.floor(i / N) * s, s + .6, s + .6); } g.drawImage(fogC, 0, 0); W.secrets.forEach((x) => { if (S.found[x.id]) dot(x.x, x.y, '#a78bfa', 3); }); regs.forEach((r) => { if ((S.npc || {})[r.n.id]) dot(r.x, r.y, '#fde68a', 2.6); }); }
   { const t = stepTarget(); if (t && !t.exit) { g.fillStyle = '#f5b800'; g.beginPath(); const q = 1 / Z; g.moveTo(t.x * s, t.y * s - 6 * q); g.lineTo(t.x * s + 5 * q, t.y * s); g.lineTo(t.x * s, t.y * s + 6 * q); g.lineTo(t.x * s - 5 * q, t.y * s); g.closePath(); g.fill(); } }
   dot(P.x, P.y, '#ffffff', 4.2); dot(P.x, P.y, '#f5b800', 2.6);
@@ -553,7 +559,20 @@ function exitBuilding() {
 // one chapter per district; each step is a place to go and a scene that plays there, inside the world
 S.story = S.story || {}; S.lore = S.lore || {}; S.found = S.found || {}; S.disc = S.disc || {}; S.explored = S.explored || {}; S.mile = S.mile || {}; S.items = S.items || {}; S.npc = S.npc || {};
 const chap = () => CHAPTERS.find((c) => c.d === W.did);
-const chStep = () => { const c = chap(); if (!c) return null; const i = S.story[c.d] || 0; return i < c.steps.length ? c.steps[i] : null; };
+// side cases: S.side[id] is the step reached (absent = not taken yet); S.track is the case shown on the HUD
+S.side = S.side || {}; S.track = S.track || 'main';
+const sideQ = (id) => SIDE.find((q) => q.id === id);
+const sideOpen = (q) => S.unlocked.includes(q.d) && (S.story[q.req[0]] || 0) >= q.req[1];
+const sideAvail = (q) => q.d === W.did && sideOpen(q) && S.side[q.id] == null;
+const sideLive = (q) => S.side[q.id] != null && S.side[q.id] < q.steps.length;
+const sideClosed = (q) => S.side[q.id] != null && S.side[q.id] >= q.steps.length;
+function activeQ() {
+  const t = S.track !== 'main' ? sideQ(S.track) : null, mk = (q) => ({ side: true, q, i: S.side[q.id], step: q.steps[S.side[q.id]], title: q.title });
+  if (t && t.d === W.did && sideLive(t)) return mk(t);
+  const c = chap(); if (c) { const i = S.story[c.d] || 0; if (i < c.steps.length) return { side: false, q: c, i, step: c.steps[i], title: c.title }; }
+  const o = SIDE.find((q) => q.d === W.did && sideLive(q)); return o ? mk(o) : null;
+}
+const chStep = () => { const a = activeQ(); return a ? a.step : null; };
 function stepLot(st) { if (!st) return null; const outW = inside ? inside.O.W : W; return outW.lots.find((l) => (l.name || '').indexOf(st.at) >= 0) || outW.lots.find((l) => l.kind === st.at.toLowerCase()); }
 // where the waypoint is, in the current map's coordinates
 function stepTarget() {
@@ -564,8 +583,25 @@ function stepTarget() {
 }
 function storyCharSpot() { const w = W.walk, sp = W.spawn; let best = w[0], bd = 1e9; w.forEach((t) => { const d = Math.abs(Math.hypot(t[0] - sp[0], t[1] - sp[1]) - 3.2); if (d < bd && !W.blocked.has(t[1] * N + t[0])) { bd = d; best = t; } }); return [best[0] + .5, best[1] + .5]; }
 let storyBusy = false, storyCool = 0;
+const offerNo = {};
+function offerSide(q) {
+  storyBusy = true; paused = true; P.path = []; LASTCHOICE = null;
+  const lines = q.offer.concat([['choice', [{ t: 'Take the case', accept: true }, { t: 'Not right now', reply: [[q.giver, 'No problem. You know where to find me.']] }]]]);
+  dialogue(lines, () => {
+    storyBusy = false; paused = false; storyCool = 1.5;
+    if (LASTCHOICE && LASTCHOICE.accept) { S.side[q.id] = 0; S.track = q.id; L.saveState(S); music.sting('accept'); banner('📁', 'Side case opened: ' + q.title, q.blurb); objectiveFlash(); }
+    else offerNo[q.id] = performance.now() + 90000;
+  });
+}
+function sideDone(q) {
+  const rw = q.reward || {}; if (S.track === q.id) S.track = 'main'; L.saveState(S); music.sting('done');
+  const n = SIDE.filter(sideClosed).length;
+  openModal('<div class="chEnd side"><span class="chKick">Side case closed</span><h2>' + esc(q.title) + '</h2><p>' + esc(DISTRICTS[q.d].name) + '</p><div class="chStamp">CASE CLOSED</div><p class="chNext">' + n + ' of ' + SIDE.length + ' side cases closed. People remember how you handled this one.</p></div><div class="qAct"><button type="button" id="mDone">Back to patrol</button></div>');
+  good(); $('mDone').onclick = () => { closeModal(); award(rw.rp || 100, 'side case'); if (rw.loot) queueLoot('Side case: ' + q.title, 1, rw.loot); };
+}
 function storyUpdate(dt) {
   storyCool -= dt; if (storyBusy || scene || storyCool > 0 || !$('modal').hidden) return;
+  if (!inside) for (const q of SIDE) { if (!sideAvail(q) || (offerNo[q.id] || 0) > performance.now()) continue; const r = regs.find((x) => x.n.id === q.giver); if (r && Math.hypot(r.x - P.x, r.y - P.y) < 1.8) { offerSide(q); return; } }
   const st = chStep(), t = stepTarget(); if (!st || !t) return;
   if (t.exit || t.door) return; // walk to the door; the scene starts once inside
   if (Math.hypot(t.x - P.x, t.y - P.y) < (t.here ? 1.9 : 2.4)) playStep(st);
@@ -609,10 +645,10 @@ function dialogue(lines, done) {
 }
 function playStep(st) {
   storyBusy = true; paused = true; P.path = [];
-  const c = chap(), idx = S.story[c.d] || 0, last = idx === c.steps.length - 1;
+  const A = activeQ(), c = A.q, idx = A.i, last = idx === c.steps.length - 1;
   const finish = () => {
-    S.story[c.d] = idx + 1; L.saveState(S); ord('story'); storyBusy = false; paused = false; storyCool = 2;
-    if (last) chapterDone(c); else { const nx = chStep(); if (nx) objectiveFlash(nx.goal); }
+    if (A.side) S.side[c.id] = idx + 1; else S.story[c.d] = idx + 1; if (st.set) S.flags[st.set] = Date.now(); L.saveState(S); ord('story'); storyBusy = false; paused = false; storyCool = 2;
+    if (last) (A.side ? sideDone(c) : chapterDone(c)); else { const nx = chStep(); if (nx) objectiveFlash(nx.goal); }
   };
   const afterQuiz = () => { if (st.after) dialogue(st.after, finish); else finish(); };
   dialogue(st.say || [], () => {
@@ -629,45 +665,54 @@ function chapterDone(c) {
   const rw = c.steps[c.steps.length - 1].reward || {}; S.lore['ch' + c.d] = 1; L.saveState(S);
   openModal('<div class="chEnd"><span class="chKick">Chapter ' + (c.d + 1) + ' complete</span><h2>' + esc(c.title) + '</h2><p>' + esc(c.sub) + '</p><div class="chStamp">CASE NOTES FILED</div>' +
     '<p class="chNext">' + (c.d < 4 ? 'Next: Chapter ' + (c.d + 2) + ', ' + esc(CHAPTERS[c.d + 1].title) + '. It opens when ' + esc(DISTRICTS[c.d + 1].name) + ' does.' : 'The story is complete. Port Meridian is yours to keep patrolling.') + '</p><p class="chLore">New entries in your Field Journal · +1 skill point</p></div><div class="qAct"><button type="button" id="mDone">Back to patrol</button></div>');
-  good(); setTimeout(() => beep(1047, .3, 'triangle', .05), 200);
+  good(); music.sting('done'); setTimeout(() => beep(1047, .3, 'triangle', .05), 200);
   $('mDone').onclick = () => { closeModal(); if (rw.rp) award(rw.rp, 'chapter complete'); if (rw.loot) queueLoot('Chapter ' + (c.d + 1) + ': ' + c.title, 1, rw.loot); };
 }
 function objectiveFlash(text) { const el = $('objBar'); if (!el) return; el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
 function objectiveHud() {
-  const el = $('objBar'), st = chStep(), t = stepTarget();
+  const el = $('objBar'), A = activeQ(), st = A && A.step, t = stepTarget();
   if (!st || !t || scene) { el.hidden = true; return; }
   const d = Math.hypot(t.x - P.x, t.y - P.y), [tx, ty] = iso(t.x, t.y), [px, py] = iso(P.x, P.y), ang = Math.atan2(ty - py, tx - px);
   const txt = t.exit ? 'Head outside: ' + st.goal : st.goal;
-  if (el.dataset.t !== txt) { el.dataset.t = txt; el.innerHTML = '<i class="objArr">➤</i><span><small>' + esc(chap().title) + '</small><b>' + esc(txt) + '</b></span><em id="objD"></em>'; }
+  if (el.dataset.t !== txt) { el.dataset.t = txt; el.innerHTML = '<i class="objArr">➤</i><span><small>' + (A.side ? 'Side case · ' : '') + esc(A.title) + '</small><b>' + esc(txt) + '</b></span><em id="objD"></em>'; el.classList.toggle('side', !!A.side); }
   el.hidden = false; el.querySelector('.objArr').style.transform = 'rotate(' + ang + 'rad)'; $('objD').textContent = d < 2.5 ? 'here' : Math.round(d * 4) * 5 + ' ft';
 }
 function storyMarker(now) {
-  const t = stepTarget(); if (!t || t.exit) return;
+  if (!inside) SIDE.forEach((q) => { if (!sideAvail(q)) return; const r = regs.find((x) => x.n.id === q.giver); if (!r) return; const [sx, sy] = iso(r.x, r.y); bubble(sx, sy - 66, '!', '#38bdf8', now); });
+  const t = stepTarget(); if (!t || t.exit) return; const A = activeQ(), col = A && A.side ? '#38bdf8' : '#f5b800';
   const [sx, sy] = iso(t.x, t.y), b = Math.sin(now / 300) * 4;
-  ctx.fillStyle = 'rgba(245,184,0,.18)'; ctx.beginPath(); ctx.moveTo(sx - 8, sy); ctx.lineTo(sx - 3, sy - 120); ctx.lineTo(sx + 3, sy - 120); ctx.lineTo(sx + 8, sy); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#f5b800'; ctx.beginPath(); ctx.moveTo(sx, sy - 62 + b); ctx.lineTo(sx + 9, sy - 74 + b); ctx.lineTo(sx, sy - 86 + b); ctx.lineTo(sx - 9, sy - 74 + b); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = A && A.side ? 'rgba(56,189,248,.18)' : 'rgba(245,184,0,.18)'; ctx.beginPath(); ctx.moveTo(sx - 8, sy); ctx.lineTo(sx - 3, sy - 120); ctx.lineTo(sx + 3, sy - 120); ctx.lineTo(sx + 8, sy); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(sx, sy - 62 + b); ctx.lineTo(sx + 9, sy - 74 + b); ctx.lineTo(sx, sy - 86 + b); ctx.lineTo(sx - 9, sy - 74 + b); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
 }
 // story characters stand where their scene happens
 function storyCast(list, vis, now) {
-  const st = chStep(); if (!st || !CAST[st.who] || st.npc) return; const t = stepTarget(); if (!t || t.exit || t.door) return;
-  if (!inside && st.inside) return; const c = CAST[st.who];
+  const st = chStep(); if (!st || st.npc) return; const c = CAST[st.who], n = !c && NPCS.find((x) => x.id === st.who); if (!c && !n) return; const t = stepTarget(); if (!t || t.exit || t.door) return;
+  if (!inside && st.inside) return;
   const x = inside ? t.x : t.x + .8, y = inside ? t.y : t.y - .2, [sx, sy] = iso(x, y);
   if (!vis(sx, sy)) return;
-  list.push({ d: x + y, f: () => { person(ctx, sx, sy, { kit: c.look, skin: c.skin, hair: '#1a1a1a', moving: false, face: -1, s: 1.04 }, now); label(sx, sy - 50, c.icon + ' ' + c.name, '#f5b800'); } });
+  list.push({ d: x + y, f: () => { if (c) { person(ctx, sx, sy, { kit: c.look, skin: c.skin, hair: '#1a1a1a', moving: false, face: -1, s: 1.04 }, now); label(sx, sy - 50, c.icon + ' ' + c.name, '#f5b800'); return; } if (n.cat) cat(sx, sy, now); else { const lk = n.look || {}; person(ctx, sx, sy, { kit: npcKit(lk), hair: lk.hair, skin: lk.skin, moving: false, face: -1 }, now); } label(sx, sy - (n.cat ? 26 : 48), n.icon + ' ' + n.name, '#7dd3fc'); } });
 }
 function unlockLore() { let n = 0; LORE.forEach((e) => { if (S.lore[e.id]) return; const w = e.when; if (w === 'start' || (w[0] === 'd' && S.unlocked.includes(+w.slice(1))) || (w.slice(0, 2) === 'ch' && S.lore[w])) { S.lore[e.id] = 1; n++; } }); if (n) L.saveState(S); return n; }
 let jTab = 'story';
 function journal() {
   unlockLore();
-  const tabs = '<div class="lkTabs"><button type="button" data-j="map" class="' + (jTab === 'map' ? 'on' : '') + '">Districts</button><button type="button" data-j="story" class="' + (jTab === 'story' ? 'on' : '') + '">Story</button><button type="button" data-j="cast" class="' + (jTab === 'cast' ? 'on' : '') + '">People</button><button type="button" data-j="lore" class="' + (jTab === 'lore' ? 'on' : '') + '">Lore</button></div>';
+  const tabs = '<div class="lkTabs"><button type="button" data-j="map" class="' + (jTab === 'map' ? 'on' : '') + '">Districts</button><button type="button" data-j="story" class="' + (jTab === 'story' ? 'on' : '') + '">Quests</button><button type="button" data-j="cast" class="' + (jTab === 'cast' ? 'on' : '') + '">People</button><button type="button" data-j="lore" class="' + (jTab === 'lore' ? 'on' : '') + '">Lore</button></div>';
   if (jTab === 'map') return districtBoard(tabs);
   let body = '';
   if (jTab === 'story') body = CHAPTERS.map((c) => { const i = S.story[c.d] || 0, done = i >= c.steps.length, open = S.unlocked.includes(c.d); return '<div class="jCh' + (done ? ' done' : '') + (open ? '' : ' locked') + '"><div class="jChH"><span>Chapter ' + (c.d + 1) + '</span><b>' + (open ? esc(c.title) : '🔒 Locked') + '</b><small>' + esc(c.sub) + '</small></div><div class="jSteps">' + c.steps.map((st, k) => '<i class="' + (k < i ? 'ok' : k === i && open ? 'cur' : '') + '" title="' + esc(st.goal) + '"></i>').join('') + '</div>' + (open && !done ? '<p>Now: ' + esc(c.steps[i].goal) + '</p>' : done ? '<p>Case closed.</p>' : '<p>Opens with ' + esc(DISTRICTS[c.d].name) + '.</p>') + '</div>'; }).join('');
+  if (jTab === 'story') {
+    const tr = (id) => '<button type="button" class="jTrack' + (S.track === id ? ' on' : '') + '" data-tr="' + id + '">' + (S.track === id ? 'Tracking' : 'Track') + '</button>';
+    body = '<div class="jSec"><b>Main storyline · ' + esc(MAIN_TITLE) + '</b>' + tr('main') + '</div>' + body + '<div class="jSec"><b>Side cases · ' + SIDE.filter(sideClosed).length + '/' + SIDE.length + ' closed</b></div>' + SIDE.map((q) => {
+      const open = sideOpen(q), st = S.side[q.id], done = sideClosed(q), live = sideLive(q), giver = NPCS.find((n) => n.id === q.giver) || {};
+      return '<div class="jCh side' + (done ? ' done' : '') + (open ? '' : ' locked') + '"><div class="jChH"><span>' + esc(DISTRICTS[q.d].name) + '</span><b>' + (open || st != null ? esc(q.title) : '🔒 Not yet') + '</b><small>' + (open || st != null ? esc(q.blurb) : 'Keep going with the main story in ' + esc(DISTRICTS[q.d].name) + '.') + '</small></div>' +
+        (live ? '<div class="jSteps">' + q.steps.map((x, k) => '<i class="' + (k < st ? 'ok' : k === st ? 'cur' : '') + '"></i>').join('') + '</div><p>Now: ' + esc(q.steps[st].goal) + '</p>' + tr(q.id) : done ? '<p>Case closed.</p>' : open ? '<p>Find ' + esc(giver.icon || '') + ' ' + esc(giver.name || 'someone') + ' in ' + esc(DISTRICTS[q.d].name) + '. Look for the blue <b>!</b></p>' : '') + '</div>';
+    }).join('');
+  }
   if (jTab === 'cast') { const met = (id) => Object.keys(CAST).indexOf(id) >= 0 ? CHAPTERS.some((c) => c.steps.slice(0, S.story[c.d] || 0).some((st) => st.who === id || (st.say || []).some((l) => l[0] === id))) : false; body = Object.keys(CAST).map((id) => { const c = CAST[id], m = met(id); return '<div class="jP' + (m ? '' : ' unk') + '"><span>' + (m ? c.icon : '❔') + '</span><div><b>' + (m ? esc(c.name) : 'Not met yet') + '</b><small>' + (m ? esc(c.role) : '') + '</small>' + (m ? '<p>' + esc(c.bio) + '</p>' : '') + '</div></div>'; }).join('') + '<p class="lkSum">Regulars you have befriended: ' + Object.keys(S.npc || {}).filter((k) => S.npc[k] > 0).length + '</p>'; }
   if (jTab === 'lore') body = LORE.map((e) => S.lore[e.id] ? '<details class="jLore"><summary>' + esc(e.title) + '</summary><p>' + esc(e.text) + '</p></details>' : '<div class="jLore unk">??? <small>Keep patrolling to uncover this.</small></div>').join('');
-  openModal('<div class="sceneHead"><b>FIELD JOURNAL · ' + esc(WORLD.city.toUpperCase()) + '</b><h2>' + ({ story: 'The Gray Sedan', cast: 'The people you know', lore: 'Port Meridian' })[jTab] + '</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + '</p></div>' + tabs + '<div class="jBody">' + body + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
-  $('mClose').onclick = closeModal; document.querySelectorAll('[data-j]').forEach((b) => b.onclick = () => { jTab = b.dataset.j; journal(); });
+  openModal('<div class="sceneHead"><b>FIELD JOURNAL · ' + esc(WORLD.city.toUpperCase()) + '</b><h2>' + ({ story: 'Quests', cast: 'The people you know', lore: 'Port Meridian' })[jTab] + '</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + '</p></div>' + tabs + '<div class="jBody">' + body + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
+  $('mClose').onclick = closeModal; document.querySelectorAll('[data-j]').forEach((b) => b.onclick = () => { jTab = b.dataset.j; journal(); }); document.querySelectorAll('[data-tr]').forEach((b) => b.onclick = () => { S.track = b.dataset.tr; L.saveState(S); beep(660, .06, 'triangle', .04); journal(); });
 }
 
 // ---------- field abilities from the skill tree ----------
@@ -716,7 +761,7 @@ function ambienceWorld(now) { // drawn in world space, after objects, before lig
 function ambienceGlow(glow, now) { // additive pass at night
   const h = hourNow(), night = h >= 19.5 || h < 5.5;
   if (night && !inside) AMB.grass.forEach(([x, y, ph]) => { const t = now / 1000 + ph, fx = x + Math.sin(t * .7) * .6, fy = y + Math.cos(t * .5) * .6, [ix, iy] = iso(fx, fy), on = (Math.sin(t * 2.3) + 1) / 2; if (on > .45) glow(ix, iy - 14 - Math.sin(t) * 6, 6 + on * 4, 'rgba(210,255,120,' + (.35 * on) + ')'); });
-  if (FX.rain && !inside) W.props.forEach((p) => { if (p.t !== 'lamp') return; const [ix, iy] = iso(p.x, p.y); glow(ix + 10, iy + 10, 22, 'rgba(255,214,150,.22)'); glow(ix + 10, iy + 26, 14, 'rgba(255,214,150,.14)'); });
+  if (FX.rain && !inside) W.props.forEach((p) => { if (p.t !== 'lamp' || !p.on) return; const [ix, iy] = iso(p.x, p.y); glow(ix + 10, iy + 10, 22, 'rgba(255,214,150,.22)'); glow(ix + 10, iy + 26, 14, 'rgba(255,214,150,.14)'); });
 }
 function grade(dk) { // screen-space color grade by time of day
   const h = hourNow(); ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -726,6 +771,14 @@ function grade(dk) { // screen-space color grade by time of day
   else if (h >= 16.5 && h < 19.5) { g.addColorStop(0, 'rgba(255,110,90,.16)'); g.addColorStop(1, 'rgba(255,170,90,.08)'); }
   else { g.addColorStop(0, 'rgba(40,70,160,.12)'); g.addColorStop(1, 'rgba(10,20,60,.06)'); }
   ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = g; ctx.fillRect(0, 0, cv.width, cv.height); ctx.globalCompositeOperation = 'source-over';
+  if (inside) return;
+  const night = h >= 19.5 || h < 5.5, day = h >= 8 && h < 17;
+  if (night) { ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = 'rgba(128,128,128,.28)'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.globalCompositeOperation = 'source-over'; }
+  else if (day) { // the sun sits up and to the left; a soft warm bloom from that corner
+    const s = ctx.createRadialGradient(cv.width * .1, -cv.height * .1, 0, cv.width * .1, -cv.height * .1, Math.max(cv.width, cv.height) * .9);
+    s.addColorStop(0, 'rgba(255,236,190,' + (FX.rain ? .04 : .14) + ')'); s.addColorStop(1, 'rgba(255,236,190,0)');
+    ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = s; ctx.fillRect(0, 0, cv.width, cv.height); ctx.globalCompositeOperation = 'source-over';
+  }
 }
 
 // ---------- title screen: the city at night behind the logo, then the start screen ----------
@@ -740,6 +793,7 @@ function attractStart() {
   cam.z = innerWidth < 600 ? .8 : 1.05; attT = 0; ambienceInit();
 }
 function attractUpdate(dt, now) {
+  lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
   attT += dt;
   const cx = N / 2 + Math.cos(attT * .045) * 13, cy = N / 2 + Math.sin(attT * .06) * 11, [ix, iy] = iso(cx, cy);
   cam.x += (ix - cam.x) * Math.min(1, dt * .8); cam.y += (iy - cam.y) * Math.min(1, dt * .8);
@@ -749,37 +803,29 @@ function attractUpdate(dt, now) {
   if (FX.rain) { for (let i = 0; i < 6; i++) FX.drops.push({ x: Math.random(), y: -.05, v: .9 + Math.random() * .5 }); FX.drops.forEach((d) => { d.y += d.v * dt; d.x -= .12 * dt; }); FX.drops = FX.drops.filter((d) => d.y < 1.05); }
   if (FX.sail) { FX.sail.y += FX.sail.dir * dt * .5; if (FX.sail.y > N - 4 || FX.sail.y < 3) FX.sail.dir *= -1; }
 }
-function endAttract() { ATTRACT = false; document.body.classList.remove('attract'); music.stop(); }
-// original synth theme: a slow minor progression, a pulse of bass, a soft arpeggio and a hint of hi-hat
-const music = (function () {
-  let timer = 0, step = 0, nextT = 0, gain = null, on = false;
-  const PROG = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]], hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
-  function note(f, t, d, type, v, cut) { const a = audio(); const o = a.createOscillator(), g = a.createGain(), fl = a.createBiquadFilter(); o.type = type; o.frequency.value = f; fl.type = 'lowpass'; fl.frequency.value = cut || 2400; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + Math.min(.6, d * .3)); g.gain.exponentialRampToValueAtTime(.0001, t + d); o.connect(fl); fl.connect(g); g.connect(gain); o.start(t); o.stop(t + d + .05); }
-  function hat(t) { const a = audio(), b = a.createBuffer(1, 2205, 44100), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length); const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain(); src.buffer = b; f.type = 'highpass'; f.frequency.value = 7000; g.gain.value = .025; src.connect(f); f.connect(g); g.connect(gain); src.start(t); }
-  function tick() {
-    const a = audio(); if (!a) return; const spb = 60 / 84 / 2;
-    while (nextT < a.currentTime + .3) {
-      const bar = Math.floor(step / 16) % 4, ch = PROG[bar], s16 = step % 16;
-      if (s16 === 0) { ch.forEach((m) => { note(hz(m), nextT, spb * 16, 'sawtooth', .022, 900); note(hz(m) * 1.004, nextT, spb * 16, 'sawtooth', .018, 900); }); note(hz(ch[0] - 12), nextT, spb * 15, 'sine', .07, 400); }
-      if (s16 % 4 === 0) note(hz(ch[0] - 24), nextT, spb * 2.5, 'sine', .09, 300);
-      if (s16 % 2 === 0) note(hz(ch[(s16 / 2) % 3] + 12 + (s16 > 7 ? 7 : 0) * 0), nextT, spb * 1.6, 'triangle', .03, 3200);
-      if (s16 % 4 === 2) hat(nextT);
-      nextT += spb; step++;
-    }
-  }
-  return {
-    start() { if (on || !S.sound) return; const a = audio(); if (!a) return; on = true; gain = a.createGain(); gain.gain.setValueAtTime(0, a.currentTime); gain.gain.linearRampToValueAtTime(.9, a.currentTime + 2.5); gain.connect(a.destination); nextT = a.currentTime + .1; step = 0; timer = setInterval(tick, 100); },
-    stop() { if (!on) return; on = false; const a = audio(); try { gain.gain.cancelScheduledValues(a.currentTime); gain.gain.setValueAtTime(gain.gain.value, a.currentTime); gain.gain.linearRampToValueAtTime(0, a.currentTime + 1.5); } catch (e) {} const g0 = gain; setTimeout(() => { clearInterval(timer); try { g0.disconnect(); } catch (e) {} }, 1600); }
-  };
-})();
+function endAttract() { ATTRACT = false; document.body.classList.remove('attract'); musT = 0; }
+// adaptive score (music.js): the mood follows what is happening on the street
+const music = createMusic(() => audio());
+let musT = 0;
+function moodNow() {
+  if (ATTRACT) return 'title';
+  if (document.body.classList.contains('cine')) { const A = activeQ(); return A && A.side ? 'side' : 'story'; }
+  if (scene) return 'scene';
+  if (call && call.accepted && (call.prio === 1 || BUFF.speedTo > clock)) return 'urgent';
+  if (call) return 'call';
+  if (inside) return 'inside';
+  if (P.boat) return 'water';
+  const h = hourNow(); return h >= 19 || h < 6 ? 'night' : 'day';
+}
+function musicUpdate(dt) { musT -= dt; if (musT > 0) return; musT = .8; if (!S.sound) return; music.rain(FX.rain); music.start(moodNow()); }
 function titleScreen() {
   const t = $('title'); t.hidden = false;
   t.innerHTML = '<div class="tiBadge"><svg viewBox="0 0 64 72"><defs><linearGradient id="tiG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset=".5" stop-color="#f5b800"/><stop offset="1" stop-color="#a86f00"/></linearGradient></defs><path d="M32 3l25 9v19c0 18-11 31-25 38C18 62 7 49 7 31V12z" fill="url(#tiG)" stroke="#5c3d00" stroke-width="1.6"/><path d="M32 10l19 7v14c0 14-8 24-19 30-11-6-19-16-19-30V17z" fill="#0b1630" stroke="#ffe27a" stroke-width="1.2"/><path d="M32 17l3 6.2 6.8 1-4.9 4.8 1.2 6.8-6.1-3.2-6.1 3.2 1.2-6.8-4.9-4.8 6.8-1z" fill="#ffe27a"/><text x="32" y="52" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-weight="800" font-size="8" fill="#ffe27a" letter-spacing="1">PMPD</text></svg></div>' +
     '<h1 class="tiLogo"><span>PATROL</span><span>CITY</span><i class="tiShine"></i></h1><div class="tiSub">' + esc(WORLD.city.toUpperCase()) + ' · FIELD IMMERSION PROGRAM</div><div class="tiClass">' + esc(WORLD.tagline.split('·')[1] || '') + ' · Chapter 5</div>' +
     '<button type="button" class="tiGo" id="tiGo">Tap to begin</button><div class="tiFoot"><button type="button" id="tiSnd">' + (S.sound ? '🔊 Sound on' : '🔇 Sound off') + '</button><span>A training simulation. Every scenario is a sim round.</span></div>';
   requestAnimationFrame(() => t.classList.add('in'));
-  $('tiSnd').onclick = (e) => { e.stopPropagation(); S.sound = !S.sound; L.saveState(S); $('tiSnd').textContent = S.sound ? '🔊 Sound on' : '🔇 Sound off'; if (S.sound) music.start(); else music.stop(); };
-  let started = false; const go = () => { if (started) return; started = true; audio(); music.start(); if (S.sound) { beep(392, .5, 'triangle', .05); beep(587, .7, 'triangle', .05, .15); } t.classList.add('out'); setTimeout(() => { t.hidden = true; t.classList.remove('in', 'out'); if (!S.seenIntro) coldOpen(startScreen); else startScreen(); }, 900); };
+  $('tiSnd').onclick = (e) => { e.stopPropagation(); S.sound = !S.sound; L.saveState(S); $('tiSnd').textContent = S.sound ? '🔊 Sound on' : '🔇 Sound off'; if (S.sound) { audio(); music.start('title'); } else music.stop(); };
+  let started = false; const go = () => { if (started) return; started = true; audio(); if (S.sound) music.start('title'); if (S.sound) { beep(392, .5, 'triangle', .05); beep(587, .7, 'triangle', .05, .15); } t.classList.add('out'); setTimeout(() => { t.hidden = true; t.classList.remove('in', 'out'); if (!S.seenIntro) coldOpen(startScreen); else startScreen(); }, 900); };
   $('tiGo').onclick = go; t.onclick = (e) => { if (e.target.closest('#tiSnd')) return; go(); };
 }
 // first time only: the world in four lines, over the city
@@ -866,6 +912,7 @@ function floatsDraw(now) {
 }
 // the promotion ceremony
 function promotion(rank) {
+  music.sting('promo');
   const lvl = [0, 200, 600, 1200, 2000, 3000, 4200, 5600, 7200, 9000].filter((t) => S.xp >= t).length, opened = SLOTS.filter((sl) => sl.need && S.xp >= sl.need && S.xp - sl.need < 400);
   const el = document.createElement('div'); el.className = 'promo';
   el.innerHTML = '<canvas class="rvFx"></canvas><div class="promoRays"></div><div class="promoBox"><div class="promoBadge"><svg viewBox="0 0 64 72"><defs><linearGradient id="pbG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#d49b00"/></linearGradient></defs><path d="M32 3l25 9v19c0 18-11 31-25 38C18 62 7 49 7 31V12z" fill="url(#pbG)" stroke="#7a5600" stroke-width="2"/><path d="M32 10l19 7v14c0 14-8 24-19 30-11-6-19-16-19-30V17z" fill="#13234a" stroke="#ffe27a" stroke-width="1.5"/><path d="M32 15l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4.1 5.8-.8z" fill="#ffe27a"/><text x="32" y="51" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-weight="800" font-size="17" fill="#fff">' + lvl + '</text></svg></div>' +
@@ -978,7 +1025,7 @@ function districtBoard(tabs) {
       '<div class="dAct">' + (cl ? '<span class="cleared">★ District cleared</span>' : '') + (un && !here ? '<button type="button" data-go="' + d.id + '">Patrol here</button>' : '') + (here && !cl ? '<button type="button" data-final="1" ' + (m.ready ? '' : 'disabled') + '>' + (m.ready ? 'Take the District Final Call' : 'Final Call · master every lesson first') + '</button>' : '') + '</div></div>';
   }).join('');
   openModal('<div class="uNow" style="--uc:' + U().color + '"><span>' + U().icon + '</span><div><b>' + esc(unitName(U())) + '</b><small>' + esc(U().perk) + '</small></div><button type="button" id="uSw">Switch unit</button></div><div class="sceneHead"><b>CITY MAP · DISTRICTS</b><h2>Master a district to open the next one</h2><p>A lesson is mastered at 80% or better over your last ten answers on it (at least eight).</p></div>' + (tabs || '') + '<div class="dList">' + rows + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
-  $('mClose').onclick = closeModal; $('uSw').onclick = unitPicker; document.querySelectorAll('[data-j]').forEach((b) => b.onclick = () => { jTab = b.dataset.j; journal(); });
+  $('mClose').onclick = closeModal; $('uSw').onclick = unitPicker; document.querySelectorAll('[data-j]').forEach((b) => b.onclick = () => { jTab = b.dataset.j; journal(); }); document.querySelectorAll('[data-tr]').forEach((b) => b.onclick = () => { S.track = b.dataset.tr; L.saveState(S); beep(660, .06, 'triangle', .04); journal(); });
   document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { closeModal(); S.home = S.home == null ? +b.dataset.go : S.home; L.saveState(S); clock = 0; load(+b.dataset.go); });
   const fb = document.querySelector('[data-final]'); if (fb) fb.onclick = finalCall;
 }
@@ -1026,7 +1073,7 @@ addEventListener('resize', placeOrders);
 function toast(t) { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 3800); }
 $('bCar').onclick = () => { if (inside) { toast('Head outside first. The door is the glowing spot by the exit.'); return; } if (P.boat) exitBoat(); else if (P.inCar) exitCar(); else if (pcar) { if (Math.hypot(pcar.x - P.x, pcar.y - P.y) < 2.2) enterCar(); else { toast('Walking back to your ' + U().ride.label.toLowerCase() + '.'); goTo(pcar.x, pcar.y, enterCar); } } };
 $('bMap').onclick = () => { jTab = chStep() ? 'story' : 'map'; journal(); }; $('bLock').onclick = locker;
-$('bSnd').onclick = () => { S.sound = !S.sound; L.saveState(S); hud(); };
+$('bSnd').onclick = () => { S.sound = !S.sound; L.saveState(S); hud(); if (S.sound) { audio(); music.start(moodNow()); } else music.stop(); };
 $('bMe').onclick = () => { cam.free = false; };
 $('zIn').onclick = () => setZoom(cam.z * 1.2); $('zOut').onclick = () => setZoom(cam.z / 1.2);
 $('bRadio').onclick = () => { const m = $('quick'); m.hidden = !m.hidden; $('bRadio').classList.remove('ping'); if (!m.hidden) { chatPanel(); setTimeout(() => { if (innerWidth > 700) { const i = $('chIn'); if (i) i.focus(); } }, 50); } };
@@ -1167,4 +1214,4 @@ function lockedScreen() {
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); } if (net && W && !ATTRACT) net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name }); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { S, get W() { return W; }, get G() { return G; }, get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { S, closeModal: () => closeModal(), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };

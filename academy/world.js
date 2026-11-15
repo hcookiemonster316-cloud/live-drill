@@ -309,8 +309,8 @@ export function drawBuilding(b, night, sun) {
       const t0 = (k + .18) / cols, t1 = (k + .82) / cols, v0 = opts.base + r * opts.step, v1 = v0 + opts.wh;
       if (v1 > h - 6) continue;
       const pa = [P0[0] + (P1[0] - P0[0]) * t0, P0[1] + (P1[1] - P0[1]) * t0], pb = [P0[0] + (P1[0] - P0[0]) * t1, P0[1] + (P1[1] - P0[1]) * t1];
-      const lit = night && R() < (opts.lit || .35);
-      poly([up(pa, v0), up(pb, v0), up(pb, v1), up(pa, v1)], lit ? (R() < .3 ? '#ffe9a8' : '#ffd36b') : opts.glass || shade('#1d2a3a', shadeF));
+      const lit = night && R() < (opts.lit || .35) * (typeof night === 'number' ? night : 1);
+      poly([up(pa, v0), up(pb, v0), up(pb, v1), up(pa, v1)], lit ? (R() < .3 ? '#ffe9a8' : '#ffd36b') : opts.glass || (night ? shade('#121a28', shadeF) : shade(R() < .5 ? '#5f7fa3' : '#4f6e93', shadeF)));
       if (!lit && !night) { g.globalAlpha = .25; poly([up(pa, v1 - 2), up(pb, v1 - 2), up(pb, v1), up(pa, v1)], '#ffffff'); g.globalAlpha = 1; }
       if (lit && opts.onLit) opts.onLit(pa, pb, v0);
     }
@@ -399,7 +399,7 @@ export function drawProp(g, p, sx, sy, t, night) {
       [[0, -30, 15, '#3f7a33'], [-7, -24, 11, '#4b8a3b'], [7, -25, 11, '#3a7030'], [2, -36, 10, '#58994a']].forEach(([dx, dy, r, c]) => { g.fillStyle = night ? shade(c, .7) : c; g.beginPath(); g.arc(sx + dx * s + sway, sy + dy * s, r * s, 0, Math.PI * 2); g.fill(); });
       g.fillStyle = 'rgba(255,255,255,.12)'; g.beginPath(); g.arc(sx - 4 * s + sway, sy - 38 * s, 5 * s, 0, Math.PI * 2); g.fill(); break;
     }
-    case 'lamp': g.fillStyle = '#2b2f36'; g.fillRect(sx - 1.5, sy - 40, 3, 40); g.fillRect(sx - 1.5, sy - 40, 12, 3); g.fillStyle = night ? '#fff3c4' : '#d9dde2'; g.fillRect(sx + 7, sy - 38, 6, 3); break;
+    case 'lamp': g.fillStyle = '#2b2f36'; g.fillRect(sx - 1.5, sy - 40, 3, 40); g.fillRect(sx - 1.5, sy - 40, 12, 3); g.fillStyle = (p.on != null ? p.on : night) ? '#fff3c4' : '#9aa1a9'; g.fillRect(sx + 7, sy - 38, 6, 3); break;
     case 'flag': g.fillStyle = '#c9ced4'; g.fillRect(sx - 1, sy - 56, 2, 56); { const w = Math.sin(t / 300) * 2; g.fillStyle = '#b22234'; g.fillRect(sx + 1, sy - 56, 18, 10 + w * .2); g.fillStyle = '#3c3b6e'; g.fillRect(sx + 1, sy - 56, 8, 5); } break;
     case 'mast': { g.strokeStyle = '#c0392b'; g.lineWidth = 2; for (let k = 0; k < 9; k++) { const y0 = sy - k * 22, y1 = sy - (k + 1) * 22, w0 = 14 - k * 1.3, w1 = 14 - (k + 1) * 1.3; g.strokeStyle = k % 2 ? '#e8e8e8' : '#c0392b'; g.beginPath(); g.moveTo(sx - w0, y0); g.lineTo(sx - w1, y1); g.moveTo(sx + w0, y0); g.lineTo(sx + w1, y1); g.moveTo(sx - w0, y0); g.lineTo(sx + w1, y1); g.stroke(); } const blink = Math.floor(t / 700) % 2; g.fillStyle = blink ? '#ff3b30' : '#6b1a16'; g.beginPath(); g.arc(sx, sy - 200, 3, 0, Math.PI * 2); g.fill(); break; }
     case 'fountain': g.fillStyle = '#9aa3ab'; g.beginPath(); g.ellipse(sx, sy, 26, 13, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#4f8fbf'; g.beginPath(); g.ellipse(sx, sy - 2, 22, 10, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(220,240,255,.8)'; for (let k = 0; k < 6; k++) { const a = t / 400 + k; g.beginPath(); g.arc(sx + Math.cos(a) * 6, sy - 14 - Math.abs(Math.sin(a)) * 8, 2, 0, Math.PI * 2); g.fill(); } g.fillStyle = '#b8c0c7'; g.fillRect(sx - 2, sy - 16, 4, 14); break;
