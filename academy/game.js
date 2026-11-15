@@ -9,6 +9,7 @@ import { SIDE2, SIDE_CAST, LORE2 } from './sidequests.js';
 import { VOICES, ANYONE } from './voices.js';
 import { createMiniGames } from './minigames.js';
 import { installLife } from './life.js';
+import { installOffDuty } from './offduty.js';
 SIDE2.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); LORE2.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); });
 import { createMusic } from './music.js';
 import { createScore } from './score.js';
@@ -124,7 +125,7 @@ function load(did) {
   inside = null; if (net && net.inside) net.inside(-1);
   W = buildDistrict(did); G = { chunks: new Map() }; buildSprites(); sprHour = Math.floor(hourNow());
   P.x = W.spawn[0] + .5; P.y = W.spawn[1] + .5; P.path = []; P.inCar = false;
-  pcar = W.carSpot ? { x: W.carSpot[0], y: W.carSpot[1], dir: 0, bar: false } : null; setTimeout(() => LIFE.setup(), 0);
+  pcar = W.carSpot ? { x: W.carSpot[0], y: W.carSpot[1], dir: 0, bar: false } : null; setTimeout(() => { LIFE.setup(); OFF.setup(); }, 0);
   const h0 = hourNow(), busy = isNight(h0) ? (h0 >= 18.75 && h0 < 22 ? .6 : .38) : 1;
   peds = []; for (let i = 0; i < Math.round(30 * busy); i++) peds.push(newPed());
   traffic = []; for (let i = 0; i < Math.round(11 * busy) + 2; i++) traffic.push(newCar());
@@ -213,7 +214,7 @@ function update(dt, now) {
   traffic.forEach((c) => { if (c.stopped) return; if (!c.path.length) { for (let k = 0; k < 6; k++) { const x = Math.floor(c.x + (Math.random() - .5) * 40), y = Math.floor(c.y + (Math.random() - .5) * 40); if (roadPass(x, y)) { const p = astar(c.x, c.y, x, y, roadPass, false); if (p && p.length > 3) { c.path = p; break; } } } return; } stepAlong(c, dt, c.sp); });
   // arrive on a call
   if (call && !inside && Math.hypot(call.x - P.x, call.y - P.y) < 1.7 && !scene) { const c = call; call = null; callCard(); openCallScene(c); }
-  if (!call && !scene && !S.x6) { nextCall -= dt; if (nextCall <= 0) dispatchCall(); }
+  if (!call && !scene && !S.x6 && !S.offDuty) { nextCall -= dt; if (nextCall <= 0) dispatchCall(); }
   if (call && clock - call.t0 > callWait() + BUFF.wait) { radio('Dispatch', S.cs + ', disregard; another unit took that call.'); call = null; callCard(); nextCall = 20; if (net) { net.status('patrol'); net.backup(null); } }
   // observation moments appear only up close
   observes.forEach((o) => { if (!o.seen && Math.hypot(o.x - P.x, o.y - P.y) < spotR()) { o.seen = true; toast((S.unit === 'k9' ? 'Your K9 alerts. ' : '') + 'Something\'s off: ' + o.text + '. Tap the ! to check it out.'); beep(880, .08, 'sine', .04); if (S.unit === 'k9') { beep(520, .07, 'square', .03, .1); beep(520, .07, 'square', .03, .22); } } });
@@ -224,7 +225,7 @@ function update(dt, now) {
   if ((P.inCar || P.boat) && call && call.accepted) { sirenT -= dt; if (sirenT <= 0) { sirenT = .9; beep(720, .42, 'sine', .018); beep(980, .42, 'sine', .018, .45); } }
   if (net && now - moveSent > 120) { moveSent = now; net.move(P.x, P.y, P.boat ? 2 : P.inCar ? 1 : 0, P.dir); }
   liveUpdate(dt);
-  LIFE.update(dt); storyUpdate(dt); objectiveHud(); trackerHud(dt); trailUpdate(dt); loreCheck(dt); tipsUpdate(dt); musicUpdate(dt); trophyCheck(dt); squadTick(dt); factWatch(); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
+  LIFE.update(dt); OFF.tick(dt); storyUpdate(dt); objectiveHud(); trackerHud(dt); trailUpdate(dt); loreCheck(dt); tipsUpdate(dt); musicUpdate(dt); trophyCheck(dt); squadTick(dt); factWatch(); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
   if (inside && !P.path.length && Math.hypot(W.door[0] - P.x, W.door[1] - P.y) < .45) exitBuilding();
   hudClock();
   if (clock >= SHIFT_MIN && !scene) endOfWatch();
@@ -313,7 +314,7 @@ function render(now) {
   grade(); rainDraw();
   // markers drawn above the lighting so they stay readable
   ctx.setTransform(z, 0, 0, z, cv.width / 2 - cam.x * z, cv.height / 2 - cam.y * z);
-  if (!ATTRACT) { guideDraw(now, z); if (!inside) LIFE.draw(now); storyMarker(now); floatsDraw(now); pingsDraw(now); if (SELF_SAY.text && performance.now() - SELF_SAY.at < 6000) { const [sx, sy] = iso(P.x, P.y); speech(sx, sy - (P.inCar ? 52 : 70), SELF_SAY.text.length > 34 ? SELF_SAY.text.slice(0, 32) + '…' : SELF_SAY.text); } }
+  if (!ATTRACT) { guideDraw(now, z); if (!inside) { LIFE.draw(now); OFF.draw(now); regs.forEach((r) => { if (OFF.arcReady(r.n.id)) { const [sx, sy] = iso(r.x, r.y); bubble(sx, sy - 92, '💛', '#f472b6', now); } }); } storyMarker(now); floatsDraw(now); pingsDraw(now); if (SELF_SAY.text && performance.now() - SELF_SAY.at < 6000) { const [sx, sy] = iso(P.x, P.y); speech(sx, sy - (P.inCar ? 52 : 70), SELF_SAY.text.length > 34 ? SELF_SAY.text.slice(0, 32) + '…' : SELF_SAY.text); } }
   if (call) { const [sx, sy] = iso(call.x, call.y); ring(sx, sy, call.prio === 1 ? '#ff4d4d' : '#f5b800', now); bubble(sx, sy - 40, '📻', call.prio === 1 ? '#ff4d4d' : '#f5b800', now); label(sx, sy - 66, call.title, '#ffffff'); }
   infos.forEach((i) => { const [sx, sy] = iso(i.x, i.y); bubble(sx, sy - 30, 'i', i.cool > 0 ? '#6b7280' : '#3b82f6', now); });
   observes.forEach((o) => { if (!o.seen) return; const [sx, sy] = iso(o.x, o.y); ring(sx, sy, '#a855f7', now); bubble(sx, sy - 30, '!', '#a855f7', now); });
@@ -327,6 +328,11 @@ const LIFE = installLife({ S, L, get W() { return W; }, get P() { return P; }, g
   dialogue: (...a) => dialogue(...a), sayAs: (...a) => sayAs(...a), award: (...a) => award(...a), stat: (...a) => stat(...a), ord: (...a) => ord(...a), toast: (m) => toast(m), banner: (...a) => banner(...a), beep: (...a) => beep(...a), chirp: () => chirp(), good: () => good(), bad: () => bad(), radio: (...a) => radio(...a),
   saveS: () => saveS(), hud: () => hud(), openModal: (h) => openModal(h), closeModal: () => closeModal(), $: (id) => $(id), esc: (x) => esc(x), iso: (x, y) => iso(x, y), get ctx() { return ctx; }, bubble: (...a) => bubble(...a), label: (...a) => label(...a), person: (...a) => person(...a),
   goTo: (...a) => goTo(...a), doorSpot: (l) => doorSpot(l), whereAt: (x, y) => { const n = nearestLotTo(x, y); return n ? 'near ' + n : 'on patrol'; }, lights: (on) => { STOPLIGHTS = on; } });
+// off the clock: off-duty mode, leisure, ride-alongs, homes, morale and friendship stories (see offduty.js)
+const OFF = installOffDuty({ S, L, get W() { return W; }, get P() { return P; }, get inside() { return inside; }, call: () => call, paused: () => paused || !!scene,
+  dialogue: (...a) => dialogue(...a), sayAs: (...a) => sayAs(...a), award: (...a) => award(...a), stat: (...a) => stat(...a), toast: (m) => toast(m), banner: (...a) => banner(...a), beep: (...a) => beep(...a), good: () => good(), bad: () => bad(), radio: (...a) => radio(...a),
+  saveS: () => saveS(), hud: () => hud(), openModal: (h) => openModal(h), closeModal: () => closeModal(), $: (id) => $(id), esc: (x) => esc(x), iso: (x, y) => iso(x, y), bubble: (...a) => bubble(...a), label: (...a) => label(...a), doorSpot: (l) => doorSpot(l), queueLoot: (...a) => queueLoot(...a),
+  refreshLook: () => { refreshGear(); hud(); }, clearCall: () => { if (call && !call.accepted) { call = null; callCard(); } }, items: () => ITEMS, trophies: () => { const t = TROPHIES.filter((x) => (S.trophies || {})[x[0]]); return { n: t.length, list: t.map((x) => x[1]) }; } });
 // the Rec Room: multiplayer mini games (see minigames.js)
 const MG = createMiniGames({ get net() { return net; }, now: () => N0(), esc: (x) => esc(x), S, L, PHON: PHONETIC, beep: (...a) => { if (S.sound) beep(...a); }, toast: (m) => toast(m), saveS: () => saveS(),
   award: (n, why) => award(n, why), stat: (k) => stat(k), cs: () => S.cs, icon: () => U().icon, did: () => W.did, dname: () => W.D.name, lessons: () => W.D.lessons,
@@ -439,7 +445,7 @@ function sparkle(sx, sy, now, col) { const k = (Math.sin(now / 220) + 1) / 2, r 
 const outfitLook = (o) => (OUTFITS[o] && OUTFITS[o].look) || {};
 const myLooks = () => Object.assign({}, outfitLook(S.outfit), looks(Object.values(S.gear || {})));
 const kitOf = (outfit, unitId) => { const o = OUTFITS[outfit || 'std']; return o && o.kit ? o.kit : unitOf(unitId).kit; };
-const myKit = () => kitOf(S.outfit, S.unit);
+const myKit = () => (S.offDuty ? { shirt: S.civShirt || '#2563eb', pants: '#334155', hat: 'none', plain: true } : kitOf(S.outfit, S.unit));
 const myTokens = () => ['o' + (S.outfit || 'std')].concat(Object.values(S.gear || {})).join(',');
 // gear that changes how you look: hats swap the kit's cover; the rest is drawn on top
 function kitWith(kit, L) { if (!L.hat && !L.boots && !L.camelbak) return kit; const k = Object.assign({}, kit); if (L.hat && !(k.shorts)) { k.hat = L.hat; k.hatCol = L.hatCol; } if (L.boots) k.boots = L.boots; if (L.camelbak) k.camelbak = true; return k; }
@@ -1064,6 +1070,7 @@ function tap(px, py) {
   const reach = (x, y, fn) => { if (Math.hypot(x - P.x, y - P.y) < 1.9) fn(); else goTo(x, y, fn); };
   if (!inside && LIFE.tapViolator(near)) return;
   if (!inside) for (const a of LIFE.acts) if (near(a.x, a.y, 30)) return reach(a.x, a.y, () => LIFE.run(a));
+  if (!inside) for (const a of OFF.acts) if (near(a.x, a.y, 30)) return (P.boat ? a.boat : true) ? (Math.hypot(a.x - P.x, a.y - P.y) < (P.boat ? 3 : 1.9) ? OFF.run(a) : goTo(a.x, a.y, () => OFF.run(a))) : null;
   for (const c of FX.caches) if ((c.shown || Math.hypot(c.x - P.x, c.y - P.y) <= spotR() + 1.5) && near(c.x, c.y, 30)) return reach(c.x, c.y, () => { FX.caches.splice(FX.caches.indexOf(c), 1); ord('secret'); queueLoot('Lost & found', 1, hasSk('inv4') ? 'u' : 'c'); });
   for (const e of FX.events) if (near(e.x, e.y, 34) && e.k !== 'work') return reach(e.x, e.y, () => streetLife(e));
   if (!inside) for (const r of regs) if (near(r.x, r.y, 30)) return reach(r.x, r.y + .9, () => npcTalk(r));
@@ -1121,7 +1128,7 @@ const FLOATS = [];
 let COMBO = 0, bestCombo = 0;
 const comboMult = () => 1 + Math.min(COMBO, 10) * .03;
 function award(xp, why) {
-  const before = L.rankOf(S.xp).name; const sqm = squadMult(); if (sqm > 1) { stat('sqRP', Math.round(xp * (sqm - 1))); } xp = Math.round(xp * comboMult() * sqm * LIFE.rpMult()); S.cash = (S.cash || 0) + Math.round(xp * .4); S.xp += xp; SS.rp += xp; const after = L.rankOf(S.xp).name; saveS(); hud();
+  const before = L.rankOf(S.xp).name; const sqm = squadMult(); if (sqm > 1) { stat('sqRP', Math.round(xp * (sqm - 1))); } xp = Math.round(xp * comboMult() * sqm * LIFE.rpMult() * OFF.rpMult()); S.cash = (S.cash || 0) + Math.round(xp * .4); S.xp += xp; SS.rp += xp; const after = L.rankOf(S.xp).name; saveS(); hud();
   FLOATS.push({ x: P.x, y: P.y, t: performance.now(), text: '+' + xp + ' RP', sub: why + (COMBO >= 3 ? ' · 🔥x' + comboMult().toFixed(2).replace(/0$/, '') : '') });
   if (after !== before) setTimeout(() => promotion(after), 700);
   if (net) net.status('patrol');
@@ -1220,7 +1227,9 @@ function npcTalk(r) {
     if (f >= 1) return [[id, 'Something felt off over that way, earlier. Might be nothing.'], ['fx', () => { const o = newObserve(); observes.push(o); o.seen = true; PINGS.push({ x: o.x, y: o.y, t: performance.now(), c: '#a855f7' }); stat('tips'); }]];
     return [[id, 'I don\'t really know you yet, cadet. Maybe next time.']]; };
   const V = VOICES[n.id] || ANYONE, bye = { t: n.cat ? 'Back away slowly' : 'Take care. I\'ll check on you later.', bye: true, reply: [[id, n.cat ? '(The cat blinks once. You have been dismissed.)' : rnd(['Stay safe out there, cadet.', 'You too, officer. Well, almost-officer.', 'See you around.', 'Come back anytime.'])]] };
+  const arc = OFF.arcOption(n);
   const topics = [{ k: 'chat', t: n.cat ? 'Crouch down and say hello' : 'How\'s it going today?', reply: [[id, line]], fx: () => { if (f < 1 && !n.cat && Math.random() < .5) { S.npc[n.id] = Math.max(S.npc[n.id] || 0, 1); saveS(); } } }];
+  if (arc) topics.unshift(Object.assign({ k: 'arc' }, arc));
   if (!helped) topics.push({ k: 'help', t: n.cat ? 'Offer an answer to the silent question' : 'Anything I can help you with?', reply: help() });
   if (!n.cat) topics.push({ k: 'tip', t: 'Seen anything unusual around here?', reply: tip() });
   if (!n.cat) topics.push({ k: 'more', t: rnd(['So what\'s your story?', 'How long have you been around here?', 'What\'s the neighborhood really like?']), reply: [[id, rnd(V.a)], [id, n.lines[(f + 1 + (S.calls || 0)) % n.lines.length]]] });
@@ -1620,7 +1629,7 @@ function profileCard(u, c) {
 }
 // short-lived map pings (locate a cadet)
 const PINGS = [];
-function pingsDraw(now) { for (let i = PINGS.length - 1; i >= 0; i--) { const p = PINGS[i], a = (now - p.t) / 2400; if (a > 1) { PINGS.splice(i, 1); continue; } const [sx, sy] = iso(p.x, p.y); ctx.strokeStyle = p.c; ctx.globalAlpha = 1 - a; ctx.lineWidth = 3; for (let k = 0; k < 3; k++) { const r = ((a * 3 + k / 3) % 1) * 60; ctx.beginPath(); ctx.ellipse(sx, sy, r, r / 2, 0, 0, Math.PI * 2); ctx.stroke(); } ctx.globalAlpha = 1; } }
+function pingsDraw(now) { for (let i = PINGS.length - 1; i >= 0; i--) { const p = PINGS[i], a = Math.max(0, (now - p.t) / 2400); if (a > 1) { PINGS.splice(i, 1); continue; } const [sx, sy] = iso(p.x, p.y); ctx.strokeStyle = p.c; ctx.globalAlpha = 1 - a; ctx.lineWidth = 3; for (let k = 0; k < 3; k++) { const r = ((a * 3 + k / 3) % 1) * 60; ctx.beginPath(); ctx.ellipse(sx, sy, r, r / 2, 0, 0, Math.PI * 2); ctx.stroke(); } ctx.globalAlpha = 1; } }
 
 // ---------- multiplayer ----------
 function onPlayers(all, uid) {
@@ -1835,6 +1844,7 @@ TROPHIES.push(['fact1', 'Know This', 'Complete your first fact.', 'b', () => Obj
 TROPHIES.push(['lore1', 'Local History', 'Discover a piece of lore out in the city.', 'b', () => LORE.some((e) => e.when.slice(0, 6) === 'visit:' && S.lore[e.id])], ['lore20', 'Town Historian', 'Discover 20 lore entries.', 's', () => LORE.filter((e) => S.lore[e.id]).length >= 20], ['loreall', 'Keeper of Port Meridian', 'Discover every lore entry.', 'g', () => LORE.every((e) => S.lore[e.id])], ['side10d', 'Neighborhood Fixture', 'Close all ten side cases in one district.', 's', () => DISTRICTS.some((D) => SIDE.filter((q) => q.d === D.id).every(sideClosed))], ['side25', 'Busy Beat', 'Close 25 side cases.', 's', () => SIDE.filter(sideClosed).length >= 25]);
 TROPHIES.push(['mg1', 'Rec Room Regular', 'Play a mini game.', 'b', () => st('mg') >= 1], ['mgwin', 'Class Champion', 'Win a multiplayer mini game against other cadets.', 's', () => st('mgwin') >= 1], ['mgall', 'Well-Rounded', 'Play all four mini games.', 's', () => ['bowl', 'relay', 'bolo', 'run'].every((g) => st('mg_' + g) >= 1)], ['mgace', 'Fact Bowl Ace', 'Score 5,600 or more in Fact Bowl.', 'g', () => st('mgbowlace') >= 1], ['mg10', 'Reigning Champ', 'Win 10 multiplayer mini games.', 'g', () => st('mgwin') >= 10]);
 TROPHIES.push(['self1', 'Proactive', 'Do your first self-initiated activity.', 'b', () => st('self') >= 1], ['self25', 'Nobody Had to Call', 'Complete 25 self-initiated activities.', 's', () => st('self') >= 25], ['stop1', 'Lights On', 'Make a traffic stop.', 'b', () => st('stops') >= 1], ['stopA', 'Textbook Stop', 'Earn an A on a traffic stop.', 's', () => st('stopA') >= 1], ['stop10', 'Traffic Unit Material', 'Make 10 traffic stops.', 'g', () => st('stops') >= 10], ['decal', 'Custom Cruiser', 'Put a decal on your patrol car.', 'b', () => st('decal') >= 1], ['kidfound', 'Right Where You Left Him', 'Reunite a lost child with family.', 's', () => st('self_kid') >= 1]);
+TROPHIES.push(['off1', 'Off the Clock', 'Go off duty and do something fun.', 'b', () => st('meals') + st('games') + st('skate') + st('fish') >= 1], ['fish10', 'Hooked', 'Catch 10 fish.', 's', () => st('fish') >= 10], ['mossback', 'Old Mossback', 'Land a legendary fish.', 'g', () => st('fishLegend') >= 1], ['skate5', 'Officer Kickflip', 'Land all five tricks with Dez.', 's', () => st('skate5') >= 1], ['ride3', 'Seen It From Every Seat', 'Do all three ride-alongs.', 's', () => st('ride_sam') && st('ride_hal') && st('ride_earl')], ['home1', 'Keys in Hand', 'Get a place of your own.', 's', () => st('homes') >= 1], ['arc1', 'Real Friends', 'Finish a friendship story.', 's', () => st('arcs') >= 1], ['arc10', 'Everybody Knows Your Name', 'Finish all ten friendship stories.', 'g', () => st('arcs') >= 10], ['gators', 'Believe in the Gators', 'See the Gators win at River Stadium.', 'b', () => st('gatorwin') >= 1]);
 TROPHIES.push(['plat', 'Port Meridian\'s Finest', 'Earn every other trophy.', 'p', () => TROPHIES.every((t) => t[0] === 'plat' || (S.trophies || {})[t[0]])]);
 const TIER = { b: ['Bronze', '#cd7f32'], s: ['Silver', '#c9d2dd'], g: ['Gold', '#f5b800'], p: ['Platinum', '#9ee7ff'] };
 let trT = 3, trQ = [], trBusy = false;
@@ -1875,7 +1885,7 @@ function pauseMenu() {
   if (ATTRACT || PHOTO || !$('start').hidden) return; const el = fe(); if (!el.hidden) return;
   const was = paused; paused = true; PAUSED_BY_MENU = true; el.hidden = false; el.className = 'fe pauseBg';
   const close = () => { el.hidden = true; el.innerHTML = ''; el.className = 'fe'; paused = was; PAUSED_BY_MENU = false; };
-  const items = [['Resume', close], ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
+  const items = [['Resume', close], ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], [S.offDuty ? 'Go back on duty' : 'Go off duty', () => { close(); OFF.toggle(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
   function pauseMenuAgain() { el.hidden = true; paused = was; PAUSED_BY_MENU = false; pauseMenu(); }
   const h = hourNow(), hh = String(Math.floor(h)).padStart(2, '0') + String(Math.floor((h % 1) * 60)).padStart(2, '0');
   el.innerHTML = '<div class="pmBox"><div class="pmHead"><small>' + esc(W.D.name) + ' · ' + hh + ' hrs</small><h2>Paused</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + ' · ' + esc(L.rankOf(S.xp).name) + '</p></div><div class="tiMenu pm">' + items.map((x, i) => '<button type="button" data-i="' + i + '"' + (i === 0 ? ' class="pri"' : '') + '><b>' + x[0] + '</b></button>').join('') + '</div><div class="pmFoot">' + (activeQ() ? '<b>' + esc(activeQ().title) + '</b> · ' + esc(activeQ().step.goal) : 'Patrol your district') + '</div></div>';
@@ -1992,4 +2002,4 @@ function lockedScreen() {
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); MG.watch(W.did); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { S, MG, LIFE, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { S, MG, LIFE, OFF, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
