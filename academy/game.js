@@ -625,9 +625,10 @@ function cineCam(dt) {
   if (CINE.on) { cam.free = true; cam.x += (CINE.x - cam.x) * k; cam.y += (CINE.y - cam.y) * k; cam.z += (CINE.z - cam.z) * k; }
   else if (CINE.back > 0) { cam.z += (CINE.z0 - cam.z) * k; CINE.back -= dt * 1.2; if (CINE.back <= 0) { cam.z = CINE.z0; cam.free = false; CINE.z0 = 0; } }
 }
-function scoreAnswer(q, ans) {
+function scoreAnswer(q, ans, retry) {
   const ok = L.isRight(q, ans); L.record(S, q, ok); SS.answered++;
-  if (ok) { SS.right++; stat('right'); S.bestCombo = Math.max(S.bestCombo || 0, COMBO + 1); COMBO++; bestCombo = Math.max(bestCombo, COMBO); ord('right'); if (COMBO === 5) ord('streak'); good(); } else { COMBO = 0; bad(); }
+  if (ok && retry) { SS.right++; stat('right'); stat('retryRight'); COMBO = 0; good(); }
+  else if (ok) { SS.right++; stat('right'); S.bestCombo = Math.max(S.bestCombo || 0, COMBO + 1); COMBO++; bestCombo = Math.max(bestCombo, COMBO); ord('right'); if (COMBO === 5) ord('streak'); good(); } else { COMBO = 0; bad(); }
   comboHud(); return ok;
 }
 function dialogue(lines, done, opts) {
@@ -649,9 +650,15 @@ function dialogue(lines, done, opts) {
     if (ln[0] === 'q') {
       const q = ln[1], sp = ln[2] || 'castillo', c = who(sp); let picked = []; window.__curQ = q;
       frame('<div class="dlgPort"><span>' + c.icon + '</span></div><div class="dlgTxt"><b>' + esc(c.name) + '</b><small>' + esc(L.lessonName(q.les != null ? q.les : W.D.lessons[0]) || '') + '</small><p class="dlgQ">' + esc(q.stem) + '</p>' + (q.multi ? '<em class="dlgHint">Select all that apply, then confirm.</em>' : '') + '<div class="dlgOpts q">' + q.opts.map((o, k) => '<button type="button" data-k="' + k + '"><span class="kk">' + 'ABCDEF'[k] + '</span>' + esc(o) + '</button>').join('') + '</div>' + (q.multi ? '<div class="dlgConfirm"><button type="button" id="dlgOk" disabled>Confirm</button></div>' : '') + '</div>', ' dlgChoice dlgQuiz'); box.onclick = null;
-      const finish = () => { const ans = q.multi ? picked.slice() : picked[0], ok = scoreAnswer(q, ans); res.n++; if (ok) res.right++;
+      let tries = 0;
+      const finish = () => { const ans = q.multi ? picked.slice() : picked[0];
+        // a wrong first answer gets one more try (no streak, but it still counts and completes the fact)
+        if (tries === 0 && !L.isRight(q, ans)) { tries = 1; bad(); COMBO = 0; comboHud();
+          box.querySelectorAll('[data-k]').forEach((b) => { const k = +b.dataset.k; if (!q.multi && k === ans) { b.disabled = true; b.classList.add('no'); } b.classList.remove('sel'); }); picked = [];
+          const tx = box.querySelector('.dlgTxt small'); if (tx) tx.innerHTML = '<b class="dlgRetry">Not quite. One more try.</b>'; if (q.multi && $('dlgOk')) $('dlgOk').disabled = true; return; }
+        const ok = scoreAnswer(q, ans, tries > 0); res.n++; if (ok) res.right++; if (tries && ok) res.retry = (res.retry || 0) + 1;
         box.querySelectorAll('[data-k]').forEach((b) => { const k = +b.dataset.k, isC = q.multi ? q.c.indexOf(k) >= 0 : k === q.c; b.disabled = true; b.classList.add(isC ? 'ok' : picked.indexOf(k) >= 0 ? 'no' : 'dim'); });
-        const fact = (q.fact || q.ex || '').trim(); setTimeout(() => { seq.splice(i + 1, 0, [sp, (ok ? rnd(PRAISE) : rnd(CORRECT)) + (fact ? ' ' + fact : ''), { quiz: ok ? 'ok' : 'no' }]); box.onclick = click; next(); }, 750); };
+        const fact = (q.fact || q.ex || '').trim(); setTimeout(() => { seq.splice(i + 1, 0, [sp, (ok ? (tries ? rnd(['There it is. Second time\'s the charm.', 'Better. That\'s the one.', 'Yes. Now remember why:']) : rnd(PRAISE)) : rnd(CORRECT)) + (fact ? ' ' + fact : ''), { quiz: ok ? 'ok' : 'no' }]); box.onclick = click; next(); }, 750); };
       box.querySelectorAll('[data-k]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const k = +b.dataset.k; if (q.multi) { const at = picked.indexOf(k); if (at >= 0) picked.splice(at, 1); else picked.push(k); b.classList.toggle('sel'); $('dlgOk').disabled = !picked.length; } else { picked = [k]; finish(); } });
       if (q.multi) $('dlgOk').onclick = (e) => { e.stopPropagation(); if (picked.length) finish(); };
       return;
@@ -1172,9 +1179,9 @@ function finalCall() {
 }
 // after all five districts: the Chapter 5 Final Exam, facts from the whole chapter, 85% to pass
 function chapterExam() {
-  const all = [0, 1, 2, 3, 4].flatMap((d) => DISTRICTS[d].lessons), facts = L.pickFacts(S, all, 30), sp = ['castillo', 'okonkwo', 'navarro'];
+  const all = [0, 1, 2, 3, 4].flatMap((d) => DISTRICTS[d].lessons), facts = L.pickFacts(S, all, 50), sp = ['castillo', 'okonkwo', 'navarro'];
   paused = true; music.start('story');
-  dialogue([['narr', 'Patrol HQ, the training room. Thirty facts from the whole chapter.'], ['castillo', 'This is the whole chapter, cadet. Eighty-five percent. You\'ve done every one of these on the street already.'], ['choice', [{ t: 'Ready.', reply: [] }, { t: 'Give me a second.', reply: [['castillo', 'Take two. Then we start.']] }], 'Chapter 5 Final Exam']].concat(facts.map((q, k) => ['q', q, sp[k % 3]])), (r) => {
+  dialogue([['narr', 'Patrol HQ, the training room. Fifty facts from the whole chapter.'], ['castillo', 'This is the whole chapter, cadet. Eighty-five percent. You\'ve done every one of these on the street already.'], ['choice', [{ t: 'Ready.', reply: [] }, { t: 'Give me a second.', reply: [['castillo', 'Take two. Then we start.']] }], 'Chapter 5 Final Exam']].concat(facts.map((q, k) => ['q', q, sp[k % 3]])), (r) => {
     paused = false; const pass = r.right / r.n >= .85; if (pass) { S.graduated = Date.now(); stat('exam'); } saveS();
     openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'CHAPTER 5 · PASSED' : 'CHAPTER EXAM · NOT YET') + '</b><h2>' + r.right + ' of ' + r.n + ' (' + Math.round(r.right / r.n * 100) + '%)</h2><p>' + (pass ? 'Every district, every fact, and the whole chapter on one exam. Port Meridian is proud of you.' : 'You need 85%. Run fact drills in any district and try again.') + '</p></div><div class="qAct"><button type="button" id="mDone">' + (pass ? 'Carry on' : 'Back to patrol') + '</button></div>');
     if (pass) { music.sting('promo'); shake(8, .6); }
@@ -1641,7 +1648,7 @@ TROPHIES.push(
   ['wave', 'Friendly Wave', 'Wave at another cadet.', 'b', () => st('waves') >= 1],
   ['squadchat', 'Squad Chatter', 'Send 25 squad messages.', 's', () => st('sqMsg') >= 25]
 );
-TROPHIES.push(['fact1', 'Know This', 'Complete your first fact.', 'b', () => Object.keys(S.facts || {}).length >= 1], ['fact100', 'Fact Finder', 'Complete 100 facts.', 's', () => Object.keys(S.facts || {}).length >= 100], ['factall', 'Every Fact in the Chapter', 'Complete all 296 facts.', 'g', () => Object.keys(S.facts || {}).length >= 296], ['final1', 'Transfer Orders', 'Pass a District Final Call.', 's', () => st('finals') >= 1], ['exam', 'Chapter 5: Passed', 'Pass the Chapter 5 Final Exam.', 'g', () => !!S.graduated]);
+TROPHIES.push(['fact1', 'Know This', 'Complete your first fact.', 'b', () => Object.keys(S.facts || {}).length >= 1], ['fact100', 'Fact Finder', 'Complete 100 facts.', 's', () => Object.keys(S.facts || {}).length >= 100], ['factall', 'Every Fact in the Chapter', 'Complete all 558 facts.', 'g', () => Object.keys(S.facts || {}).length >= 558], ['final1', 'Transfer Orders', 'Pass a District Final Call.', 's', () => st('finals') >= 1], ['exam', 'Chapter 5: Passed', 'Pass the Chapter 5 Final Exam.', 'g', () => !!S.graduated]);
 TROPHIES.push(['plat', 'Port Meridian\'s Finest', 'Earn every other trophy.', 'p', () => TROPHIES.every((t) => t[0] === 'plat' || (S.trophies || {})[t[0]])]);
 const TIER = { b: ['Bronze', '#cd7f32'], s: ['Silver', '#c9d2dd'], g: ['Gold', '#f5b800'], p: ['Platinum', '#9ee7ff'] };
 let trT = 3, trQ = [], trBusy = false;
@@ -1781,7 +1788,7 @@ function lockedScreen() {
 (async function boot() {
   if (!unlocked()) { lockedScreen(); return; }
   $('loading').textContent = 'Loading the city…';
-  try { await L.loadBank('../ch5.json'); } catch (e) { $('loading').textContent = 'Could not load the question bank. Check your connection and refresh.'; return; }
+  try { await L.loadBank('../ch5.json'); await L.loadFacts('facts.json'); S.facts = Object.fromEntries(Object.entries(S.facts || {}).filter(([k]) => k[0] === 'F')); } catch (e) { $('loading').textContent = 'Could not load the question bank. Check your connection and refresh.'; return; }
   $('loading').hidden = true;
   attractStart(); requestAnimationFrame(frame); applyCfg(); if (FAST) { S.seenIntro = 1; startScreen(); } else bootSequence(titleScreen);
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
