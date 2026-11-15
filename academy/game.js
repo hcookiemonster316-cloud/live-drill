@@ -96,10 +96,12 @@ function groundDraw(z) {
   let made = 0; const now = performance.now();
   for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
     const k = cx + ',' + cy; let c = G.chunks.get(k);
-    if (!c) { if (made > 3 && G.chunks.size > 4) continue; c = drawGround(W, cx, cy); G.chunks.set(k, c); made++; }
+    if (!c) { if (made >= 1 && G.chunks.size > 4) { G.miss = 1; continue; } c = drawGround(W, cx, cy); G.chunks.set(k, c); made++; }
     c.used = now; ctx.drawImage(c.canvas, -c.ox, -c.oy, c.canvas.lw, c.canvas.lh);
   }
-  const cap = Math.max(16, Math.round(44 / Math.pow(Math.min(2, RES), 2))); if (G.chunks.size > cap + 6) [...G.chunks.entries()].sort((a, b) => a[1].used - b[1].used).slice(0, G.chunks.size - cap).forEach(([k]) => G.chunks.delete(k));
+  // with time to spare, prepare one chunk just outside the view so walking and driving stay smooth
+  if (!made) { const M2 = Math.ceil(N / CH) - 1; outer: for (let cy = Math.max(0, cy0 - 1); cy <= Math.min(M2, cy1 + 1); cy++) for (let cx = Math.max(0, cx0 - 1); cx <= Math.min(M2, cx1 + 1); cx++) { const k = cx + ',' + cy; if (!G.chunks.has(k)) { const c2 = drawGround(W, cx, cy); c2.used = now; G.chunks.set(k, c2); break outer; } } }
+  const cap = Math.max(24, Math.round(52 / Math.pow(Math.min(2, RES), 2))); if (G.chunks.size > cap + 6) [...G.chunks.entries()].sort((a, b) => a[1].used - b[1].used).slice(0, G.chunks.size - cap).forEach(([k]) => G.chunks.delete(k));
 }
 
 let sprHour = -1;

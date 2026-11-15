@@ -249,37 +249,95 @@ export function drawGround(W, cx, cy) {
   const w = (x1 - x0 + y1 - y0 + 2) * TW / 2 + pad * 2, h = (x1 - x0 + y1 - y0 + 2) * TH / 2 + pad * 2, [c, g] = hiCanvas(w, h, Math.min(2, RES));
   const ox = -(x0 - y1 - 1) * TW / 2 + pad, oy = -(x0 + y0) * TH / 2 + pad;
   let seed = 0; const R = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-  const dia = (x, y) => { const [sx, sy] = iso(x, y); g.beginPath(); g.moveTo(ox + sx, oy + sy); g.lineTo(ox + sx + TW / 2, oy + sy + TH / 2); g.lineTo(ox + sx, oy + sy + TH); g.lineTo(ox + sx - TW / 2, oy + sy + TH / 2); g.closePath(); };
-  const col = { [T.ROAD]: '#3b4048', [T.WALK]: '#b8b2a5', [T.GRASS]: '#5d8f3f', [T.PLAZA]: '#d2c8b3', [T.LOT]: '#4b5059', [T.WATER]: '#2d6c97', [T.BLDG]: '#6b6b6b', [T.FENCE]: '#7f8a6e', [T.SAND]: '#d9c58f', [T.GRAVEL]: '#8d877c', [T.RAIL]: '#7d756a' };
+  // tile-space to canvas: (u, v) inside tile (x, y), 0..1 each
+  const at = (x, y, u, v) => { const [sx, sy] = iso(x + u, y + v); return [ox + sx, oy + sy]; };
+  const poly = (pts, f) => { g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fillStyle = f; g.fill(); };
+  const seg = (a, b, col, wd) => { g.strokeStyle = col; g.lineWidth = wd; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); };
+  const tile = (x, y) => [at(x, y, 0, 0), at(x, y, 1, 0), at(x, y, 1, 1), at(x, y, 0, 1)];
+  const band = (x, y, side, f, col) => { // a strip along one edge of the tile, f = depth (0..1)
+    const q = side === 0 ? [[0, 0], [1, 0], [1, f], [0, f]] : side === 1 ? [[1, 0], [1, 1], [1 - f, 1], [1 - f, 0]] : side === 2 ? [[0, 1], [1, 1], [1, 1 - f], [0, 1 - f]] : [[0, 0], [0, 1], [f, 1], [f, 0]];
+    poly(q.map(([u, v]) => at(x, y, u, v)), col);
+  };
+  const BASE = { [T.ROAD]: '#3a3f46', [T.WALK]: '#bdb6a8', [T.GRASS]: '#5b8c3e', [T.PLAZA]: '#cfc3ab', [T.LOT]: '#454a52', [T.WATER]: '#25618a', [T.BLDG]: '#55585c', [T.FENCE]: '#7f8a6e', [T.SAND]: '#dcc893', [T.GRAVEL]: '#8d877c', [T.RAIL]: '#7a7266' };
+  const isW = (x, y) => W.at(x, y) === T.WATER;
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-    seed = (x * 73856093) ^ (y * 19349663) ^ (W.did * 83492791); const v = W.at(x, y); let c0 = col[v] || '#555';
-    if (v === T.GRASS) c0 = shade('#5d8f3f', .9 + R() * .2); if (v === T.WATER) c0 = shade('#2d6c97', .92 + R() * .12);
-    dia(x, y); g.fillStyle = c0; g.fill();
-    const [sx, sy] = iso(x, y), cx = ox + sx, cy = oy + sy + TH / 2;
-    if (v === T.WALK || v === T.PLAZA) { g.strokeStyle = 'rgba(0,0,0,.08)'; g.lineWidth = 1; dia(x, y); g.stroke(); }
-    if (v === T.GRASS) { for (let i = 0; i < 5; i++) { g.fillStyle = 'rgba(255,255,255,' + (.04 + R() * .06) + ')'; g.fillRect(cx - 18 + R() * 36, cy - 6 + R() * 12, 2, 2); } }
-    if (v === T.LOT && (x + y) % 2 === 0) { g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(cx - 14, cy - 7 + 7); g.lineTo(cx - 2, cy - 1 + 7); g.stroke(); }
-    if (v === T.ROAD) {
-      for (let i = 0; i < 6; i++) { g.fillStyle = 'rgba(255,255,255,' + R() * .05 + ')'; g.fillRect(cx - 20 + R() * 40, cy - 6 + R() * 12, 1.5, 1.5); }
+    seed = (x * 73856093) ^ (y * 19349663) ^ (W.did * 83492791); R(); R();
+    const v = W.at(x, y), base = BASE[v] || '#555', P4 = tile(x, y), [mx, my] = at(x, y, .5, .5);
+    // base with a slight per-tile tone change, lit from the top corner
+    const k = v === T.WALK || v === T.PLAZA ? .97 + R() * .06 : .985 + R() * .03, fc = shade(base, k);
+    poly(P4, fc); g.strokeStyle = fc; g.lineWidth = .8; g.stroke(); // stroke hides hairline seams between tiles
+    if (v === T.ROAD || v === T.LOT) {
+      // aggregate speckle, tyre wear, the odd crack, patch or oil stain
+      for (let i = 0; i < 16; i++) { const p = at(x, y, R(), R()); g.fillStyle = R() < .5 ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.12)'; g.fillRect(p[0], p[1], 1.2, 1.2); }
       const rr = isRoadLine(y), rc = isRoadLine(x);
-      if (rr && !rc && y % 11 === 0 && x % 2 === 0) { // dashed centre line on the edge between the two lanes (row road)
-        const [ax, ay] = iso(x, y + 1), [bx2, by2] = iso(x + 1, y + 1); g.strokeStyle = '#e7c34a'; g.lineWidth = 2; g.beginPath(); g.moveTo(ox + ax + (bx2 - ax) * .2, oy + ay + (by2 - ay) * .2); g.lineTo(ox + ax + (bx2 - ax) * .8, oy + ay + (by2 - ay) * .8); g.stroke();
+      if (v === T.ROAD && rr !== rc) { // lane wear: two darker wheel paths per lane
+        [.3, .7].forEach((t0) => { const a = rr ? at(x, y, 0, t0) : at(x, y, t0, 0), b = rr ? at(x, y, 1, t0) : at(x, y, t0, 1); seg(a, b, 'rgba(0,0,0,.09)', 4); });
       }
-      if (rc && !rr && x % 11 === 0 && y % 2 === 0) {
-        const [ax, ay] = iso(x + 1, y), [bx2, by2] = iso(x + 1, y + 1); g.strokeStyle = '#e7c34a'; g.lineWidth = 2; g.beginPath(); g.moveTo(ox + ax + (bx2 - ax) * .2, oy + ay + (by2 - ay) * .2); g.lineTo(ox + ax + (bx2 - ax) * .8, oy + ay + (by2 - ay) * .8); g.stroke();
+      if (R() < .07) { g.strokeStyle = 'rgba(15,17,20,.55)'; g.lineWidth = .8; g.beginPath(); let p = at(x, y, .2 + R() * .3, .2 + R() * .3); g.moveTo(p[0], p[1]); for (let s2 = 0; s2 < 4; s2++) { p = [p[0] + (R() - .3) * 9, p[1] + (R() - .5) * 5]; g.lineTo(p[0], p[1]); } g.stroke(); }
+      if (R() < .05) { const u = .1 + R() * .4, vv = .1 + R() * .4, s2 = .3 + R() * .2; poly([at(x, y, u, vv), at(x, y, u + s2, vv), at(x, y, u + s2, vv + s2), at(x, y, u, vv + s2)], 'rgba(20,22,26,.35)'); }
+      if (v === T.LOT && R() < .3) { const p = at(x, y, .3 + R() * .4, .3 + R() * .4); g.fillStyle = 'rgba(10,10,12,.28)'; g.beginPath(); g.ellipse(p[0], p[1], 6 + R() * 5, 3 + R() * 2, 0, 0, Math.PI * 2); g.fill(); }
+      if (v === T.LOT && (x + y) % 2 === 0) { seg(at(x, y, 0, .05), at(x, y, 0, .62), 'rgba(250,250,245,.75)', 1.4); seg(at(x, y, 0, .05), at(x, y, .12, .05), 'rgba(250,250,245,.6)', 1.4); }
+      if (v === T.ROAD) {
+        const nearX = (k2) => x % 11 === k2, nearY = (k2) => y % 11 === k2;
+        // double yellow centre line between the two lanes, kept out of crosswalks and intersections
+        if (rr && !rc && y % 11 === 0 && x % 11 >= 3 && x % 11 <= 9) { [-.05, .05].forEach((d) => seg(at(x, y, 0, 1 + d), at(x, y, 1, 1 + d), '#e2b93b', 1.3)); }
+        if (rc && !rr && x % 11 === 0 && y % 11 >= 3 && y % 11 <= 9) { [-.05, .05].forEach((d) => seg(at(x, y, 1 + d, 0), at(x, y, 1 + d, 1), '#e2b93b', 1.3)); }
+        // white edge lines along the curbs
+        if (rr && !rc && x % 11 >= 3 && x % 11 <= 9) { if (y % 11 === 0) seg(at(x, y, 0, .1), at(x, y, 1, .1), 'rgba(240,240,236,.75)', 1.1); else seg(at(x, y, 0, .9), at(x, y, 1, .9), 'rgba(240,240,236,.75)', 1.1); }
+        if (rc && !rr && y % 11 >= 3 && y % 11 <= 9) { if (x % 11 === 0) seg(at(x, y, .1, 0), at(x, y, .1, 1), 'rgba(240,240,236,.75)', 1.1); else seg(at(x, y, .9, 0), at(x, y, .9, 1), 'rgba(240,240,236,.75)', 1.1); }
+        // zebra crosswalks and stop bars
+        if (rr && !rc && (nearX(2) || nearX(10))) { for (let s2 = 0; s2 < 6; s2++) { const u = .12 + s2 * .14; poly([at(x, y, u, .04), at(x, y, u + .08, .04), at(x, y, u + .08, .96), at(x, y, u, .96)], 'rgba(244,244,240,.88)'); } }
+        if (rc && !rr && (nearY(2) || nearY(10))) { for (let s2 = 0; s2 < 6; s2++) { const u = .12 + s2 * .14; poly([at(x, y, .04, u), at(x, y, .96, u), at(x, y, .96, u + .08), at(x, y, .04, u + .08)], 'rgba(244,244,240,.88)'); } }
+        if (rr && !rc && nearX(3)) seg(at(x, y, .12, y % 11 === 0 ? .1 : .1), at(x, y, .12, .95), 'rgba(244,244,240,.8)', 2.4);
+        if (rr && !rc && nearX(9)) seg(at(x, y, .88, .05), at(x, y, .88, .9), 'rgba(244,244,240,.8)', 2.4);
+        if (rc && !rr && nearY(3)) seg(at(x, y, .1, .12), at(x, y, .95, .12), 'rgba(244,244,240,.8)', 2.4);
+        if (rc && !rr && nearY(9)) seg(at(x, y, .05, .88), at(x, y, .9, .88), 'rgba(244,244,240,.8)', 2.4);
       }
-      if (rr && !rc && (x % 11 === 2 || x % 11 === 10)) { g.strokeStyle = 'rgba(240,240,240,.85)'; g.lineWidth = 3; for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(cx + k * 6 - 6, cy + k * 3 - 3 + 3); g.lineTo(cx + k * 6 + 6, cy + k * 3 + 3 - 9); g.stroke(); } }
-      if (rc && !rr && (y % 11 === 2 || y % 11 === 10)) { g.strokeStyle = 'rgba(240,240,240,.85)'; g.lineWidth = 3; for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(cx + k * 6 - 6, cy - k * 3 + 3); g.lineTo(cx + k * 6 + 6, cy - k * 3 + 9); g.stroke(); } }
+    } else if (v === T.WALK) {
+      // concrete slabs: two per tile, seams in the joints, a little staining
+      seg(at(x, y, .5, 0), at(x, y, .5, 1), 'rgba(0,0,0,.10)', .9); seg(at(x, y, 0, .5), at(x, y, 1, .5), 'rgba(0,0,0,.10)', .9);
+      seg(at(x, y, .51, 0), at(x, y, .51, 1), 'rgba(255,255,255,.18)', .6);
+      for (let i = 0; i < 8; i++) { const p = at(x, y, R(), R()); g.fillStyle = R() < .5 ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.12)'; g.fillRect(p[0], p[1], 1.4, 1.4); }
+      if (R() < .12) { const p = at(x, y, .2 + R() * .6, .2 + R() * .6); g.fillStyle = 'rgba(60,50,40,.10)'; g.beginPath(); g.ellipse(p[0], p[1], 5 + R() * 4, 2.5 + R() * 2, 0, 0, Math.PI * 2); g.fill(); }
+    } else if (v === T.PLAZA) {
+      // pavers in a running bond with mortar joints
+      for (let r = 0; r < 4; r++) for (let q = 0; q < 2; q++) { const u0 = (q + (r % 2) * .5) / 2, a = Math.max(0, u0 - (r % 2 ? .5 : 0)), u1 = Math.min(1, u0 + .5); poly([at(x, y, u0 % 1, r / 4), at(x, y, Math.min(1, (u0 % 1) + .5), r / 4), at(x, y, Math.min(1, (u0 % 1) + .5), (r + 1) / 4), at(x, y, u0 % 1, (r + 1) / 4)], R() < .5 ? 'rgba(255,255,255,.05)' : 'rgba(120,90,60,.08)'); }
+      for (let r = 1; r < 4; r++) seg(at(x, y, 0, r / 4), at(x, y, 1, r / 4), 'rgba(90,70,50,.22)', .7);
+      for (let r = 0; r < 4; r++) { const u = r % 2 ? .25 : .5; seg(at(x, y, u, r / 4), at(x, y, u, (r + 1) / 4), 'rgba(90,70,50,.22)', .7); if (r % 2) seg(at(x, y, u + .5, r / 4), at(x, y, u + .5, (r + 1) / 4), 'rgba(90,70,50,.22)', .7); }
+    } else if (v === T.GRASS) {
+      // mottled lawn with blades, clover and the occasional flower
+      for (let i = 0; i < 3; i++) { const p = at(x, y, R(), R()); g.fillStyle = R() < .5 ? 'rgba(30,60,20,.14)' : 'rgba(150,190,90,.12)'; g.beginPath(); g.ellipse(p[0], p[1], 6 + R() * 8, 3 + R() * 4, 0, 0, Math.PI * 2); g.fill(); }
+      g.lineWidth = .8; for (let i = 0; i < 22; i++) { const p = at(x, y, R(), R()), l = 1.5 + R() * 2.2; g.strokeStyle = R() < .55 ? 'rgba(25,55,18,.5)' : 'rgba(170,215,110,.45)'; g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(p[0] + (R() - .5) * 1.4, p[1] - l); g.stroke(); }
+      if (R() < .14) { const p = at(x, y, .2 + R() * .6, .2 + R() * .6), fc = ['#fff8e1', '#ffd54f', '#f8bbd0', '#e1bee7'][Math.floor(R() * 4)]; for (let f = 0; f < 3; f++) { g.fillStyle = fc; g.beginPath(); g.arc(p[0] + (R() - .5) * 8, p[1] + (R() - .5) * 4, 1.1, 0, Math.PI * 2); g.fill(); } }
+    } else if (v === T.WATER) {
+      const gw = g.createRadialGradient(mx, my, 2, mx, my, 40); gw.addColorStop(0, 'rgba(255,255,255,.06)'); gw.addColorStop(1, 'rgba(0,20,40,.12)'); poly(P4, gw);
+      g.strokeStyle = 'rgba(220,240,255,.22)'; g.lineWidth = .9; for (let i = 0; i < 3; i++) { const p = at(x, y, R(), R()); g.beginPath(); g.moveTo(p[0] - 6, p[1]); g.quadraticCurveTo(p[0], p[1] - 2.2, p[0] + 6, p[1]); g.stroke(); }
+      [[x, y - 1, 0], [x + 1, y, 1], [x, y + 1, 2], [x - 1, y, 3]].forEach(([nx, ny, sd]) => { if (!isW(nx, ny) && W.at(nx, ny)) { band(x, y, sd, .18, 'rgba(200,235,250,.30)'); band(x, y, sd, .07, 'rgba(255,255,255,.35)'); } });
+    } else if (v === T.SAND) {
+      for (let i = 0; i < 26; i++) { const p = at(x, y, R(), R()); g.fillStyle = R() < .5 ? 'rgba(120,95,50,.18)' : 'rgba(255,250,230,.35)'; g.fillRect(p[0], p[1], 1, 1); }
+      g.strokeStyle = 'rgba(150,120,70,.18)'; g.lineWidth = .8; for (let i = 0; i < 2; i++) { const a = at(x, y, .1, .2 + i * .4 + R() * .1), b = at(x, y, .9, .25 + i * .4 + R() * .1); g.beginPath(); g.moveTo(a[0], a[1]); g.quadraticCurveTo((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 - 3, b[0], b[1]); g.stroke(); }
+    } else if (v === T.GRAVEL || v === T.RAIL) {
+      for (let i = 0; i < 40; i++) { const p = at(x, y, R(), R()); g.fillStyle = ['rgba(60,55,50,.45)', 'rgba(200,195,185,.45)', 'rgba(120,112,100,.5)'][i % 3]; g.beginPath(); g.ellipse(p[0], p[1], 1.2 + R(), .8 + R() * .5, 0, 0, Math.PI * 2); g.fill(); }
+      if (v === T.RAIL) {
+        for (let k2 = 0; k2 < 4; k2++) { const u = .12 + k2 * .25; poly([at(x, y, u, .08), at(x, y, u + .1, .08), at(x, y, u + .1, .92), at(x, y, u, .92)], '#5a4130'); seg(at(x, y, u, .08), at(x, y, u, .92), 'rgba(255,255,255,.12)', .5); }
+        [.3, .7].forEach((vv) => { seg(at(x, y, 0, vv), at(x, y, 1, vv), '#3d3f44', 2.2); seg(at(x, y, 0, vv - .02), at(x, y, 1, vv - .02), '#c9ccd1', .9); });
+      }
+    } else if (v === T.FENCE) {
+      g.strokeStyle = 'rgba(210,214,220,.6)'; g.lineWidth = .6; for (let k2 = 0; k2 <= 6; k2++) { seg(at(x, y, k2 / 6, 0), at(x, y, 0, k2 / 6), 'rgba(210,214,220,.45)', .6); seg(at(x, y, k2 / 6, 1), at(x, y, 1, k2 / 6), 'rgba(210,214,220,.45)', .6); }
     }
-    if (v === T.RAIL) { g.strokeStyle = '#4a3b2c'; g.lineWidth = 3; for (let k = 0; k < 4; k++) { g.beginPath(); g.moveTo(cx - 24 + k * 13, cy - 4 + k * 0); g.lineTo(cx - 18 + k * 13, cy + 6); g.stroke(); } g.strokeStyle = '#b8b8b8'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - 32, cy - 2); g.lineTo(cx, cy + 14); g.moveTo(cx - 22, cy - 8); g.lineTo(cx + 10, cy + 8); g.stroke(); }
-    if (v === T.FENCE) { g.strokeStyle = '#c7ccd1'; g.lineWidth = 1; for (let k = 0; k < 6; k++) { g.beginPath(); g.moveTo(cx - 24 + k * 9, cy - 10); g.lineTo(cx - 24 + k * 9, cy + 2); g.stroke(); } }
-    if (v === T.WATER) { g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 1; g.beginPath(); g.moveTo(cx - 10 + R() * 6, cy); g.quadraticCurveTo(cx, cy - 3, cx + 10, cy); g.stroke(); }
+    // contact shadow where the ground meets a building, and a soft edge where lawns meet paving
+    if (v !== T.BLDG && v !== T.WATER) [[x, y - 1, 0], [x + 1, y, 1], [x, y + 1, 2], [x - 1, y, 3]].forEach(([nx, ny, sd]) => {
+      const nv = W.at(nx, ny);
+      if (nv === T.BLDG) { band(x, y, sd, .32, 'rgba(0,0,0,.10)'); band(x, y, sd, .16, 'rgba(0,0,0,.12)'); }
+      else if (v === T.GRASS && (nv === T.WALK || nv === T.PLAZA || nv === T.ROAD)) band(x, y, sd, .08, 'rgba(20,40,10,.22)');
+    });
   }
-  // curbs: darker edge where a walkway meets a road
-  g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = 2;
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (W.at(x, y) === T.WALK) {
-    const e = (nx, ny, a, b) => { if (W.at(nx, ny) === T.ROAD) { const [ax, ay] = iso(a[0], a[1]), [bx2, by2] = iso(b[0], b[1]); g.beginPath(); g.moveTo(ox + ax, oy + ay); g.lineTo(ox + bx2, oy + by2); g.stroke(); } };
-    e(x + 1, y, [x + 1, y], [x + 1, y + 1]); e(x, y + 1, [x, y + 1], [x + 1, y + 1]); e(x - 1, y, [x, y], [x, y + 1]); e(x, y - 1, [x, y], [x + 1, y]);
+  // curbs: a lit curb top on the sidewalk side and a shadow where it drops to the road
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const v = W.at(x, y); if (v !== T.WALK && v !== T.PLAZA && v !== T.GRASS) continue;
+    [[x, y - 1, 0], [x + 1, y, 1], [x, y + 1, 2], [x - 1, y, 3]].forEach(([nx, ny, sd]) => { const nv = W.at(nx, ny); if (nv !== T.ROAD && nv !== T.LOT) return;
+      band(x, y, sd, .09, 'rgba(232,228,218,.95)'); band(x, y, sd, .025, 'rgba(255,255,255,.5)');
+      const e = sd === 0 ? [at(x, y, 0, 0), at(x, y, 1, 0)] : sd === 1 ? [at(x, y, 1, 0), at(x, y, 1, 1)] : sd === 2 ? [at(x, y, 0, 1), at(x, y, 1, 1)] : [at(x, y, 0, 0), at(x, y, 0, 1)];
+      seg([e[0][0], e[0][1] + 1.2], [e[1][0], e[1][1] + 1.2], 'rgba(0,0,0,.38)', 1.6); });
   }
   return { canvas: c, ox, oy };
 }
