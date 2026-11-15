@@ -39,6 +39,11 @@ export function buildDistrict(did) {
     [[ox, oy], [ox + 8, oy], [ox, oy + 8], [ox + 8, oy + 8]].forEach(([x, y]) => W.props.push({ t: 'lamp', x: x + .5, y: y + .5 }));
   }
   features(W, R);
+  // driveways: every paved lot gets curb cuts through the sidewalk to the road below it
+  W.lots.forEach((l) => {
+    if (l.sub) return; const { ox, oy } = l, propAt = (x, y) => W.props.some((p) => p.block && Math.floor(p.x) === x && Math.floor(p.y) === y);
+    [ox + 3, ox + 5, ox + 1, ox + 7].filter((x) => { const g = at(x, oy + 7); return (g === T.LOT || g === T.GRAVEL) && !propAt(x, oy + 7) && at(x, oy + 8) === T.WALK && at(x, oy + 9) === T.ROAD; }).slice(0, 2).forEach((x) => { set(x, oy + 7, T.LOT); set(x, oy + 8, T.LOT); });
+  });
   // gates to the neighbouring districts (west road and east road)
   W.gates.push({ to: (did + 4) % 5, x: 0, y: 11, dir: 'w' }, { to: (did + 1) % 5, x: D.river ? 33 : N - 1, y: D.river ? 0 : 22, dir: D.river ? 'n' : 'e' });
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = at(x, y); if (v === T.WALK) W.walk.push([x, y]); if (v === T.LOT) W.parking.push([x, y]); }
