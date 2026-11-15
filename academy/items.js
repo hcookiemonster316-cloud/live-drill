@@ -10,9 +10,8 @@ export const RARITY = {
 export const ORDER = ['c', 'u', 'r', 'e', 'l'];
 // the cadet outfit: everybody has these; pick one in the locker or at roll call
 export const OUTFITS = {
-  std: { name: 'Academy Standard', icon: '👔', kit: { shirt: '#1f2f50', pants: '#111827', hat: 'cap', hatCol: '#111827', patch: '#f5b800', boots: '#0b0b0b' }, perk: { rap: 1 }, text: 'Ironed academy polo, ironed BDU pants, shined boots, belt, name tag and the baseball cap.' },
-  pt: { name: 'Academy PT', icon: '🏃', kit: { shirt: '#9ca3af', pants: '#111827', shorts: true, socks: '#111', hat: 'none', boots: '#e5e7eb', camelbak: true }, perk: { speed: 10 }, text: 'PT shirt (tucked), PT shorts, PT shoes, all-black ankle socks and a full CamelBak with your agency ID inside.' },
-  grey: { name: 'Grey Polo (Car Kit)', icon: '🚗', kit: { shirt: '#6b7280', pants: '#111827', hat: 'none', patch: '#f5b800', boots: '#0b0b0b' }, perk: { com: 1 }, text: 'The backup grey polo from your car. For the day the coffee wins.' },
+  std: { name: 'Academy Standard', icon: '👔', kit: { shirt: '#7c8189', pants: '#4b5320', hat: 'cap', hatCol: '#111827', patch: '#f5b800', boots: '#0b0b0b' }, look: { twinkle: true }, perk: { rap: 1 }, text: 'Ironed medium grey academy polo, ironed OD green BDU pants, black boots shined until they twinkle, belt, name tag and the baseball cap.' },
+  pt: { name: 'Academy PT', icon: '🏃', kit: { shirt: '#c9cdd2', pants: '#111827', shorts: true, socks: '#111', hat: 'none', boots: '#e5e7eb', camelbak: true }, perk: { speed: 10 }, text: 'Light gray PT shirt (tucked), PT shorts, PT shoes, all-black ankle socks and a full CamelBak with your agency ID inside.' },
   unit: { name: 'Specialty Unit Kit', icon: '⭐', kit: null, perk: {}, text: 'Your specialty unit\'s training uniform.' }
 };
 // equipment slots: limited, and two of them open up as you rank up (RP needed)
