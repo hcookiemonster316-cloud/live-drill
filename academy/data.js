@@ -214,6 +214,10 @@ export const STATS = [
 ];
 // kit: uniform look. ride: vehicle look and handling. fav: lessons whose calls pay the unit's bonus.
 export const UNITS = [
+  { id: 'patrol', name: 'Patrol', icon: '🚓', color: '#1d4ed8', st: { res: 3, per: 3, rap: 3, com: 3, tac: 3 },
+    perk: 'Backbone of the department', perkText: 'Dispatch keeps you busy: calls come in 25% sooner and every call pays 10% more RP. Balanced at everything.', fav: [0, 1, 4, 6],
+    kit: { shirt: '#22355e', pants: '#1b2a4a', hat: 'cap', hatCol: '#16213d', patch: '#f5b800' },
+    ride: { kind: 'sedan', label: 'Marked patrol car', body: '#14171c', side: '#f2f2f2', stripe: null, bar: 'full', speed: 1.05, scale: 1.05, text: 'POLICE' } },
   { id: 'swat', name: 'SWAT', icon: '🛡️', color: '#4b5320', st: { res: 2, per: 3, rap: 1, com: 4, tac: 5 },
     perk: 'Entry team', perkText: 'Priority 1 calls pay 50% more RP. Building and area search calls come up more often.', fav: [17, 18, 1],
     kit: { shirt: '#3d4532', pants: '#2f3527', hat: 'helmet', hatCol: '#2b3022', vest: '#8a7a55', vestText: 'POLICE', patch: '#d8c99a' },

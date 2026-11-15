@@ -29,7 +29,7 @@ const gp = (k) => GT[k] || 0;
 const rapMult = () => 1 + (ST().rap - 3) * .1;
 const spotR = () => (3 + ST().per * .8) * (S.unit === 'k9' ? 2 : 1) + gp('spot');
 const callWait = () => 90 + ST().com * 20 + gp('wait'); // game minutes before another unit takes the call
-function callMult(c) { const u = U(); let m = (c.prio <= 2 ? 1 + (ST().tac - 3) * .1 : 1) * (1 + gp('rpCall') / 100); if (u.id === 'swat' && c.prio === 1) m *= 1.5; if ((DBL[u.id] || []).indexOf(c.les) >= 0) m *= 2; return m; }
+function callMult(c) { const u = U(); let m = (c.prio <= 2 ? 1 + (ST().tac - 3) * .1 : 1) * (1 + gp('rpCall') / 100); if (u.id === 'swat' && c.prio === 1) m *= 1.5; if (u.id === 'patrol') m *= 1.1; if ((DBL[u.id] || []).indexOf(c.les) >= 0) m *= 2; return m; }
 let pboat = null; const K9 = { x: 0, y: 0, face: 1, moving: false };
 
 // ---------- sound (tiny synth, no files) ----------
@@ -571,7 +571,7 @@ function openCallScene(c) {
   runQuestions('<div class="sceneHead p' + c.prio + '"><b>ON SCENE · ' + esc(c.where) + '</b><h2>' + esc(c.title) + '</h2><p>' + esc(c.text) + '</p></div>', qs, (r) => {
     S.calls++; const mult = callMult(c), xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
     openModal('<div class="sceneHead done"><b>CALL CLEARED</b><h2>' + r.right + ' of ' + r.n + ' handled by the book</h2><p>' + (fast ? 'Quick response bonus. ' : '') + (mult > 1.01 ? U().icon + ' ' + esc(U().perk) + ' bonus. ' : '') + (r.right === r.n ? 'Clean call. ' : 'Review what you missed in the hub.') + '</p></div>' + masteryLine() + '<div class="qAct"><button type="button" id="mDone">Back in service</button></div>');
-    $('mDone').onclick = () => { closeModal(); radio(S.cs, 'Clear, back in service.'); award(xp, 'call cleared'); queueLoot('Found on scene: ' + c.title, r.right === r.n ? .6 : .3); nextCall = 25 + Math.random() * 25; if (net) net.backup(null); };
+    $('mDone').onclick = () => { closeModal(); radio(S.cs, 'Clear, back in service.'); award(xp, 'call cleared'); queueLoot('Found on scene: ' + c.title, r.right === r.n ? .6 : .3); nextCall = (25 + Math.random() * 25) * (S.unit === 'patrol' ? .75 : 1); if (net) net.backup(null); };
   });
 }
 function streetLife(e) {
@@ -731,7 +731,29 @@ function rollCall() {
 function resize() { dpr = Math.min(2, window.devicePixelRatio || 1); cw = innerWidth; ch = innerHeight; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; if (!S.zoom) cam.z = cw < 600 ? .85 : 1.15; else cam.z = S.zoom; }
 addEventListener('resize', resize); resize();
 function frame(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; if (W) { update(dt, now); smoothOthers(dt); render(now); } requestAnimationFrame(frame); }
+// ---------- the unlock from the study hub ----------
+// The hub opens this page with a pass code once the cadet passes a 100-question test at 92% or better.
+function hubCheck(s) { let h = 2166136261; const t = s + '|patrol-city'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }
+function unlocked() {
+  const q = new URLSearchParams(location.search), code = q.get('pass');
+  if (/[?&]mock\b/.test(location.search)) return true;
+  if (code) {
+    const [body, sig] = code.split('.');
+    try { const d = JSON.parse(decodeURIComponent(escape(atob(body.replace(/-/g, '+').replace(/_/g, '/'))))); if (sig === hubCheck(body) && d.n >= 100 && d.p >= 92) { localStorage.setItem('patrolcity:pass', JSON.stringify(d)); } } catch (e) {}
+    q.delete('pass'); try { history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '')); } catch (e) {}
+  }
+  try { const d = JSON.parse(localStorage.getItem('patrolcity:pass') || 'null'); return !!(d && d.n >= 100 && d.p >= 92); } catch (e) { return false; }
+}
+function lockedScreen() {
+  const hub = 'https://claude.ai/artifact/FCt8dGZe3PWnASYvu2u6iF';
+  $('loading').hidden = true; const st = $('start'); st.hidden = false;
+  st.innerHTML = '<div class="stBox lockBox"><div class="stBrand"><span class="stBadge">🔒</span><div><b>PATROL CITY</b><small>Learn the job on the street · Chapter 5</small></div></div>' +
+    '<h2 class="lockH">Earn your way onto the street</h2><p class="lockP">Patrol City opens from your Chapter 5 study hub once you pass a <b>100-question test with 92% or better</b>. Then tap <b>Play Patrol City</b> in the hub\'s Game Center and you\'re in for good on this device.</p>' +
+    '<a class="stGo lockGo" href="' + hub + '">Open the study hub</a><p class="stFine">Already unlocked on another device? Open Patrol City from the hub on this one too.</p></div>';
+}
+
 (async function boot() {
+  if (!unlocked()) { lockedScreen(); return; }
   $('loading').textContent = 'Loading the city…';
   try { await L.loadBank('../ch5.json'); } catch (e) { $('loading').textContent = 'Could not load the question bank. Check your connection and refresh.'; return; }
   $('loading').hidden = true;

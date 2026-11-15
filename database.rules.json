@@ -126,7 +126,7 @@
                 ".validate": "newData.val() === $s"
               },
               "u": {
-                ".validate": "newData.isString() && newData.val().matches(/^(swat|k9|neg|marine|brt|hoi|det|sro)$/)"
+                ".validate": "newData.isString() && newData.val().matches(/^(patrol|swat|k9|neg|marine|brt|hoi|det|sro)$/)"
               },
               "st": {
                 ".validate": "newData.isString() && newData.val().matches(/^(patrol|call)$/)"
