@@ -492,6 +492,36 @@
             }
           }
         }
+      },
+      "lb": {
+        "$w": {
+          ".read": "auth != null && $w.matches(/^[0-9]{4}w[0-9]{2}$/)",
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['c','rp','t'])",
+            "c": {
+              ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 20"
+            },
+            "rp": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 1000000"
+            },
+            "f": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 600"
+            },
+            "w": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 10000"
+            },
+            "g": {
+              ".validate": "newData.isString() && newData.val().length <= 4"
+            },
+            "t": {
+              ".validate": "newData.isNumber()"
+            },
+            "$o": {
+              ".validate": false
+            }
+          }
+        }
       }
     }
   }
