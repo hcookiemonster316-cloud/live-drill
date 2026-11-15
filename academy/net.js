@@ -65,6 +65,11 @@ export async function startNet(onPlayers) {
     dmPath(uid) { return 'mmo/dm/' + [db.uid, uid].sort().join('_'); },
     dmSend(uid, m, cs) { N.post(N.dmPath(uid), { c: cs, m }); return db.set('mmo/ib/' + uid + '/' + db.uid, { c: cs, m: m.slice(0, 80), t: db.TS }); },
     inboxPath() { return 'mmo/ib/' + db.uid; },
+    // mini games: rooms at mmo/gm/{code} (m = host's meta, p/{uid} = each player's own entry), open lobbies at mmo/gl/{district}
+    gset: (p, v) => db.set(p, v), gupd: (p, v) => db.update(p, v), grm: (p) => db.remove(p), gget: (p) => db.get(p),
+    gon(p, cb) { const f = db.on(p, (v) => cb(v)); return typeof f === 'function' ? f : () => {}; },
+    gbye(p) { try { db.onLeave(p, null); } catch (e) {} },
+    TS: db.TS,
     leave() { if (base) { try { db.remove(base + '/' + db.uid); } catch (e) {} } stops.forEach((f) => typeof f === 'function' && f()); stops = []; base = null; clearInterval(timer); }
   };
   addEventListener('pagehide', () => N.leave());

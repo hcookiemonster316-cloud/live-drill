@@ -58,6 +58,14 @@ function factQuestion(f) {
   return { id: 'P' + qi, fid: f.id, kind: 'fact', les: f.les, stem: r[0], opts: order.map((i) => r[1][i]), c: multi ? r[2].map((k) => order.indexOf(k)) : order.indexOf(r[2]), multi, ex: r[4] || f.text, pg: r[5] || f.pg, fact: f.text };
 }
 export function fact(S, lesson) { const p = FACTS.filter((f) => f.les === lesson); if (!p.length) return null; const open = p.filter((f) => !(S.facts || {})[f.id]), from = open.length ? open : p, f = from[Math.floor(Math.random() * from.length)]; return { id: f.id, text: f.text, pg: f.pg, les: lesson, done: !!(S.facts || {})[f.id] }; }
+// the same question on every player's screen: a fixed fact and pool question, options shuffled by a shared random source
+export function factQFixed(fid, qi, r) {
+  const f = FACTS.find((x) => x.id === fid); if (!f) return null; const q = POOL[qi] || POOL[f.qs[0]], n = q[1].length, order = q[1].map((_, i) => i);
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  return { id: 'P' + qi, fid: f.id, kind: 'fact', les: f.les, stem: q[0], opts: order.map((i) => q[1][i]), c: order.indexOf(q[2]), multi: false, ex: q[4] || f.text, pg: q[5] || f.pg, fact: f.text };
+}
+// for a host picking a round: facts (open ones first) with a single-answer question each, as [fid, poolIndex]
+export function pickFactIds(S, lessons, n) { const done = S.facts || {}, all = shuffle(factList(lessons)); all.sort((a, b) => (done[a.id] ? 1 : 0) - (done[b.id] ? 1 : 0)); return all.slice(0, n).map((f) => { const ok = f.qs.filter((k) => POOL[k] && !Array.isArray(POOL[k][2])); const from = ok.length ? ok : f.qs; return [f.id, from[Math.floor(Math.random() * from.length)]]; }); }
 export function factQ(id) { const f = FACTS.find((x) => x.id === id); return f ? factQuestion(f) : null; }
 // questions for n facts, open facts first (then ones missed recently)
 // every question is a fact: facts you haven't learned come first and a learned fact never comes back while any are left.

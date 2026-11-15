@@ -7,8 +7,10 @@ import { peopleFor } from './npcgen.js';
 import { WORLD, LORE, CAST, CHAPTERS, SIDE, MAIN_TITLE } from './story.js';
 import { SIDE2, SIDE_CAST, LORE2 } from './sidequests.js';
 import { VOICES, ANYONE } from './voices.js';
+import { createMiniGames } from './minigames.js';
 SIDE2.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); LORE2.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); });
 import { createMusic } from './music.js';
+import { createScore } from './score.js';
 import { BRANCHES, SKILLS, skillById, skillPoints, canLearn } from './skills.js';
 import { ITEMS, RARITY, SLOTS, OUTFITS, itemById, slotOf, roll, reveal, collectionHTML, equipHTML, itemCardHTML, gearTotals, looks } from './items.js';
 import { ENTER, buildInterior, drawFurn, staffDraw, visitorDraw, STAFF_LINES } from './interiors.js';
@@ -127,7 +129,7 @@ function load(did) {
   exploreInit(); liveInit(); placeRegulars(); ambienceInit(); SS = { rp: 0, calls: 0, right: 0, answered: 0, ords: {} }; COMBO = 0; bestCombo = 0; ordersInit(); comboHud(); abilitiesInit(); $('hExp').textContent = 'Explored ' + Math.floor(exCount / exTotal * 100) + '%';
   cam.x = iso(P.x, P.y)[0]; cam.y = iso(P.x, P.y)[1]; cam.free = false;
   hud(); radio('Dispatch', 'All units, ' + shiftOf().name.toLowerCase() + ' in ' + W.D.name + ' is on. ' + S.cs + ', you are in service.');
-  CHAT.list = []; CHAT.seen = new Set(); if (net && net.chatOn) net.chatOn(did, chatIn);
+  CHAT.list = []; CHAT.seen = new Set(); if (net && net.chatOn) net.chatOn(did, chatIn); if (MG) MG.watch(did);
   if (net) Promise.resolve(net.join(did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {});
 }
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
@@ -309,6 +311,11 @@ function render(now) {
   if ((MINI_N = (MINI_N + 1) % 3) === 0) drawMini();
 }
 const N0 = () => (net ? net.now() : Date.now());
+// the Rec Room: multiplayer mini games (see minigames.js)
+const MG = createMiniGames({ get net() { return net; }, now: () => N0(), esc: (x) => esc(x), S, L, PHON: PHONETIC, beep: (...a) => { if (S.sound) beep(...a); }, toast: (m) => toast(m), saveS: () => saveS(),
+  award: (n, why) => award(n, why), stat: (k) => stat(k), cs: () => S.cs, icon: () => U().icon, did: () => W.did, dname: () => W.D.name, lessons: () => W.D.lessons,
+  pause: (on) => { paused = on; if (on) { P.path = []; } if (S.sound) music.start(on ? 'title' : moodNow()); },
+  get squadPost() { return net && S.squad ? (m) => { try { net.post(net.sqChatPath(S.squad.code), { c: S.cs, m }); } catch (e) {} } : null; } });
 function laneOff(c) { return [[0, .22], [-.22, 0], [0, -.22], [.22, 0]][c.dir] || [0, 0]; }
 function markerPoints() { const m = []; if (call) m.push(iso(call.x, call.y)); infos.forEach((i) => m.push(iso(i.x, i.y))); observes.forEach((o) => o.seen && m.push(iso(o.x, o.y))); citizens.forEach((c) => m.push(iso(c.x, c.y))); return m; }
 function ring(sx, sy, col, now) { const k = (now % 1400) / 1400; ctx.strokeStyle = col; ctx.globalAlpha = 1 - k; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(sx, sy, 12 + k * 26, (12 + k * 26) / 2, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
@@ -872,7 +879,7 @@ function loreCheck(dt) {
   if (fresh.length) { saveS(); loreQ.push(fresh); stat('lore', fresh.length); setTimeout(lorePop, 300); }
 }
 function lorePop() {
-  if (loreBusy || !loreQ.length) return; if (scene || storyBusy || looting || !$('modal').hidden || !$('dlg').hidden) { setTimeout(lorePop, 700); return; }
+  if (loreBusy || !loreQ.length) return; if (scene || storyBusy || looting || MG.busy || !$('modal').hidden || !$('dlg').hidden) { setTimeout(lorePop, 700); return; }
   loreBusy = true; const es = loreQ.shift(), e = es[0], many = es.length > 1, tot = LORE.length, have = LORE.filter((x) => S.lore[x.id]).length;
   const el = document.createElement('div'); el.className = 'lorePop';
   el.innerHTML = '<canvas class="lpFx"></canvas><div class="lpCard"><div class="lpBook"><span>📜</span></div><small>' + (many ? es.length + ' lore entries discovered' : 'Lore discovered') + ' · ' + have + ' of ' + tot + '</small><h2>' + esc(many ? es.map((x) => x.title).join(' · ') : e.title) + '</h2><p>' + esc(many ? 'New pages in your Field Journal.' : e.text) + '</p><div class="lpBtns"><button type="button" data-a="read">' + 'Read in journal' + '</button><button type="button" class="ghost" data-a="ok">Back to patrol</button></div></div>';
@@ -993,7 +1000,7 @@ function attractUpdate(dt, now) {
 }
 function endAttract() { ATTRACT = false; document.body.classList.remove('attract'); musT = 0; }
 // adaptive score (music.js): the mood follows what is happening on the street
-const music = createMusic(() => audio());
+const music = createScore(() => audio(), createMusic(() => audio())); // the recorded Patrol City score, with the synth score as a fallback
 // browsers only let audio start from a tap or key press: every tap makes sure the music is actually running
 // (this also wakes it after the phone locks or the tab goes to the background)
 ['pointerdown', 'touchend', 'keydown'].forEach((ev) => addEventListener(ev, () => { if (!S.sound) return; const a = audio(); if (!a) return; if (a.state !== 'running' && a.resume) { try { const r = a.resume(); if (r && r.catch) r.catch(() => {}); } catch (e) {} } if (!music.mood) { try { music.volume(S.cfg ? S.cfg.music : .8); music.start(ATTRACT ? 'title' : moodNow()); } catch (e) {} } }, { passive: true, capture: true }));
@@ -1808,6 +1815,7 @@ TROPHIES.push(
 );
 TROPHIES.push(['fact1', 'Know This', 'Complete your first fact.', 'b', () => Object.keys(S.facts || {}).length >= 1], ['fact100', 'Fact Finder', 'Complete 100 facts.', 's', () => Object.keys(S.facts || {}).length >= 100], ['factall', 'Every Fact in the Chapter', 'Complete all 558 facts.', 'g', () => Object.keys(S.facts || {}).length >= 558], ['final1', 'Transfer Orders', 'Pass a District Final Call.', 's', () => st('finals') >= 1], ['exam', 'Chapter 5: Passed', 'Pass the Chapter 5 Final Exam.', 'g', () => !!S.graduated]);
 TROPHIES.push(['lore1', 'Local History', 'Discover a piece of lore out in the city.', 'b', () => LORE.some((e) => e.when.slice(0, 6) === 'visit:' && S.lore[e.id])], ['lore20', 'Town Historian', 'Discover 20 lore entries.', 's', () => LORE.filter((e) => S.lore[e.id]).length >= 20], ['loreall', 'Keeper of Port Meridian', 'Discover every lore entry.', 'g', () => LORE.every((e) => S.lore[e.id])], ['side10d', 'Neighborhood Fixture', 'Close all ten side cases in one district.', 's', () => DISTRICTS.some((D) => SIDE.filter((q) => q.d === D.id).every(sideClosed))], ['side25', 'Busy Beat', 'Close 25 side cases.', 's', () => SIDE.filter(sideClosed).length >= 25]);
+TROPHIES.push(['mg1', 'Rec Room Regular', 'Play a mini game.', 'b', () => st('mg') >= 1], ['mgwin', 'Class Champion', 'Win a multiplayer mini game against other cadets.', 's', () => st('mgwin') >= 1], ['mgall', 'Well-Rounded', 'Play all four mini games.', 's', () => ['bowl', 'relay', 'bolo', 'run'].every((g) => st('mg_' + g) >= 1)], ['mgace', 'Fact Bowl Ace', 'Score 5,600 or more in Fact Bowl.', 'g', () => st('mgbowlace') >= 1], ['mg10', 'Reigning Champ', 'Win 10 multiplayer mini games.', 'g', () => st('mgwin') >= 10]);
 TROPHIES.push(['plat', 'Port Meridian\'s Finest', 'Earn every other trophy.', 'p', () => TROPHIES.every((t) => t[0] === 'plat' || (S.trophies || {})[t[0]])]);
 const TIER = { b: ['Bronze', '#cd7f32'], s: ['Silver', '#c9d2dd'], g: ['Gold', '#f5b800'], p: ['Platinum', '#9ee7ff'] };
 let trT = 3, trQ = [], trBusy = false;
@@ -1848,7 +1856,7 @@ function pauseMenu() {
   if (ATTRACT || PHOTO || !$('start').hidden) return; const el = fe(); if (!el.hidden) return;
   const was = paused; paused = true; PAUSED_BY_MENU = true; el.hidden = false; el.className = 'fe pauseBg';
   const close = () => { el.hidden = true; el.innerHTML = ''; el.className = 'fe'; paused = was; PAUSED_BY_MENU = false; };
-  const items = [['Resume', close], ['Field Journal', () => { close(); journal(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
+  const items = [['Resume', close], ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
   function pauseMenuAgain() { el.hidden = true; paused = was; PAUSED_BY_MENU = false; pauseMenu(); }
   const h = hourNow(), hh = String(Math.floor(h)).padStart(2, '0') + String(Math.floor((h % 1) * 60)).padStart(2, '0');
   el.innerHTML = '<div class="pmBox"><div class="pmHead"><small>' + esc(W.D.name) + ' · ' + hh + ' hrs</small><h2>Paused</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + ' · ' + esc(L.rankOf(S.xp).name) + '</p></div><div class="tiMenu pm">' + items.map((x, i) => '<button type="button" data-i="' + i + '"' + (i === 0 ? ' class="pri"' : '') + '><b>' + x[0] + '</b></button>').join('') + '</div><div class="pmFoot">' + (activeQ() ? '<b>' + esc(activeQ().title) + '</b> · ' + esc(activeQ().step.goal) : 'Patrol your district') + '</div></div>';
@@ -1950,7 +1958,7 @@ function lockedScreen() {
   try { await L.loadBank('../ch5.json'); await L.loadFacts('facts.json'); S.facts = Object.fromEntries(Object.entries(S.facts || {}).filter(([k]) => k[0] === 'F')); } catch (e) { $('loading').textContent = 'Could not load the question bank. Check your connection and refresh.'; return; }
   $('loading').hidden = true;
   attractStart(); requestAnimationFrame(frame); applyCfg(); if (FAST) { S.seenIntro = 1; startScreen(); } else bootSequence(titleScreen);
-  try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
+  try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); MG.watch(W.did); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { S, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { S, MG, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };

@@ -382,6 +382,116 @@
             }
           }
         }
+      },
+      "gm": {
+        "$code": {
+          ".read": "auth != null && $code.matches(/^[A-Z0-9]{5}$/)",
+          "m": {
+            ".write": "auth != null && (!data.exists() || data.child('h').val() === auth.uid)",
+            ".validate": "newData.hasChildren(['g','h','st','t'])",
+            "g": {
+              ".validate": "newData.isString() && newData.val().matches(/^(bowl|relay|bolo|run)$/)"
+            },
+            "h": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 128"
+            },
+            "st": {
+              ".validate": "newData.isString() && newData.val().matches(/^(lobby|play|done)$/)"
+            },
+            "t": {
+              ".validate": "newData.isNumber()"
+            },
+            "t0": {
+              ".validate": "newData.isNumber()"
+            },
+            "seed": {
+              ".validate": "newData.isNumber()"
+            },
+            "d": {
+              ".validate": "newData.isNumber()"
+            },
+            "n": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24"
+            },
+            "fq": {
+              ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 400"
+            },
+            "$o": {
+              ".validate": false
+            }
+          },
+          "p": {
+            "$uid": {
+              ".write": "auth != null && (auth.uid === $uid || root.child('mmo/gm/' + $code + '/m/h').val() === auth.uid)",
+              ".validate": "newData.hasChildren(['c','t'])",
+              "c": {
+                ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 20"
+              },
+              "t": {
+                ".validate": "newData.isNumber()"
+              },
+              "u": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16"
+              },
+              "x": {
+                ".validate": "newData.isNumber()"
+              },
+              "f": {
+                ".validate": "newData.isNumber()"
+              },
+              "a": {
+                "$r": {
+                  ".validate": "$r.matches(/^[0-9]{1,2}$/) && newData.hasChildren(['k','ms'])",
+                  "k": {
+                    ".validate": "newData.isNumber()"
+                  },
+                  "ms": {
+                    ".validate": "newData.isNumber()"
+                  },
+                  "k2": {
+                    ".validate": "newData.isNumber()"
+                  },
+                  "ms2": {
+                    ".validate": "newData.isNumber()"
+                  },
+                  "$o": {
+                    ".validate": false
+                  }
+                }
+              },
+              "$o": {
+                ".validate": false
+              }
+            }
+          }
+        }
+      },
+      "gl": {
+        "$d": {
+          ".read": "auth != null",
+          "$code": {
+            ".write": "auth != null && (!data.exists() || data.child('h').val() === auth.uid)",
+            ".validate": "!newData.exists() || newData.hasChildren(['g','h','c','t'])",
+            "g": {
+              ".validate": "newData.isString() && newData.val().matches(/^(bowl|relay|bolo|run)$/)"
+            },
+            "h": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 128"
+            },
+            "c": {
+              ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 20"
+            },
+            "t": {
+              ".validate": "newData.isNumber()"
+            },
+            "n": {
+              ".validate": "newData.isNumber()"
+            },
+            "$o": {
+              ".validate": false
+            }
+          }
+        }
       }
     }
   }
