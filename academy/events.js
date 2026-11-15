@@ -26,6 +26,19 @@ export function eventOfWeek(d) {
   d = d || new Date(); const s = season(d), y = d.getFullYear(), j4 = new Date(y, 6, 4); if (Math.abs(d - j4) < 4 * 864e5) return EVENTS.find((e) => e.id === 'july4');
   const pool = EVENTS.filter((e) => !e.date && (!e.season || e.season === s.id)), k = hash(weekKey()) % pool.length; return pool[k];
 }
+// what each event gives volunteers at 5 tasks: an outfit touch and a car skin
+export const EV_GEAR = {
+  parade: { outfit: 'Parade dress: gold cord and campaign hat', look: { cord: '#f5b800', brass: true, hat: 'campaign', hatCol: '#1e3a8a' }, skin: { stripe: '#f5b800', text: 'FOUNDERS DAY' } },
+  nightmarket: { outfit: 'Night Market lantern glow', look: { glow: true, hat: 'cap', hatCol: '#be123c' }, skin: { stripe: '#f43f5e', text: 'NIGHT MARKET' } },
+  riverfest: { outfit: 'River Fest boonie hat', look: { hat: 'boonie', hatCol: '#0e7490' }, skin: { stripe: '#14b8a6', text: 'RIVER FEST' } },
+  homecoming: { outfit: 'Gators homecoming cap and cord', look: { hat: 'cap', hatCol: '#15803d', cord: '#f97316' }, skin: { stripe: '#16a34a', text: 'GO GATORS' } },
+  rigshow: { outfit: 'Big Rig Show safety vest', look: { vest: true, hat: 'cap', hatCol: '#d4ff3a' }, skin: { stripe: '#f97316', text: 'BIG RIG SHOW' } },
+  lawday: { outfit: 'Law Day clipboard and brass', look: { clipboard: true, brass: true }, skin: { stripe: '#9333ea', text: 'LAW DAY' } },
+  hurricane: { outfit: 'Storm poncho and boonie', look: { poncho: true, hat: 'boonie', hatCol: '#4d5e3a' }, skin: { stripe: '#0ea5e9', text: 'STORM READY' } },
+  july4: { outfit: 'Fourth of July cord and shine', look: { cord: '#dc2626', brass: true, shine: 1 }, skin: { stripe: '#dc2626', text: 'JULY 4TH' } }
+};
+// daily challenges: three a day, picked from the date, measured by the same counters as trophies
+const DAILY = [['stops', 2, 'Make 2 traffic stops', '🚓'], ['self_plate', 3, 'Run 3 plates', '🔍'], ['fish', 1, 'Catch a fish', '🎣'], ['right', 10, 'Answer 10 questions right', '🧠'], ['helped', 2, 'Help 2 regulars with a question', '🤝'], ['mg', 1, 'Play a Rec Room game', '🎮'], ['pt', 1, 'Finish a PT workout', '🏋️'], ['meals', 1, 'Grab a bite off duty', '🍽️'], ['evtasks', 2, 'Help at this week\'s city event', '🎪'], ['self', 3, 'Do 3 self-initiated activities', '🧭'], ['rides', 1, 'Do a ride-along', '🚒'], ['pigeons', 2, 'Count 2 pigeon flocks', '🐦'], ['insp', 1, 'Stand uniform inspection', '🎖️'], ['tips', 1, 'Ask a regular if they\'ve seen anything', '👂'], ['arcParts', 1, 'Play a part of a friendship story', '💛'], ['inside', 2, 'Go inside 2 buildings', '🚪'], ['photos', 1, 'Take a photo in Photo Mode', '📸']];
 const TASKS = {
   any: [['🚦', 'Traffic post', 'Cars are backing up at the closure. A driver leans out the window.', [['Calmly point them to the detour and keep traffic moving', 1], ['Wave everyone through the closure', 0], ['Argue with the driver', 0]]],
     ['🧒', 'Lost child', 'A girl in a festival T-shirt can\'t find her dad.', [['Stay with her, get a description and radio it out', 1], ['Tell her to wait by the stage alone', 0], ['Walk the whole festival with her', 0]]],
@@ -75,6 +88,7 @@ export function installEvents(H) {
   function contribute() {
     const k = weekKey() + ev.id; S.evMine[k] = (S.evMine[k] || 0) + 1; H.saveS(); const net = H.net(); if (net) { try { net.gset('mmo/ev/' + weekKey() + '/' + ev.id + '/' + net.uid, S.evMine[k]); } catch (e) {} } else evSum++;
     const n = S.evMine[k]; if (n === 5 || n === 15) H.queueLoot(ev.name + ' volunteer', 1, n === 15 ? 'e' : 'u');
+    if (n === 5 && EV_GEAR[ev.id] && !(S.evGear || {})[ev.id]) { S.evGear = S.evGear || {}; S.evGear[ev.id] = Date.now(); H.saveS(); H.banner(ev.icon, 'Event gear unlocked', EV_GEAR[ev.id].outfit + ' and a ' + EV_GEAR[ev.id].skin.text + ' car skin. Wear them from Collections.'); H.stat('evgear'); }
   }
   function runTask(t) {
     const [icon, title, text, opts] = t.k, id = H.sayAs('evp', { name: title, icon, role: ev.name }), les = H.W.D.lessons.indexOf(15) >= 0 ? [15, 16] : H.W.D.lessons;
@@ -91,8 +105,12 @@ export function installEvents(H) {
       '<div class="colGrid"><div><span>🎖️</span><b>' + pc + '/25</b><small>Department patches</small></div><div><span>🐦</span><b>' + fl + '/30</b><small>Flocks counted · ' + tot + ' pigeons</small></div><div><span>📸</span><b>' + ap + '/' + named.length + '</b><small>Landmarks photographed</small></div></div>' +
       '<div class="jSec"><b>Patches by district</b></div><div class="colRow">' + [0, 1, 2, 3, 4].map((d) => '<span>' + H.dname(d) + ': ' + [0, 1, 2, 3, 4].map((i) => S.patches[d + ':' + i] ? '🎖️' : '▫️').join('') + '</span>').join('') + '</div>' +
       '<div class="jSec"><b>Photo album</b></div><div class="colAlbum">' + named.map((n) => '<span class="' + (S.album[n.k] ? 'has' : '') + '">' + (S.album[n.k] ? '📸 ' : '◻️ ') + H.esc(n.name) + '</span>').join('') + '</div>' +
-      '<div class="qAct"><button type="button" id="mClose">Close</button></div>');
+      '<div class="jSec"><b>Event gear (earned at 5 event tasks)</b></div><div class="rides">' + Object.keys(EV_GEAR).map((id) => { const g = EV_GEAR[id], own = (S.evGear || {})[id], e = EVENTS.find((x) => x.id === id); return '<div class="evGear' + (own ? '' : ' locked') + '"><span>' + (own ? e.icon : '🔒') + '</span><b>' + H.esc(e.name) + '</b><small>' + H.esc(own ? g.outfit : 'Volunteer 5 times during ' + e.name) + '</small>' + (own ? '<div><button type="button" data-wear="' + id + '">' + (S.evWear === id ? 'Wearing ✓' : 'Wear') + '</button><button type="button" data-skin="' + id + '">' + ((S.car || {}).skinId === id ? 'On car ✓' : 'Car skin') + '</button></div>' : '') + '</div>'; }).join('') + '</div>' +
+      '<div class="qAct"><button type="button" id="evOff">Plain uniform and car</button><button type="button" id="mClose">Close</button></div>');
     H.$('mClose').onclick = H.closeModal;
+    document.querySelectorAll('[data-wear]').forEach((b) => b.onclick = () => { S.evWear = S.evWear === b.dataset.wear ? null : b.dataset.wear; H.saveS(); H.refreshLook(); collections(); });
+    document.querySelectorAll('[data-skin]').forEach((b) => b.onclick = () => { const id = b.dataset.skin; S.car = S.car || {}; if (S.car.skinId === id) { S.car.skinId = null; S.car.skinSpec = null; } else { S.car.skinId = id; S.car.skinSpec = EV_GEAR[id].skin; } H.saveS(); collections(); });
+    H.$('evOff').onclick = () => { S.evWear = null; if (S.car) { S.car.skinId = null; S.car.skinSpec = null; } H.saveS(); H.refreshLook(); collections(); };
   }
   function eventCard() {
     const k = weekKey() + ev.id, mine = S.evMine[k] || 0, pct = Math.min(100, Math.round(evSum / GOAL * 100));
@@ -102,9 +120,19 @@ export function installEvents(H) {
       '<div class="qAct"><button type="button" id="mClose">Close</button></div>');
     H.$('mClose').onclick = H.closeModal;
   }
+  const dayKey = () => new Date().toISOString().slice(0, 10);
+  function daily() {
+    const d = dayKey(), st = S.stat || {}; if (!S.daily || S.daily.day !== d) { const r = mul(hash('daily' + d)), picks = []; while (picks.length < 3) { const i = Math.floor(r() * DAILY.length); if (picks.indexOf(i) < 0) picks.push(i); } S.daily = { day: d, picks, base: {}, done: {} }; picks.forEach((i) => { S.daily.base[DAILY[i][0]] = st[DAILY[i][0]] || 0; }); H.saveS(); }
+    return S.daily.picks.map((i) => { const [k, n, t, icon] = DAILY[i], have = Math.min(n, (st[k] || 0) - (S.daily.base[k] || 0)); return { k, n, t, icon, have, done: have >= n }; });
+  }
+  let dT = 2;
+  function dailyTick(dt) { dT -= dt; if (dT > 0) return; dT = 2; const list = daily(); list.forEach((c) => { if (c.done && !S.daily.done[c.k]) { S.daily.done[c.k] = 1; H.saveS(); H.award(60, 'daily challenge'); S.cash = (S.cash || 0) + 40; H.banner(c.icon, 'Daily challenge complete', c.t + ' · +40 cash'); H.stat('daily'); if (list.every((x) => S.daily.done[x.k])) { H.stat('daily3'); H.queueLoot('All three dailies', 1, 'r'); } } }); }
+  const dailyText = () => { const l = daily(); return '☀️ ' + l.filter((c) => c.done).length + '/3'; };
+  function dailyCard() { const l = daily(); H.openModal('<div class="sceneHead"><b>DAILY CHALLENGES · ' + dayKey() + '</b><h2>Today\'s three</h2><p>New ones every day. Each pays 60 RP and $40; all three earn a rare find.</p></div><div class="inList">' + l.map((c) => '<div class="' + (c.done ? 'ok' : '') + '"><i>' + (c.done ? '✓' : c.icon) + '</i><b>' + H.esc(c.t) + '</b><small>' + c.have + ' / ' + c.n + '</small></div>').join('') + '</div><div class="qAct"><button type="button" id="mClose">Close</button></div>'); H.$('mClose').onclick = H.closeModal; }
+  const gearLook = () => (S.evWear && EV_GEAR[S.evWear] && (S.evGear || {})[S.evWear] ? EV_GEAR[S.evWear].look : null);
   const flap = (now, i) => Math.sin(now / 160 + i * 1.7);
   return {
-    weather, setup, watch, eventCard, collections, photo, get ev() { return ev; }, get WX() { return WX; },
+    weather, setup, watch, eventCard, collections, photo, daily, dailyTick, dailyText, dailyCard, gearLook, get ev() { return ev; }, get WX() { return WX; },
     stormCall: () => (WX.storm && Math.random() < .55 ? STORM_CALLS[Math.floor(Math.random() * STORM_CALLS.length)] : null),
     tap(near, reach) {
       for (const t of tasks) if (near(t.x, t.y, 30)) { reach(t.x, t.y, () => runTask(t)); return true; }

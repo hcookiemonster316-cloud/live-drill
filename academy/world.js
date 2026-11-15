@@ -852,3 +852,41 @@ function boat(g, sx, sy, dir, t, on) {
   poly([P(-.35, -.6, 12), P(.15, -.6, 12), P(.15, .6, 12), P(-.35, .6, 12)], '#f2f2f2');
   const blink = on && Math.floor(t / 180) % 2; g.fillStyle = blink ? '#ff2d2d' : on ? '#2d6bff' : '#1a2f7a'; const q = P(-.1, 0, 14); g.fillRect(q[0] - 3, q[1] - 2, 6, 3);
 }
+
+// ---------- specialty rides: police motorcycle, patrol bicycle and the mounted unit's horse ----------
+// dir: 0 +x, 1 +y, 2 -x, 3 -y. The rider is drawn with the same person() as everyone else.
+export function rideArt(g, sx, sy, dir, kind, t, moving, rider, lights) {
+  const K = kind === 'horse' ? 1.4 : kind === 'moto' ? 1.2 : 1; if (K !== 1) { const ride = rider; g.save(); g.translate(sx, sy); g.scale(K, K); g.translate(-sx, -sy); let rd = null; rideArt0(g, sx, sy, dir, kind, t, moving, (x, y, o) => { rd = [x, y, o]; }, lights); g.restore(); if (rd) ride(sx, sy - (sy - rd[1]) * K + (kind === 'horse' ? 7 : 2), rd[2]); return; }
+  rideArt0(g, sx, sy, dir, kind, t, moving, rider, lights);
+}
+function rideArt0(g, sx, sy, dir, kind, t, moving, rider, lights) {
+  const F = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][dir & 3], fx = F[0], back = F[1] < 0, OL = 'rgba(12,16,26,.55)';
+  const at = (d, h) => [sx + fx * d, sy + F[1] * d * .5 - h];
+  g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(sx, sy + 1, kind === 'horse' ? 18 : 14, kind === 'horse' ? 6 : 4.5, 0, 0, Math.PI * 2); g.fill();
+  const wheel = (d, r, spin) => { const [x, y] = at(d, r); g.strokeStyle = '#111'; g.lineWidth = 2.6; g.beginPath(); g.ellipse(x, y, r * .55, r, 0, 0, Math.PI * 2); g.stroke(); g.strokeStyle = 'rgba(200,200,200,.6)'; g.lineWidth = .8; const a = spin; g.beginPath(); g.moveTo(x + Math.cos(a) * r * .5, y + Math.sin(a) * r); g.lineTo(x - Math.cos(a) * r * .5, y - Math.sin(a) * r); g.stroke(); };
+  const spin = moving ? t / 60 : 0;
+  if (kind === 'bike') {
+    wheel(-8, 6, spin); wheel(8, 6, spin + 1);
+    const [ax, ay] = at(-8, 6), [bx, by] = at(8, 6), [cx, cy] = at(0, 12), [hx, hy] = at(7, 17);
+    g.strokeStyle = '#1e3a8a'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(ax, ay); g.lineTo(cx, cy); g.lineTo(bx, by); g.moveTo(cx, cy); g.lineTo(hx, hy); g.stroke();
+    g.fillStyle = '#111'; g.fillRect(hx - 3, hy - 1, 6, 2); const [px, py] = at(-7, 9); g.fillStyle = '#0f172a'; g.fillRect(px - 4, py - 4, 8, 5); g.fillStyle = '#f5b800'; g.font = '700 3.5px system-ui'; g.textAlign = 'center'; g.fillText('POLICE', px, py - .5);
+    rider(sx, sy - 9, { moving: false, face: fx > 0 ? 1 : -1, back, s: .92 });
+  } else if (kind === 'moto') {
+    wheel(-10, 6.5, spin); wheel(10, 6.5, spin + 1);
+    const [cx, cy] = at(0, 9); g.fillStyle = '#f2f2f2'; g.strokeStyle = OL; g.lineWidth = .8; g.beginPath(); g.ellipse(cx, cy, 13, 5, Math.atan2(F[1] * .5, fx), 0, Math.PI * 2); g.fill(); g.stroke();
+    const [tx, ty] = at(-3, 13); g.fillStyle = '#14171c'; g.beginPath(); g.ellipse(tx, ty, 6, 3, 0, 0, Math.PI * 2); g.fill();
+    const [wx, wy] = at(9, 17); g.fillStyle = 'rgba(180,220,255,.7)'; g.fillRect(wx - 3, wy - 5, 6, 6); g.fillStyle = '#111'; g.fillRect(wx - 5, wy + 1, 10, 1.6);
+    const [lx, ly] = at(-11, 14); const blink = Math.floor(t / 180) % 2; g.fillStyle = lights ? (blink ? '#ef4444' : '#2563eb') : '#7f1d1d'; g.beginPath(); g.arc(lx - 2, ly, 1.8, 0, 7); g.fill(); g.fillStyle = lights ? (blink ? '#2563eb' : '#ef4444') : '#1e3a8a'; g.beginPath(); g.arc(lx + 2, ly, 1.8, 0, 7); g.fill();
+    rider(sx, sy - 8, { moving: false, face: fx > 0 ? 1 : -1, back, s: .92 });
+  } else if (kind === 'horse') {
+    const c = moving ? t / 110 : 0, bob = moving ? Math.abs(Math.sin(c)) * 1.6 : Math.sin(t / 800) * .4, body = '#5a3a22', dark = '#3b2414';
+    // legs: four-beat walk
+    [[-8, 0], [-5, 1.6], [6, .8], [9, 2.4]].forEach(([d, ph], i) => { const sw = moving ? Math.sin(c + ph) * 3 : 0, [x, y] = at(d + sw * .4, 0); g.strokeStyle = i % 2 ? dark : body; g.lineWidth = 2.6; g.beginPath(); g.moveTo(x, y - 14 + bob); g.lineTo(x + sw * fx * .3, y); g.stroke(); g.fillStyle = '#1c1917'; g.fillRect(x + sw * fx * .3 - 1.5, y - 1, 3, 1.6); });
+    const [bx, by] = at(0, 18 - bob); g.fillStyle = body; g.strokeStyle = OL; g.lineWidth = .9; g.beginPath(); g.ellipse(bx, by, 14, 6.5, Math.atan2(F[1] * .5, fx) * .6, 0, Math.PI * 2); g.fill(); g.stroke();
+    const [nx, ny] = at(12, 24 - bob), [hx, hy] = at(16, 29 - bob); g.strokeStyle = body; g.lineWidth = 5; g.beginPath(); g.moveTo(...at(9, 20 - bob)); g.lineTo(nx, ny); g.stroke(); g.fillStyle = body; g.beginPath(); g.ellipse(hx, hy, 5, 3, Math.atan2(F[1] * .5, fx) + (fx > 0 ? .4 : -.4), 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = dark; g.beginPath(); g.ellipse(nx - fx * 1.5, ny - 2, 2.2, 5, 0, 0, Math.PI * 2); g.fill();
+    const [tx, ty] = at(-14, 18 - bob); g.strokeStyle = dark; g.lineWidth = 2.4; g.beginPath(); g.moveTo(tx, ty); g.quadraticCurveTo(tx - fx * 4, ty + 6, tx - fx * 2 + Math.sin(t / 300) * 1.5, ty + 11); g.stroke();
+    const [sx2, sy2] = at(-1, 23 - bob); g.fillStyle = '#1e3a8a'; g.fillRect(sx2 - 6, sy2 - 2, 12, 4); g.fillStyle = '#f5b800'; g.font = '700 3px system-ui'; g.textAlign = 'center'; g.fillText('POLICE', sx2, sy2 + 1);
+    rider(sx, sy - 22 + bob, { moving: false, face: fx > 0 ? 1 : -1, back, s: .9 });
+  }
+}

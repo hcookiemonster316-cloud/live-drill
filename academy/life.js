@@ -20,6 +20,7 @@ export function installLife(H) {
     const busy = W.lots.filter((l) => /park|plaza|stadium|mall|transit|marina/.test(l.kind)); if (busy.length && Math.random() < .6) { const l = rnd(busy), [dx, dy] = H.doorSpot(l); acts.push({ kind: 'kid', x: dx + .6, y: dy + 1, icon: '🧒', col: '#f59e0b', label: 'A child looks lost', where: l.name || 'the park', r: 10, person: true }); }
     // car services by business
     W.lots.forEach((l) => { const svc = { gas: ['fuel', '⛽'], carwash: ['wash', '🧽'], autoshop: ['tune', '🔧'] }[l.kind]; if (!svc) return; const [dx, dy] = H.doorSpot(l); acts.push({ kind: svc[0], x: dx, y: dy + 1.2, icon: svc[1], col: '#0ea5e9', label: l.name || svc[0], lot: l, r: 6, carOnly: true, keep: true }); });
+    W.lots.filter((l) => l.kind === 'hq' || l.kind === 'substation').forEach((l) => { const [dx, dy] = H.doorSpot(l); acts.push({ kind: 'pool', x: dx + 3.2, y: dy + 1.4, icon: '🚔', col: '#1e40af', label: 'Motor pool: choose your ride', r: 8 }); });
     nightLamps();
   }
   function nightLamps() { // at night a few streetlights are out: report them
@@ -52,6 +53,7 @@ export function installLife(H) {
       if (pay(need, 'a fill-up')) { S.car.fuel = 1; H.toast('⛽ Filled up for ' + money(need) + '. Full tank.'); H.stat('fuel'); }
     } else if (a.kind === 'wash') { if (S.car.dirt < .08) { H.toast('Your car is already spotless.'); return; } if (pay(12, 'a car wash')) { S.car.dirt = 0; H.toast('🧽 Spotless. A clean cruiser earns a little more respect (+5% RP).'); H.stat('wash'); } }
     else if (a.kind === 'tune') shop(a);
+    else if (a.kind === 'pool') H.motorPool();
   }
   // Big Earl's (or any auto shop): tune-up and decals
   const DECALS = [['gold', '#f5b800', 'Academy Gold'], ['blue', '#2563eb', 'Thin Blue'], ['red', '#dc2626', 'Fire Red'], ['green', '#16a34a', 'Gator Green'], ['silver', '#cbd5e1', 'Chrome'], ['purple', '#9333ea', 'Justice Purple'], ['orange', '#f97316', 'Industrial Orange']];
@@ -77,7 +79,7 @@ export function installLife(H) {
     H.radio('You', 'Observed: ' + v[0].toLowerCase() + '.'); if (!warned.stop) { warned.stop = 1; H.toast('🚨 A car just committed a violation. Get in your patrol car and tap it to make a traffic stop.'); }
   }
   function tryStop(c) {
-    const P = H.P; if (!P.inCar) { H.toast('Get in your patrol car to make a traffic stop.'); return true; }
+    const P = H.P; if (!P.inCar) { H.toast('Get in your patrol car (or on your motorcycle, bike or horse) to make a traffic stop.'); return true; }
     c.stopped = true; c.path = []; H.radio(H.S.cs, 'Traffic stop, ' + c.viol[0].toLowerCase() + '. ' + H.whereAt(c.x, c.y) + '.'); H.chirp();
     const d = [[1, 0], [0, 1], [-1, 0], [0, -1]][c.dir & 3], bx = c.x - d[0] * 1.6, by = c.y - d[1] * 1.6; H.lights(true);
     H.goTo(bx, by, () => stopScene(c)); return true;
@@ -103,15 +105,15 @@ export function installLife(H) {
   // ---------- the car itself ----------
   let lowWarn = 0;
   function carTick(dt) {
-    const P = H.P, c = S.car; if (!P.inCar || !P.path || !P.path.length) return;
-    c.fuel = Math.max(0, c.fuel - dt * .0028); c.dirt = Math.min(1, c.dirt + dt * (H.rain() ? .004 : .0011)); c.wear = Math.min(1, c.wear + dt * .0005);
+    const P = H.P, c = S.car, k = H.rideKind(); if (!P.inCar || !P.path || !P.path.length || k === 'bike' || k === 'horse') return;
+    c.fuel = Math.max(0, c.fuel - dt * (k === 'moto' ? .0014 : .0028)); c.dirt = Math.min(1, c.dirt + dt * (H.rain() ? .004 : .0011)); c.wear = Math.min(1, c.wear + dt * .0005);
     if (c.fuel < .15 && lowWarn !== 1) { lowWarn = 1; H.toast('⛽ Low fuel. Gas stations have a ⛽ marker when you drive up.'); } if (c.fuel <= 0 && lowWarn !== 2) { lowWarn = 2; H.toast('⛽ Running on fumes. The car is crawling until you refuel.'); } if (c.fuel > .2) lowWarn = 0;
   }
-  const carMult = () => (S.car.fuel <= 0 ? .35 : 1) * (S.car.wear > .8 ? .85 : 1);
+  const carMult = () => (H.rideKind() === 'bike' || H.rideKind() === 'horse' ? 1 : (S.car.fuel <= 0 ? .35 : 1) * (S.car.wear > .8 ? .85 : 1));
   const rpMult = () => (S.car.dirt < .15 ? 1.05 : 1);
-  const ride = (base) => { const d = DECALS.find((x) => x[0] === S.car.decal); return d ? Object.assign({}, base, { stripe: d[1] }) : base; };
+  const ride = (base) => { if (S.car.skinSpec) return Object.assign({}, base, { stripe: S.car.skinSpec.stripe, text: S.car.skinSpec.text }); const d = DECALS.find((x) => x[0] === S.car.decal); return d ? Object.assign({}, base, { stripe: d[1] }) : base; };
   function carHud() {
-    const el = H.$('carHud'); if (!el) return; const P = H.P; if (!P.inCar || H.inside) { el.hidden = true; return; } el.hidden = false; const c = S.car;
+    const el = H.$('carHud'); if (!el) return; const P = H.P; if (!P.inCar || H.inside || H.rideKind() === 'bike' || H.rideKind() === 'horse') { el.hidden = true; return; } el.hidden = false; const c = S.car;
     el.innerHTML = '<span title="Fuel">⛽<i style="--v:' + c.fuel + '"></i></span><span title="Clean">🧽<i style="--v:' + (1 - c.dirt) + '"></i></span><span title="Condition">🔧<i style="--v:' + (1 - c.wear) + '"></i></span>';
   }
   let hudT = 0;

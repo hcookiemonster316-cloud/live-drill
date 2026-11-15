@@ -628,6 +628,14 @@ body.cine .offHud,body.photo .offHud,body.attract .offHud{display:none!important
 .evBar{display:grid;gap:6px;padding:12px;border-radius:12px;background:rgba(236,72,153,.08);border:1px solid rgba(236,72,153,.35)}.evBar small{color:#cbd5e1;font-size:.74rem;font-weight:700}.evBar div{height:12px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden}.evBar i{display:block;height:100%;background:linear-gradient(90deg,#ec4899,#f5b800)}
 .colGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0}.colGrid div{display:grid;justify-items:center;padding:10px 6px;border-radius:12px;background:rgba(255,255,255,.05);text-align:center}.colGrid span{font-size:1.6rem}.colGrid b{font:900 1.4rem 'Barlow Condensed',system-ui;color:#f5b800}.colGrid small{font-size:.66rem;color:#9aa6ba}
 .colRow{display:grid;gap:4px;font-size:.8rem}.colAlbum{display:flex;flex-wrap:wrap;gap:4px;max-height:28vh;overflow:auto}.colAlbum span{padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.05);font-size:.72rem;color:#9aa6ba}.colAlbum span.has{background:rgba(245,184,0,.15);color:#fde68a}
+
+/* rides, event gear, trust map, daily chip */
+.rides{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.rides>button,.evGear{display:grid;justify-items:start;gap:3px;padding:10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:inherit;text-align:left;cursor:pointer}
+.rides>button span,.evGear>span{font-size:1.6rem}.rides>button.on{border-color:#f5b800;background:rgba(245,184,0,.12)}.rides>button.locked,.evGear.locked{opacity:.55;cursor:default}.rides small,.evGear small{color:#9aa6ba;font-size:.72rem}
+.evGear div{display:flex;gap:6px;margin-top:4px}.evGear button{padding:5px 8px;border-radius:8px;border:0;background:#f5b800;color:#111;font-weight:800;font-size:.72rem;cursor:pointer}
+.tmGrid{display:grid;grid-template-columns:repeat(13,1fr);gap:2px;margin:8px 0;padding:6px;border-radius:12px;background:#0b1220}
+.tmCell{aspect-ratio:1;border:0;border-radius:3px;padding:0;background:linear-gradient(var(--t),var(--t)),var(--z);cursor:pointer}.tmCell.here{outline:2px solid #f5b800;outline-offset:1px}
+.offHud{pointer-events:auto;cursor:pointer}.tmLeg{display:flex;flex-wrap:wrap;gap:6px;font-size:.68rem;color:#cbd5e1;text-transform:capitalize}.tmLeg span:before{content:'';display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--c);margin-right:4px;vertical-align:-1px}.dChip{color:#fde68a}
 </style>
 </head>
 <body>
