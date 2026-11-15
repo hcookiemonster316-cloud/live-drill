@@ -3,6 +3,7 @@ import { N, TW, TH, T, iso, unIso, buildDistrict, drawGround, drawBuilding, draw
 import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
 import * as L from './learn.js';
 import { startNet } from './net.js';
+import { peopleFor } from './npcgen.js';
 import { ITEMS, RARITY, SLOTS, OUTFITS, itemById, slotOf, roll, reveal, collectionHTML, equipHTML, itemCardHTML, gearTotals, looks } from './items.js';
 import { ENTER, buildInterior, drawFurn, staffDraw, visitorDraw, STAFF_LINES } from './interiors.js';
 
@@ -184,7 +185,7 @@ function render(now) {
   const list = [];
   SPR.forEach((s) => { if (s.x + s.canvas.width > vx0 && s.x < vx1 && s.y + s.canvas.height > vy0 && s.y < vy1) list.push({ d: s.depth, f: () => ctx.drawImage(s.canvas, s.x, s.y) }); });
   W.props.forEach((p) => { const [sx, sy] = iso(p.x, p.y); if (vis(sx, sy)) list.push({ d: p.x + p.y, f: p.t === 'furn' ? () => { const fade = p.wall && !p.front && p.x > P.x - .3 && p.y > P.y - .3 && (p.x + p.y) - (P.x + P.y) < 4.5; if (fade) ctx.globalAlpha = .28; drawFurn(ctx, p, sx, sy, now, W.wallCol); ctx.globalAlpha = 1; } : () => drawProp(ctx, p, sx, sy, now, NIGHT) }); });
-  if (inside) { W.staff.forEach((st) => { list.push({ d: st.x + st.y, f: () => staffDraw(ctx, st, now) }); }); W.visitors.forEach((v) => { list.push({ d: v.x + v.y, f: () => visitorDraw(ctx, v, now) }); }); }
+  if (inside) { W.staff.forEach((st) => { list.push({ d: st.x + st.y, f: () => { staffDraw(ctx, st, now); if (st.npc) { const [sx, sy] = iso(st.x, st.y); if (Math.hypot(st.x - P.x, st.y - P.y) < 6) label(sx, sy - 48, st.npc.icon + ' ' + st.npc.name, '#fde68a'); if (!talkedNow[st.npc.id]) bubble(sx, sy - 66, '💬', '#fde68a', now); } } }); }); W.visitors.forEach((v) => { list.push({ d: v.x + v.y, f: () => visitorDraw(ctx, v, now) }); }); }
   else { doorMarks(list, vis, now); regsDraw(list, vis, now); }
   // locked gates get a barricade
   W.gates.forEach((g) => { const [sx, sy] = iso(g.x + .5, g.y + 1); if (!vis(sx, sy)) return; const open = S.unlocked.includes(g.to); list.push({ d: g.x + g.y + 1.5, f: () => gateArt(sx, sy, open, g, now) }); });
@@ -418,24 +419,32 @@ const NPC_AT = { delgado: 'Founders Plaza', pruitt: 'Founders Park', dot: 'Night
 let regs = [], talkedNow = {};
 function placeRegulars() {
   regs.forEach((r) => W.blocked.delete(Math.floor(r.y) * N + Math.floor(r.x))); regs = []; talkedNow = {}; S.npc = S.npc || {};
-  NPCS.filter((n) => n.d === W.did).forEach((n) => {
-    const at = NPC_AT[n.id] || n.home, lot = W.lots.find((l) => (l.name || '').indexOf(at) >= 0) || W.lots.find((l) => l.kind === at) || W.lots.find((l) => l.kind === n.home);
-    if (!lot) return; const used = (x, y) => regs.some((r) => Math.floor(r.x) === x && Math.floor(r.y) === y);
-    const open = lot.kind === 'park' || lot.kind === 'plaza';
-    const cand = []; if (open) { for (let y = lot.oy + 1; y <= lot.oy + 7; y++) for (let x = lot.ox + 1; x <= lot.ox + 7; x++) if (W.walkable(x, y) && !used(x, y)) cand.push([x, y]); }
-    else { const d = lot.door; for (let dy = 0; dy <= 1; dy++) for (let dx = -2; dx <= 2; dx++) { const x = d[0] + dx, y = d[1] + dy; if (W.walkable(x, y) && W.at(x, y) !== T.ROAD && !used(x, y)) cand.push([x, y]); } }
-    const c = cand.length ? cand[Math.floor(Math.random() * cand.length)] : lot.door;
-    regs.push({ n, x: c[0] + .5, y: c[1] + .5, face: Math.random() < .5 ? 1 : -1, ph: Math.random() * 9, lot }); W.blocked.add(c[1] * N + c[0]);
+  const used = new Set(NPCS.map((n) => n.name)), byLot = new Map(), lotOf = (n) => { const at = NPC_AT[n.id] || n.home; return W.lots.find((l) => (l.name || '').indexOf(at) >= 0) || W.lots.find((l) => l.kind === at) || W.lots.find((l) => l.kind === n.home); };
+  NPCS.filter((n) => n.d === W.did).forEach((n) => { const l = lotOf(n); if (l) { if (!byLot.has(l)) byLot.set(l, []); byLot.get(l).push(n); } });
+  // every named place gets at least two named people; one of them may work inside
+  W.lots.forEach((l) => {
+    const hand = byLot.get(l) || [], need = Math.max(0, 2 - hand.length), info = (LANDMARKS[l.kind] || {}).info;
+    const gen = need ? peopleFor(W.did, l, need, used, W.D.lessons, info) : [];
+    l.staffNpcs = ENTER[l.kind] ? gen.filter((g) => g.inside) : [];
+    hand.concat(gen.filter((g) => !l.staffNpcs.includes(g))).forEach((n) => putOutside(n, l));
   });
+}
+function putOutside(n, lot) {
+  const used = (x, y) => regs.some((r) => Math.floor(r.x) === x && Math.floor(r.y) === y);
+  const open = lot.kind === 'park' || lot.kind === 'plaza' || lot.kind === 'parking' || lot.kind === 'lot' || lot.kind === 'railyard' || lot.kind === 'stadium';
+  const cand = []; if (open) { for (let y = lot.oy + 1; y <= lot.oy + 8; y++) for (let x = lot.ox + 1; x <= lot.ox + 8; x++) if (W.walkable(x, y) && W.at(x, y) !== T.ROAD && !used(x, y)) cand.push([x, y]); }
+  if (!cand.length) { const d = lot.door; for (let dy = 0; dy <= 1; dy++) for (let dx = -3; dx <= 3; dx++) { const x = d[0] + dx, y = d[1] + dy; if (W.walkable(x, y) && W.at(x, y) !== T.ROAD && !used(x, y)) cand.push([x, y]); } }
+  const c = cand.length ? cand[Math.floor(Math.random() * cand.length)] : lot.door;
+  regs.push({ n, x: c[0] + .5, y: c[1] + .5, face: Math.random() < .5 ? 1 : -1, ph: Math.random() * 9, lot }); W.blocked.add(c[1] * N + c[0]);
 }
 function npcKit(L) { return { shirt: L.shirt, pants: L.pants, hat: L.cap ? 'cap' : L.hard ? 'helmet' : 'none', hatCol: L.cap || '#f5d000', vest: L.vest ? '#d4ff3a' : L.apron || null, vestText: '', tie: L.tie, plain: !!L.tie, patch: L.badge ? '#f5b800' : L.collar ? '#ffffff' : null }; }
 function cat(sx, sy, now) { const t = Math.sin(now / 600) * 3; ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(sx, sy + 1, 7, 3, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.ellipse(sx, sy - 5, 7, 4.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(sx + 6, sy - 10, 4, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(sx + 3, sy - 13); ctx.lineTo(sx + 4, sy - 17); ctx.lineTo(sx + 6, sy - 13); ctx.moveTo(sx + 7, sy - 13); ctx.lineTo(sx + 9, sy - 17); ctx.lineTo(sx + 9.5, sy - 12); ctx.fill(); ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx - 6, sy - 6); ctx.quadraticCurveTo(sx - 12, sy - 10 + t, sx - 10, sy - 16 + t); ctx.stroke(); ctx.fillStyle = '#111'; ctx.fillRect(sx + 6, sy - 11, 1.2, 1.2); ctx.fillRect(sx + 8, sy - 11, 1.2, 1.2); }
 function regsDraw(list, vis, now) {
   regs.forEach((r) => { const [sx, sy] = iso(r.x, r.y); if (!vis(sx, sy)) return; const near = Math.hypot(r.x - P.x, r.y - P.y);
     list.push({ d: r.x + r.y, f: () => {
-      if (r.n.cat) cat(sx, sy, now); else { person(ctx, sx, sy, { kit: npcKit(r.n.look), hair: r.n.look.hair, skin: r.n.look.skin, moving: false, face: r.face, ph: r.ph }, now); if (r.n.look.glasses) { ctx.fillStyle = '#111'; ctx.fillRect(sx - 4, sy - 29, 8, 1.2); } }
-      if (near < 8) label(sx, sy - (r.n.cat ? 26 : 48), r.n.icon + ' ' + r.n.name, '#fde68a');
-      if (!talkedNow[r.n.id]) bubble(sx, sy - (r.n.cat ? 42 : 66), '💬', '#fde68a', now);
+      if (r.n.cat) cat(sx, sy, now); else { const lk = r.n.look || {}; person(ctx, sx, sy, { kit: r.n.kit || npcKit(lk), hair: r.n.hair || lk.hair, skin: r.n.skin || lk.skin, moving: false, face: r.face, ph: r.ph }, now); if (r.n.glasses || lk.glasses) { ctx.fillStyle = '#111'; ctx.fillRect(sx - 4, sy - 29, 8, 1.2); } }
+      if (near < 5.5) label(sx, sy - (r.n.cat ? 26 : 48), r.n.icon + ' ' + r.n.name, '#fde68a');
+      if (!talkedNow[r.n.id] && near < 10) bubble(sx, sy - (r.n.cat ? 42 : 66), '💬', '#fde68a', now);
     } });
   });
 }
@@ -444,7 +453,7 @@ function npcTalk(r) {
   const n = r.n, f = S.npc[n.id] || 0, first = !talkedNow[n.id]; talkedNow[n.id] = talkedNow[n.id] || 1;
   const line = n.lines[(f + (S.calls || 0)) % n.lines.length];
   const tier = f >= 6 ? 'Best friends' : f >= 3 ? 'Friend' : f >= 1 ? 'Knows your name' : 'Stranger';
-  openModal('<div class="npcHead"><span class="npcIco">' + n.icon + '</span><div><b>' + esc(n.name) + '</b><small>' + esc(n.role) + ' · ' + esc(W.D.name) + '</small>' + hearts(f) + '<em>' + tier + '</em></div></div><p class="npcLine">' + esc(line) + '</p>' +
+  openModal('<div class="npcHead"><span class="npcIco">' + n.icon + '</span><div><b>' + esc(n.name) + '</b><small>' + esc(n.role) + (n.gen ? '' : ' · ' + esc(W.D.name)) + '</small>' + hearts(f) + '<em>' + tier + '</em></div></div><p class="npcLine">' + esc(line) + '</p>' +
     '<div class="qAct">' + (talkedNow[n.id] === 2 ? '' : '<button type="button" id="npHelp">' + (n.cat ? 'Earn its respect' : 'Help ' + esc(n.name.split(' ')[0]) + ' out') + '</button>') + '<button type="button" class="ghost" id="npBye">' + (n.cat ? 'Back away slowly' : 'Talk later') + '</button></div>');
   if (first) award(2, 'small talk');
   $('npBye').onclick = closeModal;
@@ -479,6 +488,7 @@ function enterBuilding(l) {
   const obsLes = /warehouse|storage|lumber/.test(l.kind) ? 17 : /jail|sallyport/.test(l.kind) ? 20 : null;
   observes = I.obs.map((p) => { const les = obsLes != null && I.D.lessons.indexOf(obsLes) >= 0 ? obsLes : rnd(I.D.lessons); const o = rnd(OBSERVE[les] || [['Something looks out of place', 'door']]); return { x: p[0], y: p[1], les, text: o[0], kind: o[1], seen: false }; });
   FX = { rain: false, drops: [], birds: [], events: [], train: null, trainT: 1e9, sail: null, caches: I.caches.filter(() => Math.random() < .6), disc: {} };
+  (l.staffNpcs || []).forEach((n, k) => { const st = I.staff[k]; if (st) { st.npc = n; st.kit = n.kit; st.skin = n.skin; } else { const c = I.walk[Math.floor(I.walk.length / 2)]; I.staff.push({ x: c[0] + .5, y: c[1] + .5, kit: n.kit, skin: n.skin, npc: n }); I.blocked.add(c[1] * N + c[0]); } });
   P.x = I.spawn[0]; P.y = I.spawn[1]; P.path = []; K9.x = P.x - .6; K9.y = P.y; cam.free = false;
   const [ix, iy] = iso(P.x, P.y); cam.x = ix; cam.y = iy;
   $('hDist').textContent = I.name; $('hExp').textContent = 'Inside'; beep(330, .08, 'triangle', .04); beep(440, .1, 'triangle', .04, .08);
@@ -516,7 +526,7 @@ function tap(px, py) {
   if (pcar && !P.inCar && !P.boat && near(pcar.x, pcar.y, 34)) return reach(pcar.x, pcar.y, enterCar);
   if (inside) {
     if (near(W.door[0], W.door[1], 30)) return reach(W.door[0], W.door[1] - .6, exitBuilding);
-    for (const st of W.staff) if (near(st.x, st.y, 30)) return reach(st.x, st.y + 1, () => { const L2 = STAFF_LINES(W.key); toast(L2[Math.floor(Math.random() * L2.length)]); if (!st.talked) { st.talked = true; award(3, 'small talk'); } });
+    for (const st of W.staff) if (near(st.x, st.y, 30)) return reach(st.x, st.y + 1, () => { if (st.npc) return npcTalk({ n: st.npc }); const L2 = STAFF_LINES(W.key); toast(L2[Math.floor(Math.random() * L2.length)]); if (!st.talked) { st.talked = true; award(3, 'small talk'); } });
   } else if (!P.inCar && !P.boat) {
     for (const l of W.lots) { if (!ENTER[l.kind] || Math.hypot(l.door[0] + .5 - P.x, l.door[1] - P.y) > 9) continue; const [dx, dy] = doorSpot(l); if (near(dx, dy, 26)) return reach(dx, dy + .7, () => enterBuilding(l)); }
   }
