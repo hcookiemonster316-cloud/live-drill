@@ -4,7 +4,7 @@
 //   v vault wall  B bed  p pew  r rack  x crate  C cell bars  S stool  b booth seat  P plant  u couch  V tv
 //   J judge's bench  R railing  a altar  M mailboxes  K forklift  E fire engine  A car on a lift  U storage door  Z stairs
 //   @ staff  ? citizen with a question  i study point  * secret spot  $ lost & found  o something's off
-import { N, TW, TH, T, iso, person, drawProp, vehicle } from './world.js';
+import { N, TW, TH, T, iso, person, drawProp, vehicle, hiCanvas, RES } from './world.js';
 
 const PLANS = {
   hq: { name: 'Patrol HQ', floor: 'tile', floor2: 'carpet', rug: '#1f3a6b', wall: '#3d4f7a', blurb: 'Locker room, the roll call briefing room, the watch commander\'s office and the front desk.', plan: [
@@ -581,9 +581,8 @@ export function buildInterior(lot, outW, idx) {
 // ---------- art ----------
 const FLOORS = { tile: ['#d9dde3', '#cfd4db'], carpet: ['#4b5d7a', '#46577a'], lino: ['#e4ddcf', '#d9d1c1'], marble: ['#efece6', '#e2ddd4'], wood: ['#b98a5e', '#ad7f55'], concrete: ['#a3a8ad', '#9ba0a5'], checker: ['#f2f2f2', '#2b2b2b'] };
 function drawFloor(I) {
-  const pad = 80, x0 = I.ox - 1, y0 = I.oy - 1, x1 = I.ox + I.w, y1 = I.oy + I.h, c = document.createElement('canvas');
-  c.width = Math.ceil((x1 - x0 + y1 - y0 + 2) * TW / 2 + pad * 2); c.height = Math.ceil((x1 - x0 + y1 - y0 + 2) * TH / 2 + pad * 2);
-  const g = c.getContext('2d'), ox = -(x0 - y1 - 1) * TW / 2 + pad, oy = -(x0 + y0) * TH / 2 + pad;
+  const pad = 80, x0 = I.ox - 1, y0 = I.oy - 1, x1 = I.ox + I.w, y1 = I.oy + I.h;
+  const [c, g] = hiCanvas((x1 - x0 + y1 - y0 + 2) * TW / 2 + pad * 2, (x1 - x0 + y1 - y0 + 2) * TH / 2 + pad * 2, Math.min(2, RES)), ox = -(x0 - y1 - 1) * TW / 2 + pad, oy = -(x0 + y0) * TH / 2 + pad;
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     const v = I.at(x, y); if (!v) continue;
     const [sx, sy] = iso(x, y); const X = sx + ox, Y = sy + oy, m = I.mat[y * N + x] || 1;

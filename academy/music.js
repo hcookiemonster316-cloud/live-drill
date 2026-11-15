@@ -40,15 +40,15 @@ export function createMusic(getCtx) {
   function tone(bus, f, t, d, type, v, cut, att) {
     const a = ctx(), o = a.createOscillator(), g = a.createGain(), fl = a.createBiquadFilter();
     o.type = type; o.frequency.value = f; fl.type = 'lowpass'; fl.frequency.value = (cut || 2400) * (rain ? .7 : 1);
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + (att != null ? att : Math.min(.6, d * .3))); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + Math.max(.018, att != null ? att : Math.min(.6, d * .3))); g.gain.exponentialRampToValueAtTime(.0001, t + d);
     o.connect(fl); fl.connect(g); g.connect(bus); o.start(t); o.stop(t + d + .05);
   }
   function hit(bus, t, kind, v) {
     const a = ctx();
-    if (kind === 'kick') { const o = a.createOscillator(), g = a.createGain(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(42, t + .14); g.gain.setValueAtTime(v * .35, t); g.gain.exponentialRampToValueAtTime(.0001, t + .28); o.connect(g); g.connect(bus); o.start(t); o.stop(t + .3); return; }
+    if (kind === 'kick') { const o = a.createOscillator(), g = a.createGain(); o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(45, t + .16); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v * .16, t + .012); g.gain.exponentialRampToValueAtTime(.0001, t + .3); o.connect(g); g.connect(bus); o.start(t); o.stop(t + .3); return; }
     const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain(); src.buffer = noiseBuf(a);
-    if (kind === 'hat') { f.type = 'highpass'; f.frequency.value = 7200; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + .05); }
-    else { f.type = 'bandpass'; f.frequency.value = 1800; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + .16); }
+    if (kind === 'hat') { f.type = 'highpass'; f.frequency.value = 8000; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v * .45, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + .045); }
+    else { f.type = 'lowpass'; f.frequency.value = 900; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v * .35, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .22); }
     src.connect(f); f.connect(g); g.connect(bus); src.start(t); src.stop(t + .2);
   }
   // one playing layer per mood; switching starts a new layer and fades the old one out
@@ -78,7 +78,7 @@ export function createMusic(getCtx) {
     get title() { return cur && MOODS[cur] ? MOODS[cur].name : ''; },
     start(mood) {
       const a = ctx(); if (!a) return; if (a.state === 'suspended') a.resume();
-      if (!on) { on = true; master = a.createGain(); master.gain.value = vol; master.connect(a.destination); timer = setInterval(tick, 90); layers = []; cur = null; }
+      if (!on) { on = true; master = a.createGain(); master.gain.value = vol; const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 7000; const cmp = a.createDynamicsCompressor(); cmp.threshold.value = -20; cmp.ratio.value = 4; cmp.attack.value = .01; cmp.release.value = .25; master.connect(lp); lp.connect(cmp); cmp.connect(a.destination); timer = setInterval(tick, 90); layers = []; cur = null; }
       api.set(mood || cur || 'title');
     },
     set(mood) {

@@ -413,6 +413,34 @@ body.photo .hTop,body.photo #radio,body.photo .mini,body.photo .hExp,body.photo 
 .title{padding-bottom:calc(56px + var(--safe-b))}
 body.cine .banner,body.cine #toast{opacity:0;transition:opacity .3s}
 @media (max-width:620px){.phF{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;scrollbar-width:none}.phF button{flex:none}.phMark{bottom:auto;top:calc(64px + var(--safe-t));left:16px}.phMark b{font-size:1.6rem}}
+
+/* ---------- comms hub ---------- */
+#quick{max-height:min(78vh,640px)}
+.chTabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.chTabs::-webkit-scrollbar{display:none}
+.chTabs button{flex:none;position:relative;min-height:34px;padding:0 11px;border-radius:99px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#c7d0de;font:700 .76rem system-ui;white-space:nowrap}
+.chTabs button.on{background:#f5b800;color:#111;border-color:#f5b800}.chTabs button i{font-style:normal;margin-left:6px;display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:#ef4444;color:#fff;font-size:.66rem}
+.chWho{background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer;text-decoration:underline dotted rgba(245,184,0,.5);text-underline-offset:3px}
+.chMsg b time{font-weight:600;color:rgba(200,210,225,.45);margin-left:6px;font-size:.66rem}
+.chList.short{min-height:90px;max-height:200px}
+.sqNone{display:grid;gap:8px;overflow-y:auto}.sqNone h3{margin:6px 0 0;font:800 1rem 'Barlow Condensed';letter-spacing:.06em;text-transform:uppercase;color:#f5b800}.sqNone p{margin:0;font-size:.82rem;color:#c7d0de;line-height:1.45}
+.sqInv{display:grid;gap:6px;padding:8px;border-radius:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.35)}
+.sqHead{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:linear-gradient(90deg,rgba(52,211,153,.14),rgba(255,255,255,.03));border:1px solid rgba(52,211,153,.3)}.sqHead>div{flex:1;display:grid}.sqHead b{font:800 1.1rem 'Barlow Condensed'}.sqHead em{font-style:normal;color:#34d399}.sqHead small{font-size:.72rem;color:#aab4c4}.sqHead code{font:800 .82rem ui-monospace,monospace;color:#fff;letter-spacing:.12em;background:rgba(0,0,0,.35);padding:1px 6px;border-radius:6px}
+.sqMem{display:grid;gap:4px}.sqRow{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.04)}.sqRow.me{background:rgba(245,184,0,.08)}.sqRow>span{flex:1;display:grid;min-width:0}.sqRow b{font-size:.86rem;display:flex;align-items:center;gap:6px}.sqRow small{font-size:.7rem;color:#aab4c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sqHint{margin:2px 4px;font-size:.72rem;color:#8b95a7}
+.dot{width:8px;height:8px;border-radius:50%;background:#4b5563;display:inline-block;flex:none}.dot.on{background:#34d399;box-shadow:0 0 6px #34d399}
+button.tiny{min-height:30px;padding:0 10px;border-radius:99px;font-size:.74rem;font-weight:700;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#e8eef8}
+.sqRow button{min-height:30px;padding:0 10px;border-radius:99px;font-size:.74rem;font-weight:700}
+.dmHead{display:flex;align-items:center;gap:8px}.dmHead b{flex:1;font:800 1.05rem 'Barlow Condensed'}.dmHead small{color:#34d399;font-size:.7rem}
+.dmList,.pplList{display:grid;gap:4px;overflow-y:auto;min-height:120px;align-content:start}
+.dmRow,.pplRow{position:relative;display:flex;align-items:center;gap:10px;text-align:left;padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03);color:#e8eef8;cursor:pointer}
+.dmRow{display:grid;gap:1px}.dmRow b{font-size:.9rem}.dmRow small{font-size:.76rem;color:#aab4c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dmRow.un{border-color:rgba(245,184,0,.45)}.dmRow i{position:absolute;right:12px;top:50%;width:9px;height:9px;margin-top:-4px;border-radius:50%;background:#f5b800}
+.pplRow>span:nth-child(2){flex:1;display:grid;min-width:0}.pplRow b{font-size:.9rem}.pplRow b em{font-style:normal;color:#34d399}.pplRow small{font-size:.72rem;color:#aab4c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pplRow>em{font-style:normal;font-size:.72rem;color:#8b95a7;white-space:nowrap}.pplIco{font-size:1.4rem}.pplNote{margin:0 2px 4px;font-size:.76rem;color:#aab4c4}
+.ppCard{text-align:center;display:grid;justify-items:center;gap:4px}.ppIco{font-size:2.6rem}.ppCard h2{margin:0;font:800 1.6rem 'Barlow Condensed'}.ppCard h2 em{font-style:normal;color:#34d399}.ppCard p{margin:0;color:#aab4c4;font-size:.86rem;line-height:1.45}.ppSq{color:#34d399!important;font-weight:700}
+.ppAct{display:grid;gap:6px;margin-top:12px}.ppAct button{min-height:44px;border-radius:12px;font-weight:700;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#e8eef8}.ppAct button:first-child{background:#f5b800;color:#111;border-color:#f5b800}
+.bBadge{position:absolute;top:-5px;right:-5px;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:#ef4444;color:#fff;font:800 .66rem system-ui;display:grid;place-items:center;font-style:normal;box-shadow:0 0 0 2px #0b1426}
+.hBot button{position:relative}
+.invCard{position:fixed;left:50%;transform:translateX(-50%);top:calc(120px + var(--safe-t));z-index:12;display:flex;align-items:center;gap:10px;width:max-content;max-width:calc(100% - 16px);padding:10px 12px;border-radius:14px;background:rgba(9,16,34,.96);border:1px solid rgba(52,211,153,.6);box-shadow:0 10px 30px rgba(0,0,0,.5);animation:tiFade .3s both}.invCard>span{font-size:1.4rem}.invCard div{font-size:.86rem;line-height:1.35}.invCard button{min-height:36px;padding:0 14px;border-radius:99px;font-weight:800;font-size:.8rem}.invCard button:not(.ghost){background:#34d399;color:#04121f}
+.sqChip{position:fixed;left:50%;transform:translateX(-50%);top:calc(112px + var(--safe-t));z-index:5;padding:4px 12px;border-radius:99px;background:rgba(6,40,30,.85);border:1px solid rgba(52,211,153,.6);color:#a7f3d0;font:800 .72rem system-ui;letter-spacing:.06em;pointer-events:none}
+body.cine .sqChip,body.photo .sqChip,body.attract .sqChip,body.photo .invCard{display:none!important}
 </style>
 </head>
 <body>
@@ -442,6 +470,8 @@ body.cine .banner,body.cine #toast{opacity:0;transition:opacity .3s}
   <button type="button" id="bSnd"><i>🔊</i></button>
   <button type="button" id="bPause"><i>☰</i>Menu</button>
 </nav>
+<div id="invCard" class="invCard" hidden></div>
+<div id="sqChip" class="sqChip" hidden></div>
 <div id="toast" hidden></div>
 <div id="modal" hidden></div>
 <div id="start" hidden></div>

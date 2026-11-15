@@ -238,7 +238,7 @@ function fill(W, L, R) {
 export const CAR_COLORS = ['#c0392b', '#2c3e50', '#ecf0f1', '#7f8c8d', '#2980b9', '#27ae60', '#f39c12', '#8e44ad', '#34495e', '#d35400', '#bdc3c7', '#16a085'];
 
 // ---------- art ----------
-const shade = (hex, f) => { const n = parseInt(hex.slice(1), 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255; r = Math.max(0, Math.min(255, Math.round(r * f))); g = Math.max(0, Math.min(255, Math.round(g * f))); b = Math.max(0, Math.min(255, Math.round(b * f))); return 'rgb(' + r + ',' + g + ',' + b + ')'; };
+const shade = (hex, f) => { let r, g, b; hex = String(hex); if (hex[0] === '#') { const h6 = hex.length === 4 ? hex.replace(/^#(.)(.)(.)$/, '#$1$1$2$2$3$3') : hex, n = parseInt(h6.slice(1, 7), 16); r = n >> 16; g = (n >> 8) & 255; b = n & 255; } else { const m = hex.match(/\d+(\.\d+)?/g) || [128, 128, 128]; r = +m[0]; g = +m[1]; b = +m[2]; } r = Math.max(0, Math.min(255, Math.round(r * f))); g = Math.max(0, Math.min(255, Math.round(g * f))); b = Math.max(0, Math.min(255, Math.round(b * f))); return 'rgb(' + r + ',' + g + ',' + b + ')'; };
 export { shade };
 
 // ground: drawn once per district into one large canvas
@@ -246,8 +246,7 @@ export { shade };
 export const CH = 16;
 export function drawGround(W, cx, cy) {
   const x0 = cx * CH, y0 = cy * CH, x1 = Math.min(N, x0 + CH) - 1, y1 = Math.min(N, y0 + CH) - 1, pad = 4;
-  const w = (x1 - x0 + y1 - y0 + 2) * TW / 2 + pad * 2, h = (x1 - x0 + y1 - y0 + 2) * TH / 2 + pad * 2, c = document.createElement('canvas');
-  c.width = Math.ceil(w); c.height = Math.ceil(h); const g = c.getContext('2d');
+  const w = (x1 - x0 + y1 - y0 + 2) * TW / 2 + pad * 2, h = (x1 - x0 + y1 - y0 + 2) * TH / 2 + pad * 2, [c, g] = hiCanvas(w, h, Math.min(2, RES));
   const ox = -(x0 - y1 - 1) * TW / 2 + pad, oy = -(x0 + y0) * TH / 2 + pad;
   let seed = 0; const R = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
   const dia = (x, y) => { const [sx, sy] = iso(x, y); g.beginPath(); g.moveTo(ox + sx, oy + sy); g.lineTo(ox + sx + TW / 2, oy + sy + TH / 2); g.lineTo(ox + sx, oy + sy + TH); g.lineTo(ox + sx - TW / 2, oy + sy + TH / 2); g.closePath(); };
@@ -286,13 +285,15 @@ export function drawGround(W, cx, cy) {
 }
 
 // a building drawn once into its own canvas; night version lights some windows
+// render scale for cached art (buildings, ground): 1 = standard, up to 3 for 4K
+export let RES = 1; export function setRes(k) { RES = k; }
+export function hiCanvas(w, h, k) { const c = document.createElement('canvas'); k = k || 1; c.width = Math.ceil(w * k); c.height = Math.ceil(h * k); c.lw = c.width / k; c.lh = c.height / k; const g = c.getContext('2d'); g.scale(k, k); return [c, g]; }
 export function drawBuilding(b, night, sun) {
   const R = rng(b.x * 131 + b.y * 977 + b.h);
   const A = iso(b.x, b.y), Bp = iso(b.x + b.w, b.y), C = iso(b.x + b.w, b.y + b.d), Dp = iso(b.x, b.y + b.d);
   const extra = b.dome ? 60 : b.style === 'house' ? 26 : 30, shLen = sun ? sun.len : 0;
   const minX = Dp[0] - 6, maxX = Bp[0] + 6 + shLen, minY = A[1] - b.h - extra, maxY = C[1] + 6 + shLen * .5;
-  const c = document.createElement('canvas'); c.width = Math.ceil(maxX - minX); c.height = Math.ceil(maxY - minY);
-  const g = c.getContext('2d'), tx = (p) => [p[0] - minX, p[1] - minY];
+  const [c, g] = hiCanvas(maxX - minX, maxY - minY, RES), tx = (p) => [p[0] - minX, p[1] - minY];
   const poly = (pts, fill) => { g.beginPath(); pts.forEach((p, i) => { const q = tx(p); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }); g.closePath(); if (fill) { g.fillStyle = fill; g.fill(); } };
   const up = (p, h) => [p[0], p[1] - h];
   // cast shadow on the ground toward the lower right
@@ -302,6 +303,11 @@ export function drawBuilding(b, night, sun) {
   // walls
   poly([Dp, C, up(C, h), up(Dp, h)], left);
   poly([C, Bp, up(Bp, h), up(C, h)], right);
+  { // panel courses, then ambient occlusion toward the ground and a warm bounce near the top
+    const st0 = b.style; if (st0 !== 'glass' && st0 !== 'house') { g.strokeStyle = 'rgba(0,0,0,.07)'; g.lineWidth = .6; for (let y = 6; y < h - 4; y += 6) { const a1 = tx(up(Dp, y)), b1 = tx(up(C, y)), c1 = tx(up(Bp, y)); g.beginPath(); g.moveTo(a1[0], a1[1]); g.lineTo(b1[0], b1[1]); g.lineTo(c1[0], c1[1]); g.stroke(); } }
+    const yT = tx(up(C, h))[1], yB = tx(C)[1], ao = g.createLinearGradient(0, yT, 0, yB + 8); ao.addColorStop(0, 'rgba(255,240,220,.08)'); ao.addColorStop(.6, 'rgba(0,0,0,0)'); ao.addColorStop(1, 'rgba(0,0,0,.28)');
+    poly([Dp, C, up(C, h), up(Dp, h)], ao); poly([C, Bp, up(Bp, h), up(C, h)], ao);
+  }
   // wall texture
   const face = (P0, P1, shadeF, cols, rows, opts) => {
     const len = Math.hypot(P1[0] - P0[0], P1[1] - P0[1]);
@@ -311,7 +317,9 @@ export function drawBuilding(b, night, sun) {
       const pa = [P0[0] + (P1[0] - P0[0]) * t0, P0[1] + (P1[1] - P0[1]) * t0], pb = [P0[0] + (P1[0] - P0[0]) * t1, P0[1] + (P1[1] - P0[1]) * t1];
       const lit = night && R() < (opts.lit || .35) * (typeof night === 'number' ? night : 1);
       poly([up(pa, v0), up(pb, v0), up(pb, v1), up(pa, v1)], lit ? (R() < .3 ? '#ffe9a8' : '#ffd36b') : opts.glass || (night ? shade('#121a28', shadeF) : shade(R() < .5 ? '#5f7fa3' : '#4f6e93', shadeF)));
-      if (!lit && !night) { g.globalAlpha = .25; poly([up(pa, v1 - 2), up(pb, v1 - 2), up(pb, v1), up(pa, v1)], '#ffffff'); g.globalAlpha = 1; }
+      if (!lit && !night) { g.globalAlpha = .28; poly([up(pa, v1 - 2.5), up(pb, v1 - 2.5), up(pb, v1), up(pa, v1)], '#ffffff'); g.globalAlpha = .12; poly([pa.map((x, i) => x + (pb[i] - pa[i]) * .1).map((x, i) => i ? x - v1 + 1 : x), pa.map((x, i) => x + (pb[i] - pa[i]) * .35).map((x, i) => i ? x - v1 + 1 : x), pa.map((x, i) => x + (pb[i] - pa[i]) * .2).map((x, i) => i ? x - v0 - 1 : x), pa.map((x, i) => x + (pb[i] - pa[i]) * -.05).map((x, i) => i ? x - v0 - 1 : x)], '#ffffff'); g.globalAlpha = 1; }
+      poly([up(pa, v0 - 1.6), up(pb, v0 - 1.6), up(pb, v0), up(pa, v0)], 'rgba(235,238,242,.55)');
+      if (opts.wh > 9 && Math.abs(pb[0] - pa[0]) > 7) { const m0 = [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2], q0 = tx(up(m0, v0)), q1 = tx(up(m0, v1)); g.strokeStyle = 'rgba(20,26,36,.55)'; g.lineWidth = .8; g.beginPath(); g.moveTo(q0[0], q0[1]); g.lineTo(q1[0], q1[1]); g.stroke(); }
       if (lit && opts.onLit) opts.onLit(pa, pb, v0);
     }
     return len;
@@ -350,8 +358,13 @@ export function drawBuilding(b, night, sun) {
     poly([up(A, h), up(Bp, h), up(m2, h + rh), up(m1, h + rh)], shade(roof, .8));
     poly([up(Dp, h), up(C, h), up(m2, h + rh), up(m1, h + rh)], roof);
     poly([up(C, h), up(Bp, h), up(m2, h + rh)], shade(base, .55));
+    g.strokeStyle = 'rgba(0,0,0,.14)'; g.lineWidth = .7; for (let k = 1; k < 5; k++) { const f = k / 5, a1 = tx([Dp[0] + (m1[0] - Dp[0]) * f, Dp[1] + (m1[1] - Dp[1]) * f - h - rh * f]), b1 = tx([C[0] + (m2[0] - C[0]) * f, C[1] + (m2[1] - C[1]) * f - h - rh * f]); g.beginPath(); g.moveTo(a1[0], a1[1]); g.lineTo(b1[0], b1[1]); g.stroke(); }
+    mini(g, tx, b.x + b.w * .7, b.y + b.d * .3, .35, .35, rh + 4, h, '#8a5a44');
+    { const d0 = [Dp[0] + (C[0] - Dp[0]) * .62, Dp[1] + (C[1] - Dp[1]) * .62], d1 = [Dp[0] + (C[0] - Dp[0]) * .74, Dp[1] + (C[1] - Dp[1]) * .74]; poly([d0, d1, up(d1, 14), up(d0, 14)], '#5b3a22'); poly([up(d0, 14), up(d1, 14), up(d1, 15.5), up(d0, 15.5)], '#f2efe8'); if (night) { const q = up([(d0[0] + d1[0]) / 2, (d0[1] + d1[1]) / 2], 18); winLit.push([q[0], q[1]]); } }
   } else {
-    poly([up(A, h), up(Bp, h), up(C, h), up(Dp, h)], st === 'stadium' ? '#3f8a3a' : top);
+    { const r0 = tx(up(A, h)), r1 = tx(up(C, h)), rg = g.createLinearGradient(r0[0], r0[1], r1[0], r1[1]); rg.addColorStop(0, shade(st === 'stadium' ? '#3f8a3a' : top, 1.08)); rg.addColorStop(1, shade(st === 'stadium' ? '#3f8a3a' : top, .9)); poly([up(A, h), up(Bp, h), up(C, h), up(Dp, h)], rg); }
+    if (st !== 'stadium') { g.save(); poly([up(A, h), up(Bp, h), up(C, h), up(Dp, h)]); g.clip(); const n = Math.min(260, b.w * b.d * 10); for (let k = 0; k < n; k++) { const q = tx(up(iso(b.x + R() * b.w, b.y + R() * b.d), h)); g.fillStyle = R() < .5 ? 'rgba(0,0,0,.07)' : 'rgba(255,255,255,.07)'; g.fillRect(q[0], q[1], 1.2, 1.2); } g.restore();
+      poly([up(A, h), up(Bp, h), up(Bp, h + 3), up(A, h + 3)], shade(base, .9)); poly([up(A, h), up(Dp, h), up(Dp, h + 3), up(A, h + 3)], shade(base, .8)); poly([up(Dp, h), up(C, h), up(C, h + 3), up(Dp, h + 3)], shade(base, 1.0)); poly([up(C, h), up(Bp, h), up(Bp, h + 3), up(C, h + 3)], shade(base, .82)); }
     if (st === 'stadium') { g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1.5; const m = [(A[0] + C[0]) / 2, (A[1] + C[1]) / 2 - h]; const q = tx(m); g.beginPath(); g.ellipse(q[0], q[1], 18, 9, 0, 0, Math.PI * 2); g.stroke(); poly([up([A[0], A[1] + 6], h + 1), up([Bp[0] - 12, Bp[1]], h + 1), up([C[0], C[1] - 6], h + 1), up([Dp[0] + 12, Dp[1]], h + 1)], null); }
     // parapet
     g.strokeStyle = shade(base, 1.25); g.lineWidth = 2; poly([up(A, h), up(Bp, h), up(C, h), up(Dp, h)]); g.stroke();
@@ -359,6 +372,15 @@ export function drawBuilding(b, night, sun) {
     if (st !== 'stadium' && st !== 'storage') for (let k = 0; k < Math.min(3, b.w); k++) { const cx = b.x + 1 + R() * (b.w - 1.5), cy = b.y + .5 + R() * (b.d - 1.2); mini(g, tx, cx, cy, .5, .4, 7, h, '#c7ccd2'); }
     if (b.dishes) { const p = tx(up(iso(b.x + b.w * .6, b.y + b.d * .4), h + 10)); g.fillStyle = '#eef1f4'; g.beginPath(); g.ellipse(p[0], p[1], 8, 5, -.5, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#8a9099'; g.stroke(); }
     if (b.dome) { const p = tx(up(iso(b.x + b.w / 2, b.y + b.d / 2), h)); const gr = g.createRadialGradient(p[0] - 8, p[1] - 30, 4, p[0], p[1] - 16, 34); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, '#9aa9b5'); g.fillStyle = gr; g.beginPath(); g.ellipse(p[0], p[1] - 4, 28, 14, 0, Math.PI, 0); g.lineTo(p[0] + 28, p[1] - 4); g.ellipse(p[0], p[1] - 4, 28, 30, 0, 0, Math.PI, true); g.fill(); }
+  }
+  // an entrance on the front face
+  if (st !== 'house' && st !== 'storage' && st !== 'stadium' && h > 16) {
+    const f0 = .44, f1 = .56, d0 = [Dp[0] + (C[0] - Dp[0]) * f0, Dp[1] + (C[1] - Dp[1]) * f0], d1 = [Dp[0] + (C[0] - Dp[0]) * f1, Dp[1] + (C[1] - Dp[1]) * f1], dh = st === 'garage' || st === 'bays' || st === 'corrugated' ? 13 : 15;
+    poly([[d0[0] - 1.2, d0[1] - .6], [d1[0] + 1.2, d1[1] + .6], up([d1[0] + 1.2, d1[1] + .6], dh + 1.5), up([d0[0] - 1.2, d0[1] - .6], dh + 1.5)], shade(base, .55));
+    const dg = g.createLinearGradient(0, tx(up(d0, dh))[1], 0, tx(d0)[1]); dg.addColorStop(0, night ? '#2a2414' : '#20303f'); dg.addColorStop(1, night ? '#5a4720' : '#3c5670');
+    poly([d0, d1, up(d1, dh), up(d0, dh)], st === 'shop' || st === 'diner' || st === 'glass' ? dg : '#2a2f36');
+    const mid = [(d0[0] + d1[0]) / 2, (d0[1] + d1[1]) / 2], q0 = tx(mid), q1 = tx(up(mid, dh)); g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = .7; g.beginPath(); g.moveTo(q0[0], q0[1]); g.lineTo(q1[0], q1[1]); g.stroke();
+    if (night) { const q = up(mid, dh + 4); winLit.push([q[0], q[1]]); }
   }
   // sign on the front (left) face
   if (b.sign) {
@@ -371,7 +393,7 @@ export function drawBuilding(b, night, sun) {
   }
   // edge highlight
   g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 1; const e0 = tx(C), e1 = tx(up(C, h)); g.beginPath(); g.moveTo(e0[0], e0[1]); g.lineTo(e1[0], e1[1]); g.stroke();
-  return { canvas: c, x: minX, y: minY, lights: winLit.map((p) => [p[0], p[1]]) };
+  return { canvas: c, x: minX, y: minY, lights: winLit.slice(0, 10).map((p) => [p[0], p[1]]) };
 }
 function mini(g, tx, x, y, w, d, h, base, color) {
   const A = iso(x, y), B2 = iso(x + w, y), C = iso(x + w, y + d), D2 = iso(x, y + d), up = (p, k) => [p[0], p[1] - k];
@@ -395,9 +417,14 @@ export function drawProp(g, p, sx, sy, t, night) {
       const s = p.s || 1; g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 6, sy + 4, 16 * s, 7 * s, 0, 0, Math.PI * 2); g.fill();
       g.fillStyle = '#5b3d25'; g.fillRect(sx - 2, sy - (p.t === 'palm' ? 34 : 18) * s, 4, (p.t === 'palm' ? 34 : 18) * s);
       if (p.t === 'palm') { g.strokeStyle = '#2f7a35'; g.lineWidth = 4; for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2 + Math.sin(t / 900 + p.x) * .06; g.beginPath(); g.moveTo(sx, sy - 34 * s); g.quadraticCurveTo(sx + Math.cos(a) * 12, sy - 40 * s, sx + Math.cos(a) * 20 * s, sy - 30 * s + Math.sin(a) * 6); g.stroke(); } break; }
-      const sway = Math.sin(t / 1100 + p.x * 3) * 1.2;
-      [[0, -30, 15, '#3f7a33'], [-7, -24, 11, '#4b8a3b'], [7, -25, 11, '#3a7030'], [2, -36, 10, '#58994a']].forEach(([dx, dy, r, c]) => { g.fillStyle = night ? shade(c, .7) : c; g.beginPath(); g.arc(sx + dx * s + sway, sy + dy * s, r * s, 0, Math.PI * 2); g.fill(); });
-      g.fillStyle = 'rgba(255,255,255,.12)'; g.beginPath(); g.arc(sx - 4 * s + sway, sy - 38 * s, 5 * s, 0, Math.PI * 2); g.fill(); break;
+      const sway = Math.sin(t / 1100 + p.x * 3) * 1.2, seed = Math.floor(p.x * 7 + p.y * 13), hue = ['#3f7a33', '#477f2f', '#3a6f3c', '#4f8a36'][seed & 3];
+      // trunk shading and a canopy built from lit clumps (light from the upper left), with an outline for definition
+      g.fillStyle = '#3e2816'; g.fillRect(sx + .5, sy - 18 * s, 1.6, 18 * s);
+      const clumps = [[0, -28, 14], [-8, -23, 10], [8, -24, 10], [-3, -36, 10], [5, -34, 9], [0, -20, 9]];
+      clumps.forEach(([dx, dy, r]) => { g.fillStyle = 'rgba(10,25,10,.45)'; g.beginPath(); g.arc(sx + dx * s + sway + .8, sy + dy * s + .8, r * s + 1, 0, Math.PI * 2); g.fill(); });
+      clumps.forEach(([dx, dy, r], i) => { const cx2 = sx + dx * s + sway, cy2 = sy + dy * s, cg = g.createRadialGradient(cx2 - r * .45 * s, cy2 - r * .5 * s, r * .1 * s, cx2, cy2, r * s); cg.addColorStop(0, shade(hue, night ? .85 : 1.35)); cg.addColorStop(.6, night ? shade(hue, .65) : hue); cg.addColorStop(1, shade(hue, night ? .45 : .7)); g.fillStyle = cg; g.beginPath(); g.arc(cx2, cy2, r * s, 0, Math.PI * 2); g.fill(); });
+      if (!night) { g.fillStyle = 'rgba(255,255,220,.16)'; for (let k = 0; k < 5; k++) { const a = (seed + k * 2.4) % 6.28; g.beginPath(); g.arc(sx + Math.cos(a) * 8 * s + sway - 3, sy - 32 * s + Math.sin(a) * 5 * s, 1.6 * s, 0, Math.PI * 2); g.fill(); } }
+      break;
     }
     case 'lamp': g.fillStyle = '#2b2f36'; g.fillRect(sx - 1.5, sy - 40, 3, 40); g.fillRect(sx - 1.5, sy - 40, 12, 3); g.fillStyle = (p.on != null ? p.on : night) ? '#fff3c4' : '#9aa1a9'; g.fillRect(sx + 7, sy - 38, 6, 3); break;
     case 'flag': g.fillStyle = '#c9ced4'; g.fillRect(sx - 1, sy - 56, 2, 56); { const w = Math.sin(t / 300) * 2; g.fillStyle = '#b22234'; g.fillRect(sx + 1, sy - 56, 18, 10 + w * .2); g.fillStyle = '#3c3b6e'; g.fillRect(sx + 1, sy - 56, 8, 5); } break;
@@ -415,7 +442,7 @@ export function drawProp(g, p, sx, sy, t, night) {
     case 'lumberstack': box(g, sx, sy, 28, 12, '#c49a5c'); box(g, sx, sy - 12, 24, 10, '#b88c50'); break;
     case 'boxcar': box(g, sx, sy, 60, 30, p.color || '#8b3a2a', 1.6); break;
     case 'steeple': box(g, sx, sy - 46, 16, 26, '#efe8da'); g.fillStyle = '#5b6470'; g.beginPath(); g.moveTo(sx, sy - 110); g.lineTo(sx + 12, sy - 72); g.lineTo(sx - 12, sy - 72); g.closePath(); g.fill(); break;
-    case 'firetruck': car(g, sx, sy, 1, '#c0392b', false, t, night, 1.5); break;
+    case 'firetruck': drawVehicle(g, sx, sy, p.dir || 1, { kind: 'van', body: '#b91c1c', side: '#b91c1c', stripe: '#f5f5f5', bar: 'full', scale: 1.5, text: 'ENGINE 3' }, t, night, false); break;
     case 'car': car(g, sx, sy, p.dir || 0, p.color || '#888', !!p.police, t, night, 1, p.lightbar); break;
   }
 }
@@ -430,68 +457,82 @@ function box(g, sx, sy, w, h, color, len) {
 }
 
 // cars: dir 0 = along +x, 1 = along +y, 2 = along -x, 3 = along -y
-export function car(g, sx, sy, dir, color, police, t, night, scale, bar) {
-  const s = scale || 1, along = dir % 2 === 0, L = 24 * s, Wd = 11 * s, H = 9 * s;
-  // axis vectors in screen space
-  const ax = along ? [L * .5 * 1.0, L * .25] : [-L * .5, L * .25], aw = along ? [-Wd * .5, Wd * .25] : [Wd * .5, Wd * .25];
-  const P = (u, v, h) => [sx + ax[0] * u + aw[0] * v, sy + ax[1] * u + aw[1] * v - h];
-  const quad = (a, b, c, d, f) => { g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.closePath(); g.fillStyle = f; g.fill(); };
-  g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(sx + 3, sy + 3, L * .62, L * .34, 0, 0, Math.PI * 2); g.fill();
-  const body = police ? '#14171c' : color, side = police ? '#f2f2f2' : shade(color, .78), side2 = police ? '#dcdcdc' : shade(color, .64);
-  // lower body: two visible sides then top
-  quad(P(-1, 1, 0), P(1, 1, 0), P(1, 1, H), P(-1, 1, H), side);
-  quad(P(1, -1, 0), P(1, 1, 0), P(1, 1, H), P(1, -1, H), side2);
-  quad(P(-1, -1, H), P(1, -1, H), P(1, 1, H), P(-1, 1, H), body);
-  // cabin
-  const cH = H + 7 * s;
-  quad(P(-.45, .85, H), P(.45, .85, H), P(.35, .7, cH), P(-.4, .7, cH), '#2a3a4c');
-  quad(P(.45, -.85, H), P(.45, .85, H), P(.35, .7, cH), P(.35, -.7, cH), '#1d2b3a');
-  quad(P(-.4, -.7, cH), P(.35, -.7, cH), P(.35, .7, cH), P(-.4, .7, cH), police ? '#f2f2f2' : shade(color, 1.1));
-  g.globalAlpha = .35; quad(P(-.42, .82, H + 1), P(.1, .82, H + 1), P(0, .72, cH - 1), P(-.38, .72, cH - 1), '#bfe3ff'); g.globalAlpha = 1;
-  if (police) {
-    const on = bar && Math.floor(t / 180) % 2;
-    quad(P(-.1, -.6, cH), P(.1, -.6, cH), P(.1, 0, cH + 3), P(-.1, 0, cH + 3), on ? '#ff2d2d' : '#7a1a1a');
-    quad(P(-.1, 0, cH + 3), P(.1, 0, cH + 3), P(.1, .6, cH), P(-.1, .6, cH), !on && bar ? '#2d6bff' : '#1a2f7a');
-    g.fillStyle = '#f5b800'; const b0 = P(-.1, 1, H * .55); g.fillRect(b0[0] - 2, b0[1] - 2, 4, 3);
-  }
-  // headlights / tail lights on the front end (u = +1 side)
-  const hl = P(1, .55, H * .55), hr = P(1, -.55, H * .55);
-  g.fillStyle = night ? '#fff6cc' : '#e9edf0'; g.fillRect(hl[0] - 2, hl[1] - 1.5, 4, 3); g.fillRect(hr[0] - 2, hr[1] - 1.5, 4, 3);
-}
 
-// people: civilians, or cadets in a unit kit (o.kit from data.js UNITS)
+// people: civilians, or cadets in a unit kit (o.kit from data.js UNITS). Shaded, outlined, with faces and hair styles.
 export function person(g, sx, sy, o, t) {
-  const s = o.s || 1, walk = o.moving ? Math.sin(t / 90 + (o.ph || 0)) : 0, face = o.face || 1;
+  const s = o.s || 1, ph = o.ph || 0, mv = !!o.moving, cyc = t / 95 + ph, walk = mv ? Math.sin(cyc) : 0, bob = mv ? Math.abs(Math.cos(cyc)) * .9 : Math.sin(t / 1100 + ph) * .3, face = o.face || 1;
   const K = o.kit || (o.officer ? { shirt: '#22355e', pants: '#1b2a4a', hat: 'cap', hatCol: '#16213d', patch: '#f5b800' } : null);
-  g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(sx + 2, sy + 1, 9 * s, 4 * s, 0, 0, Math.PI * 2); g.fill();
-  const pants = K ? K.pants : o.pants || '#3b4a5c', shirt = K ? K.shirt : o.shirt || '#c0392b', skin = o.skin || '#e0b48f';
-  g.fillStyle = K && K.boots ? K.boots : K && K.plain ? '#1f2937' : '#111'; g.fillRect(sx - 4 * s, sy - 1.5 * s + walk * 2 * s, 3.5 * s, 1.8 * s); g.fillRect(sx + .5 * s, sy - 1.5 * s - walk * 2 * s, 3.5 * s, 1.8 * s);
-  if (K && K.camelbak) { g.fillStyle = '#1f2937'; g.beginPath(); g.roundRect(sx + (face > 0 ? -9 : 3) * s, sy - 25 * s, 6 * s, 12 * s, 2 * s); g.fill(); }
-  if (K && K.shorts) {
-    g.fillStyle = skin; g.fillRect(sx - 4 * s, sy - 12 * s, 3.5 * s, 11 * s + walk * 2 * s); g.fillRect(sx + .5 * s, sy - 12 * s, 3.5 * s, 11 * s - walk * 2 * s);
-    g.fillStyle = K.socks || '#111'; g.fillRect(sx - 4 * s, sy - 3 * s + walk * 2 * s, 3.5 * s, 1.6 * s); g.fillRect(sx + .5 * s, sy - 3 * s - walk * 2 * s, 3.5 * s, 1.6 * s);
-    g.fillStyle = pants; g.fillRect(sx - 4.4 * s, sy - 12.5 * s, 8.8 * s, 5 * s);
-  } else { g.fillStyle = pants; g.fillRect(sx - 4 * s, sy - 12 * s, 3.5 * s, 11 * s + walk * 2 * s); g.fillRect(sx + .5 * s, sy - 12 * s, 3.5 * s, 11 * s - walk * 2 * s); }
-  g.fillStyle = shirt; g.beginPath(); g.roundRect(sx - 6 * s, sy - 24 * s, 12 * s, 13 * s, 3 * s); g.fill();
-  g.fillStyle = shade(shirt, .8); g.fillRect(sx - 7.5 * s, sy - 23 * s + walk * s, 2.5 * s, 10 * s); g.fillRect(sx + 5 * s, sy - 23 * s - walk * s, 2.5 * s, 10 * s);
-  g.fillStyle = skin; g.fillRect(sx - 7.5 * s, sy - 13.5 * s + walk * s, 2.5 * s, 2.5 * s); g.fillRect(sx + 5 * s, sy - 13.5 * s - walk * s, 2.5 * s, 2.5 * s);
+  const pants = K ? K.pants : o.pants || '#3b4a5c', shirt = K ? K.shirt : o.shirt || '#c0392b', skin = o.skin || '#e0b48f', hair = o.hair || '#2b1d14';
+  const hs = o.hs != null ? o.hs : Math.floor(((ph * 9301 + 49297) % 233280) / 233280 * 6 + 6) % 6;
+  const OL = 'rgba(12,16,26,.55)', lw = .7 * s, Y = sy - bob * s;
+  const R = (x, y, w, h, r, fill, stroke) => { g.beginPath(); g.roundRect(x, y, w, h, r); g.fillStyle = fill; g.fill(); if (stroke) { g.strokeStyle = OL; g.lineWidth = lw; g.stroke(); } };
+  // contact shadow
+  const sh = g.createRadialGradient(sx + 1, sy, 0, sx + 1, sy, 9 * s); sh.addColorStop(0, 'rgba(0,0,0,.38)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = sh; g.beginPath(); g.ellipse(sx + 1, sy, 9 * s, 4 * s, 0, 0, Math.PI * 2); g.fill();
+  if (K && K.camelbak) R(sx + (face > 0 ? -8.5 : 2.5) * s, Y - 25 * s, 6 * s, 12 * s, 2 * s, '#1f2937', true);
+  // legs: back leg first, a step forward and back when walking
+  const shoe = K && K.boots ? K.boots : K && K.plain ? '#1f2937' : o.shoes || '#16181d';
+  const leg = (x, sw, back) => {
+    const lx = sx + x * s + sw * 1.4 * s * face, top = Y - 12 * s, len = 11 * s - Math.max(0, -sw) * .8 * s;
+    if (K && K.shorts) { R(lx, top + 3 * s, 3.4 * s, len - 3 * s, 1.2 * s, back ? shade(skin, .85) : skin, true); g.fillStyle = K.socks || '#111'; g.fillRect(lx, top + len - 2.6 * s, 3.4 * s, 1.5 * s); }
+    else R(lx, top, 3.6 * s, len, 1.4 * s, back ? shade(pants, .78) : pants, true);
+    R(lx - (face < 0 ? 1.4 * s : 0), top + len - 1.2 * s, 4.8 * s, 2.4 * s, 1.1 * s, back ? shade(shoe, .8) : shoe, true);
+    if (K && K.boots && !back && (K.twinkle || K.shine)) { g.fillStyle = 'rgba(255,255,255,.6)'; g.fillRect(lx + 1 * s, top + len - .8 * s, 1.2 * s, .6 * s); }
+  };
+  leg(-3.9, -walk, true); leg(.4, walk, false);
+  if (K && K.shorts) R(sx - 4.6 * s, Y - 13 * s, 9.2 * s, 5.2 * s, 1.5 * s, pants, true);
+  // back arm
+  const arm = (side, sw, back) => {
+    const ax = sx + side * 6.2 * s, ay = Y - 23 * s, ang = sw * .45 * face;
+    g.save(); g.translate(ax, ay); g.rotate(ang); R(-1.4 * s, 0, 2.8 * s, 9.5 * s, 1.3 * s, back ? shade(shirt, .7) : shade(shirt, .88), true);
+    g.beginPath(); g.arc(0, 10.4 * s, 1.5 * s, 0, Math.PI * 2); g.fillStyle = back ? shade(skin, .85) : skin; g.fill(); g.strokeStyle = OL; g.lineWidth = lw; g.stroke(); g.restore();
+  };
+  arm(-face, walk, true);
+  // torso: shoulders wider than the waist, lit from the upper left
+  const tg = g.createLinearGradient(sx - 6 * s, 0, sx + 6 * s, 0); tg.addColorStop(0, shade(shirt, 1.08)); tg.addColorStop(.55, shirt); tg.addColorStop(1, shade(shirt, .74));
+  g.beginPath(); g.moveTo(sx - 6.4 * s, Y - 22.5 * s); g.quadraticCurveTo(sx - 6.6 * s, Y - 24.6 * s, sx - 4 * s, Y - 24.8 * s); g.lineTo(sx + 4 * s, Y - 24.8 * s); g.quadraticCurveTo(sx + 6.6 * s, Y - 24.6 * s, sx + 6.4 * s, Y - 22.5 * s); g.lineTo(sx + 5.2 * s, Y - 11.5 * s); g.lineTo(sx - 5.2 * s, Y - 11.5 * s); g.closePath();
+  g.fillStyle = tg; g.fill(); g.strokeStyle = OL; g.lineWidth = lw; g.stroke();
+  // collar
+  g.fillStyle = shade(shirt, .7); g.beginPath(); g.moveTo(sx - 2.4 * s, Y - 24.8 * s); g.lineTo(sx, Y - 22 * s); g.lineTo(sx + 2.4 * s, Y - 24.8 * s); g.closePath(); g.fill();
   if (K) {
-    if (K.vest) { g.fillStyle = K.vest; g.beginPath(); g.roundRect(sx - 6.3 * s, sy - 23 * s, 12.6 * s, 10.5 * s, 2 * s); g.fill(); if (K.vestText) { g.fillStyle = K.vest === '#f97316' ? '#111' : '#fff'; g.font = '800 ' + (2.6 * s) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(K.vestText, sx, sy - 18 * s); } }
-    if (K.tie) { g.fillStyle = K.tie; g.beginPath(); g.moveTo(sx - 1 * s, sy - 23.5 * s); g.lineTo(sx + 1 * s, sy - 23.5 * s); g.lineTo(sx + 1.4 * s, sy - 15 * s); g.lineTo(sx, sy - 13.5 * s); g.lineTo(sx - 1.4 * s, sy - 15 * s); g.fill(); }
-    if (K.lanyard) { g.strokeStyle = K.lanyard; g.lineWidth = 1 * s; g.beginPath(); g.moveTo(sx - 3 * s, sy - 23.5 * s); g.lineTo(sx, sy - 17 * s); g.lineTo(sx + 3 * s, sy - 23.5 * s); g.stroke(); g.fillStyle = '#fff'; g.fillRect(sx - 1.5 * s, sy - 17 * s, 3 * s, 3.5 * s); }
-    g.fillStyle = '#111'; g.fillRect(sx - 6 * s, sy - 13 * s, 12 * s, 2 * s);
-    g.fillStyle = K.patch || '#f5b800'; if (K.plain) g.fillRect(sx + 2 * s, sy - 13.2 * s, 2.4 * s, 2.4 * s); else if (!K.vest) g.fillRect(sx + (face > 0 ? 1 : -4) * s, sy - 21 * s, 3 * s, 3 * s);
-    g.fillStyle = K.patch || '#f5b800'; g.fillRect(sx + (face > 0 ? -7.5 : 5) * s, sy - 22 * s, 2.5 * s, 2.5 * s);
-  }
-  g.fillStyle = skin; g.beginPath(); g.arc(sx, sy - 28 * s, 5 * s, 0, Math.PI * 2); g.fill();
+    if (K.vest) { const vg = g.createLinearGradient(sx - 6 * s, 0, sx + 6 * s, 0); vg.addColorStop(0, shade(K.vest === true ? '#d4ff3a' : K.vest === 'xxxl' ? '#d4ff3a' : K.vest, 1.05)); vg.addColorStop(1, shade(K.vest === true || K.vest === 'xxxl' ? '#d4ff3a' : K.vest, .78)); R(sx - (K.vest === 'xxxl' ? 7.6 : 6.3) * s, Y - 23.4 * s, (K.vest === 'xxxl' ? 15.2 : 12.6) * s, (K.vest === 'xxxl' ? 13 : 10.8) * s, 2 * s, vg, true); g.fillStyle = 'rgba(255,255,255,.75)'; g.fillRect(sx - 6 * s, Y - 17 * s, 12 * s, 1 * s);
+      if (K.vestText) { g.fillStyle = K.vest === '#f97316' ? '#111' : '#fff'; g.font = '800 ' + 2.6 * s + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(K.vestText, sx, Y - 20 * s); } }
+    if (K.tie) { g.fillStyle = K.tie; g.beginPath(); g.moveTo(sx - 1 * s, Y - 23.5 * s); g.lineTo(sx + 1 * s, Y - 23.5 * s); g.lineTo(sx + 1.4 * s, Y - 15 * s); g.lineTo(sx, Y - 13.5 * s); g.lineTo(sx - 1.4 * s, Y - 15 * s); g.fill(); }
+    if (K.lanyard) { g.strokeStyle = K.lanyard; g.lineWidth = 1 * s; g.beginPath(); g.moveTo(sx - 3 * s, Y - 24 * s); g.lineTo(sx, Y - 17 * s); g.lineTo(sx + 3 * s, Y - 24 * s); g.stroke(); g.fillStyle = '#fff'; g.fillRect(sx - 1.5 * s, Y - 17 * s, 3 * s, 3.4 * s); }
+    // duty belt with a buckle, name tag and shoulder patch
+    R(sx - 5.4 * s, Y - 13.4 * s, 10.8 * s, 2.2 * s, .6 * s, '#0e1014'); g.fillStyle = '#c9b46a'; g.fillRect(sx - .9 * s, Y - 13.2 * s, 1.8 * s, 1.8 * s);
+    g.fillStyle = K.patch || '#f5b800'; if (K.plain) g.fillRect(sx + 2 * s, Y - 13.2 * s, 2.4 * s, 2.4 * s); else if (!K.vest) { g.fillRect(sx + (face > 0 ? 1.4 : -4.2) * s, Y - 21.4 * s, 2.8 * s, 2.6 * s); g.fillStyle = '#e5e7eb'; g.fillRect(sx + (face > 0 ? -4.2 : 1.4) * s, Y - 20.6 * s, 2.8 * s, .9 * s); }
+  } else if (o.pantsBelt !== false) { g.fillStyle = shade(pants, .6); g.fillRect(sx - 5.2 * s, Y - 12.6 * s, 10.4 * s, 1.2 * s); }
+  // front arm swings opposite the front leg
+  arm(face, -walk, false);
+  // neck and head
+  g.fillStyle = shade(skin, .82); g.fillRect(sx - 1.6 * s, Y - 26.5 * s, 3.2 * s, 2.4 * s);
+  const hg = g.createRadialGradient(sx - 1.6 * s, Y - 30 * s, .5 * s, sx, Y - 28 * s, 6 * s); hg.addColorStop(0, shade(skin, 1.1)); hg.addColorStop(1, shade(skin, .82));
+  g.beginPath(); g.ellipse(sx, Y - 28.6 * s, 4.9 * s, 5.4 * s, 0, 0, Math.PI * 2); g.fillStyle = hg; g.fill(); g.strokeStyle = OL; g.lineWidth = lw; g.stroke();
+  // ear on the far side, eyes and a hint of a nose toward the facing side
+  g.fillStyle = shade(skin, .8); g.beginPath(); g.ellipse(sx - face * 4.4 * s, Y - 28.4 * s, 1.1 * s, 1.5 * s, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#1b1b1f'; g.beginPath(); g.arc(sx + face * 1.1 * s, Y - 28.1 * s, .5 * s, 0, Math.PI * 2); g.fill(); g.beginPath(); g.arc(sx + face * 3.4 * s, Y - 28.1 * s, .45 * s, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = shade(skin, .62); g.lineWidth = .6 * s; g.beginPath(); g.moveTo(sx + face * 4.6 * s, Y - 28.2 * s); g.lineTo(sx + face * 5 * s, Y - 26.8 * s); g.stroke();
+  g.beginPath(); g.moveTo(sx + face * 1.6 * s, Y - 25.6 * s); g.lineTo(sx + face * 3.4 * s, Y - 25.8 * s); g.stroke();
+  // headwear, or hair
   const hat = K ? K.hat : 'hair', hc = K && K.hatCol || '#16213d';
-  if (hat === 'cap') { g.fillStyle = hc; g.beginPath(); g.arc(sx, sy - 29.5 * s, 5.2 * s, Math.PI, 0); g.fill(); g.fillRect(sx + (face > 0 ? 0 : -7) * s, sy - 30 * s, 7 * s, 1.8 * s); g.fillStyle = K.patch || '#f5b800'; g.fillRect(sx - 1 * s, sy - 33 * s, 2 * s, 1.6 * s); }
-  else if (hat === 'helmet') { g.fillStyle = hc; g.beginPath(); g.arc(sx, sy - 29 * s, 6.4 * s, Math.PI * 1.05, -.05); g.fill(); g.fillRect(sx - 6.4 * s, sy - 29.5 * s, 12.8 * s, 2.2 * s); g.fillStyle = '#111'; g.fillRect(sx - 2 * s, sy - 34.5 * s, 4 * s, 1.5 * s); }
-  else if (hat === 'boonie') { g.fillStyle = hc; g.beginPath(); g.ellipse(sx, sy - 30 * s, 8 * s, 2.4 * s, 0, 0, Math.PI * 2); g.fill(); g.beginPath(); g.arc(sx, sy - 30.5 * s, 4.6 * s, Math.PI, 0); g.fill(); }
-  else if (hat === 'campaign') { g.fillStyle = hc; g.beginPath(); g.ellipse(sx, sy - 30.5 * s, 9 * s, 3 * s, 0, 0, Math.PI * 2); g.fill(); g.beginPath(); g.moveTo(sx - 4.5 * s, sy - 31 * s); g.lineTo(sx - 2.5 * s, sy - 38 * s); g.lineTo(sx, sy - 36.5 * s); g.lineTo(sx + 2.5 * s, sy - 38 * s); g.lineTo(sx + 4.5 * s, sy - 31 * s); g.closePath(); g.fill(); g.fillStyle = '#111'; g.fillRect(sx - 4.5 * s, sy - 32.5 * s, 9 * s, 1.4 * s); }
-  else if (hat === 'sweatband') { g.fillStyle = '#2b1d14'; g.beginPath(); g.arc(sx, sy - 30 * s, 5 * s, Math.PI, 0); g.fill(); g.fillStyle = hc; g.fillRect(sx - 5.2 * s, sy - 31 * s, 10.4 * s, 2.2 * s); }
-  else if (hat === 'headset') { g.fillStyle = '#2b1d14'; g.beginPath(); g.arc(sx, sy - 30 * s, 5 * s, Math.PI, 0); g.fill(); g.strokeStyle = '#111'; g.lineWidth = 1.2 * s; g.beginPath(); g.arc(sx, sy - 29 * s, 5.6 * s, Math.PI * 1.1, -.1); g.stroke(); g.fillStyle = '#111'; g.fillRect(sx + (face > 0 ? 4 : -6) * s, sy - 29 * s, 2 * s, 3 * s); }
-  else { g.fillStyle = o.hair || '#2b1d14'; g.beginPath(); g.arc(sx, sy - 30 * s, 5 * s, Math.PI, 0); g.fill(); }
+  const capTop = (col) => { const cg = g.createLinearGradient(sx - 5 * s, 0, sx + 5 * s, 0); cg.addColorStop(0, shade(col, 1.15)); cg.addColorStop(1, shade(col, .75)); g.beginPath(); g.ellipse(sx, Y - 30.6 * s, 5.4 * s, 4.4 * s, 0, Math.PI, 0); g.lineTo(sx + 5.4 * s, Y - 30 * s); g.lineTo(sx - 5.4 * s, Y - 30 * s); g.closePath(); g.fillStyle = cg; g.fill(); g.strokeStyle = OL; g.lineWidth = lw; g.stroke(); };
+  if (hat === 'cap') { capTop(hc); g.fillStyle = shade(hc, .7); g.beginPath(); g.ellipse(sx + face * 4.2 * s, Y - 30 * s, 4 * s, 1.3 * s, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = K.patch || '#f5b800'; g.fillRect(sx + face * .4 * s - 1 * s, Y - 33.2 * s, 2 * s, 1.6 * s); }
+  else if (hat === 'helmet') { const cg = g.createRadialGradient(sx - 2 * s, Y - 33 * s, 1, sx, Y - 30 * s, 7 * s); cg.addColorStop(0, shade(hc, 1.3)); cg.addColorStop(1, shade(hc, .8)); g.beginPath(); g.ellipse(sx, Y - 30 * s, 6.4 * s, 5.6 * s, 0, Math.PI * 1.02, -.02); g.closePath(); g.fillStyle = cg; g.fill(); g.strokeStyle = OL; g.stroke(); g.fillStyle = shade(hc, .7); g.fillRect(sx - 6.4 * s, Y - 30.4 * s, 12.8 * s, 1.8 * s); }
+  else if (hat === 'boonie') { g.fillStyle = shade(hc, .85); g.beginPath(); g.ellipse(sx, Y - 30.6 * s, 8 * s, 2.4 * s, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = OL; g.stroke(); capTop(hc); }
+  else if (hat === 'campaign') { g.fillStyle = shade(hc, .85); g.beginPath(); g.ellipse(sx, Y - 31 * s, 9 * s, 3 * s, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = OL; g.lineWidth = lw; g.stroke(); const cg = g.createLinearGradient(sx - 4 * s, 0, sx + 4 * s, 0); cg.addColorStop(0, shade(hc, 1.2)); cg.addColorStop(1, shade(hc, .8)); g.beginPath(); g.moveTo(sx - 4.5 * s, Y - 31.4 * s); g.lineTo(sx - 2.6 * s, Y - 38.4 * s); g.lineTo(sx, Y - 36.8 * s); g.lineTo(sx + 2.6 * s, Y - 38.4 * s); g.lineTo(sx + 4.5 * s, Y - 31.4 * s); g.closePath(); g.fillStyle = cg; g.fill(); g.stroke(); g.fillStyle = '#111'; g.fillRect(sx - 4.5 * s, Y - 32.8 * s, 9 * s, 1.4 * s); }
+  else if (hat === 'sweatband') { g.fillStyle = hair; g.beginPath(); g.ellipse(sx, Y - 30.4 * s, 5.2 * s, 4.2 * s, 0, Math.PI, 0); g.fill(); g.fillStyle = hc; R(sx - 5.3 * s, Y - 31.6 * s, 10.6 * s, 2.2 * s, 1 * s, hc); }
+  else if (hat === 'headset') { g.fillStyle = hair; g.beginPath(); g.ellipse(sx, Y - 30.4 * s, 5.2 * s, 4.2 * s, 0, Math.PI, 0); g.fill(); g.strokeStyle = '#111'; g.lineWidth = 1.2 * s; g.beginPath(); g.arc(sx, Y - 29.4 * s, 5.8 * s, Math.PI * 1.1, -.1); g.stroke(); g.fillStyle = '#111'; R(sx - face * 6.2 * s, Y - 30 * s, 2.2 * s, 3.2 * s, .8 * s, '#111'); g.strokeStyle = '#111'; g.lineWidth = .7 * s; g.beginPath(); g.moveTo(sx - face * 5 * s, Y - 27.5 * s); g.quadraticCurveTo(sx + face * 1 * s, Y - 24.5 * s, sx + face * 3 * s, Y - 25.6 * s); g.stroke(); }
+  else {
+    // six hair styles: crop, buzz, side part, bun, long, curls
+    const hcol = hair, dark = shade(hcol, .7); g.fillStyle = hcol; g.strokeStyle = OL; g.lineWidth = lw;
+    if (hs === 1) { g.globalAlpha = .9; g.beginPath(); g.ellipse(sx, Y - 30.2 * s, 5 * s, 3.8 * s, 0, Math.PI, 0); g.fill(); g.globalAlpha = 1; }
+    else if (hs === 4) { g.beginPath(); g.moveTo(sx - 5.4 * s, Y - 23 * s); g.lineTo(sx - 5.6 * s, Y - 30 * s); g.ellipse(sx, Y - 30.4 * s, 5.6 * s, 5 * s, 0, Math.PI, 0); g.lineTo(sx + 5.4 * s, Y - 23 * s); g.lineTo(sx + 3.6 * s, Y - 24 * s); g.lineTo(sx + 4 * s, Y - 29.5 * s); g.lineTo(sx - 4 * s, Y - 29.5 * s); g.lineTo(sx - 3.6 * s, Y - 24 * s); g.closePath(); g.fill(); g.stroke(); }
+    else if (hs === 5) { for (let k = 0; k < 7; k++) { const a = Math.PI + k / 6 * Math.PI; g.beginPath(); g.arc(sx + Math.cos(a) * 4.4 * s, Y - 30 * s + Math.sin(a) * 4 * s, 1.9 * s, 0, Math.PI * 2); g.fill(); } }
+    else { g.beginPath(); g.ellipse(sx, Y - 30.4 * s, 5.4 * s, 4.8 * s, 0, Math.PI, 0); g.lineTo(sx + 5.4 * s, Y - 29 * s); g.lineTo(sx - 5.4 * s, Y - 29 * s); g.closePath(); g.fill(); g.stroke(); }
+    if (hs === 2) { g.fillStyle = dark; g.beginPath(); g.moveTo(sx - face * 1 * s, Y - 34.8 * s); g.quadraticCurveTo(sx + face * 4 * s, Y - 34 * s, sx + face * 5.2 * s, Y - 30 * s); g.lineTo(sx + face * 2 * s, Y - 31.6 * s); g.closePath(); g.fill(); }
+    if (hs === 3) { g.beginPath(); g.arc(sx - face * 2 * s, Y - 35 * s, 2.4 * s, 0, Math.PI * 2); g.fillStyle = hcol; g.fill(); g.stroke(); }
+    g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.ellipse(sx - 1.6 * s, Y - 33 * s, 1.8 * s, .8 * s, -.3, 0, Math.PI * 2); g.fill();
+  }
 }
 
 // a working dog that trots beside its handler
@@ -507,44 +548,84 @@ export function dog(g, sx, sy, face, moving, t) {
   g.fillStyle = '#c0392b'; g.fillRect(sx + f * 5 - 1, sy - 10, 2, 2);
 }
 
-// unit vehicles: v = { kind, body, side, stripe, bar ('full'|'hidden'|'grille'), scale, text }
+// ---------- vehicles: one renderer for every car, truck, van and SUV ----------
+// local coordinates: u runs nose (+1) to tail (-1), v runs across, h is height in px. dir 0..3 = +x, +y, -x, -y.
+function rig(sx, sy, dir, s, hl, hw) {
+  const U = [[1, 0], [0, 1], [-1, 0], [0, -1]][dir & 3], V = [-U[1], U[0]];
+  const P = (u, v, h) => { const wx = U[0] * u * hl + V[0] * v * hw, wy = U[1] * u * hl + V[1] * v * hw; return [sx + (wx - wy) * 32 * s, sy + (wx + wy) * 16 * s - h * s]; };
+  // which faces point toward the camera: exactly one end and one side
+  const uVis = U[0] + U[1] > 0 ? 1 : -1, vVis = V[0] + V[1] > 0 ? 1 : -1;
+  return { P, uVis, vVis, U };
+}
+function vQuad(g, pts, fill, line) { g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fillStyle = fill; g.fill(); if (line) { g.strokeStyle = line; g.lineWidth = .6; g.stroke(); } }
+function lerpP(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; }
+export function drawVehicle(g, sx, sy, dir, v, t, night, on) {
+  const s = v.scale || 1, kind = v.kind || 'sedan', tall = { armored: 1.55, van: 1.45, suv: 1.2, truck: 1.15 }[kind] || 1;
+  const hl = kind === 'van' || kind === 'armored' ? .44 : .41, hw = .2, H = 8.5 * tall, R = rig(sx, sy, dir, s, hl, hw), P = R.P, uE = R.uVis, vE = R.vVis;
+  const body = v.body, sideCol = v.side || body, line = 'rgba(8,12,20,.45)';
+  // soft shadow
+  const c0 = P(0, 0, 0), sg = g.createRadialGradient(c0[0] + 2, c0[1] + 2, 2, c0[0] + 2, c0[1] + 2, 22 * s); sg.addColorStop(0, 'rgba(0,0,0,.42)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = sg; g.beginPath(); g.ellipse(c0[0] + 2, c0[1] + 2, 22 * s, 11 * s, 0, 0, Math.PI * 2); g.fill();
+  // wheels on the visible side (drawn first so the body overlaps their tops)
+  [-.62, .62].forEach((u) => { const w = P(u, vE * 1.02, 2.4); g.fillStyle = '#0d0f12'; g.beginPath(); g.ellipse(w[0], w[1], 3.3 * s, 2.6 * s, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#6b7280'; g.beginPath(); g.ellipse(w[0], w[1], 1.5 * s, 1.2 * s, 0, 0, Math.PI * 2); g.fill(); });
+  // lower body: visible end and side, then the top
+  const h0 = 2.2, sideFace = [P(-1, vE, h0), P(1, vE, h0), P(1, vE, H), P(-1, vE, H)], endFace = [P(uE, -1, h0), P(uE, 1, h0), P(uE, 1, H), P(uE, -1, H)];
+  const sGrad = g.createLinearGradient(0, sideFace[2][1], 0, sideFace[0][1]); sGrad.addColorStop(0, shade(sideCol, .95)); sGrad.addColorStop(1, shade(sideCol, .68));
+  vQuad(g, sideFace, sGrad, line); vQuad(g, endFace, shade(sideCol, .6), line);
+  // police two-tone doors / unit stripe
+  if (v.doors) { vQuad(g, [P(-.42, vE, h0 + .5), P(.32, vE, h0 + .5), P(.32, vE, H - .3), P(-.42, vE, H - .3)], v.doors); }
+  if (v.stripe) { vQuad(g, [P(-1, vE, H * .42), P(1, vE, H * .42), P(1, vE, H * .62), P(-1, vE, H * .62)], v.stripe); vQuad(g, [P(uE, -1, H * .42), P(uE, 1, H * .42), P(uE, 1, H * .62), P(uE, -1, H * .62)], shade(v.stripe, .8)); }
+  // door seams and handle
+  g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = .6; [-.42, .32].forEach((u) => { const a = P(u, vE, h0 + .4), b = P(u, vE, H - .4); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); });
+  // bumper
+  vQuad(g, [P(uE, -1, h0), P(uE, 1, h0), P(uE, 1, h0 + 1.6), P(uE, -1, h0 + 1.6)], '#1f2329');
+  const top = [P(-1, -1, H), P(1, -1, H), P(1, 1, H), P(-1, 1, H)], tg = g.createLinearGradient(top[0][0], top[0][1], top[2][0], top[2][1]); tg.addColorStop(0, shade(body, 1.22)); tg.addColorStop(1, shade(body, .95));
+  vQuad(g, top, tg, line);
+  // cabin (a box on top for vans and armored trucks, a sloped greenhouse for the rest)
+  const boxy = kind === 'van' || kind === 'armored';
+  const c = boxy ? { a: -1, b: .62, ta: -1, tb: .5, w: 1, tw: .96, h: 6.5 } : kind === 'truck' ? { a: -.05, b: .5, ta: .02, tb: .38, w: .86, tw: .74, h: 6.8 } : kind === 'suv' ? { a: -.92, b: .45, ta: -.88, tb: .3, w: .88, tw: .78, h: 7.4 } : { a: -.55, b: .4, ta: -.45, tb: .22, w: .86, tw: .72, h: 6.8 };
+  const cH = H + c.h, ca = uE > 0 ? c.b : c.a, cat = uE > 0 ? c.tb : c.ta;
+  const cSide = [P(c.a, vE * c.w, H), P(c.b, vE * c.w, H), P(c.tb, vE * c.tw, cH), P(c.ta, vE * c.tw, cH)], cEnd = [P(ca, -c.w, H), P(ca, c.w, H), P(cat, c.tw, cH), P(cat, -c.tw, cH)];
+  vQuad(g, cSide, shade(sideCol, boxy ? .9 : .85), line); vQuad(g, cEnd, shade(sideCol, .66), line);
+  // glass: side windows split by a pillar, plus the windshield or rear window
+  const glass = (q, k) => { const gg = g.createLinearGradient(q[3][0], q[3][1], q[1][0], q[1][1]); gg.addColorStop(0, night ? '#0e1622' : '#9cc2e6'); gg.addColorStop(.45, night ? '#152234' : '#3c5b7d'); gg.addColorStop(1, night ? '#0b111b' : '#1d2c3e'); vQuad(g, q, gg); if (!night) { g.globalAlpha = .35 * (k || 1); vQuad(g, [lerpP(q[0], q[1], .1), lerpP(q[0], q[1], .3), lerpP(q[3], q[2], .22), lerpP(q[3], q[2], .05)], '#ffffff'); g.globalAlpha = 1; } };
+  const inset = (q, a, b) => [lerpP(lerpP(q[0], q[3], a), lerpP(q[1], q[2], a), b), lerpP(lerpP(q[1], q[2], a), lerpP(q[0], q[3], a), b), lerpP(lerpP(q[1], q[2], 1 - a * .6), lerpP(q[0], q[3], 1 - a * .6), b), lerpP(lerpP(q[0], q[3], 1 - a * .6), lerpP(q[1], q[2], 1 - a * .6), b)];
+  if (boxy) glass(inset(cSide, .22, .08), .8);
+  else { const mid = .5, w1 = inset([cSide[0], lerpP(cSide[0], cSide[1], mid), lerpP(cSide[3], cSide[2], mid), cSide[3]], .14, .1), w2 = inset([lerpP(cSide[0], cSide[1], mid), cSide[1], cSide[2], lerpP(cSide[3], cSide[2], mid)], .14, .1); glass(w1); glass(w2); }
+  glass(inset(cEnd, .12, .1), 1.2);
+  const roof = [P(c.ta, -c.tw, cH), P(c.tb, -c.tw, cH), P(c.tb, c.tw, cH), P(c.ta, c.tw, cH)], rg = g.createLinearGradient(roof[0][0], roof[0][1], roof[2][0], roof[2][1]); rg.addColorStop(0, shade(v.roof || body, 1.25)); rg.addColorStop(1, shade(v.roof || body, 1));
+  vQuad(g, roof, rg, line);
+  if (kind === 'truck') { vQuad(g, [P(-1, -1, H), P(-.1, -1, H), P(-.1, 1, H), P(-1, 1, H)], '#0b2536'); const q = P(-.55, 0, H + 3); g.fillStyle = '#e2e8f0'; g.beginPath(); g.ellipse(q[0], q[1], 6 * s, 2.8 * s, 0, 0, Math.PI * 2); g.fill(); }
+  if (kind === 'armored') { g.fillStyle = '#14180f'; for (let k = -2; k <= 1; k++) { const q = P(k * .3 + .1, vE, H * .7); g.fillRect(q[0] - 1.2 * s, q[1] - 1, 2.4 * s, 2.4 * s); } }
+  // roof text (unit number)
+  if (v.roofText) { const q = P(c.ta * .4 + c.tb * .6, 0, cH + .2); g.save(); g.translate(q[0], q[1]); g.scale(1, .5); g.rotate(R.U[0] ? Math.PI / 4 : -Math.PI / 4); g.fillStyle = '#111'; g.font = '800 ' + 5 * s + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(v.roofText, 0, 0); g.restore(); }
+  // side text
+  if (v.text) { const q = P(-.05, vE, H * .52), a = P(-1, vE, 0), b = P(1, vE, 0); let ex = b[0] - a[0], ey = b[1] - a[1]; if (ex < 0) { ex = -ex; ey = -ey; } const L = Math.hypot(ex, ey); g.save(); g.translate(q[0], q[1]); g.transform(ex / L, ey / L, 0, 1, 0, 0); g.fillStyle = v.stripe || v.doors ? '#0b0b0b' : '#ffffff'; g.font = '800 ' + 3.6 * s + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(v.text, 0, 0); g.restore(); }
+  // light bar
+  const blink = on && Math.floor(t / 160) % 2;
+  if (v.bar === 'full') { const lbH = cH + 2.2, a0 = c.ta * .5 + c.tb * .5; vQuad(g, [P(a0 - .06, -.62, cH), P(a0 + .06, -.62, cH), P(a0 + .06, .62, cH), P(a0 - .06, .62, cH)], '#111'); vQuad(g, [P(a0 - .06, -.6, lbH), P(a0 + .06, -.6, lbH), P(a0 + .06, 0, lbH), P(a0 - .06, 0, lbH)], blink ? '#ff3b3b' : on ? '#7a1a1a' : '#5a1616'); vQuad(g, [P(a0 - .06, 0, lbH), P(a0 + .06, 0, lbH), P(a0 + .06, .6, lbH), P(a0 - .06, .6, lbH)], on && !blink ? '#3b7bff' : '#16285e'); vQuad(g, [P(uE > 0 ? a0 + .06 : a0 - .06, -.6, cH), P(uE > 0 ? a0 + .06 : a0 - .06, .6, cH), P(uE > 0 ? a0 + .06 : a0 - .06, .6, lbH), P(uE > 0 ? a0 + .06 : a0 - .06, -.6, lbH)], '#2a2f37'); }
+  else if (on) { const q = P(uE, blink ? .45 : -.45, H * .7); g.fillStyle = blink ? '#ff3b3b' : '#3b7bff'; g.beginPath(); g.arc(q[0], q[1], 1.6 * s, 0, Math.PI * 2); g.fill(); }
+  if (v.bar === 'grille' && on) { const q = P(uE, 0, H * .5); g.fillStyle = blink ? '#ff3b3b' : '#3b7bff'; g.fillRect(q[0] - 2 * s, q[1] - 1, 4 * s, 2); }
+  // lights on the visible end: headlights at the nose, tail lights at the back
+  const lc = uE > 0 ? (night ? '#fff7d6' : '#eef2f5') : (night ? '#ff4a3d' : '#b42318');
+  [-.62, .62].forEach((vv) => { const q = [P(uE, vv - .16, H * .55), P(uE, vv + .16, H * .55), P(uE, vv + .16, H * .78), P(uE, vv - .16, H * .78)]; vQuad(g, q, lc); });
+  if (v.push && uE > 0) vQuad(g, [P(1.08, -.6, h0), P(1.08, .6, h0), P(1.08, .6, H * .8), P(1.08, -.6, H * .8)], '#16181c');
+  // specular glint along the roof edge
+  if (!night) { g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = .8; const a = P(-1, vE, H), b = P(1, vE, H); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+}
+export function car(g, sx, sy, dir, color, police, t, night, scale, bar) {
+  if (police) return drawVehicle(g, sx, sy, dir, { kind: 'sedan', body: '#111418', side: '#111418', doors: '#f2f2f2', bar: 'full', push: true, text: 'POLICE', scale: scale || 1 }, t, night, bar);
+  return drawVehicle(g, sx, sy, dir, { kind: (color.charCodeAt(1) + color.charCodeAt(2)) % 5 === 0 ? 'suv' : 'sedan', body: color, side: color, scale: scale || 1 }, t, night, false);
+}
 export function vehicle(g, sx, sy, dir, v, t, night, on) {
   if (v.kind === 'boat') return boat(g, sx, sy, dir, t, on);
-  const s = v.scale || 1, along = dir % 2 === 0, tall = v.kind === 'armored' ? 1.5 : v.kind === 'van' ? 1.35 : v.kind === 'suv' || v.kind === 'truck' ? 1.18 : 1;
-  const L = 24 * s, Wd = 11 * s, H = 9 * s * tall;
-  const ax = along ? [L * .5, L * .25] : [-L * .5, L * .25], aw = along ? [-Wd * .5, Wd * .25] : [Wd * .5, Wd * .25];
-  const P = (u, w, h) => [sx + ax[0] * u + aw[0] * w, sy + ax[1] * u + aw[1] * w - h];
-  const quad = (a, b, c, d, f) => { g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.closePath(); g.fillStyle = f; g.fill(); };
-  g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(sx + 3, sy + 3, L * .62, L * .34, 0, 0, Math.PI * 2); g.fill();
-  const body = v.body, side = v.side || shade(body, .8), side2 = shade(side, .85);
-  g.fillStyle = '#111'; [[-.62, 1], [.62, 1], [.62, -1]].forEach(([u, w]) => { const q = P(u, w, 1.5 * s); g.beginPath(); g.ellipse(q[0], q[1], 3 * s, 2 * s, 0, 0, Math.PI * 2); g.fill(); });
-  quad(P(-1, 1, 1), P(1, 1, 1), P(1, 1, H), P(-1, 1, H), side);
-  quad(P(1, -1, 1), P(1, 1, 1), P(1, 1, H), P(1, -1, H), side2);
-  if (v.stripe) { quad(P(-1, 1, H * .38), P(1, 1, H * .38), P(1, 1, H * .62), P(-1, 1, H * .62), v.stripe); quad(P(1, -1, H * .38), P(1, 1, H * .38), P(1, 1, H * .62), P(1, -1, H * .62), shade(v.stripe, .85)); }
-  if (v.text) { const c = P(-.1, 1, H * .5); g.save(); g.translate(c[0], c[1]); g.transform(1, along ? .5 : -.5, 0, 1, 0, 0); g.fillStyle = v.stripe ? '#fff' : '#111'; g.font = '800 ' + (3.4 * s) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(v.text, 0, 0); g.restore(); }
-  const top = v.kind === 'van' || v.kind === 'armored';
-  if (top) {
-    quad(P(-1, -1, H), P(1, -1, H), P(1, 1, H), P(-1, 1, H), shade(body, 1.08));
-    quad(P(.72, .85, H * .62), P(1, .85, H * .62), P(1, .85, H * .95), P(.72, .85, H * .95), '#24323f');
-    quad(P(1, -.85, H * .62), P(1, .85, H * .62), P(1, .85, H * .95), P(1, -.85, H * .95), '#1b2731');
-    if (v.kind === 'armored') { g.fillStyle = '#1c2016'; for (let k = -2; k <= 1; k++) { const q = P(k * .3, 1, H * .78); g.fillRect(q[0] - 1.5, q[1] - 1, 3, 3); } }
-  } else {
-    quad(P(-1, -1, H), P(1, -1, H), P(1, 1, H), P(-1, 1, H), body);
-    const cH = H + 7 * s, back = v.kind === 'suv' ? -.95 : v.kind === 'truck' ? -.1 : -.45, fr = v.kind === 'truck' ? .55 : .45;
-    quad(P(back, .85, H), P(fr, .85, H), P(fr - .1, .7, cH), P(back + .05, .7, cH), '#2a3a4c');
-    quad(P(fr, -.85, H), P(fr, .85, H), P(fr - .1, .7, cH), P(fr - .1, -.7, cH), '#1d2b3a');
-    quad(P(back + .05, -.7, cH), P(fr - .1, -.7, cH), P(fr - .1, .7, cH), P(back + .05, .7, cH), shade(body, 1.06));
-    if (v.kind === 'truck') { quad(P(-1, -1, H), P(-.15, -1, H), P(-.15, 1, H), P(-1, 1, H), '#0b5e8a'); g.fillStyle = '#e2e8f0'; const q = P(-.6, 0, H + 3 * s); g.beginPath(); g.ellipse(q[0], q[1], 7 * s, 3 * s, along ? .46 : -.46, 0, Math.PI * 2); g.fill(); }
-  }
-  const cH = top ? H : H + 7 * s, blink = on && Math.floor(t / 180) % 2;
-  if (v.bar === 'full') { quad(P(-.1, -.6, cH), P(.1, -.6, cH), P(.1, 0, cH + 3), P(-.1, 0, cH + 3), blink ? '#ff2d2d' : '#7a1a1a'); quad(P(-.1, 0, cH + 3), P(.1, 0, cH + 3), P(.1, .6, cH), P(-.1, .6, cH), on && !blink ? '#2d6bff' : '#1a2f7a'); }
-  else if (on) { g.fillStyle = blink ? '#ff2d2d' : '#2d6bff'; const a = P(1, .5, H * .55), b2 = P(1, -.5, H * .55); g.fillRect((blink ? a : b2)[0] - 2, (blink ? a : b2)[1] - 2, 4, 4); }
-  const hl = P(1, .55, H * .4), hr = P(1, -.55, H * .4);
-  g.fillStyle = night ? '#fff6cc' : '#e9edf0'; g.fillRect(hl[0] - 2, hl[1] - 1.5, 4, 3); g.fillRect(hr[0] - 2, hr[1] - 1.5, 4, 3);
+  const spec = Object.assign({}, v); if (v.body === '#14171c') { spec.doors = '#f2f2f2'; spec.push = true; spec.side = v.body; }
+  return drawVehicle(g, sx, sy, dir, spec, t, night, on);
 }
+
 function boat(g, sx, sy, dir, t, on) {
-  const along = dir % 2 === 0, bob = Math.sin(t / 400) * 1.2, L = 30, Wd = 12;
-  const ax = along ? [L * .5, L * .25] : [-L * .5, L * .25], aw = along ? [-Wd * .5, Wd * .25] : [Wd * .5, Wd * .25];
+  const along = dir % 2 === 0, sg = dir >= 2 ? -1 : 1, bob = Math.sin(t / 400) * 1.2, L = 30, Wd = 12;
+  const ax = along ? [sg * L * .5, sg * L * .25] : [-sg * L * .5, sg * L * .25], aw = along ? [-Wd * .5, Wd * .25] : [Wd * .5, Wd * .25];
   const P = (u, w, h) => [sx + ax[0] * u + aw[0] * w, sy + ax[1] * u + aw[1] * w - h + bob];
   const poly = (pts, f) => { g.beginPath(); pts.forEach((q, i) => i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.closePath(); g.fillStyle = f; g.fill(); };
   g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1.5; g.beginPath(); const w0 = P(-1.2, 0, -2); g.ellipse(w0[0], w0[1], 10, 4, 0, 0, Math.PI * 2); g.stroke();

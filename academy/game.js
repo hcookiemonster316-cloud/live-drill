@@ -1,5 +1,5 @@
 // Patrol City: game loop, camera, input, people and traffic, lighting, dispatch, learning scenes and HUD.
-import { N, TW, TH, T, CH, iso, unIso, buildDistrict, drawGround, drawBuilding, drawProp, car, person, dog, vehicle, CAR_COLORS, shade } from './world.js';
+import { N, TW, TH, T, CH, iso, unIso, buildDistrict, drawGround, setRes, RES, drawBuilding, drawProp, car, person, dog, vehicle, CAR_COLORS, shade } from './world.js';
 import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
 import * as L from './learn.js';
 import { startNet } from './net.js';
@@ -38,7 +38,7 @@ let pboat = null; const K9 = { x: 0, y: 0, face: 1, moving: false };
 
 // ---------- sound (tiny synth, no files) ----------
 let AC = null; const audio = () => { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } return AC; };
-function beep(f, d, type, v, when) { if (!S.sound) return; const a = audio(); if (!a) return; const o = a.createOscillator(), g = a.createGain(); o.type = type || 'square'; o.frequency.value = f; g.gain.value = (v || .04) * (S.cfg ? S.cfg.sfx : 1); o.connect(g); g.connect(a.destination); const t = a.currentTime + (when || 0); o.start(t); g.gain.exponentialRampToValueAtTime(.0001, t + d); o.stop(t + d + .02); }
+function beep(f, d, type, v, when) { if (!S.sound) return; const a = audio(); if (!a) return; const o = a.createOscillator(), g = a.createGain(); o.type = type || 'square'; o.frequency.value = f; const vv = (v || .04) * (S.cfg ? S.cfg.sfx : 1); o.connect(g); g.connect(a.destination); const t = a.currentTime + (when || 0); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vv, t + .008); g.gain.exponentialRampToValueAtTime(.0001, t + Math.max(.03, d)); o.start(t); o.stop(t + d + .03); }
 const chirp = () => { beep(1400, .06, 'square', .03); beep(1900, .07, 'square', .03, .07); };
 const good = () => { beep(660, .12, 'triangle', .06); beep(990, .18, 'triangle', .06, .1); };
 const bad = () => beep(180, .22, 'sawtooth', .04);
@@ -84,22 +84,22 @@ function buildSprites() {
     return { b, depth: b.x + b.w - 1 + b.y + b.d - 1 + .9, bx: Dp[0] - 6, by: A[1] - b.h - ex, bw: Bp[0] - Dp[0] + 80, bh: C[1] - A[1] + b.h + ex + 40, canvas: null, lights: [] }; });
 }
 function spriteOf(s) { if (!s.canvas) Object.assign(s, drawBuilding(s.b, NIGHT ? SPR_LIT : false, SUN)); s.used = performance.now(); return s; }
-function trimSprites() { const live = SPR.filter((s) => s.canvas); if (live.length < 140) return; live.sort((a, b) => a.used - b.used).slice(0, live.length - 110).forEach((s) => { s.canvas = null; s.lights = []; }); }
+function trimSprites() { const live = SPR.filter((s) => s.canvas), cap = Math.round(120 / Math.max(1, RES * RES * .6)); if (live.length < cap + 20) return; live.sort((a, b) => a.used - b.used).slice(0, live.length - cap).forEach((s) => { s.canvas = null; s.lights = []; }); }
 // street lights come on one by one at dusk and go off one by one at dawn; each has its own photocell
 function lampsUpdate(h) { if (!W || !W.props) return; if (h == null) h = hourNow(); W.props.forEach((p) => { if (p.t !== 'lamp') return; const k = ((p.x * 7.13 + p.y * 3.71) % 1 + 1) % 1; p.on = inside ? true : (h >= 18.1 + k * .9 || h < 5.7 + k * .7); }); }
 function focus() { return ATTRACT || !P ? unIso(cam.x, cam.y) : [P.x, P.y]; }
 // ground chunks around the camera
 function groundDraw(z) {
-  if (G.canvas) { ctx.drawImage(G.canvas, -G.ox, -G.oy); return; }
+  if (G.canvas) { ctx.drawImage(G.canvas, -G.ox, -G.oy, G.canvas.lw || G.canvas.width, G.canvas.lh || G.canvas.height); return; }
   const hw = cv.width / 2 / z + 80, hh = cv.height / 2 / z + 80, pts = [unIso(cam.x - hw, cam.y - hh), unIso(cam.x + hw, cam.y - hh), unIso(cam.x - hw, cam.y + hh), unIso(cam.x + hw, cam.y + hh)];
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), M = Math.ceil(N / CH) - 1, cx0 = Math.max(0, Math.floor(Math.min(...xs) / CH)), cx1 = Math.min(M, Math.floor(Math.max(...xs) / CH)), cy0 = Math.max(0, Math.floor(Math.min(...ys) / CH)), cy1 = Math.min(M, Math.floor(Math.max(...ys) / CH));
   let made = 0; const now = performance.now();
   for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
     const k = cx + ',' + cy; let c = G.chunks.get(k);
     if (!c) { if (made > 3 && G.chunks.size > 4) continue; c = drawGround(W, cx, cy); G.chunks.set(k, c); made++; }
-    c.used = now; ctx.drawImage(c.canvas, -c.ox, -c.oy);
+    c.used = now; ctx.drawImage(c.canvas, -c.ox, -c.oy, c.canvas.lw, c.canvas.lh);
   }
-  if (G.chunks.size > 48) [...G.chunks.entries()].sort((a, b) => a[1].used - b[1].used).slice(0, G.chunks.size - 40).forEach(([k]) => G.chunks.delete(k));
+  const cap = Math.max(16, Math.round(44 / Math.pow(Math.min(2, RES), 2))); if (G.chunks.size > cap + 6) [...G.chunks.entries()].sort((a, b) => a[1].used - b[1].used).slice(0, G.chunks.size - cap).forEach(([k]) => G.chunks.delete(k));
 }
 
 let sprHour = -1;
@@ -123,7 +123,7 @@ function load(did) {
   cam.x = iso(P.x, P.y)[0]; cam.y = iso(P.x, P.y)[1]; cam.free = false;
   hud(); radio('Dispatch', 'All units, ' + shiftOf().name.toLowerCase() + ' in ' + W.D.name + ' is on. ' + S.cs + ', you are in service.');
   CHAT.list = []; CHAT.seen = new Set(); if (net && net.chatOn) net.chatOn(did, chatIn);
-  if (net) net.join(did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name });
+  if (net) Promise.resolve(net.join(did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {});
 }
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
 const SKIN = ['#f1c9a5', '#e0b48f', '#c68e63', '#a26a42', '#7a4b2a', '#5a3620'], SHIRT = ['#c0392b', '#2980b9', '#27ae60', '#f39c12', '#8e44ad', '#ecf0f1', '#16a085', '#d35400', '#7f8c8d', '#f5b7b1'], HAIR = ['#2b1d14', '#4a3020', '#8a5a2b', '#d8b46a', '#1a1a1a', '#9a9a9a'];
@@ -197,7 +197,7 @@ function update(dt, now) {
   if ((P.inCar || P.boat) && call && call.accepted) { sirenT -= dt; if (sirenT <= 0) { sirenT = .9; beep(720, .42, 'sine', .018); beep(980, .42, 'sine', .018, .45); } }
   if (net && now - moveSent > 120) { moveSent = now; net.move(P.x, P.y, P.boat ? 2 : P.inCar ? 1 : 0, P.dir); }
   liveUpdate(dt);
-  storyUpdate(dt); objectiveHud(); tipsUpdate(dt); musicUpdate(dt); trophyCheck(dt); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
+  storyUpdate(dt); objectiveHud(); tipsUpdate(dt); musicUpdate(dt); trophyCheck(dt); squadTick(dt); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
   if (inside && !P.path.length && Math.hypot(W.door[0] - P.x, W.door[1] - P.y) < .45) exitBuilding();
   hudClock();
   if (clock >= SHIFT_MIN && !scene) endOfWatch();
@@ -224,9 +224,9 @@ function render(now) {
   const [pix, piy] = iso(P.x, P.y), pd = P.x + P.y;
   let fresh = 0; SPR.forEach((s) => { if (s.bx + s.bw > vx0 && s.bx < vx1 && s.by + s.bh > vy0 && s.by < vy1) { if (!s.canvas) { if (fresh > 6) return; fresh++; } spriteOf(s);
     const b = s.b, near = !ATTRACT && s.depth > pd && P.x < b.x + b.w + 2.5 && P.y < b.y + b.d + 2.5 && P.x > b.x - 3 && P.y > b.y - 3,
-      cover = !ATTRACT && s.depth > pd && pix > s.x + 6 && pix < s.x + s.canvas.width - 6 && piy - 30 > s.y + 10 && piy - 6 < s.y + s.canvas.height;
+      cover = !ATTRACT && s.depth > pd && pix > s.x + 6 && pix < s.x + s.canvas.lw - 6 && piy - 30 > s.y + 10 && piy - 6 < s.y + s.canvas.lh;
     const target = near || cover ? .3 : 1; s.al = s.al == null ? 1 : s.al + (target - s.al) * .18;
-    list.push({ d: s.depth, f: () => { if (s.al < .98) { ctx.globalAlpha = s.al; ctx.drawImage(s.canvas, s.x, s.y); ctx.globalAlpha = 1; } else ctx.drawImage(s.canvas, s.x, s.y); } }); } });
+    list.push({ d: s.depth, f: () => { if (s.al < .98) { ctx.globalAlpha = s.al; ctx.drawImage(s.canvas, s.x, s.y, s.canvas.lw, s.canvas.lh); ctx.globalAlpha = 1; } else ctx.drawImage(s.canvas, s.x, s.y, s.canvas.lw, s.canvas.lh); } }); } });
   W.props.forEach((p) => { const [sx, sy] = iso(p.x, p.y); if (vis(sx, sy)) list.push({ d: p.x + p.y, f: p.t === 'furn' ? () => { const fade = p.wall && !p.front && p.x > P.x - .3 && p.y > P.y - .3 && (p.x + p.y) - (P.x + P.y) < 4.5; if (fade) ctx.globalAlpha = .28; drawFurn(ctx, p, sx, sy, now, W.wallCol); ctx.globalAlpha = 1; } : () => drawProp(ctx, p, sx, sy, now, NIGHT) }); });
   if (inside) { W.staff.forEach((st) => { list.push({ d: st.x + st.y, f: () => { staffDraw(ctx, st, now); if (st.npc) { const [sx, sy] = iso(st.x, st.y); if (Math.hypot(st.x - P.x, st.y - P.y) < 6) label(sx, sy - 48, st.npc.icon + ' ' + st.npc.name, '#fde68a'); if (!talkedNow[st.npc.id]) bubble(sx, sy - 66, '💬', '#fde68a', now); } } }); }); W.visitors.forEach((v) => { list.push({ d: v.x + v.y, f: () => visitorDraw(ctx, v, now) }); }); }
   else { doorMarks(list, vis, now); regsDraw(list, vis, now); }
@@ -238,7 +238,7 @@ function render(now) {
   if (pcar && !P.inCar) { const [sx, sy] = iso(pcar.x, pcar.y); list.push({ d: pcar.x + pcar.y, f: () => { vehicle(ctx, sx, sy, pcar.dir, U().ride, now, NIGHT, false); if (Math.hypot(pcar.x - P.x, pcar.y - P.y) < 5) label(sx, sy - 40, 'Your ' + U().ride.label.toLowerCase(), '#f5b800'); } }); }
   if (pboat && !P.boat) { const [sx, sy] = iso(pboat.x, pboat.y); list.push({ d: pboat.x + pboat.y, f: () => { vehicle(ctx, sx, sy, pboat.dir, { kind: 'boat' }, now, NIGHT, false); if (Math.hypot(pboat.x - P.x, pboat.y - P.y) < 6) label(sx, sy - 30, 'Patrol boat', '#7dd3fc'); } }); }
   if (S.unit === 'k9' && !P.inCar && !P.boat) { const [sx, sy] = iso(K9.x, K9.y); list.push({ d: K9.x + K9.y, f: () => dog(ctx, sx, sy, K9.face, K9.moving, now) }); }
-  Object.keys(others).forEach((k) => { const o = others[k]; if ((o.n == null ? -1 : o.n) !== (inside ? inside.idx : -1)) return; const [sx, sy] = iso(o.rx, o.ry); if (!vis(sx, sy)) return; list.push({ d: o.rx + o.ry, f: () => { const ou = unitOf(o.u); if (o.v) vehicle(ctx, sx, sy, o.d || 0, o.v === 2 ? { kind: 'boat' } : ou.ride, now, NIGHT, o.st === 'call'); else { person(ctx, sx, sy, { kit: kitWith(kitOf((String(o.f || '').split(',').find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1), o.u), o.f ? looks(String(o.f).split(',')) : {}), moving: o.moving, face: 1, skin: o.skin, s: 1 }, now); if (o.u === 'k9') dog(ctx, sx - 14, sy + 6, 1, o.moving, now); { const tk = String(o.f || 'ostd').split(','), of = (tk.find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1); flair(Object.assign({}, outfitLook(of), looks(tk)), sx, sy, now, 1); } } label(sx, sy - (o.v ? 40 : 50), ou.icon + ' ' + o.c + (o.sh && o.sh !== S.shift ? ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') : ''), '#9cc3ff'); if (o.say && performance.now() - o.sayAt < 7000) speech(sx, sy - (o.v ? 52 : 68), o.say.length > 34 ? o.say.slice(0, 32) + '…' : o.say); else if (o.q && now - o.qAt < 6000) speech(sx, sy - (o.v ? 52 : 68), QUICK[o.q.k] || ''); } }); });
+  Object.keys(others).forEach((k) => { const o = others[k]; if ((o.n == null ? -1 : o.n) !== (inside ? inside.idx : -1)) return; const [sx, sy] = iso(o.rx, o.ry); if (!vis(sx, sy)) return; list.push({ d: o.rx + o.ry, f: () => { const ou = unitOf(o.u); if (o.v) vehicle(ctx, sx, sy, o.d || 0, o.v === 2 ? { kind: 'boat' } : ou.ride, now, NIGHT, o.st === 'call'); else { person(ctx, sx, sy, { kit: kitWith(kitOf((String(o.f || '').split(',').find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1), o.u), o.f ? looks(String(o.f).split(',')) : {}), moving: o.moving, face: 1, skin: o.skin, s: 1 }, now); if (o.u === 'k9') dog(ctx, sx - 14, sy + 6, 1, o.moving, now); { const tk = String(o.f || 'ostd').split(','), of = (tk.find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1); flair(Object.assign({}, outfitLook(of), looks(tk)), sx, sy, now, 1); } } const mate = S.squad && o.g === S.squad.code; if (mate) { ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, 15, 7.5, 0, 0, Math.PI * 2); ctx.stroke(); } label(sx, sy - (o.v ? 40 : 50), (o.k ? '[' + o.k + '] ' : '') + ou.icon + ' ' + o.c + (o.sh && o.sh !== S.shift ? ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') : ''), '#9cc3ff'); if (o.say && performance.now() - o.sayAt < 7000) speech(sx, sy - (o.v ? 52 : 68), o.say.length > 34 ? o.say.slice(0, 32) + '…' : o.say); else if (o.q && now - o.qAt < 6000) speech(sx, sy - (o.v ? 52 : 68), QUICK[o.q.k] || ''); } }); });
   if (!ATTRACT) { const [sx, sy] = iso(P.x, P.y); list.push({ d: P.x + P.y, f: () => { if (P.boat) vehicle(ctx, sx, sy, P.dir, { kind: 'boat' }, now, NIGHT, call && call.accepted); else if (P.inCar) vehicle(ctx, sx, sy, P.dir, U().ride, now, NIGHT, call && call.accepted); else person(ctx, sx, sy, { kit: kitWith(myKit(), myLooks()), moving: P.moving, face: P.face, skin: S.skin || '#c68e63', s: 1.08 }, now); } }); }
   liveDraw(list, vis, now); if (!ATTRACT) storyCast(list, vis, now);
   ambienceGround();
@@ -282,7 +282,7 @@ function render(now) {
   grade(); rainDraw();
   // markers drawn above the lighting so they stay readable
   ctx.setTransform(z, 0, 0, z, cv.width / 2 - cam.x * z, cv.height / 2 - cam.y * z);
-  if (!ATTRACT) { storyMarker(now); floatsDraw(now); if (SELF_SAY.text && performance.now() - SELF_SAY.at < 6000) { const [sx, sy] = iso(P.x, P.y); speech(sx, sy - (P.inCar ? 52 : 70), SELF_SAY.text.length > 34 ? SELF_SAY.text.slice(0, 32) + '…' : SELF_SAY.text); } }
+  if (!ATTRACT) { storyMarker(now); floatsDraw(now); pingsDraw(now); if (SELF_SAY.text && performance.now() - SELF_SAY.at < 6000) { const [sx, sy] = iso(P.x, P.y); speech(sx, sy - (P.inCar ? 52 : 70), SELF_SAY.text.length > 34 ? SELF_SAY.text.slice(0, 32) + '…' : SELF_SAY.text); } }
   if (call) { const [sx, sy] = iso(call.x, call.y); ring(sx, sy, call.prio === 1 ? '#ff4d4d' : '#f5b800', now); bubble(sx, sy - 40, '📻', call.prio === 1 ? '#ff4d4d' : '#f5b800', now); label(sx, sy - 66, call.title, '#ffffff'); }
   infos.forEach((i) => { const [sx, sy] = iso(i.x, i.y); bubble(sx, sy - 30, 'i', i.cool > 0 ? '#6b7280' : '#3b82f6', now); });
   observes.forEach((o) => { if (!o.seen) return; const [sx, sy] = iso(o.x, o.y); ring(sx, sy, '#a855f7', now); bubble(sx, sy - 30, '!', '#a855f7', now); });
@@ -310,7 +310,7 @@ function drawMini() {
   const Z = inside ? 1 : 2.8; g.save(); g.translate(m.width / 2, m.height / 2); g.rotate(Math.PI / 4); g.scale(.72 * Z, .72 * Z); if (inside) g.translate(-m.width / 2, -m.height / 2); else g.translate(-P.x * s, -P.y * s); g.drawImage(m.base, 0, 0);
   const dot = (x, y, c, r) => { g.fillStyle = c; g.beginPath(); g.arc(x * s, y * s, r / Z, 0, Math.PI * 2); g.fill(); };
   if (call) dot(call.x, call.y, call.prio === 1 ? '#ff4d4d' : '#f5b800', 5);
-  Object.keys(others).forEach((k) => dot(others[k].rx, others[k].ry, '#60a5fa', 3.2));
+  Object.keys(others).forEach((k) => dot(others[k].rx, others[k].ry, S.squad && others[k].g === S.squad.code ? '#34d399' : '#60a5fa', 3.2));
   infos.forEach((i) => dot(i.x, i.y, '#3b82f6', 2.5)); if (!inside) SIDE.forEach((q) => { if (!sideAvail(q)) return; const r = regs.find((x) => x.n.id === q.giver); if (r) dot(r.x, r.y, '#38bdf8', 3.4); }); citizens.forEach((c) => dot(c.x, c.y, '#f5b800', 2.2));
   if (!inside) { if (!fogC || fogC.did !== W.did) { fogC = document.createElement('canvas'); fogC.width = m.width; fogC.height = m.height; fogC.did = W.did; const fg = fogC.getContext('2d'); fg.fillStyle = 'rgba(6,10,20,.84)'; fg.fillRect(0, 0, m.width, m.height); const str = S.explored[exKey()] || ''; for (let i = 0; i < N * N; i++) if (str[i] === '1') fg.clearRect((i % N) * s, Math.floor(i / N) * s, s + .6, s + .6); } g.drawImage(fogC, 0, 0); W.secrets.forEach((x) => { if (S.found[x.id]) dot(x.x, x.y, '#a78bfa', 3); }); regs.forEach((r) => { if ((S.npc || {})[r.n.id]) dot(r.x, r.y, '#fde68a', 2.6); }); }
   { const t = stepTarget(); if (t && !t.exit) { g.fillStyle = '#f5b800'; g.beginPath(); const q = 1 / Z; g.moveTo(t.x * s, t.y * s - 6 * q); g.lineTo(t.x * s + 5 * q, t.y * s); g.lineTo(t.x * s, t.y * s + 6 * q); g.lineTo(t.x * s - 5 * q, t.y * s); g.closePath(); g.fill(); } }
@@ -435,7 +435,7 @@ function useItem(item, act) {
   if (act === 'equip') equip(item);
   if (act === 'use') {
     if (!item.reuse) { S.items[item.id]--; if (S.items[item.id] <= 0) delete S.items[item.id]; }
-    if (item.effect === 'shake') { BUFF.speedTo = clock + 180; BUFF.speedMul = 1.25; } if (item.effect === 'energy') { BUFF.speedTo = clock + 120; BUFF.speedMul = 1.4; } if (item.effect === 'coffee' || item.effect === 'pot') BUFF.wait += 60; if (item.effect === 'light') BUFF.light = 1.5;
+    stat('used'); if (item.effect === 'shake') { BUFF.speedTo = clock + 180; BUFF.speedMul = 1.25; } if (item.effect === 'energy') { BUFF.speedTo = clock + 120; BUFF.speedMul = 1.4; } if (item.effect === 'coffee' || item.effect === 'pot') BUFF.wait += 60; if (item.effect === 'light') BUFF.light = 1.5;
     saveS(); toast(item.useText || 'Used.');
   }
 }
@@ -513,7 +513,7 @@ function npcTalk(r) {
     const les = W.D.lessons.indexOf(n.help) >= 0 ? n.help : rnd(W.D.lessons), qs = L.pick(S, [les], 'q', 1);
     runQuestions('<div class="npcHead small"><span class="npcIco">' + n.icon + '</span><div><b>' + esc(n.name) + ' has a question</b><small>' + (n.cat ? 'The cat waits. Answer correctly.' : 'Get it right and they will remember you.') + '</small></div></div>', qs, (res) => {
       talkedNow[n.id] = 2;
-      if (res.right) { ord('regular');
+      if (res.right) { ord('regular'); stat('helped');
         const nf = Math.min(6, f + 1); S.npc[n.id] = nf; saveS();
         closeModal(); award(Math.round(15 * rapMult() * (1 + gp('rpCit') / 100)), n.name + ' remembers that');
         if (nf === 3 && f < 3) { banner(n.icon, n.name + ' is your friend now', 'They have something for you.'); queueLoot('A gift from ' + n.name, 1, 'u'); }
@@ -529,7 +529,7 @@ function doorMarks(list, vis, now) {
   if (P.inCar || P.boat) return;
   W.lots.forEach((l) => { if (!ENTER[l.kind]) return; const [dx, dy] = doorSpot(l); if (Math.hypot(dx - P.x, dy - P.y) > 7) return; const [sx, sy] = iso(dx, dy); if (!vis(sx, sy)) return; list.push({ d: dx + dy + 2, f: () => { const k = (Math.sin(now / 300) + 1) / 2; ctx.fillStyle = 'rgba(245,184,0,' + (.25 + k * .25) + ')'; ctx.beginPath(); ctx.ellipse(sx, sy, 16, 8, 0, 0, Math.PI * 2); ctx.fill(); bubble(sx, sy - 26, '🚪', '#f5b800', now); } }); });
 }
-function enterBuilding(l) {
+function enterBuilding(l) { stat('inside'); if (l && l.name) { S.inside = S.inside || {}; S.inside[W.did + ':' + l.name] = 1; }
   if (inside || P.inCar || P.boat) return;
   const idx = W.lots.indexOf(l), I = buildInterior(l, W, idx);
   inside = { idx, lot: l, O: { W, G, SPR, peds, traffic, citizens, infos, observes, FX, pcar, pboat, NIGHT, x: P.x, y: P.y } };
@@ -723,7 +723,7 @@ function abilHud() {
   el.hidden = !keys.length || !!inside && false; el.innerHTML = keys.map((k) => '<button type="button" data-ab="' + k + '" class="' + (ABIL[k].left ? '' : 'used') + (ABIL[k].until > clock ? ' on' : '') + '" title="' + esc(ABIL[k].name) + '"><span>' + ABIL[k].icon + '</span><em>' + ABIL[k].left + '</em></button>').join('');
   el.querySelectorAll('[data-ab]').forEach((b) => b.onclick = () => useAbility(b.dataset.ab));
 }
-function useAbility(k) {
+function useAbility(k) { stat('ab_' + k);
   const a = ABIL[k]; if (!a || !a.left || paused) return; a.left--;
   if (k === 'summon') { for (let i = 0; i < 2; i++) { const c = newCitizen(); const near = (inside ? W.walk : W.walk).filter((t) => Math.hypot(t[0] - P.x, t[1] - P.y) < 7 && Math.hypot(t[0] - P.x, t[1] - P.y) > 2); const t = near.length ? near[Math.floor(Math.random() * near.length)] : null; if (t) { c.x = t[0] + .5; c.y = t[1] + .5; } citizens.push(c); } radio(S.cs, 'Community Policing: a couple of locals want a word.'); }
   if (k === 'code3') { a.until = clock + 180; BUFF.speedTo = Math.max(BUFF.speedTo, clock + 180); BUFF.speedMul = Math.max(BUFF.speedMul || 1, 1.35); BUFF.wait += 40; radio(S.cs, 'Code 3, lights and siren.'); if (S.sound) { beep(720, .4, 'sine', .02); beep(980, .4, 'sine', .02, .45); } }
@@ -869,7 +869,7 @@ function tap(px, py) {
 }
 addEventListener('keydown', (e) => { if (scene || paused || e.target.closest('input,textarea')) return; const k = { ArrowUp: [-1, -1], w: [-1, -1], ArrowDown: [1, 1], s: [1, 1], ArrowLeft: [-1, 1], a: [-1, 1], ArrowRight: [1, -1], d: [1, -1] }[e.key]; if (!k) return; e.preventDefault(); goTo(P.x + k[0] * 1.6, P.y + k[1] * 1.6); });
 function enterCar() { P.inCar = true; P.x = pcar.x; P.y = pcar.y; const r = nearest(Math.floor(P.x), Math.floor(P.y), (x, y) => W.drivable(x, y)); if (r) { P.x = r[0] + .5; P.y = r[1] + .5; } toast('In your ' + U().ride.label.toLowerCase() + '. Tap the road to drive; lights and siren come on when you respond to a call.'); hud(); }
-function enterBoat() { if (!pboat) return; P.boat = true; P.x = pboat.x; P.y = pboat.y; P.path = []; toast('Patrol boat launched. Tap the water to move; tap the shore to dock.'); hud(); }
+function enterBoat() { if (!pboat) return; stat('boat'); P.boat = true; P.x = pboat.x; P.y = pboat.y; P.path = []; toast('Patrol boat launched. Tap the water to move; tap the shore to dock.'); hud(); }
 function exitBoat() { if (!P.boat) return; P.boat = false; P.path = []; pboat.x = P.x; pboat.y = P.y; const r = nearest(Math.floor(P.x), Math.floor(P.y), (x, y) => W.at(x, y) === T.SAND); if (r) { P.x = r[0] + .5; P.y = r[1] + .5; pboat.dock = [P.x, P.y]; } hud(); }
 function exitCar() { if (!P.inCar) return; P.inCar = false; P.path = []; pcar.x = P.x; pcar.y = P.y; const r = nearest(Math.floor(P.x), Math.floor(P.y), (x, y) => W.walkable(x, y) && W.at(x, y) !== T.ROAD); if (r) { P.x = r[0] + .5; P.y = r[1] + .5; } hud(); }
 
@@ -887,7 +887,7 @@ function runQuestions(head, qs, done) {
       '<div class="qOpts">' + q.opts.map((o, k) => '<button type="button" class="qOpt" data-k="' + k + '"><span>' + 'ABCDEF'[k] + '</span>' + esc(o) + '</button>').join('') + '</div><div class="qFb" id="qFb"></div><div class="qAct"><button type="button" id="qGo" disabled>' + (q.multi ? 'Submit' : 'Pick an answer') + '</button></div>');
     const opts = [...document.querySelectorAll('.qOpt')];
     const submit = () => {
-      const ans = q.multi ? picked.slice() : picked[0], ok = L.isRight(q, ans); L.record(S, q, ok); SS.answered++; if (ok) { SS.right++; COMBO++; bestCombo = Math.max(bestCombo, COMBO); ord('right'); if (COMBO === 5) ord('streak'); } else COMBO = 0; comboHud(); if (ok) { right++; good(); } else bad();
+      const ans = q.multi ? picked.slice() : picked[0], ok = L.isRight(q, ans); L.record(S, q, ok); SS.answered++; if (ok) { SS.right++; stat('right'); S.bestCombo = Math.max(S.bestCombo || 0, COMBO + 1); COMBO++; bestCombo = Math.max(bestCombo, COMBO); ord('right'); if (COMBO === 5) ord('streak'); } else COMBO = 0; comboHud(); if (ok) { right++; good(); } else bad();
       opts.forEach((b) => { const k = +b.dataset.k, isC = q.multi ? q.c.indexOf(k) >= 0 : k === q.c; b.disabled = true; if (isC) b.classList.add('ok'); else if (picked.indexOf(k) >= 0) b.classList.add('no'); });
       $('qFb').innerHTML = '<div class="fb ' + (ok ? 'ok' : 'no') + '"><b>' + (ok ? (COMBO >= 3 ? '🔥 ' + COMBO + ' in a row. ' : 'Correct.') : 'Not quite.' + (bestCombo >= 3 && COMBO === 0 ? ' Streak reset.' : '')) + '</b> ' + esc(q.fact || q.ex) + ' <em>p. ' + esc(q.pg) + '</em></div>';
       const go = $('qGo'); go.disabled = false; go.textContent = i < qs.length - 1 ? 'Next' : 'Finish'; go.onclick = () => { i++; if (i < qs.length) show(); else { saveS(); done({ right, n: qs.length }); } };
@@ -901,7 +901,7 @@ const FLOATS = [];
 let COMBO = 0, bestCombo = 0;
 const comboMult = () => 1 + Math.min(COMBO, 10) * .03;
 function award(xp, why) {
-  const before = L.rankOf(S.xp).name; xp = Math.round(xp * comboMult()); S.xp += xp; SS.rp += xp; const after = L.rankOf(S.xp).name; saveS(); hud();
+  const before = L.rankOf(S.xp).name; const sqm = squadMult(); if (sqm > 1) { stat('sqRP', Math.round(xp * (sqm - 1))); } xp = Math.round(xp * comboMult() * sqm); S.xp += xp; SS.rp += xp; const after = L.rankOf(S.xp).name; saveS(); hud();
   FLOATS.push({ x: P.x, y: P.y, t: performance.now(), text: '+' + xp + ' RP', sub: why + (COMBO >= 3 ? ' · 🔥x' + comboMult().toFixed(2).replace(/0$/, '') : '') });
   if (after !== before) setTimeout(() => promotion(after), 700);
   if (net) net.status('patrol');
@@ -984,7 +984,7 @@ function openCallSceneQ(c) {
   if (net) net.status('call');
   const n = c.prio === 1 ? 4 : 3, qs = L.pick(S, [c.les], 'q', n), fast = clock - c.t0 < 40;
   runQuestions('<div class="sceneHead p' + c.prio + '"><b>ON SCENE · ' + esc(c.where) + '</b><h2>' + esc(c.title) + '</h2><p>' + esc(c.text) + '</p></div>', qs, (r) => {
-    S.calls++; SS.calls++; const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 && hasSk('tac2') ? 1.15 : 1) * (c.prio === 1 && hasSk('tac4') ? 1.25 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM, xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
+    S.calls++; SS.calls++; stat('p' + c.prio); if (inside) stat('inCall'); if (NIGHT) stat('nightCalls'); const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 && hasSk('tac2') ? 1.15 : 1) * (c.prio === 1 && hasSk('tac4') ? 1.25 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM, xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
     openModal('<div class="sceneHead done"><b>CALL CLEARED</b><h2>' + r.right + ' of ' + r.n + ' handled by the book</h2><p>' + (fast ? 'Quick response bonus. ' : '') + (mult > 1.01 ? U().icon + ' ' + esc(U().perk) + ' bonus. ' : '') + (r.right === r.n ? 'Clean call. ' : 'Review what you missed in the hub.') + '</p></div>' + masteryLine() + '<div class="qAct"><button type="button" id="mDone">Back in service</button></div>');
     $('mDone').onclick = () => { closeModal(); radio(S.cs, 'Clear, back in service.'); award(xp, 'call cleared'); queueLoot('Found on scene: ' + c.title, r.right === r.n ? .6 : .3); nextCall = (25 + Math.random() * 25) * (S.unit === 'patrol' ? .75 : 1); if (net) net.backup(null); };
   });
@@ -1009,7 +1009,7 @@ function infoPoint(i) {
 }
 function backupScene(uid, o) {
   const ls = W.D.lessons.indexOf(6) >= 0 ? [6] : W.D.lessons, qs = L.pick(S, ls, 'q', 2);
-  if (net) net.assist(uid);
+  if (net) net.assist(uid); stat('assists'); if (S.squad && others[uid] && others[uid].g === S.squad.code) stat('sqAssist');
   runQuestions('<div class="sceneHead p2"><b>BACKUP · COVER OFFICER</b><h2>You arrive to back up ' + esc(o.c) + '</h2><p>' + esc(o.b.l || '') + '</p></div>', qs, (r) => { closeModal(); award(20 + r.right * 15, 'backup'); if (net) net.assist(null); });
 }
 function masteryLine() {
@@ -1049,6 +1049,7 @@ function gatePrompt(g) {
 function endOfWatch() {
   scene = {}; const acc = SS.answered ? SS.right / SS.answered : 0, od = S.orders ? S.orders.list.filter((o) => o.done).length : 0;
   const score = acc * .6 + Math.min(SS.calls, 6) / 6 * .25 + od / 3 * .15, grade = score >= .92 ? 'S' : score >= .8 ? 'A' : score >= .65 ? 'B' : score >= .5 ? 'C' : 'D';
+  stat('shifts'); stat('shift_' + S.shift); stat('grade' + grade); stat('d' + W.did + 'shifts');
   const note = { S: 'Outstanding watch. Castillo actually smiled. Witnesses are unsure.', A: 'Sharp work. The kind of shift people remember.', B: 'Solid shift. Clean up the misses and you\'re there.', C: 'You showed up and did the work. Now do it by the book.', D: 'Rough one. Every officer has them. Review, rest, come back.' }[grade];
   openModal('<div class="rpt"><div class="rptHead"><span>PORT MERIDIAN PD · SHIFT REPORT</span><b>' + esc(shiftOf().name) + ' · ' + esc(W.D.name) + '</b><small>' + esc(S.cs) + ' · ' + esc(unitName(U())) + '</small></div>' +
     '<div class="rptGrid"><div><em>' + SS.calls + '</em><span>Calls cleared</span></div><div><em>' + Math.round(acc * 100) + '%</em><span>Accuracy</span></div><div><em>' + bestCombo + '</em><span>Best streak</span></div><div><em>' + od + '/3</em><span>Shift orders</span></div><div><em>' + SS.rp + '</em><span>RP earned</span></div><div><em>' + esc(L.rankOf(S.xp).name) + '</em><span>Rank</span></div></div>' +
@@ -1078,7 +1079,7 @@ $('bPause').onclick = () => pauseMenu();
 $('bSnd').onclick = () => { S.sound = !S.sound; saveS(); hud(); if (S.sound) { audio(); music.start(moodNow()); } else music.stop(); };
 $('bMe').onclick = () => { cam.free = false; };
 $('zIn').onclick = () => setZoom(cam.z * 1.2); $('zOut').onclick = () => setZoom(cam.z / 1.2);
-$('bRadio').onclick = () => { const m = $('quick'); m.hidden = !m.hidden; $('bRadio').classList.remove('ping'); if (!m.hidden) { chatPanel(); setTimeout(() => { if (innerWidth > 700) { const i = $('chIn'); if (i) i.focus(); } }, 50); } };
+$('bRadio').onclick = () => { const m = $('quick'); m.hidden = !m.hidden; $('bRadio').classList.remove('ping'); if (!m.hidden) { commsPanel(); setTimeout(() => { if (innerWidth > 700) { const i = $('chIn'); if (i) i.focus(); } }, 50); } };
 
 // ---------- district chat ----------
 // in the radio feed, as bubbles over each cadet, and in the Radio panel with history and quick replies
@@ -1092,7 +1093,7 @@ function chatIn(all) {
     if (CHAT.muted.has(m.u)) return; const fresh = N0() - m.t < 60000;
     if (fresh) { radio(m.c, clean(m.m)); const o = others[m.u]; if (o) { o.say = clean(m.m); o.sayAt = performance.now(); } if (m.u !== myUid) { const b = $('bRadio'); if (b && $('quick').hidden) b.classList.add('ping'); } }
   });
-  if (!$('quick').hidden) chatPanel();
+  if (!$('quick').hidden && COMMS.tab === 'd') commsPanel();
 }
 function chatSend(text) {
   text = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 140); if (!text) return;
@@ -1102,18 +1103,181 @@ function chatSend(text) {
   SELF_SAY.text = m; SELF_SAY.at = performance.now(); chirp();
 }
 const SELF_SAY = { text: '', at: 0 };
-function chatPanel() {
-  const q = $('quick'), mine = (m) => m.u === myUid, rows = CHAT.list.filter((m) => !CHAT.muted.has(m.u)).slice(-30);
-  q.innerHTML = '<div class="chHead"><b>📻 ' + esc(W.D.name) + ' channel</b><span>' + (Object.keys(others).length + 1) + ' on shift</span><button type="button" id="chX" aria-label="Close">×</button></div>' +
-    '<div class="chList" id="chList">' + (rows.length ? rows.map((m) => '<div class="chMsg' + (mine(m) ? ' me' : '') + '"><b>' + esc(m.c) + (m.s && m.s !== S.shift ? ' <i>' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[m.s] || '') + '</i>' : '') + '</b><span>' + esc(clean(m.m)) + '</span>' + (mine(m) ? '' : '<button type="button" class="chMute" data-u="' + esc(m.u) + '" title="Mute this cadet">🔇</button>') + '</div>').join('') : '<p class="chEmpty">Quiet channel. Say hi to the cadets on shift in ' + esc(W.D.name) + '.</p>') + '</div>' +
-    '<div class="chQuick">' + QUICK.map((t, k) => '<button type="button" data-q="' + k + '">' + esc(t) + '</button>').join('') + '</div>' +
-    '<form class="chForm" id="chForm"><input id="chIn" maxlength="140" autocomplete="off" placeholder="Message ' + esc(W.D.name) + '…" aria-label="Chat message"><button type="submit">Send</button></form><p class="chRule">Keep it professional. Everyone on this channel is a cadet in training.</p>';
-  const L2 = $('chList'); L2.scrollTop = L2.scrollHeight;
-  $('chX').onclick = () => { q.hidden = true; };
-  q.querySelectorAll('[data-q]').forEach((b) => b.onclick = () => { radio(S.cs, QUICK[+b.dataset.q]); if (net) net.quick(+b.dataset.q); SELF_SAY.text = QUICK[+b.dataset.q]; SELF_SAY.at = performance.now(); chirp(); q.hidden = true; });
-  q.querySelectorAll('.chMute').forEach((b) => b.onclick = () => { CHAT.muted.add(b.dataset.u); try { localStorage.setItem('patrolcity:muted', JSON.stringify([...CHAT.muted])); } catch (e) {} toast('Muted. You won\'t see their messages.'); chatPanel(); });
-  $('chForm').onsubmit = (e) => { e.preventDefault(); const v = $('chIn').value; $('chIn').value = ''; chatSend(v); };
+
+// ---------- comms: district, city-wide, squad and direct messages, plus people and squads ----------
+const COMMS = { tab: 'd', city: { list: [], seen: new Set() }, sq: { list: [], seen: new Set() }, dm: {}, dmOpen: null, inbox: {}, invites: {}, squad: null, unread: { d: 0, c: 0, s: 0, m: 0 }, started: false, sqStop: null, sqChatStop: null, cityStop: null, sqT: 0 };
+S.squad = S.squad || null; S.dmRead = S.dmRead || {}; S.contacts = S.contacts || {};
+const MAXSQ = 4;
+function stat(k, n) { S.stat = S.stat || {}; S.stat[k] = (S.stat[k] || 0) + (n == null ? 1 : n); }
+const sqCode = () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 6; i++) c += A[Math.floor(Math.random() * A.length)]; return c; };
+const tagFrom = (n) => (String(n).toUpperCase().replace(/[^A-Z0-9 ]/g, '').split(/\s+/).filter(Boolean).map((w) => w[0]).join('') || 'SQD').slice(0, 4).padEnd(2, 'X');
+const meInfo = () => ({ c: S.cs, u: S.unit, r: L.rankOf(S.xp).name, d: W && W.did != null ? (inside ? inside.O.W.did : W.did) : 0, s: S.shift, st: call && call.accepted ? 'call' : 'patrol' });
+function commsJoin() {
+  if (!net || !net.listen) return;
+  if (S.squad) net.squadTag(S.squad.code, S.squad.tag);
+  if (COMMS.started) return; COMMS.started = true;
+  COMMS.cityStop = net.listen(net.cityPath(), (all) => chanIn('c', all));
+  net.listen(net.inboxPath(), (all) => { COMMS.inbox = all; Object.keys(all).forEach((u) => { const m = all[u]; if (!m) return; S.contacts[u] = m.c; if (m.t > (S.dmRead[u] || 0) && N0() - m.t < 6e5 && !(COMMS.tab === 'm' && COMMS.dmOpen === u && !$('quick').hidden)) { if (!COMMS.dmToast || COMMS.dmToast[u] !== m.t) { COMMS.dmToast = COMMS.dmToast || {}; COMMS.dmToast[u] = m.t; radio('DM · ' + m.c, clean(m.m)); chirp(); } } }); badge(); if (!$('quick').hidden && COMMS.tab === 'm') commsPanel(); });
+  net.listen(net.invPath(), (all) => { COMMS.invites = all; Object.keys(all).forEach((u) => { const v = all[u]; if (v && N0() - v.t < 6e5 && !(COMMS.seenInv || {})[u + v.t]) { COMMS.seenInv = COMMS.seenInv || {}; COMMS.seenInv[u + v.t] = 1; inviteCard(u, v); } }); badge(); });
+  if (S.squad) squadListen(S.squad.code);
 }
+function chanIn(key, all) {
+  const C = COMMS[key === 'c' ? 'city' : 'sq'], rows = Object.keys(all).map((k) => Object.assign({ k }, all[k])).filter((m) => m && m.m && m.t).sort((a, b) => a.t - b.t).slice(-60);
+  rows.forEach((m) => { if (C.seen.has(m.k)) return; C.seen.add(m.k); C.list.push(m); if (C.list.length > 60) C.list.shift(); if (CHAT.muted.has(m.u) || m.u === myUid) return; S.contacts[m.u] = m.c;
+    if (N0() - m.t < 60000) { radio((key === 'c' ? 'City · ' : (S.squad ? '[' + S.squad.tag + '] ' : '')) + m.c, clean(m.m)); if ($('quick').hidden || COMMS.tab !== key) { COMMS.unread[key]++; badge(); } } });
+  if (!$('quick').hidden) commsPanel();
+}
+function badge() {
+  const dmU = Object.keys(COMMS.inbox).filter((u) => COMMS.inbox[u] && COMMS.inbox[u].t > (S.dmRead[u] || 0)).length; COMMS.unread.m = dmU;
+  const inv = Object.keys(COMMS.invites).filter((u) => COMMS.invites[u]).length, n = COMMS.unread.c + COMMS.unread.s + dmU + inv, b = $('bRadio'); if (!b) return;
+  let el = b.querySelector('.bBadge'); if (!el) { el = document.createElement('em'); el.className = 'bBadge'; b.appendChild(el); } el.textContent = n > 9 ? '9+' : n; el.hidden = !n;
+}
+// ---- squads ----
+function squadListen(code) {
+  if (COMMS.sqStop) COMMS.sqStop(); if (COMMS.sqChatStop) COMMS.sqChatStop(); COMMS.sq = { list: [], seen: new Set() };
+  COMMS.sqStop = net.listen('mmo/sq/' + code, (v) => {
+    const i = v.i, m = v.m || {};
+    if (!i || !m[myUid]) { if (S.squad && S.squad.code === code && COMMS.squad) { toast('You are no longer in ' + (S.squad.name || 'your squad') + '.'); squadDrop(); } else if (!i) squadDrop(); return; }
+    const first = !COMMS.squad; COMMS.squad = { code, i, m }; S.squad = { code, name: i.n, tag: i.g, lead: i.l === myUid }; saveS(); net.squadTag(code, i.g);
+    if (first) radio('[' + i.g + '] Squad', 'Squad channel open. ' + Object.keys(m).length + ' member' + (Object.keys(m).length === 1 ? '' : 's') + '.');
+    if (!$('quick').hidden && (COMMS.tab === 's' || COMMS.tab === 'p')) commsPanel();
+  });
+  COMMS.sqChatStop = net.listen(net.sqChatPath(code), (all) => chanIn('s', all));
+  net.sqBeat(code, meInfo());
+}
+function squadDrop() { if (COMMS.sqStop) COMMS.sqStop(); if (COMMS.sqChatStop) COMMS.sqChatStop(); COMMS.sqStop = COMMS.sqChatStop = null; COMMS.squad = null; S.squad = null; saveS(); if (net) net.squadTag(null, null); if (!$('quick').hidden) commsPanel(); }
+async function squadCreate(name) {
+  if (!net) return toast('Squads need a connection.'); name = clean(String(name || '').trim()).slice(0, 24); if (name.length < 2) return toast('Give your squad a name (2 to 24 letters).');
+  const code = sqCode(), tag = tagFrom(name);
+  try { await net.sqCreate(code, name, tag); await net.sqJoin(code, meInfo()); } catch (e) { return toast('Could not create the squad. Try again.'); }
+  S.squad = { code, name, tag, lead: true }; saveS(); stat('squadMade'); squadListen(code); music.sting('accept'); banner('🛡️', 'Squad formed: ' + name + ' [' + tag + ']', 'Share code ' + code + ' or invite cadets from People.');
+}
+async function squadJoin(code, from) {
+  if (!net) return toast('Squads need a connection.'); code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (code.length !== 6) return toast('Squad codes are 6 letters and numbers.');
+  if (S.squad && S.squad.code === code) return toast('You are already in this squad.');
+  let v = null; try { v = await net.sqGet(code); } catch (e) {}
+  if (!v || !v.i) return toast('No squad found with code ' + code + '.');
+  if (Object.keys(v.m || {}).length >= MAXSQ) return toast(v.i.n + ' is full (' + MAXSQ + ' cadets).');
+  if (S.squad) await squadLeave(true);
+  try { await net.sqJoin(code, meInfo()); } catch (e) { return toast('Could not join. Try again.'); }
+  if (from) net.invClear(from); S.squad = { code, name: v.i.n, tag: v.i.g, lead: false }; saveS(); stat('squadJoin'); squadListen(code); music.sting('accept');
+  banner('🛡️', 'Joined ' + v.i.n + ' [' + v.i.g + ']', 'Squad channel is open. Stay close for the squad RP bonus.');
+  net.post(net.sqChatPath(code), { c: S.cs, m: S.cs + ' joined the squad.' });
+}
+async function squadLeave(quiet) {
+  if (!S.squad || !net) return; const sq = COMMS.squad, code = S.squad.code;
+  if (sq && sq.i.l === myUid) { const rest = Object.keys(sq.m).filter((u) => u !== myUid); if (rest.length) { try { await net.sqLead(code, rest[0]); } catch (e) {} } }
+  try { await net.sqLeave(code); } catch (e) {} squadDrop(); if (!quiet) toast('You left the squad.');
+}
+function nearSquad() { if (!S.squad) return 0; let n = 0; Object.keys(others).forEach((k) => { const o = others[k]; if (o.g === S.squad.code && Math.hypot(o.rx - P.x, o.ry - P.y) < 16) n++; }); return n; }
+function squadMult() { return nearSquad() ? 1 + .1 + gp('rpSquad') / 100 : 1; }
+function squadTick(dt) {
+  if (!S.squad || !net) { if ($('sqChip')) $('sqChip').hidden = true; return; } COMMS.sqT -= dt; if (COMMS.sqT <= 0) { COMMS.sqT = 25; net.sqBeat(S.squad.code, meInfo()); }
+  const n = nearSquad(), el = $('sqChip'); if (!el) return; el.hidden = !n; if (n) el.textContent = '🛡️ Squad +' + Math.round((squadMult() - 1) * 100) + '% RP';
+}
+function inviteCard(from, v) {
+  const el = $('invCard'); if (!el) return;
+  el.innerHTML = '<span>📨</span><div><b>' + esc(v.c) + '</b> invited you to <b>' + esc(v.n) + (v.g ? ' [' + esc(v.g) + ']' : '') + '</b></div><button type="button" id="ivY">Join</button><button type="button" class="ghost" id="ivN">Decline</button>';
+  el.hidden = false; chirp();
+  $('ivY').onclick = () => { el.hidden = true; squadJoin(v.s, from); }; $('ivN').onclick = () => { el.hidden = true; net.invClear(from); delete COMMS.invites[from]; badge(); };
+  clearTimeout(inviteCard.t); inviteCard.t = setTimeout(() => { el.hidden = true; }, 20000);
+}
+// ---- the comms panel ----
+const fmtT = (t) => { const d = new Date(t); return String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0'); };
+function msgRows(rows, empty) {
+  return rows.length ? rows.map((m) => { const me = m.u === myUid; return '<div class="chMsg' + (me ? ' me' : '') + '"><b>' + (me ? esc(m.c) : '<button type="button" class="chWho" data-u="' + esc(m.u) + '" data-c="' + esc(m.c) + '">' + esc(m.c) + '</button>') + (m.s && m.s !== S.shift ? ' <i>' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[m.s] || '') + '</i>' : '') + (m.d != null && COMMS.tab === 'c' ? ' <i>' + esc((DISTRICTS[m.d] || {}).name || '') + '</i>' : '') + ' <time>' + fmtT(m.t) + '</time></b><span>' + esc(clean(m.m)) + '</span></div>'; }).join('') : '<p class="chEmpty">' + empty + '</p>';
+}
+function commsPanel() {
+  const keep = $('chIn') && document.activeElement === $('chIn') ? $('chIn').value : ($('chIn') ? $('chIn').value : null), hadFocus = $('chIn') && document.activeElement === $('chIn'), keepId = ['sqName', 'sqCodeIn'].map((id) => $(id) ? [id, $(id).value] : null).filter(Boolean);
+  const q = $('quick'), T = COMMS.tab, inv = Object.keys(COMMS.invites).filter((u) => COMMS.invites[u]).length;
+  if (T === 'c') COMMS.unread.c = 0; if (T === 's') COMMS.unread.s = 0; badge();
+  const tabs = [['d', '📻 District'], ['c', '🏙️ City'], ['s', '🛡️ Squad' + (S.squad ? ' [' + esc(S.squad.tag) + ']' : '')], ['m', '✉️ Direct'], ['p', '👥 People']];
+  const cnt = { c: COMMS.unread.c, s: COMMS.unread.s + (S.squad ? 0 : inv), m: COMMS.unread.m };
+  let body = '', form = '';
+  const sendForm = (ph) => '<form class="chForm" id="chForm"><input id="chIn" maxlength="140" autocomplete="off" placeholder="' + esc(ph) + '" aria-label="Message"><button type="submit">Send</button></form>';
+  if (T === 'd') { body = '<div class="chList" id="chList">' + msgRows(CHAT.list.filter((m) => !CHAT.muted.has(m.u)).slice(-40), 'Quiet channel. Say hi to the cadets on shift in ' + esc(W.D.name) + '.') + '</div><div class="chQuick">' + QUICK.map((t, k) => '<button type="button" data-q="' + k + '">' + esc(t) + '</button>').join('') + '</div>'; form = sendForm('Message ' + W.D.name + '…'); }
+  if (T === 'c') { body = '<div class="chList" id="chList">' + msgRows(COMMS.city.list.filter((m) => !CHAT.muted.has(m.u)).slice(-40), 'The city-wide channel reaches every district and every shift.') + '</div>'; form = sendForm('Message all of Port Meridian…'); }
+  if (T === 's') {
+    if (!S.squad) {
+      body = '<div class="sqNone">' + (inv ? '<div class="sqInv"><b>Invitations</b>' + Object.keys(COMMS.invites).filter((u) => COMMS.invites[u]).map((u) => { const v = COMMS.invites[u]; return '<div class="sqRow"><span>📨 <b>' + esc(v.n) + (v.g ? ' [' + esc(v.g) + ']' : '') + '</b><small>from ' + esc(v.c) + '</small></span><button type="button" data-ij="' + esc(u) + '">Join</button><button type="button" class="ghost" data-in="' + esc(u) + '">Decline</button></div>'; }).join('') + '</div>' : '') +
+        '<h3>Start a squad</h3><p>Up to ' + MAXSQ + ' cadets. Squadmates share a private channel, see where everyone is from any district, and earn <b>+10% RP</b> when they work close together.</p><form class="chForm" id="sqMake"><input id="sqName" maxlength="24" placeholder="Squad name, e.g. Night Owls" autocomplete="off"><button type="submit">Create</button></form>' +
+        '<h3>Join with a code</h3><form class="chForm" id="sqJoinF"><input id="sqCodeIn" maxlength="6" placeholder="6-character code" autocomplete="off" style="text-transform:uppercase"><button type="submit">Join</button></form></div>';
+    } else {
+      const sq = COMMS.squad, mem = sq ? sq.m : {}, lead = sq && sq.i.l === myUid;
+      body = '<div class="sqHead"><div><b>' + esc(S.squad.name) + ' <em>[' + esc(S.squad.tag) + ']</em></b><small>Code <code id="sqCode">' + esc(S.squad.code) + '</code> <button type="button" class="ghost tiny" id="sqCopy">Copy</button></small></div><button type="button" class="ghost tiny" id="sqLeave">Leave</button></div>' +
+        '<div class="sqMem">' + Object.keys(mem).map((u) => { const m = mem[u], on = N0() - (m.t || 0) < 90000, here = others[u], isLead = sq.i.l === u; return '<div class="sqRow' + (u === myUid ? ' me' : '') + '"><span><i class="dot' + (on ? ' on' : '') + '"></i><b>' + (isLead ? '⭐ ' : '') + esc(m.c) + '</b><small>' + esc(unitName(UNITS.find((x) => x.id === m.u) || UNITS[0])) + ' · ' + esc(m.r || '') + ' · ' + (on ? esc((DISTRICTS[m.d] || {}).name || '') + (m.st === 'call' ? ' · on a call' : '') : 'offline') + '</small></span>' +
+          (u === myUid ? '' : '<button type="button" class="ghost tiny" data-dm="' + esc(u) + '" data-c="' + esc(m.c) + '">✉️</button>' + (here ? '<button type="button" class="ghost tiny" data-loc="' + esc(u) + '">📍</button>' : on && m.d !== W.did && S.unlocked.includes(m.d) ? '<button type="button" class="ghost tiny" data-go="' + m.d + '">Go</button>' : '') + (lead ? '<button type="button" class="ghost tiny" data-kick="' + esc(u) + '">✕</button>' : '')) + '</div>'; }).join('') + (Object.keys(mem).length < MAXSQ ? '<p class="sqHint">' + (MAXSQ - Object.keys(mem).length) + ' open spot' + (MAXSQ - Object.keys(mem).length === 1 ? '' : 's') + '. Invite cadets from People, or share the code.</p>' : '') + '</div>' +
+        '<div class="chList short" id="chList">' + msgRows(COMMS.sq.list.slice(-40), 'Squad channel. Only your squad can see this.') + '</div><div class="chQuick"><button type="button" id="sqPing">📍 Share my location</button><button type="button" id="sqRally">🚓 Rally on me</button></div>';
+      form = sendForm('Message your squad…');
+    }
+  }
+  if (T === 'm') {
+    if (COMMS.dmOpen) { const u = COMMS.dmOpen, c = S.contacts[u] || (others[u] || {}).c || 'Cadet', th = COMMS.dm[u] || { list: [] };
+      body = '<div class="dmHead"><button type="button" class="ghost tiny" id="dmBack">‹ Back</button><b>' + esc(c) + '</b>' + (others[u] ? '<small>on shift here</small>' : '') + '</div><div class="chList" id="chList">' + msgRows(th.list.slice(-50), 'Direct messages are private between you and ' + esc(c) + '.') + '</div>'; form = sendForm('Message ' + c + '…');
+    } else { const us = [...new Set(Object.keys(COMMS.inbox).concat(Object.keys(COMMS.dm)))].filter((u) => u !== myUid);
+      body = '<div class="dmList">' + (us.length ? us.sort((a, b) => ((COMMS.inbox[b] || {}).t || 0) - ((COMMS.inbox[a] || {}).t || 0)).map((u) => { const ib = COMMS.inbox[u], un = ib && ib.t > (S.dmRead[u] || 0); return '<button type="button" class="dmRow' + (un ? ' un' : '') + '" data-dm="' + esc(u) + '" data-c="' + esc(S.contacts[u] || (ib || {}).c || 'Cadet') + '"><b>' + esc(S.contacts[u] || (ib || {}).c || 'Cadet') + '</b><small>' + (ib ? esc(clean(ib.m)) : 'Open conversation') + '</small>' + (un ? '<i></i>' : '') + '</button>'; }).join('') : '<p class="chEmpty">No messages yet. Tap any cadet\'s name in a channel or in People to message them directly.</p>') + '</div>';
+    }
+  }
+  if (T === 'p') {
+    const ks = Object.keys(others).sort((a, b) => Math.hypot(others[a].rx - P.x, others[a].ry - P.y) - Math.hypot(others[b].rx - P.x, others[b].ry - P.y));
+    body = '<div class="pplList"><p class="pplNote">' + (ks.length ? ks.length + ' cadet' + (ks.length === 1 ? '' : 's') + ' on shift in ' + esc(W.D.name) + (S.shift === 'mid' ? ' (Day and Night can see you too)' : '') : 'Nobody else is on shift in ' + esc(W.D.name) + ' right now. Try the City channel to find squadmates.') + '</p>' +
+      ks.map((k) => { const o = others[k], u = UNITS.find((x) => x.id === o.u) || UNITS[0], d = Math.hypot(o.rx - P.x, o.ry - P.y); return '<button type="button" class="pplRow" data-pp="' + esc(k) + '"><span class="pplIco">' + u.icon + '</span><span><b>' + (o.k ? '<em>[' + esc(o.k) + ']</em> ' : '') + esc(o.c) + '</b><small>' + esc(unitName(u)) + ' · ' + esc(o.r || 'Cadet') + ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') + (o.st === 'call' ? ' · on a call' : '') + '</small></span><em>' + Math.round(d * 4) * 5 + ' ft</em></button>'; }).join('') + '</div>';
+  }
+  q.innerHTML = '<div class="chHead"><b>Comms</b><span>' + (Object.keys(others).length + 1) + ' on shift · ' + esc(W.D.name) + '</span><button type="button" id="chX" aria-label="Close">×</button></div><div class="chTabs">' + tabs.map(([k, t]) => '<button type="button" data-t="' + k + '" class="' + (T === k ? 'on' : '') + '">' + t + (cnt[k] ? '<i>' + cnt[k] + '</i>' : '') + '</button>').join('') + '</div>' + body + form + '<p class="chRule">Keep it professional. Everyone here is a cadet in training.</p>';
+  const L2 = $('chList'); if (L2) L2.scrollTop = L2.scrollHeight;
+  if (keep && $('chIn')) { $('chIn').value = keep; } if (hadFocus && $('chIn')) $('chIn').focus(); keepId.forEach(([id, v]) => { if ($(id)) $(id).value = v; });
+  $('chX').onclick = () => { q.hidden = true; };
+  q.querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { COMMS.tab = b.dataset.t; COMMS.dmOpen = null; feSound('move'); commsPanel(); });
+  q.querySelectorAll('[data-q]').forEach((b) => b.onclick = () => { radio(S.cs, QUICK[+b.dataset.q]); if (net) net.quick(+b.dataset.q); SELF_SAY.text = QUICK[+b.dataset.q]; SELF_SAY.at = performance.now(); chirp(); q.hidden = true; });
+  q.querySelectorAll('.chWho').forEach((b) => b.onclick = () => profileCard(b.dataset.u, b.dataset.c));
+  q.querySelectorAll('[data-pp]').forEach((b) => b.onclick = () => profileCard(b.dataset.pp, others[b.dataset.pp].c));
+  q.querySelectorAll('[data-dm]').forEach((b) => b.onclick = () => openDM(b.dataset.dm, b.dataset.c));
+  q.querySelectorAll('[data-ij]').forEach((b) => b.onclick = () => squadJoin(COMMS.invites[b.dataset.ij].s, b.dataset.ij));
+  q.querySelectorAll('[data-in]').forEach((b) => b.onclick = () => { net.invClear(b.dataset.in); delete COMMS.invites[b.dataset.in]; commsPanel(); });
+  q.querySelectorAll('[data-kick]').forEach((b) => b.onclick = () => { if (!confirmLite(b, 'Remove?')) return; net.sqLeave(S.squad.code, b.dataset.kick); });
+  q.querySelectorAll('[data-loc]').forEach((b) => b.onclick = () => { const o = others[b.dataset.loc]; if (o) { const [sx, sy] = iso(o.rx, o.ry); cam.free = true; cam.x = sx; cam.y = sy; PINGS.push({ x: o.rx, y: o.ry, t: performance.now(), c: '#34d399' }); q.hidden = true; } });
+  q.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { q.hidden = true; travel(+b.dataset.go); });
+  if ($('sqMake')) $('sqMake').onsubmit = (e) => { e.preventDefault(); squadCreate($('sqName').value); };
+  if ($('sqJoinF')) $('sqJoinF').onsubmit = (e) => { e.preventDefault(); squadJoin($('sqCodeIn').value); };
+  if ($('sqLeave')) $('sqLeave').onclick = (e) => { if (!confirmLite(e.target, 'Leave squad?')) return; squadLeave(); };
+  if ($('sqCopy')) $('sqCopy').onclick = () => { try { navigator.clipboard.writeText(S.squad.code); toast('Squad code copied: ' + S.squad.code); } catch (e) { toast('Squad code: ' + S.squad.code); } };
+  if ($('sqPing')) $('sqPing').onclick = () => { const lot = nearestLot(); net.post(net.sqChatPath(S.squad.code), { c: S.cs, m: '📍 ' + (lot ? 'near ' + lot : 'here') + ', ' + W.D.name + '.', d: W.did }); stat('sqPing'); };
+  if ($('sqRally')) $('sqRally').onclick = () => { net.backup({ x: P.x, y: P.y, l: 'Squad rally: ' + S.squad.tag }); net.post(net.sqChatPath(S.squad.code), { c: S.cs, m: '🚓 Rally on me in ' + W.D.name + '. Look for the blue marker.', d: W.did }); stat('sqRally'); toast('Rally point set. Your squad can see your marker.'); };
+  if ($('dmBack')) $('dmBack').onclick = () => { COMMS.dmOpen = null; commsPanel(); };
+  if ($('chForm')) $('chForm').onsubmit = (e) => { e.preventDefault(); const v = $('chIn').value; $('chIn').value = ''; commsSend(v); };
+}
+function confirmLite(b, txt) { if (b.dataset.sure) return true; b.dataset.sure = 1; const was = b.textContent; b.textContent = txt; setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = was; } }, 2500); return false; }
+function nearestLot() { const outW = inside ? inside.O.W : W; let best = null, bd = 1e9; outW.lots.forEach((l) => { if (!l.name) return; const d = Math.hypot(l.door[0] - P.x, l.door[1] - P.y); if (d < bd) { bd = d; best = l.name; } }); return bd < 12 ? best : null; }
+function commsSend(text) {
+  const T = COMMS.tab; text = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 140); if (!text) return;
+  if (T === 'd') return chatSend(text);
+  if (Date.now() - CHAT.last < 2000) { toast('Easy on the radio. One message every few seconds.'); return; } CHAT.last = Date.now();
+  const m = clean(text); if (!net) { toast('Comms need a connection.'); return; }
+  if (T === 'c') { net.post(net.cityPath(), { c: S.cs, m, s: S.shift, d: W.did }); stat('city'); }
+  if (T === 's' && S.squad) { net.post(net.sqChatPath(S.squad.code), { c: S.cs, m, s: S.shift, d: W.did }); stat('sqMsg'); }
+  if (T === 'm' && COMMS.dmOpen) { net.dmSend(COMMS.dmOpen, m, S.cs); stat('dm'); }
+  chirp();
+}
+function openDM(u, c) {
+  if (u === myUid) return; if (c) S.contacts[u] = c; COMMS.tab = 'm'; COMMS.dmOpen = u; $('quick').hidden = false; closeModal();
+  if (!COMMS.dm[u]) { COMMS.dm[u] = { list: [], seen: new Set() }; COMMS.dm[u].stop = net ? net.listen(net.dmPath(u), (all) => { const th = COMMS.dm[u]; Object.keys(all).map((k) => Object.assign({ k }, all[k])).sort((a, b) => a.t - b.t).forEach((m) => { if (th.seen.has(m.k)) return; th.seen.add(m.k); th.list.push(m); }); if (COMMS.dmOpen === u) { S.dmRead[u] = Date.now() + 1; badge(); if (!$('quick').hidden) commsPanel(); } }) : null; }
+  S.dmRead[u] = Date.now() + 1; saveS(); badge(); commsPanel();
+}
+function profileCard(u, c) {
+  if (u === myUid) return; const o = others[u], un = o && (UNITS.find((x) => x.id === o.u) || UNITS[0]), mem = COMMS.squad && COMMS.squad.m[u], muted = CHAT.muted.has(u);
+  openModal('<div class="ppCard"><div class="ppIco">' + (un ? un.icon : '👤') + '</div><h2>' + (o && o.k ? '<em>[' + esc(o.k) + ']</em> ' : '') + esc(c || (o && o.c) || 'Cadet') + '</h2><p>' + (o ? esc(unitName(un)) + ' · ' + esc(o.r || 'Cadet') + '<br>' + esc(W.D.name) + ' · ' + ({ day: 'Day', mid: 'Midshift', night: 'Night' }[o.sh] || '') + ' · ' + Math.round(Math.hypot(o.rx - P.x, o.ry - P.y) * 4) * 5 + ' ft away' : 'Not on shift in your district right now') + '</p>' + (mem ? '<p class="ppSq">🛡️ Your squadmate</p>' : '') + '</div>' +
+    '<div class="ppAct"><button type="button" id="ppDm">✉️ Message</button>' + (S.squad && !mem && Object.keys((COMMS.squad || {}).m || {}).length < MAXSQ ? '<button type="button" id="ppInv">🛡️ Invite to ' + esc(S.squad.tag) + '</button>' : !S.squad ? '<button type="button" id="ppNew">🛡️ Start a squad together</button>' : '') + (o ? '<button type="button" id="ppLoc">📍 Show on map</button><button type="button" id="ppWave">👋 Wave</button>' : '') + '<button type="button" class="ghost" id="ppMute">' + (muted ? 'Unmute' : '🔇 Mute') + '</button></div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
+  $('mClose').onclick = closeModal; $('ppDm').onclick = () => openDM(u, c || o.c);
+  if ($('ppInv')) $('ppInv').onclick = () => { net.invite(u, { s: S.squad.code, n: S.squad.name, g: S.squad.tag, c: S.cs }); stat('invites'); toast('Invite sent to ' + (c || o.c) + '.'); closeModal(); };
+  if ($('ppNew')) $('ppNew').onclick = () => { closeModal(); COMMS.tab = 's'; $('quick').hidden = false; commsPanel(); setTimeout(() => { const i = $('sqName'); if (i) i.focus(); }, 50); toast('Name your squad, then invite ' + (c || o.c) + ' from People.'); };
+  if ($('ppLoc')) $('ppLoc').onclick = () => { const [sx, sy] = iso(o.rx, o.ry); cam.free = true; cam.x = sx; cam.y = sy; PINGS.push({ x: o.rx, y: o.ry, t: performance.now(), c: '#60a5fa' }); closeModal(); };
+  if ($('ppWave')) $('ppWave').onclick = () => { if (net) net.quick(8); SELF_SAY.text = '👋'; SELF_SAY.at = performance.now(); stat('waves'); closeModal(); };
+  $('ppMute').onclick = () => { if (muted) CHAT.muted.delete(u); else CHAT.muted.add(u); try { localStorage.setItem('patrolcity:muted', JSON.stringify([...CHAT.muted])); } catch (e) {} toast(muted ? 'Unmuted.' : 'Muted. You won\'t see their messages.'); closeModal(); };
+}
+// short-lived map pings (locate a cadet)
+const PINGS = [];
+function pingsDraw(now) { for (let i = PINGS.length - 1; i >= 0; i--) { const p = PINGS[i], a = (now - p.t) / 2400; if (a > 1) { PINGS.splice(i, 1); continue; } const [sx, sy] = iso(p.x, p.y); ctx.strokeStyle = p.c; ctx.globalAlpha = 1 - a; ctx.lineWidth = 3; for (let k = 0; k < 3; k++) { const r = ((a * 3 + k / 3) % 1) * 60; ctx.beginPath(); ctx.ellipse(sx, sy, r, r / 2, 0, 0, Math.PI * 2); ctx.stroke(); } ctx.globalAlpha = 1; } }
 
 // ---------- multiplayer ----------
 function onPlayers(all, uid) {
@@ -1124,7 +1288,7 @@ function onPlayers(all, uid) {
     if (v.q && (!o.q || o.q.t !== v.q.t) && now - v.q.t < 8000) { o.qAt = performance.now(); radio(v.c, QUICK[v.q.k] || ''); }
     if (v.b && v.b.t && (!o.b || o.b.t !== v.b.t) && now - v.b.t < 60000) { radio(v.c, 'Requesting backup: ' + (v.b.l || '')); chirp(); toast(v.c + ' requests backup. Tap the blue marker to respond.'); }
     if (v.a === uid && o.a !== uid) { toast(v.c + ' arrived to back you up.'); good(); }
-    Object.assign(o, { n: v.n, f: v.f, u: v.u, sh: v.s, tx: v.x, ty: v.y, c: v.c, v: v.v, d: v.d, st: v.st, q: v.q, b: v.b, a: v.a });
+    Object.assign(o, { n: v.n, f: v.f, u: v.u, sh: v.s, tx: v.x, ty: v.y, c: v.c, v: v.v, d: v.d, st: v.st, q: v.q, b: v.b, a: v.a, g: v.g || null, k: v.k || null, r: v.r }); if (S.squad && v.g === S.squad.code && !o.sqHello) { o.sqHello = 1; toast('🛡️ Squadmate ' + v.c + ' is on shift nearby.'); }
   });
   Object.keys(others).forEach((k) => { if (!seen[k]) delete others[k]; });
   $('hOn').textContent = (Object.keys(others).length + 1) + ' on shift';
@@ -1142,7 +1306,7 @@ function unitPicker() {
   let sel = S.unit;
   const draw = () => { openModal('<div class="sceneHead"><b>SPECIALTY UNIT</b><h2>Switch your training unit</h2><p>Your rank and RP stay with you.</p></div>' + unitCards(sel) + '<div class="qAct"><button type="button" id="uGo">Train with ' + esc(unitOf(sel).name) + '</button><button type="button" class="ghost" id="uNo">Cancel</button></div>');
     document.querySelectorAll('.uCard').forEach((b) => b.onclick = () => { sel = b.dataset.u; draw(); });
-    $('uGo').onclick = () => { if (P.inCar) exitCar(); if (P.boat) exitBoat(); S.unit = sel; saveS(); closeModal(); load(W.did); }; $('uNo').onclick = closeModal; };
+    $('uGo').onclick = () => { if (P.inCar) exitCar(); if (P.boat) exitBoat(); S.unit = sel; S.unitsUsed = S.unitsUsed || {}; S.unitsUsed[sel] = 1; saveS(); closeModal(); load(W.did); }; $('uNo').onclick = closeModal; };
   draw();
 }
 
@@ -1172,7 +1336,7 @@ function startScreen() {
     document.querySelectorAll('.uCard').forEach((b) => b.onclick = () => { unit = b.dataset.u; draw(); });
     document.querySelectorAll('[data-o]').forEach((b) => b.onclick = () => { S.outfit = b.dataset.o; draw(); });
     goState();
-    $('stGo').onclick = () => { if (!unit || !csOk()) return; audio(); endAttract(); S.cs = csNow(); S.shift = shift; S.unit = unit; if (S.home == null) { S.home = did; S.unlocked = [did]; } saveS(); $('start').hidden = true; clock = 0; travel(S.home != null && S.unlocked.includes(did) ? did : S.home, rollCall); };
+    $('stGo').onclick = () => { if (!unit || !csOk()) return; audio(); endAttract(); S.cs = csNow(); S.shift = shift; S.unit = unit; S.unitsUsed = S.unitsUsed || {}; S.unitsUsed[unit] = 1; if (S.home == null) { S.home = did; S.unlocked = [did]; } saveS(); $('start').hidden = true; clock = 0; travel(S.home != null && S.unlocked.includes(did) ? did : S.home, rollCall); };
   };
   draw(); $('start').hidden = false;
 }
@@ -1219,7 +1383,7 @@ function settingsPanel(back) {
     '<label>Sound<div class="seg" data-k="sound"><button type="button" data-v="true" class="' + (S.sound ? 'on' : '') + '">On</button><button type="button" data-v="false" class="' + (S.sound ? '' : 'on') + '">Off</button></div></label>' +
     '<label>Music volume<input type="range" min="0" max="1" step=".05" value="' + c.music + '" data-r="music"></label>' +
     '<label>Effects volume<input type="range" min="0" max="1" step=".05" value="' + c.sfx + '" data-r="sfx"></label>' +
-    '<label>Graphics quality' + seg('quality', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra']]) + '</label>' +
+    '<label>Graphics quality' + seg('quality', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra 4K']]) + '</label>' +
     '<label>Text speed' + seg('text', [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast'], ['instant', 'Instant']]) + '</label>' +
     '<label>Camera shake' + seg('shake', [[true, 'On'], [false, 'Off']]) + '</label>' +
     '<label>Motion effects' + seg('motion', [[true, 'Full'], [false, 'Reduced']]) + '</label>' +
@@ -1259,6 +1423,68 @@ const TROPHIES = [
   ['citywide', 'City Wide', 'Unlock all five districts.', 's', () => S.unlocked.length >= 5],
   ['carto', 'Cartographer', 'Explore half of a district.', 's', () => !inside && exTotal > 1 && exCount / exTotal >= .5]
 ];
+const st = (k) => (S.stat || {})[k] || 0, flagN = () => Object.keys(S.flags || {}).length;
+TROPHIES.push(
+  ['p1', 'Hot Call', 'Clear a priority 1 call.', 'b', () => st('p1') >= 1],
+  ['p1x10', 'Lights and Sirens', 'Clear 10 priority 1 calls.', 's', () => st('p1') >= 10],
+  ['p1x50', 'First In', 'Clear 50 priority 1 calls.', 'g', () => st('p1') >= 50],
+  ['p3x20', 'The Unglamorous Work', 'Clear 20 routine calls.', 's', () => st('p3') >= 20],
+  ['calls250', 'Two Hundred Fifty', 'Clear 250 calls.', 'g', () => S.calls >= 250],
+  ['night10', 'Creature of the Night', 'Clear 10 calls after dark.', 's', () => st('nightCalls') >= 10],
+  ['right50', 'Studied', 'Answer 50 questions right.', 'b', () => st('right') >= 50],
+  ['right250', 'Book Smart', 'Answer 250 questions right.', 's', () => st('right') >= 250],
+  ['right1000', 'Walking Textbook', 'Answer 1,000 questions right.', 'g', () => st('right') >= 1000],
+  ['streak10', 'On Fire', 'Hit a 10-answer streak.', 's', () => (S.bestCombo || 0) >= 10],
+  ['streak25', 'Unstoppable', 'Hit a 25-answer streak.', 'g', () => (S.bestCombo || 0) >= 25],
+  ['sl1', 'Squad Leader 1', 'Reach Squad Leader 1.', 's', () => S.xp >= 1200],
+  ['vp', 'Vice President', 'Reach the rank of Vice President.', 's', () => S.xp >= 3000],
+  ['statecert', 'State Certified', 'Reach the rank of State Certified.', 'g', () => S.xp >= 7200],
+  ['shift1', 'End of Watch', 'Finish a full shift.', 'b', () => st('shifts') >= 1],
+  ['shift10', 'Ten Shifts In', 'Finish 10 shifts.', 's', () => st('shifts') >= 10],
+  ['gradeS', 'S-Rank Shift', 'Earn an S grade on a shift report.', 's', () => st('gradeS') >= 1],
+  ['gradeS5', 'Model Cadet', 'Earn five S grades.', 'g', () => st('gradeS') >= 5],
+  ['allshifts', 'Around the Clock', 'Finish a Day, a Midshift and a Night shift.', 's', () => st('shift_day') && st('shift_mid') && st('shift_night')],
+  ['indoors', 'Knock Knock', 'Step inside 25 buildings.', 'b', () => st('inside') >= 25],
+  ['places30', 'Regular Customer', 'Visit 30 different buildings.', 's', () => Object.keys(S.inside || {}).length >= 30],
+  ['disc50', 'Tour Guide', 'Discover 50 places.', 's', () => Object.keys(S.disc || {}).length >= 50],
+  ['disc200', 'Knows Every Street', 'Discover 200 places.', 'g', () => Object.keys(S.disc || {}).length >= 200],
+  ['secrets15', 'Urban Legend', 'Find 15 secret spots.', 'g', () => Object.keys(S.found || {}).length >= 15],
+  ['boat', 'Sea Legs', 'Take out the patrol boat.', 'b', () => st('boat') >= 1],
+  ['code3', 'Code 3', 'Run Code 3 to a call.', 'b', () => st('ab_code3') >= 1],
+  ['helped10', 'Good Neighbor', 'Help regulars 10 times.', 'b', () => st('helped') >= 10],
+  ['bestie', 'Best Friends', 'Max out a friendship with a regular.', 's', () => Object.keys(S.npc || {}).some((k) => S.npc[k] >= 6)],
+  ['bestie5', 'Everybody Knows Your Name', 'Max out five friendships.', 'g', () => Object.keys(S.npc || {}).filter((k) => S.npc[k] >= 6).length >= 5],
+  ['items40', 'Supply Closet', 'Collect 40 different items.', 's', () => Object.keys(S.items || {}).length >= 40],
+  ['items80', 'Quartermaster', 'Collect 80 different items.', 'g', () => Object.keys(S.items || {}).length >= 80],
+  ['legend', 'Academy Legend', 'Find a Rank V item.', 's', () => Object.keys(S.items || {}).some((id) => (itemById(id) || {}).r === 'l')],
+  ['boots', 'Birds Think They Are Lakes', 'Find the Unnaturally Shiny Boots.', 'g', () => (S.items || {}).boots],
+  ['dingle', 'Dingle Dingle', 'Find whatever a Dingle Dingle is.', 'g', () => (S.items || {}).dingle],
+  ['fullkit', 'Squared Away', 'Fill all five equipment slots.', 's', () => SLOTS.every((sl) => (S.gear || {})[sl.id])],
+  ['snack', 'Snack Break', 'Use 10 consumables.', 'b', () => st('used') >= 10],
+  ['photo', 'Say Cheese', 'Take a photo in photo mode.', 'b', () => st('photos') >= 1],
+  ['photo20', 'Department Photographer', 'Take 20 photos.', 's', () => st('photos') >= 20],
+  ['choices10', 'Consequences', 'Make 10 story choices.', 's', () => flagN() >= 10],
+  ['seen', 'Plan First', 'Stop Pike and make a plan at the motel.', 'b', () => S.flags.plannedMotel],
+  ['report', 'Write It Down', 'Write up the threat Rosa reported.', 'b', () => S.flags.reportedThreat],
+  ['witness', 'Two Signatures', 'Inventory found property with a witness.', 'b', () => S.flags.walletWitness],
+  ['perimeter', 'Contain, Then Search', 'Hold the perimeter at North Spur Yard.', 'b', () => S.flags.whistlePlan],
+  ['allunits', 'Cross-Trained', 'Serve with three different specialty units.', 's', () => Object.keys(S.unitsUsed || {}).length >= 3],
+  // multiplayer
+  ['squadup', 'Squad Up', 'Create or join a squad.', 'b', () => st('squadMade') + st('squadJoin') >= 1],
+  ['leader', 'Natural Leader', 'Create a squad.', 'b', () => st('squadMade') >= 1],
+  ['fullsquad', 'Full Strength', 'Be in a squad with four cadets.', 's', () => COMMS.squad && Object.keys(COMMS.squad.m || {}).length >= 4],
+  ['sqbonus', 'Better Together', 'Earn 500 RP from the squad bonus.', 's', () => st('sqRP') >= 500],
+  ['sqbonus5k', 'Band of Cadets', 'Earn 5,000 RP from the squad bonus.', 'g', () => st('sqRP') >= 5000],
+  ['assist', 'Backup Is Here', 'Back up another cadet.', 'b', () => st('assists') >= 1],
+  ['assist25', 'Always Has Your Back', 'Back up other cadets 25 times.', 'g', () => st('assists') >= 25],
+  ['sqassist', 'Squad Cover', 'Back up a squadmate.', 's', () => st('sqAssist') >= 1],
+  ['rally', 'Rally Point', 'Rally your squad.', 'b', () => st('sqRally') >= 1],
+  ['city', 'Citywide', 'Post on the City channel.', 'b', () => st('city') >= 1],
+  ['dm', 'Direct Line', 'Send a direct message.', 'b', () => st('dm') >= 1],
+  ['recruiter', 'Recruiter', 'Send 5 squad invites.', 's', () => st('invites') >= 5],
+  ['wave', 'Friendly Wave', 'Wave at another cadet.', 'b', () => st('waves') >= 1],
+  ['squadchat', 'Squad Chatter', 'Send 25 squad messages.', 's', () => st('sqMsg') >= 25]
+);
 TROPHIES.push(['plat', 'Port Meridian\'s Finest', 'Earn every other trophy.', 'p', () => TROPHIES.every((t) => t[0] === 'plat' || (S.trophies || {})[t[0]])]);
 const TIER = { b: ['Bronze', '#cd7f32'], s: ['Silver', '#c9d2dd'], g: ['Gold', '#f5b800'], p: ['Platinum', '#9ee7ff'] };
 let trT = 3, trQ = [], trBusy = false;
@@ -1364,13 +1590,14 @@ function capture() {
   const fl = document.createElement('div'); fl.className = 'phFlash'; document.body.appendChild(fl); setTimeout(() => fl.remove(), 600);
   if (S.sound) { beep(2400, .03, 'square', .03); beep(1200, .06, 'square', .02, .05); }
   try { const a = document.createElement('a'); a.download = 'patrol-city-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.png'; a.href = c.toDataURL('image/png'); a.click(); } catch (e) { toast('Could not save the photo on this device.'); }
-  S.photos = (S.photos || 0) + 1; saveS();
+  S.photos = (S.photos || 0) + 1; stat('photos'); saveS();
 }
 function photoExit() { if (!PHOTO) return; cv.style.filter = ''; document.body.classList.remove('photo'); $('photo').hidden = true; $('photo').innerHTML = ''; paused = PHOTO.was; PHOTO = null; }
 
 // ---------- boot ----------
 const FAST = /[?&]skiptitle\b/.test(location.search); // test / dev: no logos or loading screens
-function resize() { const q = (S.cfg || {}).quality || 'high'; dpr = Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : q === 'ultra' ? 3 : 2, window.devicePixelRatio || 1); cw = innerWidth; ch = innerHeight; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; if (!S.zoom) cam.z = cw < 600 ? .85 : 1.15; else cam.z = S.zoom; }
+function resize() { const q = (S.cfg || {}).quality || 'high', dev = window.devicePixelRatio || 1; dpr = q === 'ultra' ? Math.min(3, Math.max(dev, 3840 / Math.max(innerWidth, innerHeight))) : Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : 2, dev);
+  { const want = Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : q === 'ultra' ? 3 : 2, Math.ceil(dpr * 1.25 * 2) / 2); if (want !== RES) { setRes(want); if (G && G.chunks) G.chunks.clear(); SPR.forEach((x) => { x.canvas = null; x.lights = []; }); } } cw = innerWidth; ch = innerHeight; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; if (!S.zoom) cam.z = cw < 600 ? .85 : 1.15; else cam.z = S.zoom; }
 addEventListener('resize', resize); resize();
 function frame(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; shakeUpdate(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); } render(now); } requestAnimationFrame(frame); }
 // ---------- the unlock from the study hub ----------
@@ -1400,7 +1627,7 @@ function lockedScreen() {
   try { await L.loadBank('../ch5.json'); } catch (e) { $('loading').textContent = 'Could not load the question bank. Check your connection and refresh.'; return; }
   $('loading').hidden = true;
   attractStart(); requestAnimationFrame(frame); applyCfg(); if (FAST) { S.seenIntro = 1; startScreen(); } else bootSequence(titleScreen);
-  try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); } if (net && W && !ATTRACT) net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name }); } catch (e) { net = null; }
+  try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
 window.__pc = { S, closeModal: () => closeModal(), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };

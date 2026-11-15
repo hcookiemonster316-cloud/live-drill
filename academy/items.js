@@ -28,7 +28,7 @@ export const PERK_TEXT = {
   res: (v) => (v > 0 ? '+' : '') + v + ' Response', per: (v) => (v > 0 ? '+' : '') + v + ' Perception', rap: (v) => (v > 0 ? '+' : '') + v + ' Rapport', com: (v) => (v > 0 ? '+' : '') + v + ' Composure', tac: (v) => (v > 0 ? '+' : '') + v + ' Tactics',
   speed: (v) => '+' + v + '% walking speed', drive: (v) => '+' + v + '% driving speed', light: (v) => '+' + v + '% flashlight reach',
   spot: (v) => 'Spot trouble ' + v + ' tile' + (v === 1 ? '' : 's') + ' farther', secret: (v) => 'Sense secret spots ' + v + ' tiles farther', explore: (v) => 'Map ' + v + ' more tile' + (v === 1 ? '' : 's') + ' around you',
-  loot: (v) => '+' + v + '% chance to find items', wait: (v) => 'Calls wait ' + v + ' more minutes', rpCall: (v) => '+' + v + '% RP from calls', rpCit: (v) => '+' + v + '% RP from citizens', rpStudy: (v) => '+' + v + '% RP from study points'
+  loot: (v) => '+' + v + '% chance to find items', wait: (v) => 'Calls wait ' + v + ' more minutes', rpCall: (v) => '+' + v + '% RP from calls', rpCit: (v) => '+' + v + '% RP from citizens', rpStudy: (v) => '+' + v + '% RP from study points', rpSquad: (v) => '+' + v + '% squad RP bonus'
 };
 export const ITEMS = [
   // ---- cover ----
@@ -98,6 +98,97 @@ export const ITEMS = [
   { id: 'pushup', r: 'e', icon: '💪', name: 'The Golden Push-Up', kind: 'keep', text: 'Chest to the deck, full lockout, zero sag. Nobody was watching. Of course nobody was watching.' },
   { id: 'cert', r: 'l', icon: '🎓', name: 'Laminated Certificate (Practice Copy)', kind: 'keep', text: 'Not the real one. The real one comes after State. This one is for believing in yourself.' }
 ];
+ITEMS.forEach((x) => { if (x.slot) x.kind = 'gear'; });
+
+// ---------- expansion: more gear, snacks and keepsakes ----------
+ITEMS.push(
+  // cover
+  { id: 'helmetpt', r: 'c', icon: '⛑️', name: 'Bike Helmet, Slightly Dented', slot: 'cover', look: { hat: 'helmet', hatCol: '#e5e7eb' }, perk: { com: 1, explore: 1 }, text: 'Bike patrol orientation. The dent is from the bike rack, not a crash. Mostly.' },
+  { id: 'beanie', r: 'c', icon: '🧶', name: 'Regulation Black Beanie', slot: 'cover', look: { hat: 'cap', hatCol: '#0b0b0b' }, perk: { com: 1 }, text: 'Approved for temperatures below 60 degrees, which in Florida happens twice a year.' },
+  { id: 'sunvisor', r: 'c', icon: '🧢', name: 'Range Day Visor', slot: 'cover', look: { hat: 'sweatband', hatCol: '#f5b800' }, perk: { per: 1 }, text: 'Shades your eyes and absolutely nothing else. Your scalp has been sunburned in a perfect stripe.' },
+  { id: 'headsetpro', r: 'u', icon: '🎧', name: 'Noise-Canceling Dispatch Headset', slot: 'cover', look: { hat: 'headset' }, perk: { com: 1, wait: 10 }, text: 'Borrowed from Velvet. She will know if it comes back with a scratch. She will know.' },
+  { id: 'capgold', r: 'u', icon: '🧢', name: 'Cap with Gold Piping', slot: 'cover', look: { hat: 'cap', hatCol: '#1e3a8a' }, perk: { rap: 1, rpCit: 5 }, text: 'A tiny gold line. Somehow everyone stands up straighter around it.' },
+  { id: 'rainhat', r: 'u', icon: '🌧️', name: 'Rain Cover for the Campaign Hat', slot: 'cover', look: { hat: 'campaign', hatCol: '#6b7280' }, perk: { explore: 2, com: 1 }, text: 'A plastic shower cap for a very important hat. Nobody laughs. Not out loud.' },
+  { id: 'marinecap', r: 'r', icon: '⚓', name: 'Harbor Patrol Cap', slot: 'cover', look: { hat: 'cap', hatCol: '#0e7490' }, perk: { drive: 10, per: 1, explore: 1 }, text: 'Salt-stained, sun-faded and smells faintly of Captain Hal\'s coffee.' },
+  { id: 'swathelm', r: 'r', icon: '🪖', name: 'Training Helmet, Marked "SIM"', slot: 'cover', look: { hat: 'helmet', hatCol: '#1f2937' }, perk: { tac: 1, com: 1, wait: 10 }, text: 'Stenciled SIM in big letters so nobody forgets: every round in here is a training round.' },
+  { id: 'k9cap', r: 'r', icon: '🐕', name: 'K9 Handler Cap (Fur Included)', slot: 'cover', look: { hat: 'cap', hatCol: '#78350f' }, perk: { spot: 2, per: 1 }, text: 'Comes pre-coated in dog hair. The lint roller has given up.' },
+  { id: 'castillohat', r: 'e', icon: '🤠', name: "Sgt. Castillo's Spare Campaign Hat", slot: 'cover', look: { hat: 'campaign', hatCol: '#5b3a1e' }, perk: { com: 2, rpCall: 10, wait: 10 }, text: 'She says it is a loan. She says it every time she sees you. She sees you a lot.' },
+  { id: 'halo', r: 'l', icon: '😇', name: 'The Halo of Perfect Attendance', slot: 'cover', look: { hat: 'cap', hatCol: '#fff3b0', glow: true }, perk: { rap: 2, com: 1, rpCit: 15, rpStudy: 10 }, text: 'Zero tardies. Zero absences. Zero excuses. It hums faintly at 0559.' },
+  // uniform
+  { id: 'polo2', r: 'c', icon: '👕', name: 'Backup Grey Polo (Car Copy)', slot: 'uniform', perk: { com: 1 }, text: 'Lives in your trunk for emergencies. The emergency was coffee. It is always coffee.' },
+  { id: 'ptshirt2', r: 'c', icon: '👕', name: 'Second PT Shirt, Tucked', slot: 'uniform', perk: { speed: 4 }, text: 'Tucked so firmly it is now load-bearing.' },
+  { id: 'raincoat', r: 'c', icon: '🧥', name: 'Rain Jacket That Is Mostly Zipper', slot: 'uniform', look: { poncho: true }, perk: { explore: 1, light: 5 }, text: 'Forty percent jacket, sixty percent zipper. Loud enough to announce your arrival.' },
+  { id: 'lanyard', r: 'u', icon: '🪪', name: 'Academy ID on a Breakaway Lanyard', slot: 'uniform', perk: { rap: 1, secret: 1 }, text: 'Breakaway, because safety. It breaks away every time you lean over. Every. Time.' },
+  { id: 'hivis', r: 'u', icon: '🦺', name: 'Traffic Vest That Actually Fits', slot: 'uniform', look: { vest: true }, perk: { light: 15, spot: 1, drive: 5 }, text: 'Not XXXL. A true miracle of supply.' },
+  { id: 'pressed', r: 'u', icon: '🧺', name: 'Polo Pressed by Mr. Kim', slot: 'uniform', perk: { rap: 1, rpCit: 8 }, text: 'Spin City Laundromat\'s finest. He refused payment. He accepted a thank-you note.' },
+  { id: 'patchset', r: 'r', icon: '🎽', name: 'Every Specialty Unit Patch', slot: 'uniform', perk: { per: 1, tac: 1, rpCall: 8 }, text: 'SWAT, K9, Marine, Negotiator and the rest, sewn on in a careful row. Someone used a ruler.' },
+  { id: 'medals', r: 'r', icon: '🎖️', name: 'Practice Ribbon Rack', slot: 'uniform', look: { brass: true }, perk: { rap: 1, com: 1, rpCit: 5 }, text: 'Ribbons for perfect attendance, perfect inspection and perfect parallel parking.' },
+  { id: 'negvest', r: 'e', icon: '🗣️', name: 'Crisis Negotiator Training Vest', slot: 'uniform', look: { vest: true }, perk: { rap: 2, com: 2, wait: 20 }, text: 'Pocket for a notepad, pocket for a phone, pocket for patience. The patience pocket is the biggest.' },
+  { id: 'dress', r: 'l', icon: '🎗️', name: 'Graduation Dress Blues (Pressed Tonight)', slot: 'uniform', look: { brass: true, cord: '#f5b800', glow: true }, perk: { rap: 2, com: 2, tac: 1, rpCall: 15, rpCit: 15 }, text: 'Hanging in plastic, guarded like evidence. You are not allowed to sit down in them.' },
+  // boots
+  { id: 'jungle', r: 'c', icon: '🥾', name: 'Jungle Boots (Previously Loved)', slot: 'boots', perk: { speed: 4, explore: 1 }, text: 'Drainage holes. Canvas sides. A name written inside that is not yours.' },
+  { id: 'insoles', r: 'c', icon: '🦶', name: 'Gel Insoles', slot: 'boots', perk: { speed: 6, com: -1 }, text: 'Your feet feel like clouds. Your boots squeak like a duck.' },
+  { id: 'showershoes', r: 'u', icon: '🩴', name: 'Shower Shoes (Never Forget)', slot: 'boots', look: { boots: '#1f2937' }, perk: { secret: 1, speed: 2 }, text: 'Required equipment. Wearing them on patrol is not recommended. You are doing it anyway.' },
+  { id: 'trailrunners', r: 'u', icon: '👟', name: 'PT Shoes, Broken In', slot: 'boots', look: { boots: '#e5e7eb' }, perk: { speed: 10 }, text: 'Fourteen miles of track this month. They know the way around the oval on their own.' },
+  { id: 'bootcandle', r: 'r', icon: '🕯️', name: 'Boots Shined by Candlelight', slot: 'boots', look: { shine: 2 }, perk: { speed: 8, rap: 1, light: 8 }, text: 'Midnight, one candle, one tin of polish, zero regrets.' },
+  { id: 'paradeboots', r: 'e', icon: '🥾', name: 'Parade Boots (Do Not Walk In)', slot: 'boots', look: { shine: 3 }, perk: { rap: 2, rpCit: 10, speed: -4 }, text: 'Too shiny to scuff. Too stiff to bend. Perfect for standing completely still and looking amazing.' },
+  { id: 'cloudboots', r: 'l', icon: '☁️', name: 'Boots That Never Get Blisters', slot: 'boots', look: { shine: 2, glow: true }, perk: { speed: 16, res: 1, com: 1 }, text: 'Scientists cannot explain them. Podiatrists want to study them. You just want to keep them.' },
+  // duty belt
+  { id: 'cuffkey', r: 'c', icon: '🗝️', name: 'Spare Training Cuff Key', slot: 'belt', perk: { tac: 1 }, text: 'Tiny, silver and always in the last pocket you check.' },
+  { id: 'glovepouch', r: 'c', icon: '🧤', name: 'Glove Pouch (Six Pairs)', slot: 'belt', perk: { com: 1, rpCall: 3 }, text: 'You will need a seventh pair. You always need a seventh pair.' },
+  { id: 'whistle', r: 'c', icon: '📯', name: 'Traffic Whistle', slot: 'belt', perk: { drive: 5, spot: 1 }, text: 'One blast: stop. Two blasts: go. Three blasts: you dropped it again.' },
+  { id: 'tourniquet', r: 'u', icon: '🩹', name: 'Training Tourniquet', slot: 'belt', perk: { com: 1, wait: 12 }, text: 'Practiced one-handed, left-handed and blindfolded. Your instructor is still not satisfied.' },
+  { id: 'trainingtaser', r: 'u', icon: '🟨', name: 'Bright Yellow Training Shell', slot: 'belt', perk: { tac: 1, com: 1 }, text: 'Bright yellow so everyone knows it is a training tool. It does nothing. That is the point.' },
+  { id: 'baton', r: 'u', icon: '🏑', name: 'Foam Training Baton', slot: 'belt', perk: { tac: 1, res: 1 }, text: 'Used for practicing stances. Mostly used for dramatic pointing.' },
+  { id: 'simholster', r: 'r', icon: '🔷', name: 'Blue Simulation Trainer', slot: 'belt', perk: { tac: 2, rpCall: 5 }, text: 'Solid blue, solid plastic, and it says SIM on both sides. The only kind of tool allowed in Patrol City.' },
+  { id: 'multitool', r: 'r', icon: '🛠️', name: 'Multitool With 27 Functions', slot: 'belt', perk: { secret: 2, loot: 5 }, text: 'Twenty-six of them are tiny screwdrivers. The twenty-seventh is a tiny saw nobody can unfold.' },
+  { id: 'radioclip', r: 'r', icon: '📡', name: 'Shoulder Mic That Never Falls Off', slot: 'belt', perk: { com: 1, wait: 25 }, text: 'The clip is held on by sheer stubbornness and one zip tie.' },
+  { id: 'velvetmic', r: 'e', icon: '🎙️', name: "Velvet's Lucky Radio Mic", slot: 'belt', perk: { com: 2, wait: 30, rpCall: 8 }, text: 'Thirty-one years of calm. Somehow it lowers your heart rate when you key up.' },
+  { id: 'beltgold', r: 'l', icon: '🥇', name: 'The Belt That Passed Inspection', slot: 'belt', look: { brass: true, glow: true }, perk: { tac: 2, com: 2, rpCall: 15, wait: 20 }, text: 'Every keeper snapped, every pouch aligned, nothing jingles. Instructors still talk about it.' },
+  // pocket & carry
+  { id: 'chapstick', r: 'c', icon: '💄', name: 'Emergency Lip Balm', slot: 'carry', perk: { rap: 1 }, text: 'Florida sun versus your lips. The lips were losing.' },
+  { id: 'sharpie', r: 'c', icon: '🖊️', name: 'Permanent Marker (Not the Pen)', slot: 'carry', perk: { rpStudy: 5, secret: 1 }, text: 'Not allowed for notes. Allowed for labeling everything you own so it comes back.' },
+  { id: 'snackbag', r: 'c', icon: '🥜', name: 'Bag of Trail Mix (Raisins Removed)', slot: 'carry', perk: { speed: 3, com: 1 }, text: 'Someone picked out every raisin. You suspect Pike.' },
+  { id: 'citationbook', r: 'u', icon: '📒', name: 'Practice Citation Book', slot: 'carry', perk: { rpCall: 6, per: 1 }, text: 'Filled with practice tickets written to fictional people named Mr. Example.' },
+  { id: 'mapbook', r: 'u', icon: '🗺️', name: 'Port Meridian Street Atlas (2009)', slot: 'carry', perk: { explore: 2, drive: 5 }, text: 'Out of date, dog-eared and somehow more reliable than your phone.' },
+  { id: 'umbrella', r: 'u', icon: '☂️', name: 'Compact Umbrella', slot: 'carry', perk: { com: 1, explore: 1 }, text: 'Technically not uniform. Technically keeps your uniform dry. The technicalities are being debated.' },
+  { id: 'flashcards', r: 'u', icon: '🗂️', name: 'Chapter 5 Flashcards (Rubber-Banded)', slot: 'carry', perk: { rpStudy: 18 }, text: 'Five hundred cards. One rubber band. One day it will snap, and it will be glorious.' },
+  { id: 'squadpatch', r: 'r', icon: '🛡️', name: 'Squad Morale Patch', slot: 'carry', perk: { rpSquad: 15, rap: 1 }, text: 'Your squad voted on the design. It took three hours. It is a raccoon holding a flashlight.' },
+  { id: 'bodycamtrainer', r: 'r', icon: '📹', name: 'Training Body Cam (Lens Cap Off)', slot: 'carry', perk: { per: 1, rpCall: 8, rpCit: 5 }, text: 'Every scenario recorded for review. Your instructor has a highlight reel. You are in it.' },
+  { id: 'thermos', r: 'r', icon: '🧉', name: 'Night Shift Thermos', slot: 'carry', perk: { wait: 20, light: 10 }, text: 'Keeps coffee hot for nine hours. Keeps hands warm for one.' },
+  { id: 'gusreel', r: 'e', icon: '🎣', name: "Old Gus's Lucky Fishing Lure", slot: 'carry', perk: { loot: 12, secret: 2, per: 1 }, text: 'Gus swears it caught a forty-pound redfish in 1987. The redfish has not been reached for comment.' },
+  { id: 'squadflag', r: 'e', icon: '🚩', name: 'Pocket Squad Guidon', slot: 'carry', perk: { rpSquad: 25, com: 1, rap: 1 }, text: 'A tiny flag on a tiny pole. Your squad follows it everywhere, including into the wrong building once.' },
+  { id: 'binder', r: 'l', icon: '📘', name: 'The Binder (Color-Coded, Tabbed, Laminated)', slot: 'carry', perk: { rpStudy: 35, rpCall: 10, per: 1, com: 1 }, text: 'Navarro\'s magnum opus. She let you borrow it. Do not spill on it. Do not breathe on it.' },
+  // use
+  { id: 'hotdog', r: 'c', icon: '🌭', name: "Delgado's Hot Dog (Paid For)", kind: 'use', effect: 'morale', text: 'Two dollars, aggressive mustard, zero strings attached.', useText: 'Delicious and ethical. Morale +2.' },
+  { id: 'donut', r: 'c', icon: '🍩', name: 'A Single Donut, Bravely Ignored', kind: 'use', effect: 'morale', text: 'From The Donut Stop. You know the jokes. You are eating it anyway.', useText: 'Sprinkles. Morale +2. The jokes are louder now.' },
+  { id: 'water', r: 'c', icon: '💧', name: 'Ice-Cold Water Bottle', kind: 'use', effect: 'shake', text: 'Hydration is a uniform item. Your instructor said so. Loudly.', useText: 'Refreshed: you move 25% faster for a while.' },
+  { id: 'taco', r: 'c', icon: '🌮', name: "Lupe's Lunch Pail Taco", kind: 'use', effect: 'morale', text: 'Diesel the dog wanted this taco. Diesel cannot have this taco.', useText: 'Perfect. Morale +3. Somewhere, a dog is sad.' },
+  { id: 'gum', r: 'c', icon: '🍬', name: 'Spearmint Gum (Not in Formation)', kind: 'use', effect: 'coffee', text: 'Chewing in formation is a push-up offense. Chewing on patrol keeps you sharp.', useText: 'Minty focus: your calls wait a little longer for you.' },
+  { id: 'electrolyte', r: 'u', icon: '🧃', name: 'Electrolyte Drink, Blue Flavor', kind: 'use', effect: 'energy', text: 'The flavor is not a fruit. The flavor is the color blue.', useText: 'Electrified: 40% faster for the next two hours.' },
+  { id: 'flashpack', r: 'u', icon: '🔋', name: 'Rechargeable Battery Pack', kind: 'use', effect: 'light', text: 'Fully charged. You checked twice. You will check again.', useText: 'Your light reaches 50% farther for the rest of the shift.' },
+  { id: 'espresso', r: 'u', icon: '☕', name: 'Objection! Espresso Double Shot', kind: 'use', effect: 'coffee', text: 'Brewed by people who drink coffee during closing arguments.', useText: 'Sustained: your calls wait an extra hour for you.' },
+  { id: 'lemonbar', r: 'r', icon: '🍋', name: "Grandma Ruth's Lemon Bar", kind: 'use', effect: 'energy', text: 'From the neighborhood watch meeting. Nobody skips a meeting with lemon bars.', useText: 'Powdered sugar power: 40% faster for two hours.' },
+  { id: 'cafecubano', r: 'r', icon: '🫖', name: 'Cafecito From Rosa', kind: 'use', effect: 'coffee', text: 'Tiny cup. Enormous power. Rosa insists you sit down to drink it.', useText: 'Your calls wait an extra hour, and you feel very cared for.' },
+  { id: 'msmeal', r: 'e', icon: '🥫', name: 'Field Ration With the Good Dessert', kind: 'use', effect: 'energy', text: 'The one with the chocolate pudding. People trade entire shifts for this.', useText: 'Unstoppable: 40% faster for the next two hours.' },
+  // keepsakes
+  { id: 'rubberband', r: 'c', icon: '➰', name: 'The Rubber Band From Your Flashcards', kind: 'keep', text: 'It finally snapped. Five hundred flashcards everywhere. It was glorious.' },
+  { id: 'receipt', r: 'c', icon: '🧾', name: 'A Receipt for a $2 Hot Dog', kind: 'keep', text: 'Proof of honesty. Laminated. Framed in your heart.' },
+  { id: 'feather', r: 'c', icon: '🪶', name: "Pigeon Feather From Sgt. Pruitt's Flock", kind: 'keep', text: 'Gifted with great ceremony. Pruitt named the pigeon. The pigeon is named Judge.' },
+  { id: 'cone', r: 'c', icon: '🔺', name: "One of Earl's Serious Cones", kind: 'keep', text: 'The orange ones. Earl wants it back. Earl says that about all of them.' },
+  { id: 'scantron', r: 'c', icon: '📄', name: 'A Perfect Practice Scantron', kind: 'keep', text: 'Every bubble filled completely, darkly and inside the line. Number two pencil, as instructed.' },
+  { id: 'pushupcount', r: 'u', icon: '🔢', name: 'A Clicker Counter Stuck at 1,000', kind: 'keep', text: 'Push-ups this month. Your arms have filed a grievance.' },
+  { id: 'catphoto', r: 'u', icon: '🐈', name: 'Signed Photo of Exhibit A', kind: 'keep', text: 'Signed with a paw print. Notarized by Quick Copy & Notary. Do not ask how.' },
+  { id: 'ticketstub', r: 'u', icon: '🎟️', name: 'Gators Game Ticket Stub', kind: 'keep', text: 'They lost by a field goal. A perfect game day.' },
+  { id: 'brasskey', r: 'r', icon: '🗝️', name: 'Replica Depot Clock Key', kind: 'keep', text: 'A copy of the 1932 key, made by Ms. Okafor for the cadet who found the real one.' },
+  { id: 'whistle1924', r: 'r', icon: '🚂', name: 'Recording of the 1924 Whistle', kind: 'keep', text: 'Rusty made you a copy. Do not play it at midnight.' },
+  { id: 'squadphoto', r: 'r', icon: '📸', name: 'Squad Photo, Everyone Blinking', kind: 'keep', text: 'Twelve tries. Twelve photos. Someone blinked in every single one.' },
+  { id: 'sedanplate', r: 'e', icon: '🚘', name: 'The Swapped Plate (Evidence Replica)', kind: 'keep', text: 'A replica of the plate from the gray sedan case. The real one is in County Evidence Storage, tagged and logged.' },
+  { id: 'judgeshoe', r: 'e', icon: '🐴', name: "Judge the Horse's Horseshoe", kind: 'keep', text: 'From 1911. It has been lucky for over a century. Pruitt cried a little.' },
+  { id: 'firstreport', r: 'e', icon: '📜', name: 'Your First Report, Framed', kind: 'keep', text: 'Chronological. Specific. No opinions. Sgt. Castillo put a single checkmark on it. That is her highest honor.' },
+  { id: 'badgeshadow', r: 'l', icon: '🛡️', name: 'A Badge-Shaped Shadow on the Wall', kind: 'keep', text: 'Not a badge yet. Just the shape of where one will go. Graduation is coming.' },
+  { id: 'starlog', r: 'l', icon: '⭐', name: 'The Logbook of Every Class', kind: 'keep', text: 'Every class that trained in Patrol City signed it. There is a blank line with your name penciled in.' }
+);
 ITEMS.forEach((x) => { if (x.slot) x.kind = 'gear'; });
 export const itemById = (id) => ITEMS.find((x) => x.id === id);
 export const slotOf = (id) => SLOTS.find((s) => s.id === id);
