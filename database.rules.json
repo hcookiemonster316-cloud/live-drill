@@ -522,6 +522,17 @@
             }
           }
         }
+      },
+      "ev": {
+        "$w": {
+          "$ev": {
+            ".read": "auth != null",
+            "$uid": {
+              ".write": "auth != null && auth.uid === $uid",
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+            }
+          }
+        }
       }
     }
   }

@@ -11,6 +11,7 @@ import { createMiniGames } from './minigames.js';
 import { installLife } from './life.js';
 import { installOffDuty } from './offduty.js';
 import { installAcademy } from './academy.js';
+import { installEvents } from './events.js';
 SIDE2.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); LORE2.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); });
 import { createMusic } from './music.js';
 import { createScore } from './score.js';
@@ -126,7 +127,7 @@ function load(did) {
   inside = null; if (net && net.inside) net.inside(-1);
   W = buildDistrict(did); G = { chunks: new Map() }; buildSprites(); sprHour = Math.floor(hourNow());
   P.x = W.spawn[0] + .5; P.y = W.spawn[1] + .5; P.path = []; P.inCar = false;
-  pcar = W.carSpot ? { x: W.carSpot[0], y: W.carSpot[1], dir: 0, bar: false } : null; setTimeout(() => { LIFE.setup(); OFF.setup(); ACAD.setup(); }, 0);
+  pcar = W.carSpot ? { x: W.carSpot[0], y: W.carSpot[1], dir: 0, bar: false } : null; setTimeout(() => { LIFE.setup(); OFF.setup(); ACAD.setup(); EVT.setup(); }, 0);
   const h0 = hourNow(), busy = isNight(h0) ? (h0 >= 18.75 && h0 < 22 ? .6 : .38) : 1;
   peds = []; for (let i = 0; i < Math.round(30 * busy); i++) peds.push(newPed());
   traffic = []; for (let i = 0; i < Math.round(11 * busy) + 2; i++) traffic.push(newCar());
@@ -146,14 +147,14 @@ function load(did) {
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
 const SKIN = ['#f1c9a5', '#e0b48f', '#c68e63', '#a26a42', '#7a4b2a', '#5a3620'], SHIRT = ['#c0392b', '#2980b9', '#27ae60', '#f39c12', '#8e44ad', '#ecf0f1', '#16a085', '#d35400', '#7f8c8d', '#f5b7b1'], HAIR = ['#2b1d14', '#4a3020', '#8a5a2b', '#d8b46a', '#1a1a1a', '#9a9a9a'];
 function nearTile(list, r) { const c = focus(); for (let k = 0; k < 60; k++) { const t = list[Math.floor(Math.random() * list.length)]; if (t && Math.hypot(t[0] - c[0], t[1] - c[1]) < r) return t; } return list[Math.floor(Math.random() * list.length)]; }
-function newPed() { const s = nearTile(W.walk, 22); return { x: s[0] + .5, y: s[1] + .5, path: [], wait: Math.random() * 3, sp: 1.1 + Math.random() * .7, skin: rnd(SKIN), shirt: rnd(SHIRT), hair: rnd(HAIR), pants: rnd(['#3b4a5c', '#2c3e50', '#5d4037', '#455a64', '#1c1c1c']), ph: Math.random() * 9, face: 1 }; }
+function newPed() { const s = nearTile(W.walk, 22); return { top: FX && FX.cold ? (Math.random() < .5 ? 'jacket' : 'hoodie') : undefined, x: s[0] + .5, y: s[1] + .5, path: [], wait: Math.random() * 3, sp: 1.1 + Math.random() * .7, skin: rnd(SKIN), shirt: rnd(SHIRT), hair: rnd(HAIR), pants: rnd(['#3b4a5c', '#2c3e50', '#5d4037', '#455a64', '#1c1c1c']), ph: Math.random() * 9, face: 1 }; }
 function newCar() { const roads = [], c0 = focus(); for (let i = 0; i < 120; i++) { const x = Math.floor(c0[0] + (Math.random() - .5) * 44), y = Math.floor(c0[1] + (Math.random() - .5) * 44); if (roadPass(x, y)) { roads.push([x, y]); break; } } const s = roads[0] || [0, 0]; return { x: s[0] + .5, y: s[1] + .5, path: [], sp: 2.6 + Math.random() * 1.6, color: rnd(CAR_COLORS), dir: 0 }; }
 function newCitizen() { const s = nearTile(W.walk, 26); return { x: s[0] + .5, y: s[1] + .5, skin: rnd(SKIN), shirt: rnd(SHIRT), hair: rnd(HAIR), ph: Math.random() * 9, face: -1, les: rnd(W.D.lessons) }; }
 function newObserve() { const did = W.did, ls = W.D.lessons.filter((l) => OBSERVE[l]); const les = rnd(ls.length ? ls : W.D.lessons); const o = rnd(OBSERVE[les] || [['Something looks out of place', 'door']]); const s = nearTile(W.walk, 30); return { x: s[0] + .5, y: s[1] + .5, les, text: o[0], kind: o[1], seen: false, t0: performance.now() }; void did; }
 
 // ---------- dispatch ----------
 function dispatchCall() {
-  const fav = U().fav.filter((l) => W.D.lessons.indexOf(l) >= 0 && !L.mastery(S, l).done), les = fav.length && Math.random() < .3 ? fav[Math.floor(Math.random() * fav.length)] : L.weakest(S, W.did), list = CALLS[les] || [['Assist a citizen', 3, 'any', 'Citizen flagging down an officer.']], c = rnd(list);
+  const fav = U().fav.filter((l) => W.D.lessons.indexOf(l) >= 0 && !L.mastery(S, l).done), les = fav.length && Math.random() < .3 ? fav[Math.floor(Math.random() * fav.length)] : L.weakest(S, W.did), list = CALLS[les] || [['Assist a citizen', 3, 'any', 'Citizen flagging down an officer.']], c = EVT.stormCall() || rnd(list);
   const lot = c[2] !== 'any' && W.lots.filter((l) => l.kind === c[2] || (c[2] === 'parking' && (l.kind === 'parking' || l.kind === 'lot'))).sort((a, b) => Math.hypot(a.door[0] - P.x, a.door[1] - P.y) - Math.hypot(b.door[0] - P.x, b.door[1] - P.y))[0];
   const pk = c[2] === 'parking' && !lot && W.parking.length ? (() => { const near = W.parking.filter((t) => Math.hypot(t[0] - P.x, t[1] - P.y) < 30); return rnd(near.length ? near : W.parking); })() : null;
   const spot = lot ? lot.door : pk || nearTile(W.walk, 28), where = lot ? (lot.name || (LANDMARKS[lot.kind] || {}).name || 'the ' + lot.kind) : pk ? 'the parking lot at ' + ((W.lots.find((l) => !l.sub && pk[0] > l.ox && pk[0] < l.ox + 8 && pk[1] > l.oy && pk[1] < l.oy + 9) || {}).name || 'a business') : 'block ' + (100 + spot[1] * 10) + ' ' + ['Main St', 'Bay St', 'Oak Ave', 'Pine St', 'Harbor Rd'][spot[0] % 5];
@@ -312,10 +313,10 @@ function render(now) {
     Object.keys(others).forEach((k) => { const o = others[k]; if (o.v && o.st === 'call') { const [ix, iy] = iso(o.rx, o.ry); bar(ix, iy, true); } });
     ctx.globalCompositeOperation = 'source-over';
   }
-  grade(); rainDraw();
+  grade(); rainDraw(); EVT.drawFog();
   // markers drawn above the lighting so they stay readable
   ctx.setTransform(z, 0, 0, z, cv.width / 2 - cam.x * z, cv.height / 2 - cam.y * z);
-  if (!ATTRACT) { guideDraw(now, z); if (!inside) { LIFE.draw(now); OFF.draw(now); ACAD.draw(now); regs.forEach((r) => { if (OFF.arcReady(r.n.id)) { const [sx, sy] = iso(r.x, r.y); bubble(sx, sy - 92, '💛', '#f472b6', now); } }); } storyMarker(now); floatsDraw(now); pingsDraw(now); if (SELF_SAY.text && performance.now() - SELF_SAY.at < 6000) { const [sx, sy] = iso(P.x, P.y); speech(sx, sy - (P.inCar ? 52 : 70), SELF_SAY.text.length > 34 ? SELF_SAY.text.slice(0, 32) + '…' : SELF_SAY.text); } }
+  if (!ATTRACT) { guideDraw(now, z); if (!inside) { EVT.draw(now); LIFE.draw(now); OFF.draw(now); ACAD.draw(now); regs.forEach((r) => { if (OFF.arcReady(r.n.id)) { const [sx, sy] = iso(r.x, r.y); bubble(sx, sy - 92, '💛', '#f472b6', now); } }); } storyMarker(now); floatsDraw(now); pingsDraw(now); if (SELF_SAY.text && performance.now() - SELF_SAY.at < 6000) { const [sx, sy] = iso(P.x, P.y); speech(sx, sy - (P.inCar ? 52 : 70), SELF_SAY.text.length > 34 ? SELF_SAY.text.slice(0, 32) + '…' : SELF_SAY.text); } }
   if (call) { const [sx, sy] = iso(call.x, call.y); ring(sx, sy, call.prio === 1 ? '#ff4d4d' : '#f5b800', now); bubble(sx, sy - 40, '📻', call.prio === 1 ? '#ff4d4d' : '#f5b800', now); label(sx, sy - 66, call.title, '#ffffff'); }
   infos.forEach((i) => { const [sx, sy] = iso(i.x, i.y); bubble(sx, sy - 30, 'i', i.cool > 0 ? '#6b7280' : '#3b82f6', now); });
   observes.forEach((o) => { if (!o.seen) return; const [sx, sy] = iso(o.x, o.y); ring(sx, sy, '#a855f7', now); bubble(sx, sy - 30, '!', '#a855f7', now); });
@@ -338,6 +339,11 @@ const OFF = installOffDuty({ S, L, get W() { return W; }, get P() { return P; },
 const ACAD = installAcademy({ S, get W() { return W; }, get P() { return P; }, get inside() { return inside; }, net: () => net, doorSpot: (l) => doorSpot(l), iso: (x, y) => iso(x, y), bubble: (...a) => bubble(...a), label: (...a) => label(...a),
   openModal: (h) => openModal(h), closeModal: () => closeModal(), $: (id) => $(id), esc: (x) => esc(x), dialogue: (...a) => dialogue(...a), sayAs: (...a) => sayAs(...a), award: (...a) => award(...a), stat: (...a) => stat(...a), toast: (m) => toast(m), banner: (...a) => banner(...a), beep: (...a) => beep(...a), saveS: () => saveS(), queueLoot: (...a) => queueLoot(...a),
   mood: (n) => OFF.mood(n), pay: (n, what) => { if ((S.cash || 0) < n) { toast('Not enough cash for ' + what + ' ($' + n + ').'); bad(); return false; } S.cash -= n; saveS(); hud(); return true; } });
+// the calendar: weather and seasons, weekly city events, collectibles (see events.js)
+const LANDMARK_LIST = (() => { const out = []; DISTRICTS.forEach((D, d) => { const put = (e) => { if (e && e.strip) return e.strip.forEach(put); const nm = Array.isArray(e) ? e[1] : (LANDMARKS[e] || {}).name; if (nm && e !== 'parking') out.push({ k: d + ':' + nm, name: nm }); }; D.lots.forEach(put); }); return out; })();
+const EVT = installEvents({ S, L, get W() { return W; }, get P() { return P; }, get inside() { return inside; }, get ctx() { return ctx; }, net: () => net, doorSpot: (l) => doorSpot(l), sayAs: (...a) => sayAs(...a), dialogue: (...a) => dialogue(...a), award: (...a) => award(...a), stat: (...a) => stat(...a),
+  toast: (m) => toast(m), banner: (...a) => banner(...a), good: () => good(), beep: (...a) => beep(...a), saveS: () => saveS(), queueLoot: (...a) => queueLoot(...a), openModal: (h) => openModal(h), closeModal: () => closeModal(), $: (id) => $(id), esc: (x) => esc(x),
+  iso: (x, y) => iso(x, y), bubble: (...a) => bubble(...a), label: (...a) => label(...a), dname: (d) => DISTRICTS[d].name, allLandmarks: () => LANDMARK_LIST });
 // the Rec Room: multiplayer mini games (see minigames.js)
 const MG = createMiniGames({ get net() { return net; }, now: () => N0(), esc: (x) => esc(x), S, L, PHON: PHONETIC, beep: (...a) => { if (S.sound) beep(...a); }, toast: (m) => toast(m), saveS: () => saveS(),
   award: (n, why) => award(n, why), stat: (k) => stat(k), cs: () => S.cs, icon: () => U().icon, did: () => W.did, dname: () => W.D.name, lessons: () => W.D.lessons,
@@ -397,8 +403,9 @@ function revealAround(cx, cy, r) {
 function liveInit() {
   const h = hourNow(), night = isNight(h), R2 = Math.random;
   FX = { rain: R2() < .25, drops: [], birds: [], events: [], train: null, trainT: 25 + R2() * 30, sail: null, caches: [], disc: {} };
+  { const wx = EVT.weather(); FX.rain = wx.rain; FX.storm = wx.storm; FX.wind = wx.wind; FX.cold = wx.cold; if (wx.storm) setTimeout(() => { radio('Dispatch', 'All units, tropical storm conditions in ' + W.D.name + '. Expect trees down, flooding and signals out.'); banner('🌀', 'Tropical storm', 'Heavy rain and wind this shift. Storm calls take priority.'); }, 3000); else if (wx.fog) setTimeout(() => radio('Dispatch', 'Heads up: dense fog this morning. Use your low beams.'), 2600); else if (wx.cold) setTimeout(() => radio('Dispatch', 'Cold snap tonight. Check on anyone sleeping outside.'), 2600); }
   BUFF.speedTo = -1; BUFF.speedMul = 0; BUFF.light = 1; BUFF.wait = 0;
-  if (FX.rain) setTimeout(() => radio('Dispatch', 'All units, rain moving through ' + W.D.name + '. Drive careful.'), 2500);
+  if (FX.rain && !FX.storm) setTimeout(() => radio('Dispatch', 'All units, rain moving through ' + W.D.name + '. Drive careful.'), 2500);
   // birds on open ground, scattering when you get close
   const open = W.quiet.length ? W.quiet : W.walk;
   if (!night) for (let f = 0; f < 4; f++) { const c = open[Math.floor(R2() * open.length)]; for (let i = 0; i < 4 + Math.floor(R2() * 4); i++) FX.birds.push({ x: c[0] + R2() * 1.5, y: c[1] + R2() * 1.5, h: 0, vx: 0, vy: 0, vh: 0, ph: R2() * 9, fly: false }); }
@@ -429,7 +436,7 @@ function liveUpdate(dt) {
     const tx = FX.train ? FX.train.x : -99; W.props.forEach((p) => { if (p.t === 'xing') { const on = !!FX.train && p.x > tx - FX.train.cars * 2.2 - 3 && p.x < tx + 9; if (on && !p.on && Math.hypot(p.x - P.x, p.y - P.y) < 10) { beep(880, .12, 'square', .02); } p.on = on; } });
   }
   if (FX.sail) { FX.sail.y += FX.sail.dir * dt * .5; if (FX.sail.y > N - 4 || FX.sail.y < 3) FX.sail.dir *= -1; }
-  if (FX.rain) { for (let i = 0; i < 6; i++) FX.drops.push({ x: Math.random(), y: -.05, v: .9 + Math.random() * .5 }); FX.drops.forEach((d) => { d.y += d.v * dt; d.x -= .12 * dt; }); FX.drops = FX.drops.filter((d) => d.y < 1.05); }
+  if (FX.rain) { for (let i = 0; i < (FX.storm ? 16 : 6); i++) FX.drops.push({ x: Math.random() * 1.3, y: -.05, v: (FX.storm ? 1.5 : .9) + Math.random() * .5 }); FX.drops.forEach((d) => { d.y += d.v * dt; d.x -= (.12 + (FX.wind || 0) * .6) * dt; }); FX.drops = FX.drops.filter((d) => d.y < 1.05); }
 }
 function liveDraw(list, vis, now) {
   FX.birds.forEach((b) => { const [sx, sy] = iso(b.x, b.y); if (!vis(sx, sy)) return; list.push({ d: b.x + b.y + (b.fly ? 50 : 0), f: () => bird(sx, sy - b.h, b, now) }); });
@@ -467,7 +474,7 @@ function flair(L, sx, sy, now, s) {
 let FLASH = 0;
 function rainDraw() { if (!FX.rain) return; ctx.setTransform(1, 0, 0, 1, 0, 0);
   if (!inside) { ctx.strokeStyle = 'rgba(210,225,245,.55)'; ctx.lineWidth = 1 * dpr; for (let i = 0; i < 26; i++) { const k = (performance.now() / 380 + i * .137) % 1, x = ((i * 7919) % 997) / 997 * cv.width, y = (((i * 3571) % 991) / 991 * .85 + .1) * cv.height; ctx.globalAlpha = 1 - k; ctx.beginPath(); ctx.ellipse(x, y, (1 + k * 6) * dpr, (.5 + k * 2.4) * dpr, 0, 0, Math.PI * 2); ctx.stroke(); } ctx.globalAlpha = 1; }
-  if (NIGHT && !inside && !ATTRACT && Math.random() < .0009 && S.cfg.motion) { FLASH = 1; if (S.sound) setTimeout(() => { const a = audio(); if (!a) return; const t = a.currentTime, n = a.createBufferSource(), b = a.createBuffer(1, a.sampleRate * 2, a.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2); n.buffer = b; const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 180; const gg = a.createGain(); gg.gain.setValueAtTime(.0001, t); gg.gain.exponentialRampToValueAtTime(.35 * S.cfg.sfx, t + .3); gg.gain.exponentialRampToValueAtTime(.0001, t + 2); n.connect(f); f.connect(gg); gg.connect(a.destination); n.start(t); }, 900); }
+  if ((NIGHT || FX.storm) && !inside && !ATTRACT && Math.random() < (FX.storm ? .004 : .0009) && S.cfg.motion) { FLASH = 1; if (S.sound) setTimeout(() => { const a = audio(); if (!a) return; const t = a.currentTime, n = a.createBufferSource(), b = a.createBuffer(1, a.sampleRate * 2, a.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2); n.buffer = b; const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 180; const gg = a.createGain(); gg.gain.setValueAtTime(.0001, t); gg.gain.exponentialRampToValueAtTime(.35 * S.cfg.sfx, t + .3); gg.gain.exponentialRampToValueAtTime(.0001, t + 2); n.connect(f); f.connect(gg); gg.connect(a.destination); n.start(t); }, 900); }
   if (FLASH > 0) { ctx.fillStyle = 'rgba(220,230,255,' + (FLASH * .35) + ')'; ctx.fillRect(0, 0, cv.width, cv.height); FLASH -= .06; } ctx.fillStyle = 'rgba(30,40,60,.18)'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.strokeStyle = 'rgba(190,210,235,.45)'; ctx.lineWidth = 1.2 * dpr; ctx.beginPath(); FX.drops.forEach((d) => { const x = d.x * cv.width, y = d.y * cv.height; ctx.moveTo(x, y); ctx.lineTo(x - 4 * dpr, y + 14 * dpr); }); ctx.stroke(); }
 // a top-of-screen banner for discoveries
 let bannerT = 0;
@@ -1022,7 +1029,7 @@ function attractUpdate(dt, now) {
   { const f = focus(); peds.forEach((p, k) => { if (Math.hypot(p.x - f[0], p.y - f[1]) > 30) peds[k] = newPed(); }); traffic.forEach((c, k) => { if (Math.hypot(c.x - f[0], c.y - f[1]) > 34) traffic[k] = newCar(); }); }
   peds.forEach((p) => { if (p.wait > 0) { p.wait -= dt; p.moving = false; return; } if (!p.path.length) { const t = nearTile(W.walk, 24); const path = Math.hypot(t[0] - p.x, t[1] - p.y) < 16 ? astar(p.x, p.y, t[0], t[1], pedPass, true) : null; if (path) p.path = path; else p.wait = 1; return; } if (stepAlong(p, dt, p.sp)) p.wait = 1 + Math.random() * 4; });
   traffic.forEach((c) => { if (c.stopped) return; if (!c.path.length) { for (let k = 0; k < 6; k++) { const x = Math.floor(c.x + (Math.random() - .5) * 40), y = Math.floor(c.y + (Math.random() - .5) * 40); if (roadPass(x, y)) { const p = astar(c.x, c.y, x, y, roadPass, false); if (p && p.length > 3) { c.path = p; break; } } } return; } stepAlong(c, dt, c.sp); });
-  if (FX.rain) { for (let i = 0; i < 6; i++) FX.drops.push({ x: Math.random(), y: -.05, v: .9 + Math.random() * .5 }); FX.drops.forEach((d) => { d.y += d.v * dt; d.x -= .12 * dt; }); FX.drops = FX.drops.filter((d) => d.y < 1.05); }
+  if (FX.rain) { for (let i = 0; i < (FX.storm ? 16 : 6); i++) FX.drops.push({ x: Math.random() * 1.3, y: -.05, v: (FX.storm ? 1.5 : .9) + Math.random() * .5 }); FX.drops.forEach((d) => { d.y += d.v * dt; d.x -= (.12 + (FX.wind || 0) * .6) * dt; }); FX.drops = FX.drops.filter((d) => d.y < 1.05); }
   if (FX.sail) { FX.sail.y += FX.sail.dir * dt * .5; if (FX.sail.y > N - 4 || FX.sail.y < 3) FX.sail.dir *= -1; }
 }
 function endAttract() { ATTRACT = false; document.body.classList.remove('attract'); musT = 0; }
@@ -1074,6 +1081,7 @@ function tap(px, py) {
   const [ix, iy] = toWorld(px, py), near = (x, y, r) => { const [sx, sy] = iso(x, y); return Math.hypot(sx - ix, (sy - 20) - iy) < r; };
   const reach = (x, y, fn) => { if (Math.hypot(x - P.x, y - P.y) < 1.9) fn(); else goTo(x, y, fn); };
   if (!inside && LIFE.tapViolator(near)) return;
+  if (!inside && EVT.tap(near, reach)) return;
   if (!inside) for (const a of LIFE.acts) if (near(a.x, a.y, 30)) return reach(a.x, a.y, () => LIFE.run(a));
   if (!inside) for (const a of ACAD.acts) if (near(a.x, a.y, 30)) return reach(a.x, a.y, () => ACAD.run(a));
   if (!inside) for (const a of OFF.acts) if (near(a.x, a.y, 30)) return (P.boat ? a.boat : true) ? (Math.hypot(a.x - P.x, a.y - P.y) < (P.boat ? 3 : 1.9) ? OFF.run(a) : goTo(a.x, a.y, () => OFF.run(a))) : null;
@@ -1389,7 +1397,7 @@ function endOfWatch() {
     '<div class="rptGrid"><div><em>' + SS.calls + '</em><span>Calls cleared</span></div><div><em>' + Math.round(acc * 100) + '%</em><span>Accuracy</span></div><div><em>' + bestCombo + '</em><span>Best streak</span></div><div><em>' + od + '/3</em><span>Shift orders</span></div><div><em>' + SS.rp + '</em><span>RP earned</span></div><div><em>' + esc(L.rankOf(S.xp).name) + '</em><span>Rank</span></div></div>' +
     '<div class="rptGrade g' + grade + '"><span>' + grade + '</span></div><p class="rptNote">' + esc(note) + '</p>' + masteryLine() + '</div><div class="qAct"><button type="button" id="eNext">Start next shift</button></div>');
   if (S.sound) [523, 659, 784].forEach((f, i) => beep(f, .25, 'triangle', .05, .5 + i * .1));
-  $('eNext').onclick = () => { const i = SHIFTS.findIndex((x) => x.id === S.shift); S.shift = SHIFTS[(i + 1) % 3].id; saveS(); clock = 0; closeModal(); load(W.did); award(grade === 'S' ? 120 : grade === 'A' ? 80 : 50, 'full shift · grade ' + grade); queueLoot('End of watch: found in your duty bag', 1, grade === 'S' ? 'r' : grade === 'A' ? 'u' : 'c'); };
+  $('eNext').onclick = () => { if (FX.storm) stat('stormShift'); const i = SHIFTS.findIndex((x) => x.id === S.shift); S.shift = SHIFTS[(i + 1) % 3].id; saveS(); clock = 0; closeModal(); load(W.did); award(grade === 'S' ? 120 : grade === 'A' ? 80 : 50, 'full shift · grade ' + grade); queueLoot('End of watch: found in your duty bag', 1, grade === 'S' ? 'r' : grade === 'A' ? 'u' : 'c'); };
 }
 
 // ---------- HUD ----------
@@ -1416,7 +1424,7 @@ function hud() {
   { const k = U().ride.kind, lab = P.boat ? 'Dock' : P.inCar ? 'Exit' : k === 'van' ? 'Van' : k === 'armored' || k === 'truck' ? 'Truck' : k === 'suv' ? 'SUV' : 'Car'; $('bCar').innerHTML = '<i>' + ico(P.boat ? 'anchor' : P.inCar ? 'walk' : 'car') + '</i><span>' + lab + '</span>'; } $('bCar').classList.toggle('on', P.inCar || P.boat);
   $('bSnd').innerHTML = '<i>' + ico(S.sound ? 'sound' : 'mute') + '</i><span>Sound</span>'; if (!setIcons.done) { setIcons.done = 1; setIcons(); }
 }
-function hudClock() { const t = (shiftOf().start * 60 + Math.floor(clock)) % 1440; const s = String(Math.floor(t / 60)).padStart(2, '0') + String(t % 60).padStart(2, '0') + ' hrs'; const el = $('hClock'); if (el.textContent !== s) el.textContent = shiftOf().name + ' · ' + s; }
+function hudClock() { const t = (shiftOf().start * 60 + Math.floor(clock)) % 1440; const s = String(Math.floor(t / 60)).padStart(2, '0') + String(t % 60).padStart(2, '0') + ' hrs'; const el = $('hClock'); if (el.dataset.s !== s + EVT.WX.label) (el.dataset.s = s + EVT.WX.label, el.textContent = shiftOf().name + ' · ' + s + (EVT.WX.label ? ' ' + EVT.WX.label.split(' ')[0] : '')); }
 const feed = [];
 function radio(who, msg) { feed.push([who, msg]); while (feed.length > 30) feed.shift(); const el = $('radio'); el.innerHTML = feed.slice(-3).map((f) => '<div><b>' + esc(f[0]) + ':</b> ' + esc(f[1]) + '</div>').join(''); placeOrders(); }
 function placeOrders() { const r = $('radio'), o = $('orders'); if (!r || !o) return; const b = r.getBoundingClientRect(); o.style.top = Math.max(b.bottom + 6, 0) + 'px'; }
@@ -1853,6 +1861,7 @@ TROPHIES.push(['self1', 'Proactive', 'Do your first self-initiated activity.', '
 TROPHIES.push(['off1', 'Off the Clock', 'Go off duty and do something fun.', 'b', () => st('meals') + st('games') + st('skate') + st('fish') >= 1], ['fish10', 'Hooked', 'Catch 10 fish.', 's', () => st('fish') >= 10], ['mossback', 'Old Mossback', 'Land a legendary fish.', 'g', () => st('fishLegend') >= 1], ['skate5', 'Officer Kickflip', 'Land all five tricks with Dez.', 's', () => st('skate5') >= 1], ['ride3', 'Seen It From Every Seat', 'Do all three ride-alongs.', 's', () => st('ride_sam') && st('ride_hal') && st('ride_earl')], ['home1', 'Keys in Hand', 'Get a place of your own.', 's', () => st('homes') >= 1], ['arc1', 'Real Friends', 'Finish a friendship story.', 's', () => st('arcs') >= 1], ['arc10', 'Everybody Knows Your Name', 'Finish all ten friendship stories.', 'g', () => st('arcs') >= 10], ['gators', 'Believe in the Gators', 'See the Gators win at River Stadium.', 'b', () => st('gatorwin') >= 1]);
 TROPHIES.push(['pt1', 'Hooah', 'Finish a PT workout.', 'b', () => st('pt') >= 1], ['ptex', 'Excellent Across the Board', 'Score Excellent on a weekly PT test.', 'g', () => st('ptex') >= 1], ['insp1', 'Squared Away', 'Stand a uniform inspection.', 'b', () => st('insp') >= 1], ['inspP', 'Outstanding', 'Pass inspection with every item perfect.', 's', () => st('inspPerfect') >= 1], ['lb1', 'Know Where You Stand', 'Check the class standing.', 'b', () => st('standing') >= 1]);
 TROPHIES.push(['squad1', 'Sim Round Squad', 'Finish a squad scenario.', 'b', () => st('mg_squad') >= 1], ['squadwin', 'Mission Success', 'Finish a squad scenario at 80% or better.', 's', () => st('squadwin') >= 1], ['gaunt', 'Last One Standing', 'Play the Trivia Gauntlet.', 'b', () => st('mg_gauntlet') >= 1]);
+TROPHIES.push(['ev1', 'Community Event', 'Help out at a city event.', 'b', () => st('evtasks') >= 1], ['evgoal', 'All Hands', 'Be part of a city event that reached its goal.', 's', () => st('evgoal') >= 1], ['patch5', 'Patch Collector', 'Find 5 department patches.', 'b', () => st('patches') >= 5], ['patch25', 'Department Historian', 'Find all 25 department patches.', 'g', () => st('patches') >= 25], ['pigeon30', 'Census Taker', 'Count all 30 pigeon flocks for Sgt. Pruitt.', 's', () => Object.keys(S.pigeons || {}).length >= 30], ['album10', 'Shutterbug', 'Photograph 10 landmarks.', 's', () => Object.keys(S.album || {}).length >= 10], ['storm1', 'Weathered It', 'Work a shift through a tropical storm.', 's', () => st('stormShift') >= 1]);
 TROPHIES.push(['plat', 'Port Meridian\'s Finest', 'Earn every other trophy.', 'p', () => TROPHIES.every((t) => t[0] === 'plat' || (S.trophies || {})[t[0]])]);
 const TIER = { b: ['Bronze', '#cd7f32'], s: ['Silver', '#c9d2dd'], g: ['Gold', '#f5b800'], p: ['Platinum', '#9ee7ff'] };
 let trT = 3, trQ = [], trBusy = false;
@@ -1893,7 +1902,7 @@ function pauseMenu() {
   if (ATTRACT || PHOTO || !$('start').hidden) return; const el = fe(); if (!el.hidden) return;
   const was = paused; paused = true; PAUSED_BY_MENU = true; el.hidden = false; el.className = 'fe pauseBg';
   const close = () => { el.hidden = true; el.innerHTML = ''; el.className = 'fe'; paused = was; PAUSED_BY_MENU = false; };
-  const items = [['Resume', close], ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], [S.offDuty ? 'Go back on duty' : 'Go off duty', () => { close(); OFF.toggle(); }], ['PT', () => { close(); ACAD.ptMenu(); }], ['Uniform Inspection', () => { close(); ACAD.inspMenu(); }], ['Class Standing', () => { close(); ACAD.standing(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
+  const items = [['Resume', close], ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], [S.offDuty ? 'Go back on duty' : 'Go off duty', () => { close(); OFF.toggle(); }], ['PT', () => { close(); ACAD.ptMenu(); }], ['Uniform Inspection', () => { close(); ACAD.inspMenu(); }], ['Class Standing', () => { close(); ACAD.standing(); }], ['This Week in the City', () => { close(); EVT.eventCard(); }], ['Collections', () => { close(); EVT.collections(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
   function pauseMenuAgain() { el.hidden = true; paused = was; PAUSED_BY_MENU = false; pauseMenu(); }
   const h = hourNow(), hh = String(Math.floor(h)).padStart(2, '0') + String(Math.floor((h % 1) * 60)).padStart(2, '0');
   el.innerHTML = '<div class="pmBox"><div class="pmHead"><small>' + esc(W.D.name) + ' · ' + hh + ' hrs</small><h2>Paused</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + ' · ' + esc(L.rankOf(S.xp).name) + '</p></div><div class="tiMenu pm">' + items.map((x, i) => '<button type="button" data-i="' + i + '"' + (i === 0 ? ' class="pri"' : '') + '><b>' + x[0] + '</b></button>').join('') + '</div><div class="pmFoot">' + (activeQ() ? '<b>' + esc(activeQ().title) + '</b> · ' + esc(activeQ().step.goal) : 'Patrol your district') + '</div></div>';
@@ -1950,7 +1959,7 @@ function photoMode() {
     $('phShot').onclick = capture; $('phX').onclick = photoExit; };
   draw();
 }
-function capture() {
+function capture() { try { const [cx, cy] = unIso(cam.x, cam.y); EVT.photo(cx, cy); } catch (e) {}
   const c = document.createElement('canvas'); c.width = cv.width; c.height = cv.height; const g = c.getContext('2d');
   g.filter = FILTERS[PHOTO.f][1]; g.drawImage(cv, 0, 0); g.filter = 'none';
   if (PHOTO.vig) { const v = g.createRadialGradient(c.width / 2, c.height / 2, Math.min(c.width, c.height) * .35, c.width / 2, c.height / 2, Math.max(c.width, c.height) * .75); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = v; g.fillRect(0, 0, c.width, c.height); }
@@ -2007,7 +2016,7 @@ function lockedScreen() {
   try { await L.loadBank('../ch5.json'); await L.loadFacts('facts.json'); S.facts = Object.fromEntries(Object.entries(S.facts || {}).filter(([k]) => k[0] === 'F')); } catch (e) { $('loading').textContent = 'Could not load the question bank. Check your connection and refresh.'; return; }
   $('loading').hidden = true;
   attractStart(); requestAnimationFrame(frame); applyCfg(); if (FAST) { S.seenIntro = 1; startScreen(); } else bootSequence(titleScreen);
-  try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); MG.watch(W.did); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
+  try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); MG.watch(W.did); EVT.watch(); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { S, MG, LIFE, OFF, ACAD, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { S, MG, LIFE, OFF, ACAD, EVT, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
