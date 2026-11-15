@@ -1,7 +1,8 @@
 // Patrol City world: district maps (tiles, buildings, props) and the isometric art, all drawn in code.
 import { DISTRICTS, LANDMARKS } from './data.js';
 
-export const N = 46, TW = 64, TH = 32;
+export const N = 145, TW = 64, TH = 32; // 13 x 13 city blocks per district
+const NB = 13;
 // tile kinds
 export const T = { ROAD: 1, WALK: 2, GRASS: 3, PLAZA: 4, LOT: 5, WATER: 6, BLDG: 7, FENCE: 8, SAND: 9, GRAVEL: 10, RAIL: 11 };
 const WALKABLE = new Set([T.ROAD, T.WALK, T.GRASS, T.PLAZA, T.LOT, T.SAND, T.GRAVEL, T.RAIL]);
@@ -20,24 +21,35 @@ export function buildDistrict(did) {
   const set = (x, y, v) => { if (x >= 0 && y >= 0 && x < N && y < N) g[y * N + x] = v; };
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) set(x, y, isRoadLine(x) || isRoadLine(y) ? T.ROAD : T.WALK);
   const W = { did, D, g, at, set, buildings: [], props: [], lots: [], lights: [], doors: {}, parking: [], walk: [], gates: [], spawn: null, carSpot: null, river: !!D.river };
-  if (D.river) for (let y = 0; y < N; y++) for (let x = 35; x < N; x++) set(x, y, x === 35 ? T.SAND : T.WATER);
-  let li = 0;
-  for (let by = 0; by < 4; by++) for (let bx = 0; bx < 4; bx++) {
+  const RIVX = 2 + (NB - 1) * 11; // Riverside: the last block column is river
+  if (D.river) for (let y = 0; y < N; y++) for (let x = RIVX; x < N; x++) set(x, y, x === RIVX ? T.SAND : T.WATER);
+  // the hand-built places go in the middle of the district, spiraling out from the station; the rest fills in by theme
+  const order = []; for (let by = 0; by < NB; by++) for (let bx = 0; bx < NB; bx++) if (!(D.river && bx === NB - 1)) order.push([bx, by]);
+  order.sort((a, b) => (Math.hypot(a[0] - 6, a[1] - 6) - Math.hypot(b[0] - 6, b[1] - 6)) || (a[1] - b[1]) || (a[0] - b[0]));
+  const used = new Set(D.lots.flatMap((e) => (e && e.strip ? e.strip.map((x) => x[1]) : Array.isArray(e) ? [e[1]] : [])));
+  order.forEach(([bx, by], li) => {
     const ox = 2 + bx * 11, oy = 2 + by * 11;
-    if (D.river && bx === 3) continue;
-    const entry = D.lots[li % D.lots.length]; li++;
+    const entry = li < D.lots.length ? D.lots[li] : genEntry(W.D.theme, R, used, bx, by);
     for (let y = oy + 1; y <= oy + 7; y++) for (let x = ox + 1; x <= ox + 7; x++) set(x, y, T.GRASS);
-    if (entry && entry.strip) { strip(W, entry.strip, ox, oy, R); }
+    if (entry && entry.strip) { strip(W, entry.strip, ox, oy, R); if (li >= D.lots.length) W.lots.slice(-4).forEach((l) => { l.gen = true; }); }
     else {
       const [kind, nm, sg] = Array.isArray(entry) ? entry : [entry];
-      const lot = { kind, ox, oy, bx, by, name: nm || (LANDMARKS[kind] || {}).name || '', sign: sg, door: [ox + 4, oy + 8], info: [ox + 6, oy + 8] };
+      const lot = { kind, ox, oy, bx, by, name: nm || (LANDMARKS[kind] || {}).name || '', sign: sg, door: [ox + 4, oy + 8], info: [ox + 6, oy + 8], gen: li >= D.lots.length };
       W.lots.push(lot);
       fill(W, lot, R);
       lot.bld = W.buildings.filter((b) => b.x >= ox + 1 && b.x <= ox + 7 && b.y >= oy + 1 && b.y <= oy + 7).sort((a, b) => b.w * b.d - a.w * a.d)[0] || null;
     }
-    // street lights at block corners
     [[ox, oy], [ox + 8, oy], [ox, oy + 8], [ox + 8, oy + 8]].forEach(([x, y]) => W.props.push({ t: 'lamp', x: x + .5, y: y + .5 }));
-  }
+  });
+  // every business gets a customer parking row along its front, with curb cuts to the street
+  const OPEN = new Set(['houses', 'park', 'plaza', 'lot', 'railyard', 'stadium', 'apartments', 'radio', 'church', 'parking', 'garage', 'storage', 'scrapyard', 'jail', 'warehouse', 'lumber', 'marina', 'firestation']);
+  W.lots.forEach((l) => {
+    if (l.sub || OPEN.has(l.kind)) return; const y = l.oy + 7;
+    for (let x = l.ox + 1; x <= l.ox + 7; x++) { if (at(x, y) === T.BLDG || at(x, y) === T.FENCE) return; }
+    W.props = W.props.filter((p) => !(Math.floor(p.y) === y && Math.floor(p.x) >= l.ox + 1 && Math.floor(p.x) <= l.ox + 7 && (p.t === 'tree' || p.t === 'palm' || p.t === 'bench' || p.t === 'bush')));
+    for (let x = l.ox + 1; x <= l.ox + 7; x++) set(x, y, T.LOT);
+    [l.ox + 2, l.ox + 6].forEach((x) => { if (R() < .75) P(W, 'car', x + .5, y + .5, { parked: true, color: CAR_COLORS[Math.floor(R() * CAR_COLORS.length)], dir: 1, block: true }); });
+  });
   features(W, R);
   // driveways: every paved lot gets curb cuts through the sidewalk to the road below it
   W.lots.forEach((l) => {
@@ -45,7 +57,7 @@ export function buildDistrict(did) {
     [ox + 3, ox + 5, ox + 1, ox + 7].filter((x) => { const g = at(x, oy + 7); return (g === T.LOT || g === T.GRAVEL) && !propAt(x, oy + 7) && at(x, oy + 8) === T.WALK && at(x, oy + 9) === T.ROAD; }).slice(0, 2).forEach((x) => { set(x, oy + 7, T.LOT); set(x, oy + 8, T.LOT); });
   });
   // gates to the neighbouring districts (west road and east road)
-  W.gates.push({ to: (did + 4) % 5, x: 0, y: 11, dir: 'w' }, { to: (did + 1) % 5, x: D.river ? 33 : N - 1, y: D.river ? 0 : 22, dir: D.river ? 'n' : 'e' });
+  W.gates.push({ to: (did + 4) % 5, x: 0, y: 66, dir: 'w' }, { to: (did + 1) % 5, x: D.river ? 121 : N - 1, y: D.river ? 0 : 77, dir: D.river ? 'n' : 'e' });
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = at(x, y); if (v === T.WALK) W.walk.push([x, y]); if (v === T.LOT) W.parking.push([x, y]); }
   const st = W.lots.find((l) => l.kind === 'hq' || l.kind === 'substation') || W.lots[0];
   W.spawn = [st.ox + 4, st.oy + 8]; W.station = st;
@@ -54,6 +66,46 @@ export function buildDistrict(did) {
   W.blocked = new Set();
   W.props.forEach((p) => { if (p.block) W.blocked.add(Math.floor(p.y) * N + Math.floor(p.x)); });
   return W;
+}
+
+// ---------- filling the rest of the district: named businesses, streets and parks that fit the theme ----------
+const OWN = ['Rosa', 'Tony', 'Big Mike', 'Lucky', 'Sunny', 'Mama Lu', 'Hector', 'Dee', 'Frank', 'Carmen', 'Earl', 'Nina', 'Ray', 'Gus', 'Tasha', 'Benny', 'Ollie', 'Pearl', 'Ike', 'Lupe', 'Moe', 'Vic', 'Ada', 'Jules'];
+const TREE = ['Cypress', 'Magnolia', 'Palmetto', 'Live Oak', 'Sabal', 'Mangrove', 'Pecan', 'Orange Blossom', 'Hibiscus', 'Bayberry', 'Jasmine', 'Sawgrass', 'Heron', 'Pelican', 'Ibis', 'Osprey', 'Manatee', 'Seminole', 'Ponce', 'Coquina'];
+const STREET = ['Lane', 'Court', 'Way', 'Circle', 'Drive', 'Terrace', 'Row', 'Place'];
+const NOUN = { shop: ['Market', 'Grocery', 'Mini Mart', 'Variety', 'Corner Store', 'Bodega'], cafe: ['Coffee', 'Bakery', 'Bagels', 'Donuts', 'Café', 'Juice Bar'], pizza: ['Pizza', 'Pizzeria', 'Slice Shop', 'Subs & Pizza'], barber: ['Barbershop', 'Cuts', 'Fades'], laundromat: ['Laundry', 'Wash & Fold', 'Laundromat'], nails: ['Nails', 'Salon', 'Beauty Bar'], books: ['Books', 'Comics', 'Used Books'], pharmacy: ['Pharmacy', 'Drugs', 'Rx'], clinic: ['Family Clinic', 'Dental', 'Urgent Care', 'Animal Hospital'], diner: ['Diner', 'Grill', 'Kitchen', 'Lunch Counter'], autoshop: ['Auto Repair', 'Tire & Lube', 'Transmission', 'Body Shop'], gym: ['Gym', 'Fitness', 'Boxing Club', 'CrossTrain'], office: ['Insurance', 'Tax Service', 'Law Office', 'Realty', 'Accounting'] };
+const SIGNS = { shop: 'MARKET', cafe: 'CAFE', pizza: 'PIZZA', barber: 'BARBER', laundromat: 'LAUNDRY', nails: 'NAILS', books: 'BOOKS', pharmacy: 'Rx', clinic: 'CLINIC', diner: 'DINER', autoshop: 'AUTO', gym: 'GYM', office: 'OFFICE' };
+const MIX = {
+  downtown: [['strip', 26], ['tower', 18], ['apartments', 10], ['parking', 7], ['park', 7], ['plaza', 4], ['diner', 4], ['clinic', 4], ['bank', 3], ['garage', 3], ['library', 2], ['shop', 6], ['gym', 3], ['houses', 3]],
+  commercial: [['strip', 24], ['houses', 16], ['apartments', 9], ['gas', 7], ['autoshop', 7], ['motel', 5], ['mall', 5], ['carwash', 4], ['shop', 7], ['park', 6], ['parking', 4], ['diner', 3], ['gym', 3]],
+  residential: [['houses', 44], ['apartments', 13], ['park', 10], ['strip', 9], ['church', 4], ['school', 3], ['shop', 6], ['clinic', 3], ['pawn', 2], ['diner', 3], ['firestation', 1], ['marina', 2]],
+  industrial: [['warehouse', 32], ['storage', 9], ['lot', 9], ['scrapyard', 7], ['lumber', 6], ['railyard', 5], ['parking', 6], ['autoshop', 7], ['truckstop', 4], ['diner', 4], ['houses', 6], ['gas', 5]],
+  civic: [['tower', 18], ['strip', 18], ['parking', 11], ['apartments', 10], ['plaza', 7], ['park', 8], ['shop', 7], ['diner', 5], ['bonds', 4], ['houses', 8], ['clinic', 4]]
+};
+const STRIPMIX = { downtown: ['cafe', 'barber', 'books', 'pizza', 'nails', 'office', 'shop', 'laundromat'], commercial: ['laundromat', 'shop', 'pharmacy', 'nails', 'pizza', 'cafe', 'barber', 'gym'], residential: ['cafe', 'shop', 'barber', 'laundromat', 'pizza', 'pharmacy', 'books'], industrial: ['diner', 'shop', 'autoshop', 'cafe'], civic: ['office', 'cafe', 'shop', 'office', 'pizza', 'books'] };
+function genEntry(theme, R, used, bx, by) {
+  const pick = (a) => a[Math.floor(R() * a.length)], mix = MIX[theme] || MIX.downtown, tot = mix.reduce((a, m) => a + m[1], 0);
+  let t = R() * tot, kind = mix[0][0]; for (const m of mix) { t -= m[1]; if (t <= 0) { kind = m[0]; break; } }
+  const uniq = (fn) => { let n = ''; for (let k = 0; k < 20 && (!n || used.has(n)); k++) n = fn(); used.add(n); return n; };
+  const biz = (k) => { const n = uniq(() => pick(OWN) + '’s ' + pick(NOUN[k] || ['Shop'])); return [k, n, SIGNS[k] || n.split(' ').pop().toUpperCase().slice(0, 9)]; };
+  if (kind === 'strip') { const pool = STRIPMIX[theme] || STRIPMIX.downtown; return { strip: [0, 1, 2, 3].map(() => biz(pick(pool))) }; }
+  if (NOUN[kind]) return biz(kind);
+  const named = {
+    houses: () => uniq(() => pick(TREE) + ' ' + pick(STREET)), apartments: () => uniq(() => pick(TREE) + ' ' + pick(['Apartments', 'Gardens', 'Towers', 'Commons', 'Village'])),
+    park: () => uniq(() => pick(TREE) + ' ' + pick(['Park', 'Green', 'Commons', 'Playground'])), plaza: () => uniq(() => pick(TREE) + ' Plaza'),
+    tower: () => uniq(() => pick(['Harbor', 'Meridian', 'Bayfront', 'Gulf', 'Sunbelt', 'Citrus', 'Coastal', 'Riverview']) + ' ' + pick(['Tower', 'Center', 'Building', 'Plaza Tower'])),
+    parking: () => uniq(() => pick(['Lot', 'Parking', 'Park & Pay']) + ' ' + (10 + Math.floor(R() * 89))), garage: () => uniq(() => pick(TREE) + ' Parking Garage'),
+    warehouse: () => uniq(() => pick(['Gulf', 'Coastal', 'Sunshine', 'Bayside', 'Delta', 'Keystone', 'Atlas', 'Pioneer', 'Summit', 'Anchor']) + ' ' + pick(['Freight', 'Supply', 'Logistics', 'Packaging', 'Distribution', 'Steel', 'Foods'])),
+    storage: () => uniq(() => pick(['Store-All', 'Secure', 'Keep-It', 'Space Place', 'StashBox']) + ' Storage'), lot: () => uniq(() => 'Vacant Lot ' + (100 + Math.floor(R() * 800))),
+    scrapyard: () => uniq(() => pick(OWN) + '’s Salvage'), lumber: () => uniq(() => pick(TREE) + ' Lumber'), railyard: () => uniq(() => pick(['South', 'East', 'Old', 'Spur']) + ' Rail Yard'),
+    truckstop: () => uniq(() => pick(['Interstate', 'Big Wheel', 'Gator', 'Sunrise']) + ' Truck Stop'), gas: () => uniq(() => pick(['QuickFuel', 'Gas & Go', 'Sun Fuel', 'Fill-Up', 'Gator Gas']) + ' #' + (2 + Math.floor(R() * 40))),
+    motel: () => uniq(() => pick(TREE) + ' Motor Inn'), mall: () => uniq(() => pick(TREE) + ' Shopping Center'), carwash: () => uniq(() => pick(['Sparkle', 'Bubbles', 'Shine', 'Splash']) + ' Car Wash'),
+    bank: () => uniq(() => pick(['Coastal', 'Citrus', 'Harbor', 'Meridian']) + ' ' + pick(['Bank', 'Credit Union', 'Savings'])), library: () => uniq(() => pick(TREE) + ' Branch Library'),
+    church: () => uniq(() => pick(['Grace', 'Faith', 'New Hope', 'St. Mark’s', 'Cornerstone', 'Unity']) + ' ' + pick(['Church', 'Chapel', 'Fellowship'])), school: () => uniq(() => pick(TREE) + ' ' + pick(['Elementary', 'Middle School', 'Academy'])),
+    pawn: () => uniq(() => pick(OWN) + '’s Pawn'), firestation: () => uniq(() => 'Fire Station ' + (4 + Math.floor(R() * 20))), marina: () => uniq(() => pick(TREE) + ' Boat Ramp'), bonds: () => uniq(() => pick(['Liberty', 'Quick', 'Sunrise', 'Ace']) + ' Bail Bonds')
+  };
+  const signs = { tower: '', houses: '', apartments: '', park: '', plaza: '', parking: '', lot: '', railyard: '', garage: 'PARK', warehouse: null, storage: 'STORAGE', scrapyard: 'SALVAGE', lumber: 'LUMBER', truckstop: 'TRUCKS', gas: 'GAS', motel: 'MOTEL', mall: 'SHOPS', carwash: 'WASH', bank: 'BANK', library: 'LIBRARY', church: '', school: 'SCHOOL', pawn: 'PAWN', firestation: 'FIRE', marina: 'BOATS', bonds: 'BONDS' };
+  const n = named[kind] ? named[kind]() : kind, sg = signs[kind] === null ? n.split(' ')[0].toUpperCase().slice(0, 9) : signs[kind];
+  return [kind, n, sg];
 }
 
 // ---------- what makes each district its own place ----------
@@ -69,7 +121,7 @@ const SECRETS = [
 function features(W, R) {
   const at = W.at, set = W.set, d = W.did, rnd = (a) => a[Math.floor(R() * a.length)];
   // a road segment between two blocks becomes a walk-only promenade
-  const prom = [[22, 13, 'v', 'fountain'], [33, 2, 'v', 'stall'], [11, 24, 'v', 'tree'], [22, 2, 'v', 'tree'], [22, 2, 'v', 'flag']][d];
+  const prom = [[66, 57, 'v', 'fountain'], [77, 68, 'v', 'stall'], [55, 79, 'v', 'tree'], [66, 46, 'v', 'tree'], [77, 57, 'v', 'flag']][d];
   if (prom) { const [px, py, , k] = prom; for (let y = py; y <= py + 8; y++) for (let x = px; x <= px + 1; x++) set(x, y, T.PLAZA);
     for (let y = py + 1; y <= py + 7; y += 2) { const left = (y - py) % 4 === 1; if (k === 'stall') P(W, 'stall', px + (left ? .5 : 1.5), y + .5, { color: rnd(['#d22d3d', '#1f7a5a', '#2c5aa0', '#d98a1c', '#8e44ad']), block: true }); else if (k === 'fountain' && y === py + 3) P(W, 'fountain', px + 1, y + 1, { block: true }); else if (k === 'flag') P(W, left ? 'flag' : 'bench', px + (left ? .3 : 1.6), y + .5, { block: left }); else P(W, left ? 'tree' : 'bench', px + (left ? .4 : 1.6), y + .5, { block: left, s: .8 }); }
     W.promenade = { x: px, y: py, name: ['Main Street Promenade', 'Eastside Market Street', 'Riverside Greenway', 'Old Freight Path', 'Civic Mall'][d] };
@@ -80,13 +132,13 @@ function features(W, R) {
     const r = R(); if (r < .025) P(W, 'hydrant', x + .5, y + .5); else if (r < .045) P(W, 'bin', x + .5, y + .5); else if (r < .085 && W.D.theme !== 'industrial') P(W, 'bush', x + .5, y + .5, { s: .7 + R() * .5, c: rnd(['#3f7d3a', '#4b8b3f', '#356b34']) }); else if (r < .1 && W.D.theme === 'residential') P(W, 'flowers', x + .5, y + .5, { c: rnd(['#e84a5f', '#f6c445', '#c77dff', '#ff8fab']) });
   }
   if (W.river) { // fishing pier into the river, a boardwalk bench line and boats
-    const py = 17; for (let x = 36; x <= 41; x++) { set(x, py, T.PLAZA); set(x, py + 1, T.PLAZA); }
-    P(W, 'bench', 41.3, py + 1); P(W, 'lamp', 36.5, py + .5); P(W, 'lamp', 40.5, py + .5);
-    for (let y = 4; y < N - 2; y += 6) P(W, 'bench', 35.5, y + .5);
-    W.pier = { x: 36, y: py };
+    const RX = 2 + (NB - 1) * 11, py = 70; for (let x = RX + 1; x <= RX + 6; x++) { set(x, py, T.PLAZA); set(x, py + 1, T.PLAZA); }
+    P(W, 'bench', RX + 6.3, py + 1); P(W, 'lamp', RX + 1.5, py + .5); P(W, 'lamp', RX + 5.5, py + .5);
+    for (let y = 4; y < N - 2; y += 6) P(W, 'bench', RX + .5, y + .5);
+    W.pier = { x: RX + 1, y: py };
   }
   if (W.D.theme === 'industrial') { // a freight line crossing the whole district; trains run on it during the shift
-    const ry = 32; for (let x = 0; x < N; x++) if (at(x, ry) !== T.BLDG) set(x, ry, T.RAIL);
+    const ry = 98; for (let x = 0; x < N; x++) if (at(x, ry) !== T.BLDG) set(x, ry, T.RAIL);
     for (let x = 0; x < N; x++) if (at(x, ry - 1) === T.ROAD && at(x - 1, ry - 1) !== T.ROAD) { P(W, 'xing', x - .3, ry - .3); P(W, 'xing', x + 2.3, ry + 1.3); }
     W.railY = ry;
   }
@@ -95,7 +147,7 @@ function features(W, R) {
   const picked = [];
   W.secrets = (SECRETS[d] || []).map((s2, i) => {
     let q = null;
-    if (W.river && i === 0) q = [41, 18];
+    if (W.river && i === 0) q = [2 + (NB - 1) * 11 + 6, 71];
     for (let k = 0; !q && k < 200; k++) { const c = quiet[Math.floor(R() * quiet.length)]; if (c && picked.every((o) => Math.hypot(o[0] - c[0], o[1] - c[1]) > 12)) q = c; }
     q = q || quiet[Math.floor(R() * quiet.length)] || [5 + i * 9, 5]; picked.push(q);
     return { id: d + ':' + i, name: s2[0], text: s2[1], x: q[0] + .5, y: q[1] + .5 };
@@ -155,7 +207,10 @@ function fill(W, L, R) {
     case 'mall': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 7, 3, 42, { style: 'shop', color: '#e3d3bb', sign: 'PLAZA', awning: '#2c5aa0', fronts: 4 }); park(5); break;
     case 'motel': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 7, 2, 50, { style: 'motel', color: '#e8c39e', sign: 'MOTEL', trim: '#1f7a5a' }); B(W, x1 - 1, y0 + 2, 2, 3, 50, { style: 'motel', color: '#e8c39e', trim: '#1f7a5a' }); park(3); break;
     case 'autoshop': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 5, 4, 40, { style: 'bays', color: '#c9ccd0', sign: 'AUTO' }); park(4); break;
-    case 'houses': for (let i = 0; i < 4; i++) { const hx = x0 + (i % 2) * 4, hy = y0 + Math.floor(i / 2) * 4; B(W, hx, hy, 2, 2, 26, { style: 'house', color: pick(pal), roof: pick(['#8a4b3c', '#5b6470', '#7a5a3a', '#3f5466']) }); W.set(hx + 2, hy + 1, T.PLAZA); tree(hx + 2, hy + (i < 2 ? 2 : 0) + (R() < .5 ? 0 : 0)); } break;
+    case 'houses': for (let i = 0; i < 4; i++) { const top = i < 2, hx = x0 + (i % 2) * 4, hy = top ? y0 : y0 + 4; B(W, hx, hy, 2, 2, 26, { style: 'house', color: pick(pal), roof: pick(['#8a4b3c', '#5b6470', '#7a5a3a', '#3f5466']) });
+      // each home's driveway runs to its street: the top row to the road above, the bottom row to the road below
+      const dx = hx + 2, rows = top ? [oy, oy + 1, oy + 2] : [oy + 5, oy + 6, oy + 7, oy + 8]; rows.forEach((yy) => W.set(dx, yy, T.LOT)); if (R() < .7) P(W, 'car', dx + .5, (top ? oy + 1.5 : oy + 6.5), { parked: true, color: pick(CAR_COLORS), dir: 1, block: true });
+      if (R() < .5) tree(hx + (i % 2 ? -1 : 2) + (i % 2 ? 0 : 1), hy + (top ? 2 : -1)); W.set(hx, hy + (top ? 2 : -1), T.PLAZA); } break;
     case 'apartments': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 6, 4, 112, { style: 'apartments', color: pick(pal), sign: L.sign || '' }); park(3); tree(x1, y0); break;
     case 'firestation': area(W, x0, y0, x1, y1, T.PLAZA); B(W, x0, y0, 5, 4, 48, { style: 'bays', color: '#b5302b', sign: 'FIRE 3', trim: '#f2f2f2' }); P(W, 'firetruck', x0 + 2.5, y1 - .5, { block: true }); break;
     case 'stadium': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 7, 6, 58, { style: 'stadium', color: '#cfd5dc' }); break;
@@ -187,15 +242,18 @@ const shade = (hex, f) => { const n = parseInt(hex.slice(1), 16); let r = n >> 1
 export { shade };
 
 // ground: drawn once per district into one large canvas
-export function drawGround(W) {
-  const pad = 80, w = N * TW + pad * 2, h = N * TH + pad * 2, c = document.createElement('canvas');
-  c.width = w; c.height = h; const g = c.getContext('2d'), R = rng(77 + W.did);
-  const ox = N * TW / 2 + pad, oy = pad;
-  g.fillStyle = '#1a2230'; g.fillRect(0, 0, w, h);
+// the ground is drawn in chunks of CH x CH tiles, only around the camera, and cached
+export const CH = 16;
+export function drawGround(W, cx, cy) {
+  const x0 = cx * CH, y0 = cy * CH, x1 = Math.min(N, x0 + CH) - 1, y1 = Math.min(N, y0 + CH) - 1, pad = 4;
+  const w = (x1 - x0 + y1 - y0 + 2) * TW / 2 + pad * 2, h = (x1 - x0 + y1 - y0 + 2) * TH / 2 + pad * 2, c = document.createElement('canvas');
+  c.width = Math.ceil(w); c.height = Math.ceil(h); const g = c.getContext('2d');
+  const ox = -(x0 - y1 - 1) * TW / 2 + pad, oy = -(x0 + y0) * TH / 2 + pad;
+  let seed = 0; const R = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
   const dia = (x, y) => { const [sx, sy] = iso(x, y); g.beginPath(); g.moveTo(ox + sx, oy + sy); g.lineTo(ox + sx + TW / 2, oy + sy + TH / 2); g.lineTo(ox + sx, oy + sy + TH); g.lineTo(ox + sx - TW / 2, oy + sy + TH / 2); g.closePath(); };
   const col = { [T.ROAD]: '#3b4048', [T.WALK]: '#b8b2a5', [T.GRASS]: '#5d8f3f', [T.PLAZA]: '#d2c8b3', [T.LOT]: '#4b5059', [T.WATER]: '#2d6c97', [T.BLDG]: '#6b6b6b', [T.FENCE]: '#7f8a6e', [T.SAND]: '#d9c58f', [T.GRAVEL]: '#8d877c', [T.RAIL]: '#7d756a' };
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    const v = W.at(x, y); let c0 = col[v] || '#555';
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    seed = (x * 73856093) ^ (y * 19349663) ^ (W.did * 83492791); const v = W.at(x, y); let c0 = col[v] || '#555';
     if (v === T.GRASS) c0 = shade('#5d8f3f', .9 + R() * .2); if (v === T.WATER) c0 = shade('#2d6c97', .92 + R() * .12);
     dia(x, y); g.fillStyle = c0; g.fill();
     const [sx, sy] = iso(x, y), cx = ox + sx, cy = oy + sy + TH / 2;
@@ -220,7 +278,7 @@ export function drawGround(W) {
   }
   // curbs: darker edge where a walkway meets a road
   g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = 2;
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (W.at(x, y) === T.WALK) {
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (W.at(x, y) === T.WALK) {
     const e = (nx, ny, a, b) => { if (W.at(nx, ny) === T.ROAD) { const [ax, ay] = iso(a[0], a[1]), [bx2, by2] = iso(b[0], b[1]); g.beginPath(); g.moveTo(ox + ax, oy + ay); g.lineTo(ox + bx2, oy + by2); g.stroke(); } };
     e(x + 1, y, [x + 1, y], [x + 1, y + 1]); e(x, y + 1, [x, y + 1], [x + 1, y + 1]); e(x - 1, y, [x, y], [x, y + 1]); e(x, y - 1, [x, y], [x + 1, y]);
   }

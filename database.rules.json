@@ -111,10 +111,10 @@
                 ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 20"
               },
               "x": {
-                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 46"
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 150"
               },
               "y": {
-                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 46"
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 150"
               },
               "v": {
                 ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 2"
@@ -152,10 +152,10 @@
               "b": {
                 ".validate": "newData.hasChildren(['x','y','t'])",
                 "x": {
-                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 46"
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 150"
                 },
                 "y": {
-                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 46"
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 150"
                 },
                 "l": {
                   ".validate": "newData.isString() && newData.val().length <= 48"

@@ -581,9 +581,10 @@ export function buildInterior(lot, outW, idx) {
 // ---------- art ----------
 const FLOORS = { tile: ['#d9dde3', '#cfd4db'], carpet: ['#4b5d7a', '#46577a'], lino: ['#e4ddcf', '#d9d1c1'], marble: ['#efece6', '#e2ddd4'], wood: ['#b98a5e', '#ad7f55'], concrete: ['#a3a8ad', '#9ba0a5'], checker: ['#f2f2f2', '#2b2b2b'] };
 function drawFloor(I) {
-  const pad = 80, c = document.createElement('canvas'); c.width = N * TW + pad * 2; c.height = N * TH + pad * 2;
-  const g = c.getContext('2d'), ox = N * TW / 2 + pad, oy = pad;
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+  const pad = 80, x0 = I.ox - 1, y0 = I.oy - 1, x1 = I.ox + I.w, y1 = I.oy + I.h, c = document.createElement('canvas');
+  c.width = Math.ceil((x1 - x0 + y1 - y0 + 2) * TW / 2 + pad * 2); c.height = Math.ceil((x1 - x0 + y1 - y0 + 2) * TH / 2 + pad * 2);
+  const g = c.getContext('2d'), ox = -(x0 - y1 - 1) * TW / 2 + pad, oy = -(x0 + y0) * TH / 2 + pad;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     const v = I.at(x, y); if (!v) continue;
     const [sx, sy] = iso(x, y); const X = sx + ox, Y = sy + oy, m = I.mat[y * N + x] || 1;
     const tile = () => { g.beginPath(); g.moveTo(X, Y); g.lineTo(X + TW / 2, Y + TH / 2); g.lineTo(X, Y + TH); g.lineTo(X - TW / 2, Y + TH / 2); g.closePath(); };

@@ -1,5 +1,5 @@
 // Patrol City: game loop, camera, input, people and traffic, lighting, dispatch, learning scenes and HUD.
-import { N, TW, TH, T, iso, unIso, buildDistrict, drawGround, drawBuilding, drawProp, car, person, dog, vehicle, CAR_COLORS, shade } from './world.js';
+import { N, TW, TH, T, CH, iso, unIso, buildDistrict, drawGround, drawBuilding, drawProp, car, person, dog, vehicle, CAR_COLORS, shade } from './world.js';
 import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
 import * as L from './learn.js';
 import { startNet } from './net.js';
@@ -47,18 +47,20 @@ let sirenT = 0;
 function astar(sx, sy, tx, ty, pass, diag) {
   sx = Math.floor(sx); sy = Math.floor(sy); tx = Math.floor(tx); ty = Math.floor(ty);
   if (!pass(tx, ty)) { const alt = nearest(tx, ty, pass); if (!alt) return null; [tx, ty] = alt; }
-  const open = [[sx, sy]], came = new Map(), gS = new Map([[sy * N + sx, 0]]), fS = new Map(), key = (x, y) => y * N + x, h = (x, y) => Math.hypot(tx - x, ty - y);
-  fS.set(key(sx, sy), h(sx, sy)); const closed = new Set(); let guard = 0;
+  const NN = N * N, gS = new Float32Array(NN).fill(1e9), came = new Int32Array(NN).fill(-1), closed = new Uint8Array(NN), heap = [], hf = [];
+  const h = (x, y) => { const dx = Math.abs(tx - x), dy = Math.abs(ty - y); return diag ? Math.max(dx, dy) + .414 * Math.min(dx, dy) : dx + dy; };
+  const push = (k, f) => { heap.push(k); hf.push(f); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (hf[p] <= hf[i]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; [hf[p], hf[i]] = [hf[i], hf[p]]; i = p; } };
+  const pop = () => { const top = heap[0], lk = heap.pop(), lf = hf.pop(); if (heap.length) { heap[0] = lk; hf[0] = lf; let i = 0; for (;;) { const l = i * 2 + 1, r = l + 1; let m = i; if (l < heap.length && hf[l] < hf[m]) m = l; if (r < heap.length && hf[r] < hf[m]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; [hf[m], hf[i]] = [hf[i], hf[m]]; i = m; } } return top; };
+  const s0 = sy * N + sx, goal = ty * N + tx; if (s0 < 0 || s0 >= NN) return null; gS[s0] = 0; push(s0, h(sx, sy)); let guard = 0;
   const dirs = diag ? [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] : [[1, 0], [-1, 0], [0, 1], [0, -1]];
-  while (open.length && guard++ < 6000) {
-    let bi = 0; for (let i = 1; i < open.length; i++) if (fS.get(key(...open[i])) < fS.get(key(...open[bi]))) bi = i;
-    const [x, y] = open.splice(bi, 1)[0], k = key(x, y);
-    if (x === tx && y === ty) { const out = []; let c = k; while (c !== key(sx, sy)) { out.push([c % N + .5, Math.floor(c / N) + .5]); c = came.get(c); } return out.reverse(); }
-    closed.add(k);
+  while (heap.length && guard++ < 40000) {
+    const k = pop(); if (closed[k]) continue; closed[k] = 1;
+    if (k === goal) { const out = []; let c = k; while (c !== s0 && c >= 0) { out.push([c % N + .5, Math.floor(c / N) + .5]); c = came[c]; } return out.reverse(); }
+    const x = k % N, y = (k - x) / N;
     for (const [dx, dy] of dirs) {
-      const nx = x + dx, ny = y + dy, nk = key(nx, ny); if (nx < 0 || ny < 0 || nx >= N || ny >= N || closed.has(nk) || !pass(nx, ny)) continue;
+      const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue; const nk = ny * N + nx; if (closed[nk] || !pass(nx, ny)) continue;
       if (dx && dy && (!pass(x + dx, y) || !pass(x, y + dy))) continue;
-      const ng = gS.get(k) + (dx && dy ? 1.414 : 1); if (ng < (gS.has(nk) ? gS.get(nk) : 1e9)) { came.set(nk, k); gS.set(nk, ng); fS.set(nk, ng + h(nx, ny)); if (!open.some((o) => o[0] === nx && o[1] === ny)) open.push([nx, ny]); }
+      const ng = gS[k] + (dx && dy ? 1.414 : 1); if (ng < gS[nk]) { gS[nk] = ng; came[nk] = k; push(nk, ng + h(nx, ny)); }
     }
   }
   return null;
@@ -73,12 +75,35 @@ let ATTRACT = false, attractHour = 21.4;
 const hourNow = () => (ATTRACT ? attractHour : (shiftOf().start + clock / 60) % 24);
 const isNight = (h) => h >= 18.75 || h < 6;
 function sunFor(h) { return isNight(h) ? { len: 0, a: 0 } : { len: Math.round(18 + Math.abs(h - 12.5) * 6), a: .2 }; }
-function buildSprites() { const h = hourNow(); NIGHT = isNight(h); const sun = sunFor(h); SPR = W.buildings.map((b) => Object.assign(drawBuilding(b, NIGHT, sun), { b, depth: b.x + b.w - 1 + b.y + b.d - 1 + .9 })); }
+let SUN = null;
+// building sprites are drawn the first time they come on screen and dropped again when long unseen
+function buildSprites() {
+  const h = hourNow(); NIGHT = isNight(h); SUN = sunFor(h);
+  SPR = W.buildings.map((b) => { const A = iso(b.x, b.y), Bp = iso(b.x + b.w, b.y), C = iso(b.x + b.w, b.y + b.d), Dp = iso(b.x, b.y + b.d), ex = b.dome ? 60 : 30;
+    return { b, depth: b.x + b.w - 1 + b.y + b.d - 1 + .9, bx: Dp[0] - 6, by: A[1] - b.h - ex, bw: Bp[0] - Dp[0] + 80, bh: C[1] - A[1] + b.h + ex + 40, canvas: null, lights: [] }; });
+}
+function spriteOf(s) { if (!s.canvas) Object.assign(s, drawBuilding(s.b, NIGHT, SUN)); s.used = performance.now(); return s; }
+function trimSprites() { const live = SPR.filter((s) => s.canvas); if (live.length < 140) return; live.sort((a, b) => a.used - b.used).slice(0, live.length - 110).forEach((s) => { s.canvas = null; s.lights = []; }); }
+function focus() { return ATTRACT || !P ? unIso(cam.x, cam.y) : [P.x, P.y]; }
+// ground chunks around the camera
+function groundDraw(z) {
+  if (G.canvas) { ctx.drawImage(G.canvas, -G.ox, -G.oy); return; }
+  const hw = cv.width / 2 / z + 80, hh = cv.height / 2 / z + 80, pts = [unIso(cam.x - hw, cam.y - hh), unIso(cam.x + hw, cam.y - hh), unIso(cam.x - hw, cam.y + hh), unIso(cam.x + hw, cam.y + hh)];
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), M = Math.ceil(N / CH) - 1, cx0 = Math.max(0, Math.floor(Math.min(...xs) / CH)), cx1 = Math.min(M, Math.floor(Math.max(...xs) / CH)), cy0 = Math.max(0, Math.floor(Math.min(...ys) / CH)), cy1 = Math.min(M, Math.floor(Math.max(...ys) / CH));
+  let made = 0; const now = performance.now();
+  for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
+    const k = cx + ',' + cy; let c = G.chunks.get(k);
+    if (!c) { if (made > 3 && G.chunks.size > 4) continue; c = drawGround(W, cx, cy); G.chunks.set(k, c); made++; }
+    c.used = now; ctx.drawImage(c.canvas, -c.ox, -c.oy);
+  }
+  if (G.chunks.size > 48) [...G.chunks.entries()].sort((a, b) => a[1].used - b[1].used).slice(0, G.chunks.size - 40).forEach(([k]) => G.chunks.delete(k));
+}
+
 let sprHour = -1;
 function load(did) {
   refreshGear();
   inside = null; if (net && net.inside) net.inside(-1);
-  W = buildDistrict(did); G = drawGround(W); buildSprites(); sprHour = Math.floor(hourNow());
+  W = buildDistrict(did); G = { chunks: new Map() }; buildSprites(); sprHour = Math.floor(hourNow());
   P.x = W.spawn[0] + .5; P.y = W.spawn[1] + .5; P.path = []; P.inCar = false;
   pcar = W.carSpot ? { x: W.carSpot[0], y: W.carSpot[1], dir: 0, bar: false } : null;
   const h0 = hourNow(), busy = isNight(h0) ? (h0 >= 18.75 && h0 < 22 ? .6 : .38) : 1;
@@ -99,16 +124,17 @@ function load(did) {
 }
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
 const SKIN = ['#f1c9a5', '#e0b48f', '#c68e63', '#a26a42', '#7a4b2a', '#5a3620'], SHIRT = ['#c0392b', '#2980b9', '#27ae60', '#f39c12', '#8e44ad', '#ecf0f1', '#16a085', '#d35400', '#7f8c8d', '#f5b7b1'], HAIR = ['#2b1d14', '#4a3020', '#8a5a2b', '#d8b46a', '#1a1a1a', '#9a9a9a'];
-function newPed() { const s = rnd(W.walk); return { x: s[0] + .5, y: s[1] + .5, path: [], wait: Math.random() * 3, sp: 1.1 + Math.random() * .7, skin: rnd(SKIN), shirt: rnd(SHIRT), hair: rnd(HAIR), pants: rnd(['#3b4a5c', '#2c3e50', '#5d4037', '#455a64', '#1c1c1c']), ph: Math.random() * 9, face: 1 }; }
-function newCar() { const roads = []; for (let i = 0; i < 40; i++) { const x = Math.floor(Math.random() * N), y = Math.floor(Math.random() * N); if (roadPass(x, y)) { roads.push([x, y]); break; } } const s = roads[0] || [0, 0]; return { x: s[0] + .5, y: s[1] + .5, path: [], sp: 2.6 + Math.random() * 1.6, color: rnd(CAR_COLORS), dir: 0 }; }
-function newCitizen() { const s = rnd(W.walk); return { x: s[0] + .5, y: s[1] + .5, skin: rnd(SKIN), shirt: rnd(SHIRT), hair: rnd(HAIR), ph: 0, face: -1, les: rnd(W.D.lessons) }; }
-function newObserve() { const did = W.did, ls = W.D.lessons.filter((l) => OBSERVE[l]); const les = rnd(ls.length ? ls : W.D.lessons); const o = rnd(OBSERVE[les] || [['Something looks out of place', 'door']]); const s = rnd(W.walk); return { x: s[0] + .5, y: s[1] + .5, les, text: o[0], kind: o[1], seen: false, t0: performance.now() }; void did; }
+function nearTile(list, r) { const c = focus(); for (let k = 0; k < 60; k++) { const t = list[Math.floor(Math.random() * list.length)]; if (t && Math.hypot(t[0] - c[0], t[1] - c[1]) < r) return t; } return list[Math.floor(Math.random() * list.length)]; }
+function newPed() { const s = nearTile(W.walk, 22); return { x: s[0] + .5, y: s[1] + .5, path: [], wait: Math.random() * 3, sp: 1.1 + Math.random() * .7, skin: rnd(SKIN), shirt: rnd(SHIRT), hair: rnd(HAIR), pants: rnd(['#3b4a5c', '#2c3e50', '#5d4037', '#455a64', '#1c1c1c']), ph: Math.random() * 9, face: 1 }; }
+function newCar() { const roads = [], c0 = focus(); for (let i = 0; i < 120; i++) { const x = Math.floor(c0[0] + (Math.random() - .5) * 44), y = Math.floor(c0[1] + (Math.random() - .5) * 44); if (roadPass(x, y)) { roads.push([x, y]); break; } } const s = roads[0] || [0, 0]; return { x: s[0] + .5, y: s[1] + .5, path: [], sp: 2.6 + Math.random() * 1.6, color: rnd(CAR_COLORS), dir: 0 }; }
+function newCitizen() { const s = nearTile(W.walk, 26); return { x: s[0] + .5, y: s[1] + .5, skin: rnd(SKIN), shirt: rnd(SHIRT), hair: rnd(HAIR), ph: 0, face: -1, les: rnd(W.D.lessons) }; }
+function newObserve() { const did = W.did, ls = W.D.lessons.filter((l) => OBSERVE[l]); const les = rnd(ls.length ? ls : W.D.lessons); const o = rnd(OBSERVE[les] || [['Something looks out of place', 'door']]); const s = nearTile(W.walk, 30); return { x: s[0] + .5, y: s[1] + .5, les, text: o[0], kind: o[1], seen: false, t0: performance.now() }; void did; }
 
 // ---------- dispatch ----------
 function dispatchCall() {
   const fav = U().fav.filter((l) => W.D.lessons.indexOf(l) >= 0 && !L.mastery(S, l).done), les = fav.length && Math.random() < .3 ? fav[Math.floor(Math.random() * fav.length)] : L.weakest(S, W.did), list = CALLS[les] || [['Assist a citizen', 3, 'any', 'Citizen flagging down an officer.']], c = rnd(list);
-  const lot = c[2] !== 'any' && W.lots.find((l) => l.kind === c[2] || (c[2] === 'parking' && (l.kind === 'parking' || l.kind === 'lot')) || (c[2] === 'houses' && l.kind === 'houses'));
-  const spot = lot ? lot.door : rnd(W.walk), where = lot ? (LANDMARKS[lot.kind] || {}).name || 'the ' + lot.kind : 'block ' + (100 + spot[1] * 10) + ' ' + ['Main St', 'Bay St', 'Oak Ave', 'Pine St', 'Harbor Rd'][spot[0] % 5];
+  const lot = c[2] !== 'any' && W.lots.filter((l) => l.kind === c[2] || (c[2] === 'parking' && (l.kind === 'parking' || l.kind === 'lot'))).sort((a, b) => Math.hypot(a.door[0] - P.x, a.door[1] - P.y) - Math.hypot(b.door[0] - P.x, b.door[1] - P.y))[0];
+  const spot = lot ? lot.door : nearTile(W.walk, 28), where = lot ? (LANDMARKS[lot.kind] || {}).name || 'the ' + lot.kind : 'block ' + (100 + spot[1] * 10) + ' ' + ['Main St', 'Bay St', 'Oak Ave', 'Pine St', 'Harbor Rd'][spot[0] % 5];
   call = { les, title: c[0], prio: c[1], text: c[3], x: spot[0] + .5, y: spot[1] + .5, where, t0: clock, accepted: false, backup: false };
   radio('Dispatch', S.cs + ', ' + (c[1] === 1 ? 'priority one, ' : '') + c[0].toLowerCase() + ' at ' + where + '. ' + c[3]); chirp(); callCard();
 }
@@ -152,8 +178,9 @@ function update(dt, now) {
   if (P.boat && pboat) { pboat.x = P.x; pboat.y = P.y; pboat.dir = P.dir; }
   if (S.unit === 'k9' && !P.inCar && !P.boat) { const tx = P.x - (P.face > 0 ? .7 : -.7) * .7, ty = P.y + .55, d = Math.hypot(tx - K9.x, ty - K9.y); K9.moving = d > .08; if (d > 6) { K9.x = tx; K9.y = ty; } else { K9.x += (tx - K9.x) * Math.min(1, dt * 4); K9.y += (ty - K9.y) * Math.min(1, dt * 4); } K9.face = P.face; }
   if (!cam.free) { const [ix, iy] = iso(P.x, P.y); cam.x += (ix - cam.x) * Math.min(1, dt * 6); cam.y += (iy - 22 - cam.y) * Math.min(1, dt * 6); }
-  peds.forEach((p) => { if (p.wait > 0) { p.wait -= dt; p.moving = false; return; } if (!p.path.length) { const t = rnd(W.walk); const path = Math.hypot(t[0] - p.x, t[1] - p.y) < 16 ? astar(p.x, p.y, t[0], t[1], pedPass, true) : null; if (path) p.path = path; else p.wait = 1; return; } if (stepAlong(p, dt, p.sp)) p.wait = 1 + Math.random() * 4; });
-  traffic.forEach((c) => { if (!c.path.length) { for (let k = 0; k < 6; k++) { const x = Math.floor(Math.random() * N), y = Math.floor(Math.random() * N); if (roadPass(x, y) && Math.hypot(x - c.x, y - c.y) < 24) { const p = astar(c.x, c.y, x, y, roadPass, false); if (p && p.length > 3) { c.path = p; break; } } } return; } stepAlong(c, dt, c.sp); });
+  { const f = focus(); peds.forEach((p, k) => { if (Math.hypot(p.x - f[0], p.y - f[1]) > 30) peds[k] = newPed(); }); traffic.forEach((c, k) => { if (Math.hypot(c.x - f[0], c.y - f[1]) > 34) traffic[k] = newCar(); }); }
+  peds.forEach((p) => { if (p.wait > 0) { p.wait -= dt; p.moving = false; return; } if (!p.path.length) { const t = nearTile(W.walk, 24); const path = Math.hypot(t[0] - p.x, t[1] - p.y) < 16 ? astar(p.x, p.y, t[0], t[1], pedPass, true) : null; if (path) p.path = path; else p.wait = 1; return; } if (stepAlong(p, dt, p.sp)) p.wait = 1 + Math.random() * 4; });
+  traffic.forEach((c) => { if (!c.path.length) { for (let k = 0; k < 6; k++) { const x = Math.floor(c.x + (Math.random() - .5) * 40), y = Math.floor(c.y + (Math.random() - .5) * 40); if (roadPass(x, y)) { const p = astar(c.x, c.y, x, y, roadPass, false); if (p && p.length > 3) { c.path = p; break; } } } return; } stepAlong(c, dt, c.sp); });
   // arrive on a call
   if (call && !inside && Math.hypot(call.x - P.x, call.y - P.y) < 1.7 && !scene) { const c = call; call = null; callCard(); openCallScene(c); }
   if (!call && !scene) { nextCall -= dt; if (nextCall <= 0) dispatchCall(); }
@@ -186,13 +213,13 @@ function render(now) {
   const z = cam.z * dpr; ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#0d1422'; ctx.fillRect(0, 0, cv.width, cv.height);
   ctx.setTransform(z, 0, 0, z, cv.width / 2 - cam.x * z, cv.height / 2 - cam.y * z);
-  ctx.drawImage(G.canvas, -G.ox, -G.oy);
+  groundDraw(z);
   const vx0 = cam.x - cv.width / 2 / z - 120, vx1 = cam.x + cv.width / 2 / z + 120, vy0 = cam.y - cv.height / 2 / z - 300, vy1 = cam.y + cv.height / 2 / z + 140;
   const vis = (sx, sy) => sx > vx0 && sx < vx1 && sy > vy0 && sy < vy1;
   const list = [];
   // buildings between you and the camera fade so you can always see yourself (and others near you)
   const [pix, piy] = iso(P.x, P.y), pd = P.x + P.y;
-  SPR.forEach((s) => { if (s.x + s.canvas.width > vx0 && s.x < vx1 && s.y + s.canvas.height > vy0 && s.y < vy1) {
+  let fresh = 0; SPR.forEach((s) => { if (s.bx + s.bw > vx0 && s.bx < vx1 && s.by + s.bh > vy0 && s.by < vy1) { if (!s.canvas) { if (fresh > 6) return; fresh++; } spriteOf(s);
     const b = s.b, near = !ATTRACT && s.depth > pd && P.x < b.x + b.w + 2.5 && P.y < b.y + b.d + 2.5 && P.x > b.x - 3 && P.y > b.y - 3,
       cover = !ATTRACT && s.depth > pd && pix > s.x + 6 && pix < s.x + s.canvas.width - 6 && piy - 30 > s.y + 10 && piy - 6 < s.y + s.canvas.height;
     const target = near || cover ? .3 : 1; s.al = s.al == null ? 1 : s.al + (target - s.al) * .18;
@@ -229,7 +256,7 @@ function render(now) {
     const toS = (ix, iy) => [(cv.width / 2 + (ix - cam.x) * z) * s, (cv.height / 2 + (iy - cam.y) * z) * s];
     const hole = (ix, iy, r, k) => { const [x, y] = toS(ix, iy), rr = r * z * s; if (x < -rr || y < -rr || x > lc.width + rr || y > lc.height + rr) return; const gr = lx.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, 'rgba(0,0,0,' + k + ')'); gr.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = gr; lx.beginPath(); lx.arc(x, y, rr, 0, Math.PI * 2); lx.fill(); };
     W.props.forEach((p) => { if (p.t === 'lamp') { const [ix, iy] = iso(p.x, p.y); hole(ix + 10, iy - 6, 92, .85); } if (p.t === 'canopy') { const [ix, iy] = iso(p.x, p.y); hole(ix, iy, 110, .9); } if (p.t === 'mast') { const [ix, iy] = iso(p.x, p.y); hole(ix, iy - 200, 16, .9); } });
-    SPR.forEach((sp) => sp.lights.forEach((q) => hole(q[0], q[1], 34, .55)));
+    SPR.forEach((sp) => { if (sp.canvas) sp.lights.forEach((q) => hole(q[0], q[1], 34, .55)); }); trimSprites();
     traffic.forEach((c) => { const off = laneOff(c), [ix, iy] = iso(c.x + off[0], c.y + off[1]), f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][c.dir]; hole(ix + f[0] * 34, iy + f[1] * 34, 56, .7); });
     { const [ix, iy] = iso(P.x, P.y); hole(ix, iy - 10, (P.inCar || P.boat ? 120 : 96) * BUFF.light * (1 + gp('light') / 100), .8); }
     Object.keys(others).forEach((k) => { const o = others[k], [ix, iy] = iso(o.rx, o.ry); hole(ix, iy - 10, 70, .6); });
@@ -274,13 +301,13 @@ function drawMini() {
   const m = $('mini'); if (!m) return; const g = m.getContext('2d'), s = m.width / N;
   if (!m.base || m.w !== W) { const b = document.createElement('canvas'); b.width = m.width; b.height = m.height; const bg = b.getContext('2d'); for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = W.at(x, y); if (!v) continue; bg.fillStyle = v === T.ROAD ? '#515866' : v === T.BLDG ? '#9aa3b0' : v === T.WATER ? '#2d6c97' : v === T.GRASS ? '#3f6b2f' : v === T.LOT ? '#3a3f47' : '#7a756b'; bg.fillRect(x * s, y * s, s + .5, s + .5); } m.base = b; m.w = W; }
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, m.width, m.height);
-  g.save(); g.translate(m.width / 2, m.height / 2); g.rotate(Math.PI / 4); g.scale(.72, .72 * .5 * 2); g.translate(-m.width / 2, -m.height / 2); g.drawImage(m.base, 0, 0);
-  const dot = (x, y, c, r) => { g.fillStyle = c; g.beginPath(); g.arc(x * s, y * s, r, 0, Math.PI * 2); g.fill(); };
+  const Z = inside ? 1 : 2.8; g.save(); g.translate(m.width / 2, m.height / 2); g.rotate(Math.PI / 4); g.scale(.72 * Z, .72 * Z); if (inside) g.translate(-m.width / 2, -m.height / 2); else g.translate(-P.x * s, -P.y * s); g.drawImage(m.base, 0, 0);
+  const dot = (x, y, c, r) => { g.fillStyle = c; g.beginPath(); g.arc(x * s, y * s, r / Z, 0, Math.PI * 2); g.fill(); };
   if (call) dot(call.x, call.y, call.prio === 1 ? '#ff4d4d' : '#f5b800', 5);
   Object.keys(others).forEach((k) => dot(others[k].rx, others[k].ry, '#60a5fa', 3.2));
   infos.forEach((i) => dot(i.x, i.y, '#3b82f6', 2.5)); citizens.forEach((c) => dot(c.x, c.y, '#f5b800', 2.2));
   if (!inside) { if (!fogC || fogC.did !== W.did) { fogC = document.createElement('canvas'); fogC.width = m.width; fogC.height = m.height; fogC.did = W.did; const fg = fogC.getContext('2d'); fg.fillStyle = 'rgba(6,10,20,.84)'; fg.fillRect(0, 0, m.width, m.height); const str = S.explored[exKey()] || ''; for (let i = 0; i < N * N; i++) if (str[i] === '1') fg.clearRect((i % N) * s, Math.floor(i / N) * s, s + .6, s + .6); } g.drawImage(fogC, 0, 0); W.secrets.forEach((x) => { if (S.found[x.id]) dot(x.x, x.y, '#a78bfa', 3); }); regs.forEach((r) => { if ((S.npc || {})[r.n.id]) dot(r.x, r.y, '#fde68a', 2.6); }); }
-  { const t = stepTarget(); if (t && !t.exit) { g.fillStyle = '#f5b800'; g.beginPath(); g.moveTo(t.x * s, t.y * s - 6); g.lineTo(t.x * s + 5, t.y * s); g.lineTo(t.x * s, t.y * s + 6); g.lineTo(t.x * s - 5, t.y * s); g.closePath(); g.fill(); } }
+  { const t = stepTarget(); if (t && !t.exit) { g.fillStyle = '#f5b800'; g.beginPath(); const q = 1 / Z; g.moveTo(t.x * s, t.y * s - 6 * q); g.lineTo(t.x * s + 5 * q, t.y * s); g.lineTo(t.x * s, t.y * s + 6 * q); g.lineTo(t.x * s - 5 * q, t.y * s); g.closePath(); g.fill(); } }
   dot(P.x, P.y, '#ffffff', 4.2); dot(P.x, P.y, '#f5b800', 2.6);
   g.restore();
 }
@@ -329,7 +356,7 @@ function liveInit() {
 function liveUpdate(dt) {
   revealAround(P.x, P.y, (P.inCar || P.boat ? 6.5 : 5.5) + gp('explore'));
   // first look at a landmark, the promenade or a secret spot
-  W.lots.forEach((l) => { if (!l.name) return; const k = W.did + ':' + l.name; if (S.disc[k] || Math.hypot(l.door[0] - P.x, l.door[1] - P.y) > 4.5) return; S.disc[k] = 1; L.saveState(S); ord('place'); banner('📍', 'Discovered: ' + l.name, (LANDMARKS[l.kind] || {}).note || W.D.name); award(10, 'new place'); });
+  W.lots.forEach((l) => { if (!l.name) return; const k = W.did + ':' + l.name; if (S.disc[k] || Math.hypot(l.door[0] - P.x, l.door[1] - P.y) > 4.5) return; S.disc[k] = 1; if (l.gen) { L.saveState(S); ord('place'); FLOATS.push({ x: P.x, y: P.y, t: performance.now(), text: l.name, sub: 'new place' }); return; } L.saveState(S); ord('place'); banner('📍', 'Discovered: ' + l.name, (LANDMARKS[l.kind] || {}).note || W.D.name); award(10, 'new place'); });
   if (W.promenade) { const k = W.did + ':prom'; if (!S.disc[k] && Math.hypot(W.promenade.x + 1 - P.x, W.promenade.y + 4 - P.y) < 4) { S.disc[k] = 1; L.saveState(S); banner('📍', 'Discovered: ' + W.promenade.name, 'Walk only. No cars, all vibes.'); award(10, 'new place'); } }
   W.secrets.forEach((x) => { if (S.found[x.id] || P.inCar || Math.hypot(x.x - P.x, x.y - P.y) > 1.9 + gp('secret') * .5) return; S.found[x.id] = 1; L.saveState(S); ord('secret'); banner('🗝️', 'Secret spot: ' + x.name, x.text, true); beep(784, .1, 'triangle', .05); beep(1175, .2, 'triangle', .05, .12); queueLoot('Secret spot: ' + x.name, 1, hasSk('inv4') ? 'r' : 'u'); });
   // birds
@@ -706,7 +733,7 @@ let attT = 0;
 function attractStart() {
   ATTRACT = true; document.body.classList.add('attract');
   const did = S.home != null ? S.home : 0;
-  W = buildDistrict(did); G = drawGround(W); buildSprites();
+  W = buildDistrict(did); G = { chunks: new Map() }; buildSprites();
   peds = []; for (let i = 0; i < 18; i++) peds.push(newPed()); traffic = []; for (let i = 0; i < 10; i++) traffic.push(newCar());
   citizens = []; infos = []; observes = []; call = null; regs = [];
   FX = { rain: Math.random() < .35, drops: [], birds: [], events: [], train: null, trainT: 1e9, sail: W.river ? { x: 40.5, y: 6, dir: 1 } : null, caches: [], disc: {} };
@@ -716,8 +743,9 @@ function attractUpdate(dt, now) {
   attT += dt;
   const cx = N / 2 + Math.cos(attT * .045) * 13, cy = N / 2 + Math.sin(attT * .06) * 11, [ix, iy] = iso(cx, cy);
   cam.x += (ix - cam.x) * Math.min(1, dt * .8); cam.y += (iy - cam.y) * Math.min(1, dt * .8);
-  peds.forEach((p) => { if (p.wait > 0) { p.wait -= dt; p.moving = false; return; } if (!p.path.length) { const t = rnd(W.walk); const path = Math.hypot(t[0] - p.x, t[1] - p.y) < 16 ? astar(p.x, p.y, t[0], t[1], pedPass, true) : null; if (path) p.path = path; else p.wait = 1; return; } if (stepAlong(p, dt, p.sp)) p.wait = 1 + Math.random() * 4; });
-  traffic.forEach((c) => { if (!c.path.length) { for (let k = 0; k < 6; k++) { const x = Math.floor(Math.random() * N), y = Math.floor(Math.random() * N); if (roadPass(x, y) && Math.hypot(x - c.x, y - c.y) < 24) { const p = astar(c.x, c.y, x, y, roadPass, false); if (p && p.length > 3) { c.path = p; break; } } } return; } stepAlong(c, dt, c.sp); });
+  { const f = focus(); peds.forEach((p, k) => { if (Math.hypot(p.x - f[0], p.y - f[1]) > 30) peds[k] = newPed(); }); traffic.forEach((c, k) => { if (Math.hypot(c.x - f[0], c.y - f[1]) > 34) traffic[k] = newCar(); }); }
+  peds.forEach((p) => { if (p.wait > 0) { p.wait -= dt; p.moving = false; return; } if (!p.path.length) { const t = nearTile(W.walk, 24); const path = Math.hypot(t[0] - p.x, t[1] - p.y) < 16 ? astar(p.x, p.y, t[0], t[1], pedPass, true) : null; if (path) p.path = path; else p.wait = 1; return; } if (stepAlong(p, dt, p.sp)) p.wait = 1 + Math.random() * 4; });
+  traffic.forEach((c) => { if (!c.path.length) { for (let k = 0; k < 6; k++) { const x = Math.floor(c.x + (Math.random() - .5) * 40), y = Math.floor(c.y + (Math.random() - .5) * 40); if (roadPass(x, y)) { const p = astar(c.x, c.y, x, y, roadPass, false); if (p && p.length > 3) { c.path = p; break; } } } return; } stepAlong(c, dt, c.sp); });
   if (FX.rain) { for (let i = 0; i < 6; i++) FX.drops.push({ x: Math.random(), y: -.05, v: .9 + Math.random() * .5 }); FX.drops.forEach((d) => { d.y += d.v * dt; d.x -= .12 * dt; }); FX.drops = FX.drops.filter((d) => d.y < 1.05); }
   if (FX.sail) { FX.sail.y += FX.sail.dir * dt * .5; if (FX.sail.y > N - 4 || FX.sail.y < 3) FX.sail.dir *= -1; }
 }
@@ -992,7 +1020,9 @@ function hud() {
 }
 function hudClock() { const t = (shiftOf().start * 60 + Math.floor(clock)) % 1440; const s = String(Math.floor(t / 60)).padStart(2, '0') + String(t % 60).padStart(2, '0') + ' hrs'; const el = $('hClock'); if (el.textContent !== s) el.textContent = shiftOf().name + ' · ' + s; }
 const feed = [];
-function radio(who, msg) { feed.push([who, msg]); while (feed.length > 30) feed.shift(); const el = $('radio'); el.innerHTML = feed.slice(-3).map((f) => '<div><b>' + esc(f[0]) + ':</b> ' + esc(f[1]) + '</div>').join(''); }
+function radio(who, msg) { feed.push([who, msg]); while (feed.length > 30) feed.shift(); const el = $('radio'); el.innerHTML = feed.slice(-3).map((f) => '<div><b>' + esc(f[0]) + ':</b> ' + esc(f[1]) + '</div>').join(''); placeOrders(); }
+function placeOrders() { const r = $('radio'), o = $('orders'); if (!r || !o) return; const b = r.getBoundingClientRect(); o.style.top = Math.max(b.bottom + 6, 0) + 'px'; }
+addEventListener('resize', placeOrders);
 function toast(t) { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 3800); }
 $('bCar').onclick = () => { if (inside) { toast('Head outside first. The door is the glowing spot by the exit.'); return; } if (P.boat) exitBoat(); else if (P.inCar) exitCar(); else if (pcar) { if (Math.hypot(pcar.x - P.x, pcar.y - P.y) < 2.2) enterCar(); else { toast('Walking back to your ' + U().ride.label.toLowerCase() + '.'); goTo(pcar.x, pcar.y, enterCar); } } };
 $('bMap').onclick = () => { jTab = chStep() ? 'story' : 'map'; journal(); }; $('bLock').onclick = locker;
@@ -1137,4 +1167,4 @@ function lockedScreen() {
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); } if (net && W && !ATTRACT) net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name }); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { S, get W() { return W; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { S, get W() { return W; }, get G() { return G; }, get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
