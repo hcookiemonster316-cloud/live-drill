@@ -25,11 +25,16 @@ export function buildDistrict(did) {
   for (let by = 0; by < 4; by++) for (let bx = 0; bx < 4; bx++) {
     const ox = 2 + bx * 11, oy = 2 + by * 11;
     if (D.river && bx === 3) continue;
-    const kind = D.lots[li % D.lots.length]; li++;
+    const entry = D.lots[li % D.lots.length]; li++;
     for (let y = oy + 1; y <= oy + 7; y++) for (let x = ox + 1; x <= ox + 7; x++) set(x, y, T.GRASS);
-    const lot = { kind, ox, oy, bx, by, name: (LANDMARKS[kind] || {}).name || '', door: [ox + 4, oy + 8], info: [ox + 6, oy + 8] };
-    W.lots.push(lot);
-    fill(W, lot, R);
+    if (entry && entry.strip) { strip(W, entry.strip, ox, oy, R); }
+    else {
+      const [kind, nm, sg] = Array.isArray(entry) ? entry : [entry];
+      const lot = { kind, ox, oy, bx, by, name: nm || (LANDMARKS[kind] || {}).name || '', sign: sg, door: [ox + 4, oy + 8], info: [ox + 6, oy + 8] };
+      W.lots.push(lot);
+      fill(W, lot, R);
+      lot.bld = W.buildings.filter((b) => b.x >= ox + 1 && b.x <= ox + 7 && b.y >= oy + 1 && b.y <= oy + 7).sort((a, b) => b.w * b.d - a.w * a.d)[0] || null;
+    }
     // street lights at block corners
     [[ox, oy], [ox + 8, oy], [ox, oy + 8], [ox + 8, oy + 8]].forEach(([x, y]) => W.props.push({ t: 'lamp', x: x + .5, y: y + .5 }));
   }
@@ -104,13 +109,26 @@ function B(W, x, y, w, d, h, o) { W.buildings.push(Object.assign({ x, y, w, d, h
 function P(W, t, x, y, o) { W.props.push(Object.assign({ t, x, y }, o)); }
 function area(W, x0, y0, x1, y1, v) { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) W.set(x, y, v); }
 
+// a block of four storefronts around a little courtyard, each its own place
+function strip(W, list, ox, oy, R) {
+  const x0 = ox + 1, y0 = oy + 1; area(W, x0, y0, x0 + 6, y0 + 6, T.PLAZA);
+  const spots = [[x0, y0, 3, 2], [x0 + 4, y0, 3, 2], [x0, y0 + 4, 3, 2], [x0 + 4, y0 + 4, 3, 2]], aw = ['#d22d3d', '#1f7a5a', '#2c5aa0', '#d98a1c', '#8e44ad', '#0e7490'];
+  list.forEach((e, i) => {
+    const [kind, nm, sg] = e, [bx, by, w, d] = spots[i], pal = PAL[W.D.theme];
+    const b = { x: bx, y: by, w, d, h: 30 + Math.floor(R() * 16), style: 'shop', color: pal[Math.floor(R() * pal.length)], sign: sg || (LANDMARKS[kind] || {}).sign || 'SHOP', awning: aw[(i + Math.floor(R() * 6)) % 6] };
+    W.buildings.push(b); for (let yy = by; yy < by + d; yy++) for (let xx = bx; xx < bx + w; xx++) W.set(xx, yy, T.BLDG);
+    W.lots.push({ kind, ox, oy, name: nm, sign: sg, bld: b, door: [bx + 1, by + d], info: [bx + (i % 2 ? 0 : 2), by + d], sub: true });
+  });
+  P(W, 'bench', x0 + 3.5, y0 + 2.5); P(W, 'tree', x0 + 3.5, y0 + 3.5, { block: true, s: .8 }); P(W, 'lamp', x0 + 3.5, y0 + 6.5);
+}
+
 function fill(W, L, R) {
   const { ox, oy, kind } = L, th = W.D.theme, pal = PAL[th], pick = (a) => a[Math.floor(R() * a.length)];
-  const x0 = ox + 1, y0 = oy + 1, x1 = ox + 7, y1 = oy + 7, lm = LANDMARKS[kind] || {};
+  const x0 = ox + 1, y0 = oy + 1, x1 = ox + 7, y1 = oy + 7, lm = LANDMARKS[kind] || {}, sg = (d) => (L.sign ? L.sign : d);
   const tree = (x, y, k) => P(W, k || (W.river ? 'palm' : 'tree'), x + .5, y + .5, { block: true, s: .8 + R() * .4 });
   const park = (cars) => { for (let i = 0; i < cars; i++) { const x = x0 + Math.floor(R() * 7), y = y1 - Math.floor(R() * 2); if (W.at(x, y) === T.LOT) P(W, 'car', x + .5, y + .5, { parked: true, color: pick(CAR_COLORS), dir: R() < .5 ? 0 : 2, block: true }); } };
   switch (kind) {
-    case 'tower': area(W, x0, y0, x1, y1, T.PLAZA); B(W, x0 + 1, y0 + 1, 5, 4, 150 + Math.floor(R() * 140), { style: 'glass', color: pick(pal), sign: '' }); tree(x0, y1); tree(x1, y1); break;
+    case 'tower': area(W, x0, y0, x1, y1, T.PLAZA); B(W, x0 + 1, y0 + 1, 5, 4, 150 + Math.floor(R() * 140), { style: 'glass', color: pick(pal), sign: L.sign || '' }); tree(x0, y1); tree(x1, y1); break;
     case 'hq': case 'substation': {
       area(W, x0, y0, x1, y1, T.LOT); const big = kind === 'hq';
       B(W, x0 + 1, y0, big ? 5 : 4, big ? 4 : 3, big ? 70 : 52, { style: 'brick', color: '#3d4f7a', sign: 'POLICE', trim: '#f5b800' });
@@ -122,29 +140,38 @@ function fill(W, L, R) {
     case 'radio': P(W, 'mast', x0 + 3.5, y0 + 3.5, { block: true }); B(W, x0 + 5, y0 + 1, 2, 2, 22, { style: 'concrete', color: '#b7bec7' }); tree(x0, y1); tree(x0 + 1, y1); break;
     case 'bank': area(W, x0, y0, x1, y1, T.PLAZA); B(W, x0 + 1, y0 + 1, 5, 4, 84, { style: 'stone', color: '#ddd5c4', sign: 'BANK', columns: true }); tree(x0, y1); tree(x1, y1); break;
     case 'records': area(W, x0, y0, x1, y1, T.PLAZA); B(W, x0 + 1, y0 + 1, 4, 4, 64, { style: 'concrete', color: '#aab6c3', sign: 'RECORDS' }); tree(x1, y0); tree(x1, y1); break;
-    case 'diner': area(W, x0, y0, x1, y1, T.LOT); B(W, x0 + 1, y0 + 1, 4, 3, 34, { style: 'diner', color: '#f2efe8', sign: 'DINER', trim: '#d22d3d' }); park(3); break;
+    case 'diner': area(W, x0, y0, x1, y1, T.LOT); B(W, x0 + 1, y0 + 1, 4, 3, 34, { style: 'diner', color: '#f2efe8', sign: sg('DINER'), trim: '#d22d3d' }); park(3); break;
     case 'garage': B(W, x0, y0, 7, 6, 74, { style: 'garage', color: '#9aa1a8', sign: 'PARK' }); break;
     case 'parking': case 'lot': area(W, x0, y0, x1, y1, kind === 'lot' ? T.GRAVEL : T.LOT); if (kind === 'parking') { for (let i = 0; i < 6; i++) { const x = x0 + Math.floor(R() * 7), y = y0 + Math.floor(R() * 7); if (W.at(x, y) === T.LOT && !W.props.some((p) => Math.floor(p.x) === x && Math.floor(p.y) === y)) P(W, 'car', x + .5, y + .5, { parked: true, color: pick(CAR_COLORS), dir: R() < .5 ? 0 : 1, block: true }); } P(W, 'lamp', x0 + 3.5, y0 + 3.5); } else { P(W, 'crate', x0 + 2.5, y0 + 2.5, { block: true }); P(W, 'crate', x0 + 5.5, y0 + 4.5, { block: true }); } break;
-    case 'shop': case 'pawn': case 'pharmacy': case 'bonds': case 'defender': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 7, 3, 38 + Math.floor(R() * 14), { style: 'shop', color: pick(pal), sign: lm.sign || pick(['MARKET', 'CAFE', 'SALON', 'DELI', 'BOOKS', 'NAILS']), awning: pick(['#d22d3d', '#1f7a5a', '#2c5aa0', '#d98a1c']) }); park(3); break;
+    case 'shop': case 'pawn': case 'pharmacy': case 'bonds': case 'defender': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 7, 3, 38 + Math.floor(R() * 14), { style: 'shop', color: pick(pal), sign: L.sign || lm.sign || pick(['MARKET', 'CAFE', 'SALON', 'DELI', 'BOOKS', 'NAILS']), awning: pick(['#d22d3d', '#1f7a5a', '#2c5aa0', '#d98a1c']) }); park(3); break;
     case 'plaza': area(W, x0, y0, x1, y1, T.PLAZA); P(W, 'fountain', x0 + 3.5, y0 + 3.5, { block: true }); tree(x0 + 1, y0 + 1); tree(x1 - 1, y0 + 1); tree(x0 + 1, y1 - 1); tree(x1 - 1, y1 - 1); P(W, 'bench', x0 + 3.5, y1 - .3); break;
     case 'park': for (let i = 0; i < 9; i++) { const x = x0 + Math.floor(R() * 7), y = y0 + Math.floor(R() * 7); if (W.at(x, y) === T.GRASS) tree(x, y); } area(W, x0 + 3, y0, x0 + 3, y1, T.PLAZA); P(W, 'bench', x0 + 3.5, y0 + 2.5); P(W, 'bench', x0 + 3.5, y0 + 5.5); break;
-    case 'gas': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 3, 2, 32, { style: 'shop', color: '#f2f2f2', sign: 'GAS', awning: '#d22d3d' }); P(W, 'canopy', x0 + 4.5, y0 + 4, { block: false }); P(W, 'pump', x0 + 3.5, y0 + 4.5, { block: true }); P(W, 'pump', x0 + 5.5, y0 + 4.5, { block: true }); park(2); break;
+    case 'gas': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 3, 2, 32, { style: 'shop', color: '#f2f2f2', sign: sg('GAS'), awning: '#d22d3d' }); P(W, 'canopy', x0 + 4.5, y0 + 4, { block: false }); P(W, 'pump', x0 + 3.5, y0 + 4.5, { block: true }); P(W, 'pump', x0 + 5.5, y0 + 4.5, { block: true }); park(2); break;
     case 'mall': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 7, 3, 42, { style: 'shop', color: '#e3d3bb', sign: 'PLAZA', awning: '#2c5aa0', fronts: 4 }); park(5); break;
     case 'motel': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 7, 2, 50, { style: 'motel', color: '#e8c39e', sign: 'MOTEL', trim: '#1f7a5a' }); B(W, x1 - 1, y0 + 2, 2, 3, 50, { style: 'motel', color: '#e8c39e', trim: '#1f7a5a' }); park(3); break;
     case 'autoshop': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 5, 4, 40, { style: 'bays', color: '#c9ccd0', sign: 'AUTO' }); park(4); break;
     case 'houses': for (let i = 0; i < 4; i++) { const hx = x0 + (i % 2) * 4, hy = y0 + Math.floor(i / 2) * 4; B(W, hx, hy, 2, 2, 26, { style: 'house', color: pick(pal), roof: pick(['#8a4b3c', '#5b6470', '#7a5a3a', '#3f5466']) }); W.set(hx + 2, hy + 1, T.PLAZA); tree(hx + 2, hy + (i < 2 ? 2 : 0) + (R() < .5 ? 0 : 0)); } break;
-    case 'apartments': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 6, 4, 112, { style: 'apartments', color: pick(pal), sign: '' }); park(3); tree(x1, y0); break;
+    case 'apartments': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 6, 4, 112, { style: 'apartments', color: pick(pal), sign: L.sign || '' }); park(3); tree(x1, y0); break;
     case 'firestation': area(W, x0, y0, x1, y1, T.PLAZA); B(W, x0, y0, 5, 4, 48, { style: 'bays', color: '#b5302b', sign: 'FIRE 3', trim: '#f2f2f2' }); P(W, 'firetruck', x0 + 2.5, y1 - .5, { block: true }); break;
     case 'stadium': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 7, 6, 58, { style: 'stadium', color: '#cfd5dc' }); break;
     case 'church': B(W, x0 + 1, y0 + 1, 4, 5, 46, { style: 'stone', color: '#efe8da', roof: '#5b6470' }); P(W, 'steeple', x0 + 2.5, y0 + 1.5, { block: true }); tree(x1, y1); tree(x0, y1); break;
     case 'school': area(W, x0, y0, x1, y1, T.PLAZA); B(W, x0, y0, 6, 4, 44, { style: 'brick', color: '#a65a42', sign: 'SCHOOL', trim: '#f2f2f2' }); tree(x1, y1); tree(x0, y1); break;
-    case 'warehouse': area(W, x0, y0, x1, y1, T.GRAVEL); B(W, x0 + 1, y0, 6, 5, 52, { style: 'corrugated', color: pick(['#8f9aa4', '#a5937a', '#7f8b84', '#9c8f86']), sign: 'WHSE ' + String.fromCharCode(65 + Math.floor(R() * 6)), docks: true }); for (let x = x0; x <= x1; x++) if (x !== x0 + 3) W.set(x, y1, T.FENCE); break;
+    case 'warehouse': area(W, x0, y0, x1, y1, T.GRAVEL); B(W, x0 + 1, y0, 6, 5, 52, { style: 'corrugated', color: pick(['#8f9aa4', '#a5937a', '#7f8b84', '#9c8f86']), sign: sg('WHSE ' + String.fromCharCode(65 + Math.floor(R() * 6))), docks: true }); for (let x = x0; x <= x1; x++) if (x !== x0 + 3) W.set(x, y1, T.FENCE); break;
     case 'storage': area(W, x0, y0, x1, y1, T.GRAVEL); for (let i = 0; i < 3; i++) B(W, x0, y0 + i * 2 + 1, 7, 1, 20, { style: 'storage', color: '#d1d4d6', trim: '#e2742b' }); break;
     case 'railyard': area(W, x0, y0, x1, y1, T.GRAVEL); for (let x = x0; x <= x1; x++) { W.set(x, y0 + 2, T.RAIL); W.set(x, y0 + 5, T.RAIL); } P(W, 'boxcar', x0 + 2, y0 + 2.5, { block: true, color: '#8b3a2a' }); P(W, 'boxcar', x0 + 5, y0 + 5.5, { block: true, color: '#2f5d7a' }); break;
     case 'lumber': area(W, x0, y0, x1, y1, T.GRAVEL); B(W, x0, y0, 3, 3, 30, { style: 'corrugated', color: '#a5937a', sign: 'LUMBER' }); for (let i = 0; i < 5; i++) P(W, 'lumberstack', x0 + 4.5 + (i % 2) * 1.6, y0 + 1 + Math.floor(i / 2) * 2, { block: true }); break;
     case 'courthouse': area(W, x0, y0, x1, y1, T.PLAZA); B(W, x0, y0, 7, 5, 92, { style: 'stone', color: '#ece6d8', sign: 'COURT', columns: true, dome: true }); tree(x0, y1); tree(x1, y1); break;
     case 'jail': area(W, x0, y0, x1, y1, T.GRAVEL); B(W, x0 + 1, y0 + 1, 5, 4, 72, { style: 'jail', color: '#b9b4a6', sign: 'JAIL' }); for (let x = x0; x <= x1; x++) { W.set(x, y0, T.FENCE); if (x !== x0 + 3) W.set(x, y1, T.FENCE); } for (let y = y0; y <= y1; y++) { W.set(x0, y, T.FENCE); W.set(x1, y, T.FENCE); } break;
     case 'sallyport': area(W, x0, y0, x1, y1, T.LOT); B(W, x0 + 1, y0, 5, 3, 44, { style: 'bays', color: '#b9b4a6', sign: 'SALLY PORT' }); P(W, 'car', x0 + 3.5, y1 - 1.5, { parked: true, police: true, dir: 1, block: true }); break;
+    case 'library': area(W, x0, y0, x1, y1, T.PLAZA); B(W, x0, y0, 6, 4, 56, { style: 'stone', color: '#d8cfbf', sign: sg('LIBRARY'), columns: true }); tree(x1, y0); tree(x1, y1); P(W, 'bench', x0 + 2.5, y1 - .3); P(W, 'bench', x0 + 4.5, y1 - .3); break;
+    case 'transit': area(W, x0, y0, x1, y1, T.PLAZA); B(W, x0, y0, 7, 2, 34, { style: 'concrete', color: '#c8d0da', sign: sg('TRANSIT') }); P(W, 'canopy', x0 + 3.5, y0 + 4, { block: false }); P(W, 'bus', x0 + 2, y0 + 4.5, { block: true, color: '#2c7be5' }); P(W, 'bus', x0 + 5, y0 + 5.8, { block: true, color: '#16a34a' }); P(W, 'bench', x0 + .5, y1 - .3); break;
+    case 'clinic': area(W, x0, y0, x1, y1, T.LOT); B(W, x0 + 1, y0, 5, 4, 44, { style: 'concrete', color: '#f2f4f7', sign: sg('CLINIC'), trim: '#d22d3d' }); P(W, 'car', x0 + 3.5, y1 - 1.5, { parked: true, color: '#f2f2f2', dir: 0, block: true }); park(2); break;
+    case 'carwash': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 4, 3, 30, { style: 'bays', color: '#7dd3fc', sign: sg('WASH') }); P(W, 'canopy', x0 + 5, y0 + 4.5, { block: false }); park(2); break;
+    case 'gym': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 6, 4, 40, { style: 'brick', color: '#7a2e2e', sign: sg('BOXING'), trim: '#f5b800' }); park(3); break;
+    case 'center': area(W, x0, y0, x1, y1, T.PLAZA); B(W, x0, y0, 5, 3, 36, { style: 'brick', color: '#b0703f', sign: sg('COMMUNITY') }); P(W, 'hoop', x0 + 2.5, y0 + 5.5, { block: true }); P(W, 'hoop', x0 + 5.5, y0 + 5.5, { block: true }); tree(x1, y0); break;
+    case 'marina': area(W, x0, y0, x1, y1, T.PLAZA); B(W, x0, y0, 3, 2, 26, { style: 'shop', color: '#f2f2f2', sign: sg('MARINA'), awning: '#0369a1' }); P(W, 'boatT', x0 + 1.5, y0 + 4.5, { block: true }); P(W, 'boatT', x0 + 4.5, y0 + 4.5, { block: true }); P(W, 'boatT', x0 + 4.5, y0 + 1.5, { block: true }); P(W, 'flag', x1 - .2, y1 - .3, { block: true }); break;
+    case 'scrapyard': area(W, x0, y0, x1, y1, T.GRAVEL); B(W, x0, y0, 2, 2, 22, { style: 'corrugated', color: '#8a8170', sign: sg('SCRAP') }); for (let i = 0; i < 6; i++) P(W, 'scrap', x0 + 3 + (i % 3) * 1.5, y0 + 1 + Math.floor(i / 3) * 3, { block: true, s: .8 + R() * .5 }); P(W, 'car', x0 + 1.5, y1 - 1.5, { parked: true, color: '#7a5a3a', dir: 1, block: true }); for (let x = x0; x <= x1; x++) if (x !== x0 + 3) W.set(x, y1, T.FENCE); break;
+    case 'truckstop': area(W, x0, y0, x1, y1, T.LOT); B(W, x0, y0, 4, 3, 34, { style: 'diner', color: '#f2efe8', sign: sg('TRUCKS'), trim: '#2563eb' }); P(W, 'canopy', x0 + 4.5, y0 + 4.5, { block: false }); P(W, 'semi', x0 + 2, y1 - .8, { block: true, color: '#2563eb' }); P(W, 'semi', x0 + 5, y1 - .8, { block: true, color: '#b91c1c' }); break;
     default: area(W, x0, y0, x1, y1, T.GRASS); tree(x0 + 2, y0 + 2); tree(x0 + 4, y0 + 5);
   }
 }
@@ -317,6 +344,11 @@ export function drawProp(g, p, sx, sy, t, night) {
     case 'pump': g.fillStyle = '#d22d3d'; g.fillRect(sx - 5, sy - 22, 10, 22); g.fillStyle = '#f2f2f2'; g.fillRect(sx - 4, sy - 20, 8, 6); break;
     case 'canopy': { g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(sx + 10, sy + 10, 60, 24, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#c9ced4'; [[-34, 0], [34, 0], [0, -17], [0, 17]].forEach(([dx, dy]) => g.fillRect(sx + dx - 2, sy + dy - 44, 4, 44)); g.fillStyle = '#f2f2f2'; g.beginPath(); g.moveTo(sx, sy - 70); g.lineTo(sx + 64, sy - 38); g.lineTo(sx, sy - 6); g.lineTo(sx - 64, sy - 38); g.closePath(); g.fill(); g.fillStyle = '#d22d3d'; g.beginPath(); g.moveTo(sx - 64, sy - 38); g.lineTo(sx, sy - 6); g.lineTo(sx, sy); g.lineTo(sx - 64, sy - 32); g.closePath(); g.fill(); g.beginPath(); g.moveTo(sx, sy - 6); g.lineTo(sx + 64, sy - 38); g.lineTo(sx + 64, sy - 32); g.lineTo(sx, sy); g.closePath(); g.fillStyle = '#a3212e'; g.fill(); break; }
     case 'crate': box(g, sx, sy, 22, 14, '#8a6d47'); break;
+    case 'bus': box(g, sx, sy, 70, 26, p.color || '#2c7be5', 1.5); g.fillStyle = 'rgba(190,227,255,.7)'; g.fillRect(sx - 22, sy - 30, 40, 5); break;
+    case 'semi': box(g, sx, sy, 64, 30, '#d6d9dd', 1.7); box(g, sx + 26, sy + 13, 18, 28, p.color || '#2563eb', .9); break;
+    case 'boatT': boat(g, sx, sy - 8, 0, t, false); g.fillStyle = '#374151'; g.fillRect(sx - 14, sy - 4, 28, 3); break;
+    case 'scrap': { const s2 = p.s || 1; g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 3, sy + 3, 20 * s2, 9 * s2, 0, 0, Math.PI * 2); g.fill(); ['#6b7280', '#92400e', '#4b5563', '#7c2d12', '#9ca3af'].forEach((c, k) => { g.fillStyle = c; g.beginPath(); g.moveTo(sx - 18 * s2 + k * 6, sy); g.lineTo(sx - 8 * s2 + k * 5, sy - (14 + k * 3) * s2); g.lineTo(sx + 2 * s2 + k * 4, sy); g.closePath(); g.fill(); }); break; }
+    case 'hoop': g.fillStyle = '#6b7280'; g.fillRect(sx - 1, sy - 34, 3, 34); g.fillStyle = '#fff'; g.fillRect(sx - 9, sy - 42, 18, 12); g.strokeStyle = '#f97316'; g.lineWidth = 2; g.beginPath(); g.ellipse(sx, sy - 29, 5, 2, 0, 0, Math.PI * 2); g.stroke(); break;
     case 'lumberstack': box(g, sx, sy, 28, 12, '#c49a5c'); box(g, sx, sy - 12, 24, 10, '#b88c50'); break;
     case 'boxcar': box(g, sx, sy, 60, 30, p.color || '#8b3a2a', 1.6); break;
     case 'steeple': box(g, sx, sy - 46, 16, 26, '#efe8da'); g.fillStyle = '#5b6470'; g.beginPath(); g.moveTo(sx, sy - 110); g.lineTo(sx + 12, sy - 72); g.lineTo(sx - 12, sy - 72); g.closePath(); g.fill(); break;
@@ -370,8 +402,13 @@ export function person(g, sx, sy, o, t) {
   const K = o.kit || (o.officer ? { shirt: '#22355e', pants: '#1b2a4a', hat: 'cap', hatCol: '#16213d', patch: '#f5b800' } : null);
   g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(sx + 2, sy + 1, 9 * s, 4 * s, 0, 0, Math.PI * 2); g.fill();
   const pants = K ? K.pants : o.pants || '#3b4a5c', shirt = K ? K.shirt : o.shirt || '#c0392b', skin = o.skin || '#e0b48f';
-  g.fillStyle = K && K.plain ? '#1f2937' : '#111'; g.fillRect(sx - 4 * s, sy - 1.5 * s + walk * 2 * s, 3.5 * s, 1.8 * s); g.fillRect(sx + .5 * s, sy - 1.5 * s - walk * 2 * s, 3.5 * s, 1.8 * s);
-  g.fillStyle = pants; g.fillRect(sx - 4 * s, sy - 12 * s, 3.5 * s, 11 * s + walk * 2 * s); g.fillRect(sx + .5 * s, sy - 12 * s, 3.5 * s, 11 * s - walk * 2 * s);
+  g.fillStyle = K && K.boots ? K.boots : K && K.plain ? '#1f2937' : '#111'; g.fillRect(sx - 4 * s, sy - 1.5 * s + walk * 2 * s, 3.5 * s, 1.8 * s); g.fillRect(sx + .5 * s, sy - 1.5 * s - walk * 2 * s, 3.5 * s, 1.8 * s);
+  if (K && K.camelbak) { g.fillStyle = '#1f2937'; g.beginPath(); g.roundRect(sx + (face > 0 ? -9 : 3) * s, sy - 25 * s, 6 * s, 12 * s, 2 * s); g.fill(); }
+  if (K && K.shorts) {
+    g.fillStyle = skin; g.fillRect(sx - 4 * s, sy - 12 * s, 3.5 * s, 11 * s + walk * 2 * s); g.fillRect(sx + .5 * s, sy - 12 * s, 3.5 * s, 11 * s - walk * 2 * s);
+    g.fillStyle = K.socks || '#111'; g.fillRect(sx - 4 * s, sy - 3 * s + walk * 2 * s, 3.5 * s, 1.6 * s); g.fillRect(sx + .5 * s, sy - 3 * s - walk * 2 * s, 3.5 * s, 1.6 * s);
+    g.fillStyle = pants; g.fillRect(sx - 4.4 * s, sy - 12.5 * s, 8.8 * s, 5 * s);
+  } else { g.fillStyle = pants; g.fillRect(sx - 4 * s, sy - 12 * s, 3.5 * s, 11 * s + walk * 2 * s); g.fillRect(sx + .5 * s, sy - 12 * s, 3.5 * s, 11 * s - walk * 2 * s); }
   g.fillStyle = shirt; g.beginPath(); g.roundRect(sx - 6 * s, sy - 24 * s, 12 * s, 13 * s, 3 * s); g.fill();
   g.fillStyle = shade(shirt, .8); g.fillRect(sx - 7.5 * s, sy - 23 * s + walk * s, 2.5 * s, 10 * s); g.fillRect(sx + 5 * s, sy - 23 * s - walk * s, 2.5 * s, 10 * s);
   g.fillStyle = skin; g.fillRect(sx - 7.5 * s, sy - 13.5 * s + walk * s, 2.5 * s, 2.5 * s); g.fillRect(sx + 5 * s, sy - 13.5 * s - walk * s, 2.5 * s, 2.5 * s);
@@ -388,6 +425,8 @@ export function person(g, sx, sy, o, t) {
   if (hat === 'cap') { g.fillStyle = hc; g.beginPath(); g.arc(sx, sy - 29.5 * s, 5.2 * s, Math.PI, 0); g.fill(); g.fillRect(sx + (face > 0 ? 0 : -7) * s, sy - 30 * s, 7 * s, 1.8 * s); g.fillStyle = K.patch || '#f5b800'; g.fillRect(sx - 1 * s, sy - 33 * s, 2 * s, 1.6 * s); }
   else if (hat === 'helmet') { g.fillStyle = hc; g.beginPath(); g.arc(sx, sy - 29 * s, 6.4 * s, Math.PI * 1.05, -.05); g.fill(); g.fillRect(sx - 6.4 * s, sy - 29.5 * s, 12.8 * s, 2.2 * s); g.fillStyle = '#111'; g.fillRect(sx - 2 * s, sy - 34.5 * s, 4 * s, 1.5 * s); }
   else if (hat === 'boonie') { g.fillStyle = hc; g.beginPath(); g.ellipse(sx, sy - 30 * s, 8 * s, 2.4 * s, 0, 0, Math.PI * 2); g.fill(); g.beginPath(); g.arc(sx, sy - 30.5 * s, 4.6 * s, Math.PI, 0); g.fill(); }
+  else if (hat === 'campaign') { g.fillStyle = hc; g.beginPath(); g.ellipse(sx, sy - 30.5 * s, 9 * s, 3 * s, 0, 0, Math.PI * 2); g.fill(); g.beginPath(); g.moveTo(sx - 4.5 * s, sy - 31 * s); g.lineTo(sx - 2.5 * s, sy - 38 * s); g.lineTo(sx, sy - 36.5 * s); g.lineTo(sx + 2.5 * s, sy - 38 * s); g.lineTo(sx + 4.5 * s, sy - 31 * s); g.closePath(); g.fill(); g.fillStyle = '#111'; g.fillRect(sx - 4.5 * s, sy - 32.5 * s, 9 * s, 1.4 * s); }
+  else if (hat === 'sweatband') { g.fillStyle = '#2b1d14'; g.beginPath(); g.arc(sx, sy - 30 * s, 5 * s, Math.PI, 0); g.fill(); g.fillStyle = hc; g.fillRect(sx - 5.2 * s, sy - 31 * s, 10.4 * s, 2.2 * s); }
   else if (hat === 'headset') { g.fillStyle = '#2b1d14'; g.beginPath(); g.arc(sx, sy - 30 * s, 5 * s, Math.PI, 0); g.fill(); g.strokeStyle = '#111'; g.lineWidth = 1.2 * s; g.beginPath(); g.arc(sx, sy - 29 * s, 5.6 * s, Math.PI * 1.1, -.1); g.stroke(); g.fillStyle = '#111'; g.fillRect(sx + (face > 0 ? 4 : -6) * s, sy - 29 * s, 2 * s, 3 * s); }
   else { g.fillStyle = o.hair || '#2b1d14'; g.beginPath(); g.arc(sx, sy - 30 * s, 5 * s, Math.PI, 0); g.fill(); }
 }
