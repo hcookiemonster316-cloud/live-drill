@@ -20,6 +20,9 @@ const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': 
 const S = L.loadState();
 S.gear = S.gear || {}; S.outfit = OUTFITS[S.outfit] ? S.outfit : 'std'; if (S.flair) { delete S.flair; } if (S.items && S.items.vest && !S.gear.uniform) S.gear.uniform = 'vest';
 const cv = $('view'), ctx = cv.getContext('2d');
+const DRS = { k: 1, ts: [], at: 0, refresh: 16.7, hz: 0 }; // dynamic resolution state (see drsTick)
+// measure the screen's refresh rate once, right away, while almost nothing is drawing (a 120 Hz phone shows ~8.3 ms frames)
+{ let n = 0, prev = 0; const d = []; const f = (t) => { if (prev) d.push(t - prev); prev = t; if (++n < 45) requestAnimationFrame(f); else { d.sort((a, b) => a - b); DRS.hz = Math.max(6.5, Math.min(17.5, d[Math.floor(d.length * .25)] || 16.7)); } }; requestAnimationFrame(f); }
 const lc = document.createElement('canvas'), lx = lc.getContext('2d');
 let W = null, G = null, SPR = [], NIGHT = false, net = null, others = {}, myUid = '';
 let cam = { x: 0, y: 0, z: 1, free: false }, dpr = 1, cw = 0, ch = 0;
@@ -88,8 +91,12 @@ function buildSprites() {
   SPR = W.buildings.map((b) => { const A = iso(b.x, b.y), Bp = iso(b.x + b.w, b.y), C = iso(b.x + b.w, b.y + b.d), Dp = iso(b.x, b.y + b.d), ex = b.dome ? 60 : 30;
     return { b, depth: b.x + b.w - 1 + b.y + b.d - 1 + .9, bx: Dp[0] - 6, by: A[1] - b.h - ex, bw: Bp[0] - Dp[0] + 80, bh: C[1] - A[1] + b.h + ex + 40, canvas: null, lights: [] }; });
 }
-function spriteOf(s) { if (!s.canvas) Object.assign(s, drawBuilding(s.b, NIGHT ? SPR_LIT : false, SUN)); s.used = performance.now(); return s; }
-function trimSprites() { const live = SPR.filter((s) => s.canvas), cap = Math.round(120 / Math.max(1, RES * RES * .6)); if (live.length < cap + 20) return; live.sort((a, b) => a.used - b.used).slice(0, live.length - cap).forEach((s) => { s.canvas = null; s.lights = []; }); }
+// when the hour changes the light changes: sprites are marked stale and redrawn a few per frame, still showing the old drawing until then
+let RELIT = 0;
+function relightSprites() { const h = hourNow(); NIGHT = isNight(h); SUN = sunFor(h); setSun(inside ? 0 : SUN.len); SPR_LIT = !NIGHT ? 0 : h >= 18 && h < 23 ? 1.5 : h >= 23 || h < 2 ? 1 : .5; lampsUpdate(h); SPR.forEach((s) => { if (s.canvas) s.stale = 1; }); }
+function spriteOf(s) { if (!s.canvas || (s.stale && RELIT < 3)) { if (s.canvas) RELIT++; s.stale = 0; Object.assign(s, drawBuilding(s.b, NIGHT ? SPR_LIT : false, SUN)); } s.used = performance.now(); return s; }
+// never drop a building that was on screen in the last second (dropping visible ones made them flash in and out)
+function trimSprites() { const live = SPR.filter((s) => s.canvas), t = performance.now(), recent = live.filter((s) => t - s.used < 1000).length, cap = Math.max(recent + 12, Math.round(120 / Math.max(1, RES * RES * .6))); if (live.length < cap + 20) return; live.filter((s) => t - s.used >= 1000).sort((a, b) => a.used - b.used).slice(0, live.length - cap).forEach((s) => { s.canvas = null; s.lights = []; }); }
 // street lights come on one by one at dusk and go off one by one at dawn; each has its own photocell
 function lampsUpdate(h) { if (!W || !W.props) return; if (h == null) h = hourNow(); W.props.forEach((p) => { if (p.t !== 'lamp') return; const k = ((p.x * 7.13 + p.y * 3.71) % 1 + 1) % 1; p.on = inside ? true : (h >= 18.1 + k * .9 || h < 5.7 + k * .7); }); }
 function focus() { return ATTRACT || !P ? unIso(cam.x, cam.y) : [P.x, P.y]; }
@@ -106,7 +113,8 @@ function groundDraw(z) {
   }
   // with time to spare, prepare one chunk just outside the view so walking and driving stay smooth
   if (!made) { const M2 = Math.ceil(N / CH) - 1; outer: for (let cy = Math.max(0, cy0 - 1); cy <= Math.min(M2, cy1 + 1); cy++) for (let cx = Math.max(0, cx0 - 1); cx <= Math.min(M2, cx1 + 1); cx++) { const k = cx + ',' + cy; if (!G.chunks.has(k)) { const c2 = drawGround(W, cx, cy); c2.used = now; G.chunks.set(k, c2); break outer; } } }
-  const cap = Math.max(24, Math.round(52 / Math.pow(Math.min(2, RES), 2))); if (G.chunks.size > cap + 6) [...G.chunks.entries()].sort((a, b) => a[1].used - b[1].used).slice(0, G.chunks.size - cap).forEach(([k]) => G.chunks.delete(k));
+  // keep everything on screen (plus a margin); only chunks that have been off screen for a while are dropped
+  const vis = (cx1 - cx0 + 1) * (cy1 - cy0 + 1), cap = Math.max(vis + 10, Math.round(52 / Math.pow(Math.min(2, RES), 2))); if (G.chunks.size > cap + 6) [...G.chunks.entries()].filter((e) => now - e[1].used > 1500).sort((a, b) => a[1].used - b[1].used).slice(0, G.chunks.size - cap).forEach(([k]) => G.chunks.delete(k));
 }
 
 let sprHour = -1;
@@ -191,7 +199,7 @@ let last = performance.now(), moveSent = 0;
 function update(dt, now) {
   if (paused) return;
   clock += dt * .75; // one real second is 45 game seconds; a 12-hour shift takes 16 minutes
-  { const hr = Math.floor(hourNow()); if (hr !== sprHour) { sprHour = hr; const was = NIGHT; buildSprites(); if (was !== NIGHT) radio('Dispatch', NIGHT ? 'All units, sunset. Lights on.' : 'All units, sunrise.'); } }
+  { const hr = Math.floor(hourNow()); if (hr !== sprHour) { sprHour = hr; const was = NIGHT; relightSprites(); if (was !== NIGHT) radio('Dispatch', NIGHT ? 'All units, sunset. Lights on.' : 'All units, sunrise.'); } }
   const st = ST(), sp = P.boat ? 8 * (1 + gp('drive') / 100) : P.inCar ? (call && call.accepted ? 6.6 : 4.8) * U().ride.speed * (.88 + st.res * .06) * (1 + gp('drive') / 100) : (2.9 + st.res * .2) * (1 + gp('speed') / 100); const spB = sp * (clock < BUFF.speedTo ? (BUFF.speedMul || 1.25) : 1);
   if (P.path.length) { const done = stepAlong(P, dt, spB); if (done && P.onArrive) { const f = P.onArrive; P.onArrive = null; f(); } }
   else P.moving = false;
@@ -240,7 +248,7 @@ function render(now) {
   const list = [];
   // buildings between you and the camera fade so you can always see yourself (and others near you)
   const [pix, piy] = iso(P.x, P.y), pd = P.x + P.y;
-  let fresh = 0; SPR.forEach((s) => { if (s.bx + s.bw > vx0 && s.bx < vx1 && s.by + s.bh > vy0 && s.by < vy1) { if (!s.canvas) { if (fresh > 6) return; fresh++; } spriteOf(s);
+  let fresh = 0; RELIT = 0; SPR.forEach((s) => { if (s.bx + s.bw > vx0 && s.bx < vx1 && s.by + s.bh > vy0 && s.by < vy1) { if (!s.canvas) { if (fresh > 6) return; fresh++; } spriteOf(s);
     const b = s.b, near = !ATTRACT && s.depth > pd && P.x < b.x + b.w + 2.5 && P.y < b.y + b.d + 2.5 && P.x > b.x - 3 && P.y > b.y - 3,
       cover = !ATTRACT && s.depth > pd && pix > s.x + 6 && pix < s.x + s.canvas.lw - 6 && piy - 30 > s.y + 10 && piy - 6 < s.y + s.canvas.lh;
     const target = near || cover ? .3 : 1; s.al = s.al == null ? 1 : s.al + (target - s.al) * .18;
@@ -276,7 +284,7 @@ function render(now) {
     lx.fillStyle = 'rgba(' + (dk.col || '10,14,38') + ',' + dk.a + ')'; lx.fillRect(0, 0, lc.width, lc.height);
     lx.globalCompositeOperation = 'destination-out';
     const toS = (ix, iy) => [(cv.width / 2 + (ix - cam.x) * z) * s, (cv.height / 2 + (iy - cam.y) * z) * s];
-    const hole = (ix, iy, r, k) => { const [x, y] = toS(ix, iy), rr = r * z * s; if (x < -rr || y < -rr || x > lc.width + rr || y > lc.height + rr) return; const gr = lx.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, 'rgba(0,0,0,' + k + ')'); gr.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = gr; lx.beginPath(); lx.arc(x, y, rr, 0, Math.PI * 2); lx.fill(); };
+    const hole = (ix, iy, r, k) => { const [x, y] = toS(ix, iy), rr = r * z * s; if (x < -rr || y < -rr || x > lc.width + rr || y > lc.height + rr) return; lx.globalAlpha = k; lx.drawImage(radSprite('#000'), x - rr, y - rr, rr * 2, rr * 2); lx.globalAlpha = 1; };
     W.props.forEach((p) => { if (p.t === 'lamp' && p.on) { const [ix, iy] = iso(p.x, p.y); hole(ix + 10, iy - 6, 92, .85); } if (p.t === 'canopy') { const [ix, iy] = iso(p.x, p.y); hole(ix, iy, 110, .9); } if (p.t === 'mast') { const [ix, iy] = iso(p.x, p.y); hole(ix, iy - 200, 16, .9); } });
     SPR.forEach((sp) => { if (sp.canvas) sp.lights.forEach((q) => hole(q[0], q[1], 34, .55)); }); trimSprites();
     traffic.forEach((c) => { const off = laneOff(c), [ix, iy] = iso(c.x + off[0], c.y + off[1]), f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][c.dir]; hole(ix + f[0] * 34, iy + f[1] * 34, 56, .7); });
@@ -287,7 +295,7 @@ function render(now) {
     ctx.drawImage(lc, 0, 0, cv.width, cv.height);
     // additive glows
     ctx.globalCompositeOperation = 'lighter';
-    const glow = (ix, iy, r, col) => { const x = cv.width / 2 + (ix - cam.x) * z, y = cv.height / 2 + (iy - cam.y) * z, rr = r * z; if (x < -rr || y < -rr || x > cv.width + rr || y > cv.height + rr) return; const gr = ctx.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.fill(); };
+    const glow = (ix, iy, r, col) => { const x = cv.width / 2 + (ix - cam.x) * z, y = cv.height / 2 + (iy - cam.y) * z, rr = r * z; if (x < -rr || y < -rr || x > cv.width + rr || y > cv.height + rr) return; ctx.drawImage(radSprite(col), x - rr, y - rr, rr * 2, rr * 2); };
     W.props.forEach((p) => { if (p.t === 'lamp' && p.on) { const [ix, iy] = iso(p.x, p.y); glow(ix + 10, iy - 37, 18, 'rgba(255,220,150,.55)'); glow(ix + 10, iy - 37, 46, 'rgba(255,200,120,.12)'); glow(ix + 10, iy - 2, 40, 'rgba(255,190,110,.10)'); } });
     // lit windows and signs spill a little warm light; cars show headlights and taillights
     SPR.forEach((sp) => { if (sp.canvas) sp.lights.forEach((q, k) => { if (k % 2 === 0) glow(q[0], q[1], 16, 'rgba(255,214,140,.10)'); }); });
@@ -560,7 +568,7 @@ function exitBuilding() {
   if (!inside) return; const O = inside.O, l = inside.lot;
   setSun(SUN ? SUN.len : 0);
   W = O.W; G = O.G; SPR = O.SPR; peds = O.peds; traffic = O.traffic; citizens = O.citizens; infos = O.infos; observes = O.observes; FX = O.FX; pcar = O.pcar; pboat = O.pboat;
-  inside = null; const [dx, dy] = doorSpot(l); P.x = dx; P.y = dy + .8; P.path = []; K9.x = P.x - .6; K9.y = P.y; cam.free = false; buildSprites();
+  inside = null; const [dx, dy] = doorSpot(l); P.x = dx; P.y = dy + .8; P.path = []; K9.x = P.x - .6; K9.y = P.y; cam.free = false; relightSprites();
   $('hDist').textContent = W.D.name; $('hExp').textContent = 'Explored ' + Math.floor(exCount / exTotal * 100) + '%'; beep(440, .08, 'triangle', .04); beep(330, .1, 'triangle', .04, .08);
   if (net && net.inside) net.inside(-1);
 }
@@ -965,7 +973,7 @@ function grade(dk) { // screen-space color grade by time of day
   else if (h >= 8.5 && h < 16.5) { g.addColorStop(0, 'rgba(255,240,210,.07)'); g.addColorStop(1, 'rgba(120,170,255,.05)'); }
   else if (h >= 16.5 && h < 19.5) { g.addColorStop(0, 'rgba(255,110,90,.16)'); g.addColorStop(1, 'rgba(255,170,90,.08)'); }
   else { g.addColorStop(0, 'rgba(40,70,160,.12)'); g.addColorStop(1, 'rgba(10,20,60,.06)'); }
-  ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = g; ctx.fillRect(0, 0, cv.width, cv.height); ctx.globalCompositeOperation = 'source-over';
+  if (S.cfg.quality === 'ultra') { ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = g; ctx.fillRect(0, 0, cv.width, cv.height); ctx.globalCompositeOperation = 'source-over'; } else { ctx.globalAlpha = .55; ctx.fillStyle = g; ctx.fillRect(0, 0, cv.width, cv.height); ctx.globalAlpha = 1; }
   if (inside) return;
   const night = h >= 19.5 || h < 5.5, day = h >= 8 && h < 17;
   if (night) { ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = 'rgba(128,128,128,.28)'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.globalCompositeOperation = 'source-over'; }
@@ -1927,10 +1935,22 @@ function photoExit() { if (!PHOTO) return; cv.style.filter = ''; document.body.c
 
 // ---------- boot ----------
 const FAST = /[?&]skiptitle\b/.test(location.search); // test / dev: no logos or loading screens
-function resize() { const q = (S.cfg || {}).quality || 'high', dev = window.devicePixelRatio || 1; dpr = q === 'ultra' ? Math.min(3, Math.max(dev, 3840 / Math.max(innerWidth, innerHeight))) : Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : 2, dev);
-  { const want = Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : q === 'ultra' ? 3 : 2, Math.ceil(dpr * 1.25 * 2) / 2); if (want !== RES) { setRes(want); if (G && G.chunks) G.chunks.clear(); SPR.forEach((x) => { x.canvas = null; x.lights = []; }); } } cw = innerWidth; ch = innerHeight; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; if (!S.zoom) cam.z = cw < 600 ? .85 : 1.15; else cam.z = S.zoom; }
+function resize(drs) { const q = (S.cfg || {}).quality || 'high', dev = window.devicePixelRatio || 1; dpr = q === 'ultra' ? Math.min(3, Math.max(dev, 3840 / Math.max(innerWidth, innerHeight))) : Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : 2, dev); const base = dpr; dpr = Math.max(Math.min(1, base), base * DRS.k);
+  { const want = Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : q === 'ultra' ? 3 : 2, Math.ceil(base * 1.25 * 2) / 2); if (want !== RES) { setRes(want); if (G && G.chunks) G.chunks.clear(); SPR.forEach((x) => { x.canvas = null; x.lights = []; }); } } cw = innerWidth; ch = innerHeight; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; if (!S.zoom) cam.z = cw < 600 ? .85 : 1.15; else cam.z = S.zoom; }
 addEventListener('resize', resize); resize();
-function frame(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); } render(now); } requestAnimationFrame(frame); }
+// soft round light and shadow spots are drawn once per color and stamped, instead of building a new gradient for every lamp every frame
+const RADS = new Map();
+function radSprite(col) { let c = RADS.get(col); if (c) return c; if (RADS.size > 64) RADS.clear(); c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); RADS.set(col, c); return c; }
+// dynamic resolution: watch the real frame rate against the screen's refresh rate (60, 90, 120 Hz...) and trade a little
+// sharpness for smoothness when frames run long, then sharpen back up when there's headroom
+function drsTick(now, ms) {
+  if (S.cfg && S.cfg.drs === false) return; DRS.ts.push(ms); if (DRS.ts.length > 90) DRS.ts.shift(); if (now - DRS.at < 1500 || DRS.ts.length < 60) return; DRS.at = now;
+  const sorted = DRS.ts.slice().sort((a, b) => a - b), best = sorted[Math.floor(sorted.length * .1)], med = sorted[Math.floor(sorted.length / 2)];
+  DRS.refresh = DRS.hz ? Math.min(DRS.hz, Math.max(6.9, best)) : Math.max(6.9, Math.min(17, best)); // the screen's refresh interval
+  let k = DRS.k; if (med > DRS.refresh * 1.3 && k > .6) k = Math.max(.6, k - .1); else if (med < DRS.refresh * 1.08 && k < 1) k = Math.min(1, k + .05);
+  if (k !== DRS.k) { DRS.k = k; DRS.ts = []; resize(true); }
+}
+function frame(now) { const dt = Math.min(.05, (now - last) / 1000); drsTick(now, now - last); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); } render(now); } requestAnimationFrame(frame); }
 // ---------- the unlock from the study hub ----------
 // The hub opens this page with a pass code once the cadet passes a 100-question test at 85% or better.
 function hubCheck(s) { let h = 2166136261; const t = s + '|patrol-city'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }
