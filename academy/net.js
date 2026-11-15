@@ -34,6 +34,9 @@ export async function startNet(onPlayers) {
     inside(n) { if (base) db.update(base + '/' + db.uid, { n: n == null ? -1 : n }); },
     flair(f) { if (base) db.update(base + '/' + db.uid, { f: f || null }); },
     assist(uid) { if (base) db.update(base + '/' + db.uid, { a: uid || null }); },
+    // district chat: one list per district per day, each message written once by its sender
+    chatOn(did, cb) { if (N._chatStop) N._chatStop(); const day = new Date().toISOString().slice(0, 10).replace(/-/g, ''); N._chatPath = 'mmo/chat/' + did + '/' + day; const f = db.on(N._chatPath, (v) => cb(v || {})); N._chatStop = typeof f === 'function' ? f : null; },
+    chatSend(m, cs, sh) { if (!N._chatPath) return; const k = Date.now().toString(36) + db.uid.slice(0, 6).replace(/[^a-zA-Z0-9]/g, ''); return db.set(N._chatPath + '/' + k, { u: db.uid, c: cs, m: m, s: sh, t: db.TS }); },
     leave() { if (base) { try { db.remove(base + '/' + db.uid); } catch (e) {} } stops.forEach((f) => typeof f === 'function' && f()); stops = []; base = null; clearInterval(timer); }
   };
   addEventListener('pagehide', () => N.leave());

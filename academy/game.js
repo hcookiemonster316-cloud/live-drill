@@ -94,6 +94,7 @@ function load(did) {
   exploreInit(); liveInit(); placeRegulars(); ambienceInit(); SS = { rp: 0, calls: 0, right: 0, answered: 0, ords: {} }; COMBO = 0; bestCombo = 0; ordersInit(); comboHud(); unlockLore(); abilitiesInit(); $('hExp').textContent = 'Explored ' + Math.floor(exCount / exTotal * 100) + '%';
   cam.x = iso(P.x, P.y)[0]; cam.y = iso(P.x, P.y)[1]; cam.free = false;
   hud(); radio('Dispatch', 'All units, ' + shiftOf().name.toLowerCase() + ' in ' + W.D.name + ' is on. ' + S.cs + ', you are in service.');
+  CHAT.list = []; CHAT.seen = new Set(); if (net && net.chatOn) net.chatOn(did, chatIn);
   if (net) net.join(did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name });
 }
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
@@ -207,7 +208,7 @@ function render(now) {
   if (pcar && !P.inCar) { const [sx, sy] = iso(pcar.x, pcar.y); list.push({ d: pcar.x + pcar.y, f: () => { vehicle(ctx, sx, sy, pcar.dir, U().ride, now, NIGHT, false); if (Math.hypot(pcar.x - P.x, pcar.y - P.y) < 5) label(sx, sy - 40, 'Your ' + U().ride.label.toLowerCase(), '#f5b800'); } }); }
   if (pboat && !P.boat) { const [sx, sy] = iso(pboat.x, pboat.y); list.push({ d: pboat.x + pboat.y, f: () => { vehicle(ctx, sx, sy, pboat.dir, { kind: 'boat' }, now, NIGHT, false); if (Math.hypot(pboat.x - P.x, pboat.y - P.y) < 6) label(sx, sy - 30, 'Patrol boat', '#7dd3fc'); } }); }
   if (S.unit === 'k9' && !P.inCar && !P.boat) { const [sx, sy] = iso(K9.x, K9.y); list.push({ d: K9.x + K9.y, f: () => dog(ctx, sx, sy, K9.face, K9.moving, now) }); }
-  Object.keys(others).forEach((k) => { const o = others[k]; if ((o.n == null ? -1 : o.n) !== (inside ? inside.idx : -1)) return; const [sx, sy] = iso(o.rx, o.ry); if (!vis(sx, sy)) return; list.push({ d: o.rx + o.ry, f: () => { const ou = unitOf(o.u); if (o.v) vehicle(ctx, sx, sy, o.d || 0, o.v === 2 ? { kind: 'boat' } : ou.ride, now, NIGHT, o.st === 'call'); else { person(ctx, sx, sy, { kit: kitWith(kitOf((String(o.f || '').split(',').find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1), o.u), o.f ? looks(String(o.f).split(',')) : {}), moving: o.moving, face: 1, skin: o.skin, s: 1 }, now); if (o.u === 'k9') dog(ctx, sx - 14, sy + 6, 1, o.moving, now); { const tk = String(o.f || 'ostd').split(','), of = (tk.find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1); flair(Object.assign({}, outfitLook(of), looks(tk)), sx, sy, now, 1); } } label(sx, sy - (o.v ? 40 : 50), ou.icon + ' ' + o.c + (o.sh && o.sh !== S.shift ? ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') : ''), '#9cc3ff'); if (o.q && now - o.qAt < 6000) speech(sx, sy - (o.v ? 52 : 68), QUICK[o.q.k] || ''); } }); });
+  Object.keys(others).forEach((k) => { const o = others[k]; if ((o.n == null ? -1 : o.n) !== (inside ? inside.idx : -1)) return; const [sx, sy] = iso(o.rx, o.ry); if (!vis(sx, sy)) return; list.push({ d: o.rx + o.ry, f: () => { const ou = unitOf(o.u); if (o.v) vehicle(ctx, sx, sy, o.d || 0, o.v === 2 ? { kind: 'boat' } : ou.ride, now, NIGHT, o.st === 'call'); else { person(ctx, sx, sy, { kit: kitWith(kitOf((String(o.f || '').split(',').find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1), o.u), o.f ? looks(String(o.f).split(',')) : {}), moving: o.moving, face: 1, skin: o.skin, s: 1 }, now); if (o.u === 'k9') dog(ctx, sx - 14, sy + 6, 1, o.moving, now); { const tk = String(o.f || 'ostd').split(','), of = (tk.find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1); flair(Object.assign({}, outfitLook(of), looks(tk)), sx, sy, now, 1); } } label(sx, sy - (o.v ? 40 : 50), ou.icon + ' ' + o.c + (o.sh && o.sh !== S.shift ? ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') : ''), '#9cc3ff'); if (o.say && performance.now() - o.sayAt < 7000) speech(sx, sy - (o.v ? 52 : 68), o.say.length > 34 ? o.say.slice(0, 32) + '…' : o.say); else if (o.q && now - o.qAt < 6000) speech(sx, sy - (o.v ? 52 : 68), QUICK[o.q.k] || ''); } }); });
   if (!ATTRACT) { const [sx, sy] = iso(P.x, P.y); list.push({ d: P.x + P.y, f: () => { if (P.boat) vehicle(ctx, sx, sy, P.dir, { kind: 'boat' }, now, NIGHT, call && call.accepted); else if (P.inCar) vehicle(ctx, sx, sy, P.dir, U().ride, now, NIGHT, call && call.accepted); else person(ctx, sx, sy, { kit: kitWith(myKit(), myLooks()), moving: P.moving, face: P.face, skin: S.skin || '#c68e63', s: 1.08 }, now); } }); }
   liveDraw(list, vis, now); if (!ATTRACT) storyCast(list, vis, now);
   ambienceGround();
@@ -248,7 +249,7 @@ function render(now) {
   grade(); rainDraw();
   // markers drawn above the lighting so they stay readable
   ctx.setTransform(z, 0, 0, z, cv.width / 2 - cam.x * z, cv.height / 2 - cam.y * z);
-  if (!ATTRACT) { storyMarker(now); floatsDraw(now); }
+  if (!ATTRACT) { storyMarker(now); floatsDraw(now); if (SELF_SAY.text && performance.now() - SELF_SAY.at < 6000) { const [sx, sy] = iso(P.x, P.y); speech(sx, sy - (P.inCar ? 52 : 70), SELF_SAY.text.length > 34 ? SELF_SAY.text.slice(0, 32) + '…' : SELF_SAY.text); } }
   if (call) { const [sx, sy] = iso(call.x, call.y); ring(sx, sy, call.prio === 1 ? '#ff4d4d' : '#f5b800', now); bubble(sx, sy - 40, '📻', call.prio === 1 ? '#ff4d4d' : '#f5b800', now); label(sx, sy - 66, call.title, '#ffffff'); }
   infos.forEach((i) => { const [sx, sy] = iso(i.x, i.y); bubble(sx, sy - 30, 'i', i.cool > 0 ? '#6b7280' : '#3b82f6', now); });
   observes.forEach((o) => { if (!o.seen) return; const [sx, sy] = iso(o.x, o.y); ring(sx, sy, '#a855f7', now); bubble(sx, sy - 30, '!', '#a855f7', now); });
@@ -998,9 +999,42 @@ $('bMap').onclick = () => { jTab = chStep() ? 'story' : 'map'; journal(); }; $('
 $('bSnd').onclick = () => { S.sound = !S.sound; L.saveState(S); hud(); };
 $('bMe').onclick = () => { cam.free = false; };
 $('zIn').onclick = () => setZoom(cam.z * 1.2); $('zOut').onclick = () => setZoom(cam.z / 1.2);
-$('bRadio').onclick = () => { const m = $('quick'); m.hidden = !m.hidden; };
-$('quick').innerHTML = QUICK.map((q, k) => '<button type="button" data-q="' + k + '">' + esc(q) + '</button>').join('');
-$('quick').querySelectorAll('button').forEach((b) => b.onclick = () => { $('quick').hidden = true; radio(S.cs, QUICK[+b.dataset.q]); if (net) net.quick(+b.dataset.q); chirp(); });
+$('bRadio').onclick = () => { const m = $('quick'); m.hidden = !m.hidden; $('bRadio').classList.remove('ping'); if (!m.hidden) { chatPanel(); setTimeout(() => { if (innerWidth > 700) { const i = $('chIn'); if (i) i.focus(); } }, 50); } };
+
+// ---------- district chat ----------
+// in the radio feed, as bubbles over each cadet, and in the Radio panel with history and quick replies
+const CHAT = { list: [], seen: new Set(), last: 0, muted: new Set(JSON.parse((() => { try { return localStorage.getItem('patrolcity:muted') || '[]'; } catch (e) { return '[]'; } })())) };
+const BAD = /\b(f+u+c+k+\w*|s+h+i+t+\w*|b+i+t+c+h+\w*|a+s+s+h+o+l+e+\w*|d+a+m+n+\w*|c+u+n+t+\w*|d+i+c+k+\w*|p+u+s+s+y+\w*|b+a+s+t+a+r+d+\w*|n+i+g+g+\w*|f+a+g+\w*|r+e+t+a+r+d+\w*|w+h+o+r+e+\w*|s+l+u+t+\w*)\b/gi;
+const clean = (t) => String(t).replace(BAD, (w) => w[0] + '*'.repeat(Math.max(2, w.length - 1)));
+function chatIn(all) {
+  const rows = Object.keys(all).map((k) => Object.assign({ k }, all[k])).filter((m) => m && m.m && m.t).sort((a, b) => a.t - b.t).slice(-60);
+  rows.forEach((m) => {
+    if (CHAT.seen.has(m.k)) return; CHAT.seen.add(m.k); CHAT.list.push(m); if (CHAT.list.length > 60) CHAT.list.shift();
+    if (CHAT.muted.has(m.u)) return; const fresh = N0() - m.t < 60000;
+    if (fresh) { radio(m.c, clean(m.m)); const o = others[m.u]; if (o) { o.say = clean(m.m); o.sayAt = performance.now(); } if (m.u !== myUid) { const b = $('bRadio'); if (b && $('quick').hidden) b.classList.add('ping'); } }
+  });
+  if (!$('quick').hidden) chatPanel();
+}
+function chatSend(text) {
+  text = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 140); if (!text) return;
+  if (Date.now() - CHAT.last < 2500) { toast('Easy on the radio. One message every few seconds.'); return; }
+  CHAT.last = Date.now(); const m = clean(text);
+  if (net && net.chatSend) net.chatSend(m, S.cs, S.shift); else radio(S.cs, m);
+  SELF_SAY.text = m; SELF_SAY.at = performance.now(); chirp();
+}
+const SELF_SAY = { text: '', at: 0 };
+function chatPanel() {
+  const q = $('quick'), mine = (m) => m.u === myUid, rows = CHAT.list.filter((m) => !CHAT.muted.has(m.u)).slice(-30);
+  q.innerHTML = '<div class="chHead"><b>📻 ' + esc(W.D.name) + ' channel</b><span>' + (Object.keys(others).length + 1) + ' on shift</span><button type="button" id="chX" aria-label="Close">×</button></div>' +
+    '<div class="chList" id="chList">' + (rows.length ? rows.map((m) => '<div class="chMsg' + (mine(m) ? ' me' : '') + '"><b>' + esc(m.c) + (m.s && m.s !== S.shift ? ' <i>' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[m.s] || '') + '</i>' : '') + '</b><span>' + esc(clean(m.m)) + '</span>' + (mine(m) ? '' : '<button type="button" class="chMute" data-u="' + esc(m.u) + '" title="Mute this cadet">🔇</button>') + '</div>').join('') : '<p class="chEmpty">Quiet channel. Say hi to the cadets on shift in ' + esc(W.D.name) + '.</p>') + '</div>' +
+    '<div class="chQuick">' + QUICK.map((t, k) => '<button type="button" data-q="' + k + '">' + esc(t) + '</button>').join('') + '</div>' +
+    '<form class="chForm" id="chForm"><input id="chIn" maxlength="140" autocomplete="off" placeholder="Message ' + esc(W.D.name) + '…" aria-label="Chat message"><button type="submit">Send</button></form><p class="chRule">Keep it professional. Everyone on this channel is a cadet in training.</p>';
+  const L2 = $('chList'); L2.scrollTop = L2.scrollHeight;
+  $('chX').onclick = () => { q.hidden = true; };
+  q.querySelectorAll('[data-q]').forEach((b) => b.onclick = () => { radio(S.cs, QUICK[+b.dataset.q]); if (net) net.quick(+b.dataset.q); SELF_SAY.text = QUICK[+b.dataset.q]; SELF_SAY.at = performance.now(); chirp(); q.hidden = true; });
+  q.querySelectorAll('.chMute').forEach((b) => b.onclick = () => { CHAT.muted.add(b.dataset.u); try { localStorage.setItem('patrolcity:muted', JSON.stringify([...CHAT.muted])); } catch (e) {} toast('Muted. You won\'t see their messages.'); chatPanel(); });
+  $('chForm').onsubmit = (e) => { e.preventDefault(); const v = $('chIn').value; $('chIn').value = ''; chatSend(v); };
+}
 
 // ---------- multiplayer ----------
 function onPlayers(all, uid) {
@@ -1100,7 +1134,7 @@ function lockedScreen() {
   try { await L.loadBank('../ch5.json'); } catch (e) { $('loading').textContent = 'Could not load the question bank. Check your connection and refresh.'; return; }
   $('loading').hidden = true;
   attractStart(); requestAnimationFrame(frame); if (/[?&]skiptitle\b/.test(location.search)) { S.seenIntro = 1; startScreen(); } else titleScreen();
-  try { net = await startNet(onPlayers); if (net && W) net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name }); } catch (e) { net = null; }
+  try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); } if (net && W && !ATTRACT) net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name }); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
 window.__pc = { S, get W() { return W; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };

@@ -58,8 +58,19 @@ canvas#view{position:fixed;inset:0;touch-action:none;display:block}
 .hBot button.on{background:var(--gold);color:var(--navy);border-color:var(--gold)}
 .zoom{position:fixed;right:8px;bottom:calc(84px + var(--safe-b));display:grid;gap:6px;z-index:5}
 .zoom button{width:42px;height:42px;border-radius:12px;background:var(--panel);border:1px solid var(--line);font-size:1.2rem;font-weight:700}
-#quick{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + var(--safe-b));width:min(440px,calc(100% - 16px));display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px;z-index:7;background:var(--panel);border:1px solid var(--line);border-radius:14px}
-#quick button{min-height:44px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid var(--line);font-weight:700;font-size:.86rem}
+#quick{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + var(--safe-b));width:min(460px,calc(100% - 16px));max-height:min(70vh,560px);display:flex;flex-direction:column;gap:6px;padding:10px;z-index:9;background:rgba(9,16,34,.95);border:1px solid rgba(245,184,0,.4);border-radius:16px;box-shadow:0 20px 50px -12px #000;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.chHead{display:flex;align-items:center;gap:8px}.chHead b{flex:1;font:800 1.05rem 'Barlow Condensed';letter-spacing:.02em}.chHead span{font-size:.72rem;color:var(--soft)}.chHead button{width:34px;height:34px;border-radius:10px;font-size:1.3rem;background:rgba(255,255,255,.06)}
+.chList{flex:1;min-height:120px;overflow-y:auto;display:grid;align-content:start;gap:6px;padding:4px 2px;overscroll-behavior:contain}
+.chMsg{position:relative;justify-self:start;max-width:86%;padding:6px 10px;border-radius:12px 12px 12px 4px;background:rgba(255,255,255,.07);display:grid;gap:1px}
+.chMsg b{font-size:.72rem;color:#f5b800}.chMsg b i{font-style:normal;color:#93c5fd;margin-left:4px}.chMsg span{font-size:.92rem;line-height:1.35;word-break:break-word}
+.chMsg.me{justify-self:end;border-radius:12px 12px 4px 12px;background:rgba(245,184,0,.16)}.chMsg.me b{color:#fde68a}
+.chMute{position:absolute;right:-30px;top:4px;width:26px;height:26px;border-radius:8px;font-size:.8rem;opacity:.5}.chMute:hover{opacity:1}
+.chEmpty{color:var(--soft);font-size:.86rem;text-align:center;margin:20px 0}
+.chQuick{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}.chQuick button{flex:none;min-height:34px;padding:0 12px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid var(--line);font-weight:700;font-size:.8rem;white-space:nowrap}
+.chForm{display:flex;gap:6px}.chForm input{flex:1;min-width:0;min-height:44px;border-radius:12px;border:1.5px solid var(--line);background:#0f1a33;color:var(--ink);font:inherit;padding:0 12px}.chForm input:focus{outline:none;border-color:#f5b800}
+.chForm button{min-height:44px;padding:0 16px;border-radius:12px;background:#f5b800;color:#0b1630;font-weight:800}
+.chRule{margin:0;font-size:.68rem;color:var(--soft);text-align:center}
+#bRadio.ping{border-color:#f5b800;box-shadow:0 0 0 3px rgba(245,184,0,.35);animation:tiPulse 1.6s ease-in-out infinite}
 #toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(196px + var(--safe-t));width:max-content;max-width:calc(100% - 24px);padding:10px 14px;border-radius:12px;background:rgba(9,16,34,.94);border:1px solid var(--gold);font-size:.88rem;font-weight:600;z-index:8;text-align:center;animation:pop .2s ease-out}
 /* modal */
 #modal{position:fixed;inset:0;z-index:20;background:rgba(4,8,18,.6);display:grid;place-items:center;padding:12px;padding-bottom:calc(12px + var(--safe-b))}

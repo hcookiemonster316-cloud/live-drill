@@ -182,6 +182,35 @@
             }
           }
         }
+      },
+      "chat": {
+        "$d": {
+          "$day": {
+            ".read": "auth != null && $d.matches(/^[0-4]$/) && $day.matches(/^[0-9]{8}$/)",
+            "$k": {
+              ".write": "auth != null && !data.exists() && newData.child('u').val() === auth.uid",
+              ".validate": "newData.hasChildren(['u','c','m','t']) && $k.matches(/^[a-z0-9A-Z]{6,24}$/)",
+              "u": {
+                ".validate": "newData.isString()"
+              },
+              "c": {
+                ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 20"
+              },
+              "m": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 140"
+              },
+              "s": {
+                ".validate": "newData.isString() && newData.val().matches(/^(day|mid|night)$/)"
+              },
+              "t": {
+                ".validate": "newData.val() === now"
+              },
+              "$o": {
+                ".validate": false
+              }
+            }
+          }
+        }
       }
     }
   }
