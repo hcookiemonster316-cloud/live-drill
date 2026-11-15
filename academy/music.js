@@ -34,7 +34,7 @@ export const MOODS = {
 };
 
 export function createMusic(getCtx) {
-  let on = false, master = null, timer = 0, cur = null, rain = false, noise = null;
+  let on = false, vol = .85, master = null, timer = 0, cur = null, rain = false, noise = null;
   function ctx() { return getCtx(); }
   function noiseBuf(a) { if (noise) return noise; const b = a.createBuffer(1, a.sampleRate * .5, a.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return (noise = b); }
   function tone(bus, f, t, d, type, v, cut, att) {
@@ -78,7 +78,7 @@ export function createMusic(getCtx) {
     get title() { return cur && MOODS[cur] ? MOODS[cur].name : ''; },
     start(mood) {
       const a = ctx(); if (!a) return; if (a.state === 'suspended') a.resume();
-      if (!on) { on = true; master = a.createGain(); master.gain.value = .85; master.connect(a.destination); timer = setInterval(tick, 90); layers = []; cur = null; }
+      if (!on) { on = true; master = a.createGain(); master.gain.value = vol; master.connect(a.destination); timer = setInterval(tick, 90); layers = []; cur = null; }
       api.set(mood || cur || 'title');
     },
     set(mood) {
@@ -87,6 +87,7 @@ export function createMusic(getCtx) {
       layers.push(layer(mood));
     },
     rain(v) { rain = !!v; },
+    volume(v) { vol = Math.max(0, Math.min(1, v)) * .85 + .0001; if (on && master) { const a = ctx(); master.gain.setTargetAtTime(vol, a.currentTime, .1); } },
     // short fanfares over the score
     sting(kind) {
       if (!on) return; const a = ctx(), t = a.currentTime + .05, bus = master;

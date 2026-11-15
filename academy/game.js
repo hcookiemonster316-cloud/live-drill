@@ -38,7 +38,7 @@ let pboat = null; const K9 = { x: 0, y: 0, face: 1, moving: false };
 
 // ---------- sound (tiny synth, no files) ----------
 let AC = null; const audio = () => { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } return AC; };
-function beep(f, d, type, v, when) { if (!S.sound) return; const a = audio(); if (!a) return; const o = a.createOscillator(), g = a.createGain(); o.type = type || 'square'; o.frequency.value = f; g.gain.value = v || .04; o.connect(g); g.connect(a.destination); const t = a.currentTime + (when || 0); o.start(t); g.gain.exponentialRampToValueAtTime(.0001, t + d); o.stop(t + d + .02); }
+function beep(f, d, type, v, when) { if (!S.sound) return; const a = audio(); if (!a) return; const o = a.createOscillator(), g = a.createGain(); o.type = type || 'square'; o.frequency.value = f; g.gain.value = (v || .04) * (S.cfg ? S.cfg.sfx : 1); o.connect(g); g.connect(a.destination); const t = a.currentTime + (when || 0); o.start(t); g.gain.exponentialRampToValueAtTime(.0001, t + d); o.stop(t + d + .02); }
 const chirp = () => { beep(1400, .06, 'square', .03); beep(1900, .07, 'square', .03, .07); };
 const good = () => { beep(660, .12, 'triangle', .06); beep(990, .18, 'triangle', .06, .1); };
 const bad = () => beep(180, .22, 'sawtooth', .04);
@@ -139,7 +139,7 @@ function dispatchCall() {
   const lot = c[2] !== 'any' && W.lots.filter((l) => l.kind === c[2] || (c[2] === 'parking' && (l.kind === 'parking' || l.kind === 'lot'))).sort((a, b) => Math.hypot(a.door[0] - P.x, a.door[1] - P.y) - Math.hypot(b.door[0] - P.x, b.door[1] - P.y))[0];
   const spot = lot ? lot.door : nearTile(W.walk, 28), where = lot ? (LANDMARKS[lot.kind] || {}).name || 'the ' + lot.kind : 'block ' + (100 + spot[1] * 10) + ' ' + ['Main St', 'Bay St', 'Oak Ave', 'Pine St', 'Harbor Rd'][spot[0] % 5];
   call = { les, title: c[0], prio: c[1], text: c[3], x: spot[0] + .5, y: spot[1] + .5, where, t0: clock, accepted: false, backup: false };
-  radio('Dispatch', S.cs + ', ' + (c[1] === 1 ? 'priority one, ' : '') + c[0].toLowerCase() + ' at ' + where + '. ' + c[3]); chirp(); callCard();
+  if (c[1] === 1) shake(5, .5); radio('Dispatch', S.cs + ', ' + (c[1] === 1 ? 'priority one, ' : '') + c[0].toLowerCase() + ' at ' + where + '. ' + c[3]); chirp(); callCard();
 }
 function callCard() {
   const el = $('callCard'); if (!call) { el.hidden = true; return; }
@@ -197,7 +197,7 @@ function update(dt, now) {
   if ((P.inCar || P.boat) && call && call.accepted) { sirenT -= dt; if (sirenT <= 0) { sirenT = .9; beep(720, .42, 'sine', .018); beep(980, .42, 'sine', .018, .45); } }
   if (net && now - moveSent > 120) { moveSent = now; net.move(P.x, P.y, P.boat ? 2 : P.inCar ? 1 : 0, P.dir); }
   liveUpdate(dt);
-  storyUpdate(dt); objectiveHud(); tipsUpdate(dt); musicUpdate(dt); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
+  storyUpdate(dt); objectiveHud(); tipsUpdate(dt); musicUpdate(dt); trophyCheck(dt); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
   if (inside && !P.path.length && Math.hypot(W.door[0] - P.x, W.door[1] - P.y) < .45) exitBuilding();
   hudClock();
   if (clock >= SHIFT_MIN && !scene) endOfWatch();
@@ -338,7 +338,7 @@ function revealAround(cx, cy, r) {
   if (!changed) return; S.explored[exKey()] = a.join('');
   const pct = Math.floor(exCount / exTotal * 100), done = S.mile[exKey()] || 0; $('hExp').textContent = 'Explored ' + pct + '%';
   const next = [25, 50, 75, 100].find((m) => m > done && pct >= m);
-  if (next) { S.mile[exKey()] = next; L.saveState(S); banner('🧭', 'Explorer · ' + next + '% of ' + W.D.name, next === 100 ? 'Every street walked. The district knows your name.' : 'Keep wandering. There is more out there.'); queueLoot('Exploration reward: ' + next + '%', 1, next === 100 ? 'r' : next >= 50 ? 'u' : 'c'); }
+  if (next) { S.mile[exKey()] = next; saveS(); banner('🧭', 'Explorer · ' + next + '% of ' + W.D.name, next === 100 ? 'Every street walked. The district knows your name.' : 'Keep wandering. There is more out there.'); queueLoot('Exploration reward: ' + next + '%', 1, next === 100 ? 'r' : next >= 50 ? 'u' : 'c'); }
 }
 function liveInit() {
   const h = hourNow(), night = isNight(h), R2 = Math.random;
@@ -362,9 +362,9 @@ function liveInit() {
 function liveUpdate(dt) {
   revealAround(P.x, P.y, (P.inCar || P.boat ? 6.5 : 5.5) + gp('explore'));
   // first look at a landmark, the promenade or a secret spot
-  W.lots.forEach((l) => { if (!l.name) return; const k = W.did + ':' + l.name; if (S.disc[k] || Math.hypot(l.door[0] - P.x, l.door[1] - P.y) > 4.5) return; S.disc[k] = 1; if (l.gen) { L.saveState(S); ord('place'); FLOATS.push({ x: P.x, y: P.y, t: performance.now(), text: l.name, sub: 'new place' }); return; } L.saveState(S); ord('place'); banner('📍', 'Discovered: ' + l.name, (LANDMARKS[l.kind] || {}).note || W.D.name); award(10, 'new place'); });
-  if (W.promenade) { const k = W.did + ':prom'; if (!S.disc[k] && Math.hypot(W.promenade.x + 1 - P.x, W.promenade.y + 4 - P.y) < 4) { S.disc[k] = 1; L.saveState(S); banner('📍', 'Discovered: ' + W.promenade.name, 'Walk only. No cars, all vibes.'); award(10, 'new place'); } }
-  W.secrets.forEach((x) => { if (S.found[x.id] || P.inCar || Math.hypot(x.x - P.x, x.y - P.y) > 1.9 + gp('secret') * .5) return; S.found[x.id] = 1; L.saveState(S); ord('secret'); banner('🗝️', 'Secret spot: ' + x.name, x.text, true); beep(784, .1, 'triangle', .05); beep(1175, .2, 'triangle', .05, .12); queueLoot('Secret spot: ' + x.name, 1, hasSk('inv4') ? 'r' : 'u'); });
+  W.lots.forEach((l) => { if (!l.name) return; const k = W.did + ':' + l.name; if (S.disc[k] || Math.hypot(l.door[0] - P.x, l.door[1] - P.y) > 4.5) return; S.disc[k] = 1; if (l.gen) { saveS(); ord('place'); FLOATS.push({ x: P.x, y: P.y, t: performance.now(), text: l.name, sub: 'new place' }); return; } saveS(); ord('place'); banner('📍', 'Discovered: ' + l.name, (LANDMARKS[l.kind] || {}).note || W.D.name); award(10, 'new place'); });
+  if (W.promenade) { const k = W.did + ':prom'; if (!S.disc[k] && Math.hypot(W.promenade.x + 1 - P.x, W.promenade.y + 4 - P.y) < 4) { S.disc[k] = 1; saveS(); banner('📍', 'Discovered: ' + W.promenade.name, 'Walk only. No cars, all vibes.'); award(10, 'new place'); } }
+  W.secrets.forEach((x) => { if (S.found[x.id] || P.inCar || Math.hypot(x.x - P.x, x.y - P.y) > 1.9 + gp('secret') * .5) return; S.found[x.id] = 1; saveS(); ord('secret'); banner('🗝️', 'Secret spot: ' + x.name, x.text, true); beep(784, .1, 'triangle', .05); beep(1175, .2, 'triangle', .05, .12); queueLoot('Secret spot: ' + x.name, 1, hasSk('inv4') ? 'r' : 'u'); });
   // birds
   FX.birds.forEach((b) => { const d = Math.hypot(b.x - P.x, b.y - P.y); if (!b.fly && d < (P.inCar ? 3.5 : 2.2)) { b.fly = true; b.vx = (b.x - P.x) / (d || 1) * 3 + (Math.random() - .5); b.vy = (b.y - P.y) / (d || 1) * 3 + (Math.random() - .5); b.vh = 40 + Math.random() * 20; if (Math.random() < .2) beep(2200 + Math.random() * 600, .04, 'sine', .015); } if (b.fly) { b.x += b.vx * dt; b.y += b.vy * dt; b.h += b.vh * dt; } });
   FX.birds = FX.birds.filter((b) => b.h < 260);
@@ -421,7 +421,7 @@ let looting = false;
 async function runLoot() {
   if (looting || !lootQ.length) return; if (scene || !$('modal').hidden) { setTimeout(runLoot, 600); return; }
   looting = true; const [where, min] = lootQ.shift(), item = roll(S, min), isNew = !S.items[item.id];
-  S.items[item.id] = (S.items[item.id] || 0) + 1; L.saveState(S); paused = true;
+  S.items[item.id] = (S.items[item.id] || 0) + 1; saveS(); paused = true;
   const act = await reveal(item, where, { isNew, canEquip: item.slot && slotOpen(item.slot) && (S.gear || {})[item.slot] !== item.id, lockHint: item.slot && !slotOpen(item.slot) ? 'Goes in your ' + slotOf(item.slot).name + ' slot. ' + slotOf(item.slot).hint + '.' : '', sound: (notes) => { if (!S.sound) return; notes.forEach((f, i) => beep(f, .22 + (i === notes.length - 1 ? .4 : 0), 'triangle', .05, i * .09)); } });
   paused = false; looting = false; useItem(item, act); if (lootQ.length) setTimeout(runLoot, 500);
 }
@@ -429,14 +429,14 @@ const slotOpen = (sid) => S.xp >= slotOf(sid).need;
 function equip(item) {
   S.gear = S.gear || {}; const sl = item.slot; if (!slotOpen(sl)) { toast(slotOf(sl).name + ' slot: ' + slotOf(sl).hint + '.'); return; }
   const was = S.gear[sl]; if (was === item.id) { delete S.gear[sl]; toast('Took off: ' + item.name + '.'); } else { S.gear[sl] = item.id; toast('Equipped: ' + item.name + (was ? ' (swapped out ' + itemById(was).name + ')' : '') + '.'); }
-  refreshGear(); L.saveState(S); hud(); if (net && net.flair) net.flair(myTokens());
+  refreshGear(); saveS(); hud(); if (net && net.flair) net.flair(myTokens());
 }
 function useItem(item, act) {
   if (act === 'equip') equip(item);
   if (act === 'use') {
     if (!item.reuse) { S.items[item.id]--; if (S.items[item.id] <= 0) delete S.items[item.id]; }
     if (item.effect === 'shake') { BUFF.speedTo = clock + 180; BUFF.speedMul = 1.25; } if (item.effect === 'energy') { BUFF.speedTo = clock + 120; BUFF.speedMul = 1.4; } if (item.effect === 'coffee' || item.effect === 'pot') BUFF.wait += 60; if (item.effect === 'light') BUFF.light = 1.5;
-    L.saveState(S); toast(item.useText || 'Used.');
+    saveS(); toast(item.useText || 'Used.');
   }
 }
 let lockerTab = 'equip';
@@ -449,7 +449,7 @@ function locker() {
   document.querySelectorAll('[data-sk]').forEach((b) => b.onclick = () => { learn(b.dataset.sk); locker(); });
   document.querySelectorAll('.lkItem[data-i]').forEach((b) => b.onclick = () => itemCard(itemById(b.dataset.i)));
   document.querySelectorAll('.eqSlot[data-slot]').forEach((b) => b.onclick = () => slotPick(b.dataset.slot));
-  document.querySelectorAll('[data-of]').forEach((b) => b.onclick = () => { S.outfit = b.dataset.of; refreshGear(); L.saveState(S); hud(); if (net && net.flair) net.flair(myTokens()); locker(); });
+  document.querySelectorAll('[data-of]').forEach((b) => b.onclick = () => { S.outfit = b.dataset.of; refreshGear(); saveS(); hud(); if (net && net.flair) net.flair(myTokens()); locker(); });
 }
 function itemCard(it) {
   const on = Object.values(S.gear || {}).includes(it.id);
@@ -514,7 +514,7 @@ function npcTalk(r) {
     runQuestions('<div class="npcHead small"><span class="npcIco">' + n.icon + '</span><div><b>' + esc(n.name) + ' has a question</b><small>' + (n.cat ? 'The cat waits. Answer correctly.' : 'Get it right and they will remember you.') + '</small></div></div>', qs, (res) => {
       talkedNow[n.id] = 2;
       if (res.right) { ord('regular');
-        const nf = Math.min(6, f + 1); S.npc[n.id] = nf; L.saveState(S);
+        const nf = Math.min(6, f + 1); S.npc[n.id] = nf; saveS();
         closeModal(); award(Math.round(15 * rapMult() * (1 + gp('rpCit') / 100)), n.name + ' remembers that');
         if (nf === 3 && f < 3) { banner(n.icon, n.name + ' is your friend now', 'They have something for you.'); queueLoot('A gift from ' + n.name, 1, 'u'); }
         else if (nf === 6 && f < 6) { banner(n.icon, 'Best friends with ' + n.name, 'They saved the good stuff for you.'); queueLoot('A gift from ' + n.name, 1, 'e'); }
@@ -545,7 +545,7 @@ function enterBuilding(l) {
   const [ix, iy] = iso(P.x, P.y); cam.x = ix; cam.y = iy;
   $('hDist').textContent = I.name; $('hExp').textContent = 'Inside'; beep(330, .08, 'triangle', .04); beep(440, .1, 'triangle', .04, .08);
   banner('🚪', I.name, I.blurb); ord('inside'); if (net && net.inside) net.inside(idx);
-  const k = W.did + ':in:' + l.kind; if (!S.disc[k]) { S.disc[k] = 1; L.saveState(S); award(10, 'new place'); }
+  const k = W.did + ':in:' + l.kind; if (!S.disc[k]) { S.disc[k] = 1; saveS(); award(10, 'new place'); }
 }
 function exitBuilding() {
   if (!inside) return; const O = inside.O, l = inside.lot;
@@ -589,12 +589,12 @@ function offerSide(q) {
   const lines = q.offer.concat([['choice', [{ t: 'Take the case', accept: true }, { t: 'Not right now', reply: [[q.giver, 'No problem. You know where to find me.']] }]]]);
   dialogue(lines, () => {
     storyBusy = false; paused = false; storyCool = 1.5;
-    if (LASTCHOICE && LASTCHOICE.accept) { S.side[q.id] = 0; S.track = q.id; L.saveState(S); music.sting('accept'); banner('📁', 'Side case opened: ' + q.title, q.blurb); objectiveFlash(); }
+    if (LASTCHOICE && LASTCHOICE.accept) { S.side[q.id] = 0; S.track = q.id; saveS(); music.sting('accept'); banner('📁', 'Side case opened: ' + q.title, q.blurb); objectiveFlash(); }
     else offerNo[q.id] = performance.now() + 90000;
   });
 }
 function sideDone(q) {
-  const rw = q.reward || {}; if (S.track === q.id) S.track = 'main'; L.saveState(S); music.sting('done');
+  const rw = q.reward || {}; if (S.track === q.id) S.track = 'main'; saveS(); music.sting('done');
   const n = SIDE.filter(sideClosed).length;
   openModal('<div class="chEnd side"><span class="chKick">Side case closed</span><h2>' + esc(q.title) + '</h2><p>' + esc(DISTRICTS[q.d].name) + '</p><div class="chStamp">CASE CLOSED</div><p class="chNext">' + n + ' of ' + SIDE.length + ' side cases closed. People remember how you handled this one.</p></div><div class="qAct"><button type="button" id="mDone">Back to patrol</button></div>');
   good(); $('mDone').onclick = () => { closeModal(); award(rw.rp || 100, 'side case'); if (rw.loot) queueLoot('Side case: ' + q.title, 1, rw.loot); };
@@ -616,7 +616,7 @@ function applyChoice(o) {
   if (o.set) S.flags[o.set] = Date.now();
   if (o.trust) { S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] == null ? 50 : S.trust[W.did]) + o.trust * 4 * (o.trust > 0 && hasSk('com2') ? 1.5 : 1))); }
   if (o.npc) Object.keys(o.npc).forEach((id) => { S.npc[id] = Math.max(0, Math.min(6, (S.npc[id] || 0) + o.npc[id])); });
-  L.saveState(S);
+  saveS();
 }
 function dialogue(lines, done) {
   const box = $('dlg'); let seq = lines.slice(), i = -1, typing = null, full = '';
@@ -634,7 +634,7 @@ function dialogue(lines, done) {
     const [id, text] = ln, c = who(id), radio = /^\(over the radio\)/.test(text); full = text.replace(/^\(over the radio\)\s*/, '');
     box.innerHTML = '<div class="dlgBar top"></div><div class="dlgBar bot"></div><div class="dlgPanel"><div class="dlgPort' + (radio ? ' radio' : '') + '"><span>' + (radio ? '📻' : c.icon) + '</span></div><div class="dlgTxt"><b>' + esc(c.name) + (radio ? ' <em>on the radio</em>' : '') + '</b><small>' + esc(c.role || '') + '</small><p id="dlgP"></p></div><i class="dlgNext">▸</i></div>';
     box.hidden = false; requestAnimationFrame(() => box.classList.add('on'));
-    let k = 0; const el = $('dlgP'); clearInterval(typing); typing = setInterval(() => { k += 2; el.textContent = full.slice(0, k); if (k >= full.length) { clearInterval(typing); typing = null; } }, 22);
+    const spd = { slow: 1, normal: 2, fast: 4, instant: 999 }[S.cfg.text] || 2; let k = 0; const el = $('dlgP'); clearInterval(typing); typing = setInterval(() => { k += spd; el.textContent = full.slice(0, k); if (k >= full.length) { clearInterval(typing); typing = null; } }, 22);
     if (radio) chirp(); else if (S.sound) beep(520 + (id.length * 37) % 300, .05, 'triangle', .025);
   };
   document.body.classList.add('cine');
@@ -647,7 +647,7 @@ function playStep(st) {
   storyBusy = true; paused = true; P.path = [];
   const A = activeQ(), c = A.q, idx = A.i, last = idx === c.steps.length - 1;
   const finish = () => {
-    if (A.side) S.side[c.id] = idx + 1; else S.story[c.d] = idx + 1; if (st.set) S.flags[st.set] = Date.now(); L.saveState(S); ord('story'); storyBusy = false; paused = false; storyCool = 2;
+    if (A.side) S.side[c.id] = idx + 1; else S.story[c.d] = idx + 1; if (st.set) S.flags[st.set] = Date.now(); saveS(); ord('story'); storyBusy = false; paused = false; storyCool = 2;
     if (last) (A.side ? sideDone(c) : chapterDone(c)); else { const nx = chStep(); if (nx) objectiveFlash(nx.goal); }
   };
   const afterQuiz = () => { if (st.after) dialogue(st.after, finish); else finish(); };
@@ -662,7 +662,7 @@ function playStep(st) {
   });
 }
 function chapterDone(c) {
-  const rw = c.steps[c.steps.length - 1].reward || {}; S.lore['ch' + c.d] = 1; L.saveState(S);
+  const rw = c.steps[c.steps.length - 1].reward || {}; S.lore['ch' + c.d] = 1; saveS();
   openModal('<div class="chEnd"><span class="chKick">Chapter ' + (c.d + 1) + ' complete</span><h2>' + esc(c.title) + '</h2><p>' + esc(c.sub) + '</p><div class="chStamp">CASE NOTES FILED</div>' +
     '<p class="chNext">' + (c.d < 4 ? 'Next: Chapter ' + (c.d + 2) + ', ' + esc(CHAPTERS[c.d + 1].title) + '. It opens when ' + esc(DISTRICTS[c.d + 1].name) + ' does.' : 'The story is complete. Port Meridian is yours to keep patrolling.') + '</p><p class="chLore">New entries in your Field Journal · +1 skill point</p></div><div class="qAct"><button type="button" id="mDone">Back to patrol</button></div>');
   good(); music.sting('done'); setTimeout(() => beep(1047, .3, 'triangle', .05), 200);
@@ -693,7 +693,7 @@ function storyCast(list, vis, now) {
   if (!vis(sx, sy)) return;
   list.push({ d: x + y, f: () => { if (c) { person(ctx, sx, sy, { kit: c.look, skin: c.skin, hair: '#1a1a1a', moving: false, face: -1, s: 1.04 }, now); label(sx, sy - 50, c.icon + ' ' + c.name, '#f5b800'); return; } if (n.cat) cat(sx, sy, now); else { const lk = n.look || {}; person(ctx, sx, sy, { kit: npcKit(lk), hair: lk.hair, skin: lk.skin, moving: false, face: -1 }, now); } label(sx, sy - (n.cat ? 26 : 48), n.icon + ' ' + n.name, '#7dd3fc'); } });
 }
-function unlockLore() { let n = 0; LORE.forEach((e) => { if (S.lore[e.id]) return; const w = e.when; if (w === 'start' || (w[0] === 'd' && S.unlocked.includes(+w.slice(1))) || (w.slice(0, 2) === 'ch' && S.lore[w])) { S.lore[e.id] = 1; n++; } }); if (n) L.saveState(S); return n; }
+function unlockLore() { let n = 0; LORE.forEach((e) => { if (S.lore[e.id]) return; const w = e.when; if (w === 'start' || (w[0] === 'd' && S.unlocked.includes(+w.slice(1))) || (w.slice(0, 2) === 'ch' && S.lore[w])) { S.lore[e.id] = 1; n++; } }); if (n) saveS(); return n; }
 let jTab = 'story';
 function journal() {
   unlockLore();
@@ -712,7 +712,7 @@ function journal() {
   if (jTab === 'cast') { const met = (id) => Object.keys(CAST).indexOf(id) >= 0 ? CHAPTERS.some((c) => c.steps.slice(0, S.story[c.d] || 0).some((st) => st.who === id || (st.say || []).some((l) => l[0] === id))) : false; body = Object.keys(CAST).map((id) => { const c = CAST[id], m = met(id); return '<div class="jP' + (m ? '' : ' unk') + '"><span>' + (m ? c.icon : '❔') + '</span><div><b>' + (m ? esc(c.name) : 'Not met yet') + '</b><small>' + (m ? esc(c.role) : '') + '</small>' + (m ? '<p>' + esc(c.bio) + '</p>' : '') + '</div></div>'; }).join('') + '<p class="lkSum">Regulars you have befriended: ' + Object.keys(S.npc || {}).filter((k) => S.npc[k] > 0).length + '</p>'; }
   if (jTab === 'lore') body = LORE.map((e) => S.lore[e.id] ? '<details class="jLore"><summary>' + esc(e.title) + '</summary><p>' + esc(e.text) + '</p></details>' : '<div class="jLore unk">??? <small>Keep patrolling to uncover this.</small></div>').join('');
   openModal('<div class="sceneHead"><b>FIELD JOURNAL · ' + esc(WORLD.city.toUpperCase()) + '</b><h2>' + ({ story: 'Quests', cast: 'The people you know', lore: 'Port Meridian' })[jTab] + '</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + '</p></div>' + tabs + '<div class="jBody">' + body + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
-  $('mClose').onclick = closeModal; document.querySelectorAll('[data-j]').forEach((b) => b.onclick = () => { jTab = b.dataset.j; journal(); }); document.querySelectorAll('[data-tr]').forEach((b) => b.onclick = () => { S.track = b.dataset.tr; L.saveState(S); beep(660, .06, 'triangle', .04); journal(); });
+  $('mClose').onclick = closeModal; document.querySelectorAll('[data-j]').forEach((b) => b.onclick = () => { jTab = b.dataset.j; journal(); }); document.querySelectorAll('[data-tr]').forEach((b) => b.onclick = () => { S.track = b.dataset.tr; saveS(); beep(660, .06, 'triangle', .04); journal(); });
 }
 
 // ---------- field abilities from the skill tree ----------
@@ -739,7 +739,7 @@ function skillsHTML() {
   return '<p class="lkSum"><b class="skPts">' + pts + '</b> skill point' + (pts === 1 ? '' : 's') + ' to spend. You earn one with every promotion and every story chapter.</p><div class="skTree">' + BRANCHES.map((b) => '<div class="skCol" style="--bc:' + b.color + '"><div class="skH"><span>' + b.icon + '</span><b>' + b.name + '</b><small>' + b.blurb + '</small></div>' +
     SKILLS.filter((k) => k.b === b.id).map((k) => { const has = hasSk(k.id), can = canLearn(S, k) && pts > 0; return '<button type="button" class="skNode' + (has ? ' has' : can ? ' can' : ' no') + (k.active ? ' act' : '') + '" data-sk="' + k.id + '"' + (has || !can ? ' disabled' : '') + '><i>' + (has ? '✓' : k.tier) + '</i><span><b>' + esc(k.name) + (k.active ? ' <em>Active</em>' : '') + '</b><small>' + esc(k.text) + '</small></span></button>'; }).join('') + '</div>').join('') + '</div>';
 }
-function learn(id) { S.skills = S.skills || {}; S.skills[id] = Date.now(); L.saveState(S); refreshGear(); abilitiesInit(); hud(); beep(784, .12, 'triangle', .05); beep(1175, .2, 'triangle', .05, .1); }
+function learn(id) { S.skills = S.skills || {}; S.skills[id] = Date.now(); saveS(); refreshGear(); abilitiesInit(); hud(); beep(784, .12, 'triangle', .05); beep(1175, .2, 'triangle', .05, .1); }
 
 // ---------- ambience: clouds, fireflies, steam, wet reflections, color grade ----------
 let AMB = { grass: [], holes: [] };
@@ -764,6 +764,7 @@ function ambienceGlow(glow, now) { // additive pass at night
   if (FX.rain && !inside) W.props.forEach((p) => { if (p.t !== 'lamp' || !p.on) return; const [ix, iy] = iso(p.x, p.y); glow(ix + 10, iy + 10, 22, 'rgba(255,214,150,.22)'); glow(ix + 10, iy + 26, 14, 'rgba(255,214,150,.14)'); });
 }
 function grade(dk) { // screen-space color grade by time of day
+  if (S.cfg.quality === 'low') return;
   const h = hourNow(); ctx.setTransform(1, 0, 0, 1, 0, 0);
   const g = ctx.createLinearGradient(0, 0, 0, cv.height);
   if (h >= 6 && h < 8.5) { g.addColorStop(0, 'rgba(255,170,120,.16)'); g.addColorStop(1, 'rgba(255,220,180,0)'); }
@@ -822,16 +823,16 @@ function titleScreen() {
   const t = $('title'); t.hidden = false;
   t.innerHTML = '<div class="tiBadge"><svg viewBox="0 0 64 72"><defs><linearGradient id="tiG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset=".5" stop-color="#f5b800"/><stop offset="1" stop-color="#a86f00"/></linearGradient></defs><path d="M32 3l25 9v19c0 18-11 31-25 38C18 62 7 49 7 31V12z" fill="url(#tiG)" stroke="#5c3d00" stroke-width="1.6"/><path d="M32 10l19 7v14c0 14-8 24-19 30-11-6-19-16-19-30V17z" fill="#0b1630" stroke="#ffe27a" stroke-width="1.2"/><path d="M32 17l3 6.2 6.8 1-4.9 4.8 1.2 6.8-6.1-3.2-6.1 3.2 1.2-6.8-4.9-4.8 6.8-1z" fill="#ffe27a"/><text x="32" y="52" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-weight="800" font-size="8" fill="#ffe27a" letter-spacing="1">PMPD</text></svg></div>' +
     '<h1 class="tiLogo"><span>PATROL</span><span>CITY</span><i class="tiShine"></i></h1><div class="tiSub">' + esc(WORLD.city.toUpperCase()) + ' · FIELD IMMERSION PROGRAM</div><div class="tiClass">' + esc(WORLD.tagline.split('·')[1] || '') + ' · Chapter 5</div>' +
-    '<button type="button" class="tiGo" id="tiGo">Tap to begin</button><div class="tiFoot"><button type="button" id="tiSnd">' + (S.sound ? '🔊 Sound on' : '🔇 Sound off') + '</button><span>A training simulation. Every scenario is a sim round.</span></div>';
+    '<div class="tiMenu"></div><div class="tiVer">' + STUDIO.ver + ' · A ' + STUDIO.name.replace(/\b(\w)(\w*)/g, (m, a, b) => a + b.toLowerCase()) + ' production</div><div class="tiFoot"><button type="button" id="tiSnd">' + (S.sound ? '🔊 Sound on' : '🔇 Sound off') + '</button><span>A training simulation. Every scenario is a sim round.</span></div>';
   requestAnimationFrame(() => t.classList.add('in'));
-  $('tiSnd').onclick = (e) => { e.stopPropagation(); S.sound = !S.sound; L.saveState(S); $('tiSnd').textContent = S.sound ? '🔊 Sound on' : '🔇 Sound off'; if (S.sound) { audio(); music.start('title'); } else music.stop(); };
+  $('tiSnd').onclick = (e) => { e.stopPropagation(); S.sound = !S.sound; saveS(); $('tiSnd').textContent = S.sound ? '🔊 Sound on' : '🔇 Sound off'; if (S.sound) { audio(); music.start('title'); } else music.stop(); };
   let started = false; const go = () => { if (started) return; started = true; audio(); if (S.sound) music.start('title'); if (S.sound) { beep(392, .5, 'triangle', .05); beep(587, .7, 'triangle', .05, .15); } t.classList.add('out'); setTimeout(() => { t.hidden = true; t.classList.remove('in', 'out'); if (!S.seenIntro) coldOpen(startScreen); else startScreen(); }, 900); };
-  $('tiGo').onclick = go; t.onclick = (e) => { if (e.target.closest('#tiSnd')) return; go(); };
+  mainMenu(go); t.onclick = null; if (S.sound) { audio(); music.volume(S.cfg.music); music.start('title'); }
 }
 // first time only: the world in four lines, over the city
 function coldOpen(done) {
   const el = $('intro'); let i = 0; el.hidden = false;
-  const show = () => { el.classList.remove('in'); void el.offsetWidth; if (i >= WORLD.intro.length) { el.classList.remove('in'); setTimeout(() => { el.hidden = true; S.seenIntro = 1; L.saveState(S); done(); }, 600); return; } el.innerHTML = '<p class="inLine">' + esc(WORLD.intro[i]) + '</p><small>Tap to continue · <button type="button" id="inSkip">Skip</button></small>'; el.classList.add('in'); $('inSkip').onclick = (e) => { e.stopPropagation(); i = 99; show(); }; i++; };
+  const show = () => { el.classList.remove('in'); void el.offsetWidth; if (i >= WORLD.intro.length) { el.classList.remove('in'); setTimeout(() => { el.hidden = true; S.seenIntro = 1; saveS(); done(); }, 600); return; } el.innerHTML = '<p class="inLine">' + esc(WORLD.intro[i]) + '</p><small>Tap to continue · <button type="button" id="inSkip">Skip</button></small>'; el.classList.add('in'); $('inSkip').onclick = (e) => { e.stopPropagation(); i = 99; show(); }; i++; };
   el.onclick = show; show();
 }
 
@@ -889,7 +890,7 @@ function runQuestions(head, qs, done) {
       const ans = q.multi ? picked.slice() : picked[0], ok = L.isRight(q, ans); L.record(S, q, ok); SS.answered++; if (ok) { SS.right++; COMBO++; bestCombo = Math.max(bestCombo, COMBO); ord('right'); if (COMBO === 5) ord('streak'); } else COMBO = 0; comboHud(); if (ok) { right++; good(); } else bad();
       opts.forEach((b) => { const k = +b.dataset.k, isC = q.multi ? q.c.indexOf(k) >= 0 : k === q.c; b.disabled = true; if (isC) b.classList.add('ok'); else if (picked.indexOf(k) >= 0) b.classList.add('no'); });
       $('qFb').innerHTML = '<div class="fb ' + (ok ? 'ok' : 'no') + '"><b>' + (ok ? (COMBO >= 3 ? '🔥 ' + COMBO + ' in a row. ' : 'Correct.') : 'Not quite.' + (bestCombo >= 3 && COMBO === 0 ? ' Streak reset.' : '')) + '</b> ' + esc(q.fact || q.ex) + ' <em>p. ' + esc(q.pg) + '</em></div>';
-      const go = $('qGo'); go.disabled = false; go.textContent = i < qs.length - 1 ? 'Next' : 'Finish'; go.onclick = () => { i++; if (i < qs.length) show(); else { L.saveState ? L.saveState(S) : 0; done({ right, n: qs.length }); } };
+      const go = $('qGo'); go.disabled = false; go.textContent = i < qs.length - 1 ? 'Next' : 'Finish'; go.onclick = () => { i++; if (i < qs.length) show(); else { saveS(); done({ right, n: qs.length }); } };
     };
     opts.forEach((b) => b.onclick = () => { const k = +b.dataset.k; if (q.multi) { const at = picked.indexOf(k); if (at >= 0) picked.splice(at, 1); else picked.push(k); b.classList.toggle('sel'); $('qGo').disabled = !picked.length; } else { picked = [k]; submit(); } });
     $('qGo').onclick = () => { if (q.multi && picked.length) submit(); };
@@ -900,7 +901,7 @@ const FLOATS = [];
 let COMBO = 0, bestCombo = 0;
 const comboMult = () => 1 + Math.min(COMBO, 10) * .03;
 function award(xp, why) {
-  const before = L.rankOf(S.xp).name; xp = Math.round(xp * comboMult()); S.xp += xp; SS.rp += xp; const after = L.rankOf(S.xp).name; L.saveState(S); hud();
+  const before = L.rankOf(S.xp).name; xp = Math.round(xp * comboMult()); S.xp += xp; SS.rp += xp; const after = L.rankOf(S.xp).name; saveS(); hud();
   FLOATS.push({ x: P.x, y: P.y, t: performance.now(), text: '+' + xp + ' RP', sub: why + (COMBO >= 3 ? ' · 🔥x' + comboMult().toFixed(2).replace(/0$/, '') : '') });
   if (after !== before) setTimeout(() => promotion(after), 700);
   if (net) net.status('patrol');
@@ -912,7 +913,7 @@ function floatsDraw(now) {
 }
 // the promotion ceremony
 function promotion(rank) {
-  music.sting('promo');
+  music.sting('promo'); shake(8, .6);
   const lvl = [0, 200, 600, 1200, 2000, 3000, 4200, 5600, 7200, 9000].filter((t) => S.xp >= t).length, opened = SLOTS.filter((sl) => sl.need && S.xp >= sl.need && S.xp - sl.need < 400);
   const el = document.createElement('div'); el.className = 'promo';
   el.innerHTML = '<canvas class="rvFx"></canvas><div class="promoRays"></div><div class="promoBox"><div class="promoBadge"><svg viewBox="0 0 64 72"><defs><linearGradient id="pbG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#d49b00"/></linearGradient></defs><path d="M32 3l25 9v19c0 18-11 31-25 38C18 62 7 49 7 31V12z" fill="url(#pbG)" stroke="#7a5600" stroke-width="2"/><path d="M32 10l19 7v14c0 14-8 24-19 30-11-6-19-16-19-30V17z" fill="#13234a" stroke="#ffe27a" stroke-width="1.5"/><path d="M32 15l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4.1 5.8-.8z" fill="#ffe27a"/><text x="32" y="51" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-weight="800" font-size="17" fill="#fff">' + lvl + '</text></svg></div>' +
@@ -935,13 +936,13 @@ let SS = { rp: 0, calls: 0, right: 0, answered: 0, ords: {} };
 function ordersInit() {
   try { $('orders').classList.toggle('open', !!localStorage.getItem('patrolcity:ordOpen')); } catch (e) {}
   const key = new Date().toDateString() + ':' + S.shift + ':' + W.did;
-  if (!S.orders || S.orders.key !== key) { const pool = ORDERS.slice().sort(() => Math.random() - .5).slice(0, 3); S.orders = { key, list: pool.map((o) => ({ id: o[0], text: o[1], need: o[2], have: 0, done: false })) }; L.saveState(S); }
+  if (!S.orders || S.orders.key !== key) { const pool = ORDERS.slice().sort(() => Math.random() - .5).slice(0, 3); S.orders = { key, list: pool.map((o) => ({ id: o[0], text: o[1], need: o[2], have: 0, done: false })) }; saveS(); }
   ordersHud();
 }
 function ord(id, n) {
   SS.ords[id] = (SS.ords[id] || 0) + (n || 1); if (!S.orders) return; let changed = false;
   S.orders.list.forEach((o) => { if (o.id !== id || o.done) return; o.have = Math.min(o.need, o.have + (n || 1)); changed = true; if (o.have >= o.need) { o.done = true; FLOATS.push({ x: P.x, y: P.y, t: performance.now() + 300, text: 'ORDER COMPLETE', sub: o.text }); beep(784, .12, 'triangle', .05); beep(1175, .2, 'triangle', .05, .1); setTimeout(() => award(60, 'shift order'), 300); if (S.orders.list.every((x) => x.done)) setTimeout(() => queueLoot('All shift orders complete', 1, 'r'), 900); else queueLoot('Shift order: ' + o.text, .4); } });
-  if (changed) { L.saveState(S); ordersHud(); }
+  if (changed) { saveS(); ordersHud(); }
 }
 function comboHud() { const el = $('hCombo'); if (!el) return; el.hidden = COMBO < 2; el.innerHTML = '🔥 <b>' + COMBO + '</b><small>x' + comboMult().toFixed(2) + '</small>'; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
 function ordersHud() {
@@ -1025,8 +1026,8 @@ function districtBoard(tabs) {
       '<div class="dAct">' + (cl ? '<span class="cleared">★ District cleared</span>' : '') + (un && !here ? '<button type="button" data-go="' + d.id + '">Patrol here</button>' : '') + (here && !cl ? '<button type="button" data-final="1" ' + (m.ready ? '' : 'disabled') + '>' + (m.ready ? 'Take the District Final Call' : 'Final Call · master every lesson first') + '</button>' : '') + '</div></div>';
   }).join('');
   openModal('<div class="uNow" style="--uc:' + U().color + '"><span>' + U().icon + '</span><div><b>' + esc(unitName(U())) + '</b><small>' + esc(U().perk) + '</small></div><button type="button" id="uSw">Switch unit</button></div><div class="sceneHead"><b>CITY MAP · DISTRICTS</b><h2>Master a district to open the next one</h2><p>A lesson is mastered at 80% or better over your last ten answers on it (at least eight).</p></div>' + (tabs || '') + '<div class="dList">' + rows + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
-  $('mClose').onclick = closeModal; $('uSw').onclick = unitPicker; document.querySelectorAll('[data-j]').forEach((b) => b.onclick = () => { jTab = b.dataset.j; journal(); }); document.querySelectorAll('[data-tr]').forEach((b) => b.onclick = () => { S.track = b.dataset.tr; L.saveState(S); beep(660, .06, 'triangle', .04); journal(); });
-  document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { closeModal(); S.home = S.home == null ? +b.dataset.go : S.home; L.saveState(S); clock = 0; load(+b.dataset.go); });
+  $('mClose').onclick = closeModal; $('uSw').onclick = unitPicker; document.querySelectorAll('[data-j]').forEach((b) => b.onclick = () => { jTab = b.dataset.j; journal(); }); document.querySelectorAll('[data-tr]').forEach((b) => b.onclick = () => { S.track = b.dataset.tr; saveS(); beep(660, .06, 'triangle', .04); journal(); });
+  document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { closeModal(); S.home = S.home == null ? +b.dataset.go : S.home; saveS(); clock = 0; travel(+b.dataset.go); });
   const fb = document.querySelector('[data-final]'); if (fb) fb.onclick = finalCall;
 }
 function finalCall() {
@@ -1034,7 +1035,7 @@ function finalCall() {
   runQuestions('<div class="sceneHead p1"><b>DISTRICT FINAL CALL · ' + esc(W.D.name.toUpperCase()) + '</b><h2>Major incident. Everything you have learned here.</h2><p>Handle 8 of 10 by the book to clear the district.</p></div>', qs, (r) => {
     const pass = r.right >= 8, nx = (W.did + 1) % 5;
     if (pass) { if (!S.cleared.includes(W.did)) S.cleared.push(W.did); if (!S.unlocked.includes(nx)) S.unlocked.push(nx); }
-    L.saveState(S);
+    saveS();
     openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'DISTRICT CLEARED' : 'NOT YET') + '</b><h2>' + r.right + ' of 10</h2><p>' + (pass ? DISTRICTS[nx].name + ' is now open. The barricade on the road out is down.' : 'You need 8 of 10. Keep working calls, then try again.') + '</p></div><div class="qAct"><button type="button" id="mDone">Back to patrol</button></div>');
     $('mDone').onclick = () => { closeModal(); award(pass ? 300 : 40, pass ? 'district cleared' : 'final call attempt'); if (pass) queueLoot('District cleared: ' + W.D.name, 1, 'r'); };
   });
@@ -1043,7 +1044,7 @@ function gatePrompt(g) {
   const d = DISTRICTS[g.to];
   if (!S.unlocked.includes(g.to)) { toast('🔒 ' + d.name + ' is locked. Master ' + W.D.name + ' and pass its Final Call to open it.'); return; }
   openModal('<div class="sceneHead"><b>DISTRICT LINE</b><h2>Head into ' + esc(d.name) + '?</h2><p>' + esc(d.unit) + '. ' + esc(d.blurb) + '</p></div><div class="qAct"><button type="button" id="gGo">Patrol ' + esc(d.name) + '</button><button type="button" class="ghost" id="gNo">Stay here</button></div>');
-  $('gGo').onclick = () => { closeModal(); load(g.to); }; $('gNo').onclick = closeModal;
+  $('gGo').onclick = () => { closeModal(); travel(g.to); }; $('gNo').onclick = closeModal;
 }
 function endOfWatch() {
   scene = {}; const acc = SS.answered ? SS.right / SS.answered : 0, od = S.orders ? S.orders.list.filter((o) => o.done).length : 0;
@@ -1053,7 +1054,7 @@ function endOfWatch() {
     '<div class="rptGrid"><div><em>' + SS.calls + '</em><span>Calls cleared</span></div><div><em>' + Math.round(acc * 100) + '%</em><span>Accuracy</span></div><div><em>' + bestCombo + '</em><span>Best streak</span></div><div><em>' + od + '/3</em><span>Shift orders</span></div><div><em>' + SS.rp + '</em><span>RP earned</span></div><div><em>' + esc(L.rankOf(S.xp).name) + '</em><span>Rank</span></div></div>' +
     '<div class="rptGrade g' + grade + '"><span>' + grade + '</span></div><p class="rptNote">' + esc(note) + '</p>' + masteryLine() + '</div><div class="qAct"><button type="button" id="eNext">Start next shift</button></div>');
   if (S.sound) [523, 659, 784].forEach((f, i) => beep(f, .25, 'triangle', .05, .5 + i * .1));
-  $('eNext').onclick = () => { const i = SHIFTS.findIndex((x) => x.id === S.shift); S.shift = SHIFTS[(i + 1) % 3].id; L.saveState(S); clock = 0; closeModal(); load(W.did); award(grade === 'S' ? 120 : grade === 'A' ? 80 : 50, 'full shift · grade ' + grade); queueLoot('End of watch: found in your duty bag', 1, grade === 'S' ? 'r' : grade === 'A' ? 'u' : 'c'); };
+  $('eNext').onclick = () => { const i = SHIFTS.findIndex((x) => x.id === S.shift); S.shift = SHIFTS[(i + 1) % 3].id; saveS(); clock = 0; closeModal(); load(W.did); award(grade === 'S' ? 120 : grade === 'A' ? 80 : 50, 'full shift · grade ' + grade); queueLoot('End of watch: found in your duty bag', 1, grade === 'S' ? 'r' : grade === 'A' ? 'u' : 'c'); };
 }
 
 // ---------- HUD ----------
@@ -1073,7 +1074,8 @@ addEventListener('resize', placeOrders);
 function toast(t) { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 3800); }
 $('bCar').onclick = () => { if (inside) { toast('Head outside first. The door is the glowing spot by the exit.'); return; } if (P.boat) exitBoat(); else if (P.inCar) exitCar(); else if (pcar) { if (Math.hypot(pcar.x - P.x, pcar.y - P.y) < 2.2) enterCar(); else { toast('Walking back to your ' + U().ride.label.toLowerCase() + '.'); goTo(pcar.x, pcar.y, enterCar); } } };
 $('bMap').onclick = () => { jTab = chStep() ? 'story' : 'map'; journal(); }; $('bLock').onclick = locker;
-$('bSnd').onclick = () => { S.sound = !S.sound; L.saveState(S); hud(); if (S.sound) { audio(); music.start(moodNow()); } else music.stop(); };
+$('bPause').onclick = () => pauseMenu();
+$('bSnd').onclick = () => { S.sound = !S.sound; saveS(); hud(); if (S.sound) { audio(); music.start(moodNow()); } else music.stop(); };
 $('bMe').onclick = () => { cam.free = false; };
 $('zIn').onclick = () => setZoom(cam.z * 1.2); $('zOut').onclick = () => setZoom(cam.z / 1.2);
 $('bRadio').onclick = () => { const m = $('quick'); m.hidden = !m.hidden; $('bRadio').classList.remove('ping'); if (!m.hidden) { chatPanel(); setTimeout(() => { if (innerWidth > 700) { const i = $('chIn'); if (i) i.focus(); } }, 50); } };
@@ -1140,7 +1142,7 @@ function unitPicker() {
   let sel = S.unit;
   const draw = () => { openModal('<div class="sceneHead"><b>SPECIALTY UNIT</b><h2>Switch your training unit</h2><p>Your rank and RP stay with you.</p></div>' + unitCards(sel) + '<div class="qAct"><button type="button" id="uGo">Train with ' + esc(unitOf(sel).name) + '</button><button type="button" class="ghost" id="uNo">Cancel</button></div>');
     document.querySelectorAll('.uCard').forEach((b) => b.onclick = () => { sel = b.dataset.u; draw(); });
-    $('uGo').onclick = () => { if (P.inCar) exitCar(); if (P.boat) exitBoat(); S.unit = sel; L.saveState(S); closeModal(); load(W.did); }; $('uNo').onclick = closeModal; };
+    $('uGo').onclick = () => { if (P.inCar) exitCar(); if (P.boat) exitBoat(); S.unit = sel; saveS(); closeModal(); load(W.did); }; $('uNo').onclick = closeModal; };
   draw();
 }
 
@@ -1170,7 +1172,7 @@ function startScreen() {
     document.querySelectorAll('.uCard').forEach((b) => b.onclick = () => { unit = b.dataset.u; draw(); });
     document.querySelectorAll('[data-o]').forEach((b) => b.onclick = () => { S.outfit = b.dataset.o; draw(); });
     goState();
-    $('stGo').onclick = () => { if (!unit || !csOk()) return; audio(); endAttract(); S.cs = csNow(); S.shift = shift; S.unit = unit; if (S.home == null) { S.home = did; S.unlocked = [did]; } L.saveState(S); $('start').hidden = true; clock = 0; load(S.home != null && S.unlocked.includes(did) ? did : S.home); rollCall(); };
+    $('stGo').onclick = () => { if (!unit || !csOk()) return; audio(); endAttract(); S.cs = csNow(); S.shift = shift; S.unit = unit; if (S.home == null) { S.home = did; S.unlocked = [did]; } saveS(); $('start').hidden = true; clock = 0; travel(S.home != null && S.unlocked.includes(did) ? did : S.home, rollCall); };
   };
   draw(); $('start').hidden = false;
 }
@@ -1180,10 +1182,197 @@ function rollCall() {
   $('mDone').onclick = closeModal;
 }
 
+// ---------- front end: studio boot, main menu, settings, pause, loading, trophies, photo mode, credits ----------
+// Meridian Forge is the game's fictional in-world studio (it belongs to the Port Meridian setting).
+const STUDIO = { name: 'MERIDIAN FORGE', sub: 'INTERACTIVE', engine: 'SENTRY ENGINE', ver: 'v1.5.0' };
+S.cfg = Object.assign({ music: .8, sfx: .8, quality: 'high', shake: true, text: 'normal', motion: true }, S.cfg || {});
+const fe = () => $('fe');
+function feSound(kind) { if (!S.sound) return; if (kind === 'move') beep(880, .03, 'triangle', .02); else if (kind === 'ok') { beep(660, .06, 'triangle', .04); beep(990, .09, 'triangle', .035, .05); } else if (kind === 'back') beep(440, .07, 'triangle', .035); }
+// low boom and shimmer for the studio logo
+function boom() { const a = audio(); if (!a || !S.sound) return; const t = a.currentTime, o = a.createOscillator(), g = a.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(32, t + 1.6); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.5 * S.cfg.sfx, t + .04); g.gain.exponentialRampToValueAtTime(.0001, t + 2.2); o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + 2.3); [1047, 1319, 1568, 2093].forEach((f, i) => beep(f, 1.4, 'sine', .018, .5 + i * .09)); }
+// one tap to start: browsers only allow sound after a tap, so the studio logos play after it
+function bootSequence(done) {
+  const el = fe(); el.hidden = false; el.className = 'fe boot';
+  const quick = (() => { try { return sessionStorage.getItem('pc:booted') === '1'; } catch (e) { return false; } })();
+  el.innerHTML = '<div class="bootGate"><div class="bgMark">PATROL CITY</div><button type="button" class="bgGo">Press to start</button><small>🎧 Best with sound</small></div>';
+  const go = () => { el.onclick = null; audio(); try { sessionStorage.setItem('pc:booted', '1'); } catch (e) {} if (quick) { el.hidden = true; done(); return; } logos(); };
+  el.onclick = go; addEventListener('keydown', function k(e) { if (el.querySelector('.bootGate')) { removeEventListener('keydown', k); go(); } });
+  const logos = () => {
+    const seq = [
+      '<div class="stLogo"><svg viewBox="0 0 120 120" class="stMark"><defs><linearGradient id="mfG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#c98a00"/></linearGradient></defs><circle cx="60" cy="60" r="54" fill="none" stroke="url(#mfG)" stroke-width="3" class="draw"/><path d="M60 18 L71 49 L104 49 L77 68 L87 100 L60 81 L33 100 L43 68 L16 49 L49 49 Z" fill="none" stroke="url(#mfG)" stroke-width="3" stroke-linejoin="round" class="draw d2"/><path d="M38 74h44M44 84h32" stroke="#ffe9a8" stroke-width="3" stroke-linecap="round" class="draw d3"/></svg><b>' + STUDIO.name + '</b><span>' + STUDIO.sub + '</span><i class="stSweep"></i></div>',
+      '<div class="stLogo eng"><div class="engMark"><i></i><i></i><i></i></div><b>' + STUDIO.engine + '</b><span>Real-time city simulation</span></div>',
+      '<div class="advis"><h3>Training Simulation Advisory</h3><p>Patrol City is a training simulation. Every scenario uses <b>simulation rounds</b>. Nothing here replaces your agency\'s policy, your instructors, or the law.</p><p class="advSave"><span class="saveIco"></span>This game saves automatically. Don\'t close the page while this icon is showing.</p></div>'];
+    let i = -1, tm = 0;
+    const next = () => { clearTimeout(tm); i++; if (i >= seq.length) { el.onclick = null; el.classList.add('out'); setTimeout(() => { el.hidden = true; el.className = 'fe'; el.innerHTML = ''; done(); }, 700); return; }
+      el.innerHTML = '<div class="bootSlide">' + seq[i] + '</div><button type="button" class="bootSkip">Skip ›</button>'; if (i === 0) boom(); if (i === 1) [523, 784].forEach((f, k) => beep(f, .5, 'triangle', .03, k * .12));
+      el.querySelector('.bootSkip').onclick = (e) => { e.stopPropagation(); i = seq.length - 1; next(); };
+      tm = setTimeout(next, i === 2 ? 4200 : 3200); };
+    el.onclick = next; next();
+  };
+}
+// ---- settings ----
+function applyCfg() { music.volume(S.sound ? S.cfg.music : 0); resize(); }
+function settingsPanel(back) {
+  const c = S.cfg, seg = (k, opts) => '<div class="seg" data-k="' + k + '">' + opts.map(([v, t]) => '<button type="button" data-v="' + v + '" class="' + (String(c[k]) === String(v) ? 'on' : '') + '">' + t + '</button>').join('') + '</div>';
+  const el = fe(); el.hidden = false; el.onclick = null; el.className = 'fe menuBg';
+  el.innerHTML = '<div class="feCard"><div class="feHead"><span>Options</span><h2>Settings</h2></div><div class="setGrid">' +
+    '<label>Sound<div class="seg" data-k="sound"><button type="button" data-v="true" class="' + (S.sound ? 'on' : '') + '">On</button><button type="button" data-v="false" class="' + (S.sound ? '' : 'on') + '">Off</button></div></label>' +
+    '<label>Music volume<input type="range" min="0" max="1" step=".05" value="' + c.music + '" data-r="music"></label>' +
+    '<label>Effects volume<input type="range" min="0" max="1" step=".05" value="' + c.sfx + '" data-r="sfx"></label>' +
+    '<label>Graphics quality' + seg('quality', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra']]) + '</label>' +
+    '<label>Text speed' + seg('text', [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast'], ['instant', 'Instant']]) + '</label>' +
+    '<label>Camera shake' + seg('shake', [[true, 'On'], [false, 'Off']]) + '</label>' +
+    '<label>Motion effects' + seg('motion', [[true, 'Full'], [false, 'Reduced']]) + '</label>' +
+    '</div><div class="feBtns"><button type="button" class="feBtn" id="setBack">Back</button></div></div>';
+  el.querySelectorAll('.seg button').forEach((b) => b.onclick = () => { const k = b.closest('.seg').dataset.k; let v = b.dataset.v; if (v === 'true') v = true; else if (v === 'false') v = false;
+    if (k === 'sound') { S.sound = v; if (v) { audio(); music.start(ATTRACT ? 'title' : moodNow()); } else music.stop(); hud && !ATTRACT && hud(); } else c[k] = v; saveS(); applyCfg(); feSound('move'); settingsPanel(back); });
+  el.querySelectorAll('[data-r]').forEach((r) => r.oninput = () => { c[r.dataset.r] = +r.value; applyCfg(); if (r.dataset.r === 'sfx') beep(880, .05, 'triangle', .04); }); el.querySelectorAll('[data-r]').forEach((r) => r.onchange = () => saveS());
+  $('setBack').onclick = () => { feSound('back'); back(); };
+}
+// ---- trophies ----
+const TROPHIES = [
+  ['first', 'First Call', 'Clear your first call.', 'b', () => S.calls >= 1],
+  ['calls25', 'Working the Beat', 'Clear 25 calls.', 's', () => S.calls >= 25],
+  ['calls100', 'Seasoned', 'Clear 100 calls.', 'g', () => S.calls >= 100],
+  ['stripes', 'Stripes', 'Reach Squad Leader 4.', 'b', () => S.xp >= 200],
+  ['guide', 'Guide', 'Reach the rank of Guide.', 's', () => S.xp >= 2000],
+  ['graduate', 'Graduate', 'Reach the rank of Graduate.', 'g', () => S.xp >= 9000],
+  ['ch0', 'First Watch', 'Finish Chapter 1.', 'b', () => S.lore.ch0],
+  ['ch1', 'Where the Car Came From', 'Finish Chapter 2.', 'b', () => S.lore.ch1],
+  ['ch2', 'Everything Has a Serial Number', 'Finish Chapter 3.', 's', () => S.lore.ch2],
+  ['ch3', 'Clear Every Corner', 'Finish Chapter 4.', 's', () => S.lore.ch3],
+  ['ch4', 'By the Book', 'Finish the main story.', 'g', () => S.lore.ch4],
+  ['side1', 'Off the Beaten Path', 'Close a side case.', 'b', () => SIDE.some(sideClosed)],
+  ['sideall', 'Case Load', 'Close every side case.', 'g', () => SIDE.every(sideClosed)],
+  ['honest', 'Honest Lunch', 'Pay for the hot dog.', 'b', () => S.flags.paidDelgado],
+  ['notforsale', 'Not for Sale', 'Refuse to hear out Lassiter\'s offer.', 's', () => S.flags.firmArrest],
+  ['custody', 'Chain of Custody', 'Hold the stolen TV as evidence.', 's', () => S.flags.heldEvidence],
+  ['cat', 'Cat Whisperer', 'Earn Exhibit A\'s respect.', 'b', () => S.flags.catPatient],
+  ['payforward', 'Pay It Forward', 'Teach Pike instead of doing his work.', 's', () => S.flags.helpedPike],
+  ['time', 'Time Keeper', 'Decide the fate of the depot clock.', 'b', () => S.flags.clockFixed || S.flags.clockSlow],
+  ['lemon', 'Lemon Bars', 'Help Grandma Ruth start a neighborhood watch.', 'b', () => S.flags.ruthWatch],
+  ['drived', 'Driver\'s Ed', 'Set up practice for Tasha.', 'b', () => S.flags.tashaHelp],
+  ['allaboard', 'All Aboard', 'Send the 1924 whistle to the depot.', 'b', () => S.flags.whistleMuseum],
+  ['pillar', 'Pillar of the Community', 'Become friends with 5 regulars.', 's', () => Object.keys(S.npc || {}).filter((k) => S.npc[k] >= 3).length >= 5],
+  ['offmap', 'Off the Map', 'Find 5 secret spots.', 's', () => Object.keys(S.found || {}).length >= 5],
+  ['kitted', 'Fully Kitted', 'Collect 15 different items.', 's', () => Object.keys(S.items || {}).length >= 15],
+  ['citywide', 'City Wide', 'Unlock all five districts.', 's', () => S.unlocked.length >= 5],
+  ['carto', 'Cartographer', 'Explore half of a district.', 's', () => !inside && exTotal > 1 && exCount / exTotal >= .5]
+];
+TROPHIES.push(['plat', 'Port Meridian\'s Finest', 'Earn every other trophy.', 'p', () => TROPHIES.every((t) => t[0] === 'plat' || (S.trophies || {})[t[0]])]);
+const TIER = { b: ['Bronze', '#cd7f32'], s: ['Silver', '#c9d2dd'], g: ['Gold', '#f5b800'], p: ['Platinum', '#9ee7ff'] };
+let trT = 3, trQ = [], trBusy = false;
+function trophyCheck(dt) { trT -= dt; if (trT > 0 || ATTRACT) return; trT = 2; S.trophies = S.trophies || {}; let got = false; TROPHIES.forEach((t) => { if (S.trophies[t[0]]) return; let ok = false; try { ok = !!t[4](); } catch (e) {} if (ok) { S.trophies[t[0]] = Date.now(); trQ.push(t); got = true; } }); if (got) { saveS(); trophyToast(); } }
+function trophyToast() {
+  if (trBusy || !trQ.length) return; trBusy = true; const t = trQ.shift(), [tn, col] = TIER[t[3]], el = $('trToast');
+  el.innerHTML = '<span class="trCup" style="--c:' + col + '">🏆</span><div><small>Trophy unlocked · ' + tn + '</small><b>' + esc(t[1]) + '</b><em>' + esc(t[2]) + '</em></div>'; el.hidden = false; el.classList.remove('in'); void el.offsetWidth; el.classList.add('in');
+  if (S.sound) [784, 988, 1175, 1568].forEach((f, i) => beep(f, .4, 'sine', .03, i * .07));
+  setTimeout(() => { el.classList.remove('in'); setTimeout(() => { el.hidden = true; trBusy = false; trophyToast(); }, 450); }, 4200);
+}
+function trophyRoom(back) {
+  S.trophies = S.trophies || {}; const n = TROPHIES.filter((t) => S.trophies[t[0]]).length, el = fe(); el.hidden = false; el.onclick = null; el.className = 'fe menuBg';
+  el.innerHTML = '<div class="feCard wide"><div class="feHead"><span>' + n + ' of ' + TROPHIES.length + ' · ' + Math.round(n / TROPHIES.length * 100) + '%</span><h2>Trophies</h2><div class="trBar"><i style="width:' + (n / TROPHIES.length * 100) + '%"></i></div></div><div class="trGrid">' +
+    TROPHIES.map((t) => { const has = S.trophies[t[0]], [tn, col] = TIER[t[3]]; return '<div class="trItem' + (has ? ' has' : '') + '" style="--c:' + col + '"><span>' + (has ? '🏆' : '🔒') + '</span><div><b>' + esc(t[1]) + '</b><small>' + tn + (has ? ' · ' + new Date(has).toLocaleDateString() : '') + '</small><em>' + esc(t[2]) + '</em></div></div>'; }).join('') +
+    '</div><div class="feBtns"><button type="button" class="feBtn" id="trBack">Back</button></div></div>';
+  $('trBack').onclick = () => { feSound('back'); back(); };
+}
+// ---- credits (the fictional studio's team) ----
+function credits(back) {
+  const el = fe(); el.hidden = false; el.onclick = null; el.className = 'fe credits';
+  const roll = [['A ' + STUDIO.name + ' Production', ''], ['PATROL CITY', 'big'], ['Game Director', 'Avery Lindqvist'], ['Creative Director', 'Marcus Okoye'], ['Lead Writer', 'Simone Delacroix'], ['Narrative Design', 'Theo Park · Rania Haddad'], ['Lead Designer', 'Jonah Whitfield'], ['Systems Design', 'Priya Raman · Cole Brennan'], ['Level & World Design', 'Inez Moreno · Dmitri Volkov · Hana Sato'], ['Art Director', 'Celeste Navarro'], ['Environment Art', 'Kofi Mensah · Lena Fischer · Omar Aziz'], ['Character Art', 'Mei Tanaka · Ruth Adeyemi'], ['Lighting & VFX', 'Gabriel Costa'], ['Lead Engineer', 'Nadia Petrov'], ['Engine (' + STUDIO.engine + ')', 'Samuel Achebe · Ilse Varga · Diego Ruiz'], ['Online & Chat', 'Tara Quinn'], ['Audio Director', 'Elias Montgomery'], ['Original Score', 'Elias Montgomery · Joy Ferreira'], ['Sound Design', 'Felix Brandt'], ['UX & Accessibility', 'Amara Osei'], ['QA Lead', 'Ben Carver'], ['Subject Matter Review', 'The Port Meridian Training Unit'], ['Featuring', 'Sgt. Dana Castillo · Lt. Ray Okonkwo · Marjorie "Velvet" Hale · Cadet Jordan Pike · Cadet Riley Navarro · Exhibit A, as herself'], ['Special Thanks', 'Class 26-04 · every cadet who studied for this · Mr. Delgado\'s hot dog cart'], ['', 'No cadets were harmed in the making of this game. Every scenario is a sim round.'], ['', 'Meridian Forge, the Port Meridian Police Department and everyone in Port Meridian are fictional.'], ['THANK YOU FOR PLAYING', 'big']];
+  el.innerHTML = '<div class="crRoll">' + roll.map(([a, b]) => b === 'big' ? '<h2>' + esc(a) + '</h2>' : '<div class="crRow">' + (a ? '<small>' + esc(a) + '</small>' : '') + '<b>' + esc(b) + '</b></div>').join('') + '</div><button type="button" class="bootSkip" id="crBack">Back ›</button>';
+  const r = el.querySelector('.crRoll'); r.style.animationDuration = Math.max(30, roll.length * 2.4) + 's'; r.addEventListener('animationend', () => back());
+  $('crBack').onclick = (e) => { e.stopPropagation(); feSound('back'); back(); };
+}
+// ---- main menu on the title screen ----
+function mainMenu(go) {
+  const t = $('title'), has = !!S.cs, items = [[has ? 'Continue' : 'Begin Your Career', go, has ? S.cs + ' · ' + L.rankOf(S.xp).name : 'Port Meridian is waiting'], ['Settings', () => settingsPanel(menuBack)], ['Trophies', () => trophyRoom(menuBack), (S.trophies ? Object.keys(S.trophies).length : 0) + ' / ' + TROPHIES.length], ['Credits', () => credits(menuBack)]];
+  function menuBack() { const el = fe(); el.hidden = true; el.innerHTML = ''; el.className = 'fe'; t.querySelector('.tiMenu button') && t.querySelector('.tiMenu button').focus(); }
+  const m = t.querySelector('.tiMenu'); m.innerHTML = items.map((x, i) => '<button type="button" data-i="' + i + '"' + (i === 0 ? ' class="pri"' : '') + '><b>' + esc(x[0]) + '</b>' + (x[2] ? '<small>' + esc(x[2]) + '</small>' : '') + '</button>').join('');
+  m.querySelectorAll('button').forEach((b) => { b.onmouseenter = () => feSound('move'); b.onclick = (e) => { e.stopPropagation(); feSound('ok'); items[+b.dataset.i][1](); }; });
+  m.onkeydown = (e) => { const bs = [...m.querySelectorAll('button')], i = bs.indexOf(document.activeElement); if (e.key === 'ArrowDown') { bs[(i + 1) % bs.length].focus(); feSound('move'); e.preventDefault(); } if (e.key === 'ArrowUp') { bs[(i - 1 + bs.length) % bs.length].focus(); feSound('move'); e.preventDefault(); } };
+  setTimeout(() => { const b = m.querySelector('button'); if (b) b.focus({ preventScroll: true }); }, 900);
+}
+// ---- pause menu ----
+let PAUSED_BY_MENU = false;
+function pauseMenu() {
+  if (ATTRACT || PHOTO || !$('start').hidden) return; const el = fe(); if (!el.hidden) return;
+  const was = paused; paused = true; PAUSED_BY_MENU = true; el.hidden = false; el.className = 'fe pauseBg';
+  const close = () => { el.hidden = true; el.innerHTML = ''; el.className = 'fe'; paused = was; PAUSED_BY_MENU = false; };
+  const items = [['Resume', close], ['Field Journal', () => { close(); journal(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
+  function pauseMenuAgain() { el.hidden = true; paused = was; PAUSED_BY_MENU = false; pauseMenu(); }
+  const h = hourNow(), hh = String(Math.floor(h)).padStart(2, '0') + String(Math.floor((h % 1) * 60)).padStart(2, '0');
+  el.innerHTML = '<div class="pmBox"><div class="pmHead"><small>' + esc(W.D.name) + ' · ' + hh + ' hrs</small><h2>Paused</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + ' · ' + esc(L.rankOf(S.xp).name) + '</p></div><div class="tiMenu pm">' + items.map((x, i) => '<button type="button" data-i="' + i + '"' + (i === 0 ? ' class="pri"' : '') + '><b>' + x[0] + '</b></button>').join('') + '</div><div class="pmFoot">' + (activeQ() ? '<b>' + esc(activeQ().title) + '</b> · ' + esc(activeQ().step.goal) : 'Patrol your district') + '</div></div>';
+  el.querySelectorAll('.tiMenu button').forEach((b) => { b.onmouseenter = () => feSound('move'); b.onclick = () => { feSound('ok'); items[+b.dataset.i][1](); }; });
+  el.onclick = (e) => { if (e.target === el) close(); };
+  setTimeout(() => { const b = el.querySelector('.tiMenu button'); if (b) b.focus({ preventScroll: true }); }, 50);
+  pauseMenu.close = close;
+}
+addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { if (PHOTO) { photoExit(); return; } const el = fe(); if (!el.hidden && PAUSED_BY_MENU && pauseMenu.close) { pauseMenu.close(); return; } if (!$('modal').hidden || !$('dlg').hidden) return; pauseMenu(); }
+  if ((e.key === 'p' || e.key === 'P') && !e.target.closest('input,textarea') && !ATTRACT && $('modal').hidden && fe().hidden) { if (PHOTO) photoExit(); else photoMode(); }
+});
+// ---- loading screen between districts ----
+const TIPS = ['Plan first, every time. Where do you park, where do you stand?', 'Regulars remember how you treat them. So does the city.', 'Side cases change the main story in ways you won\'t see coming.', 'Code 3 gets you there faster, but it costs you later.', 'Press P (or Menu › Photo Mode) for photo mode. Port Meridian is photogenic at 1900 hrs.', 'Equip gear in the Locker. The right boots matter more than you think.', 'Answer streaks multiply your RP. Keep the fire going.', 'Midshift sees both Day and Night units on the street.', 'Exhibit A does not come when called. Exhibit A comes when ready.'];
+function travel(did, then) {
+  if (FAST) { load(did); if (then) then(); return; }
+  const D = DISTRICTS[did], lore = LORE.find((x) => x.when === 'd' + did) || LORE[0], el = $('ld');
+  el.innerHTML = '<div class="ldArt" style="--h:' + [215, 18, 190, 32, 265][did] + '"></div><div class="ldTxt"><small>Now entering</small><h2>' + esc(D.name) + '</h2><p>' + esc(lore.text.split('. ')[0]) + '.</p></div><div class="ldFoot"><div class="ldTip"><b>Tip</b> ' + esc(rnd(TIPS)) + '</div><div class="ldBar"><i></i></div></div>';
+  el.hidden = false; el.classList.remove('out'); paused = true;
+  const bar = el.querySelector('.ldBar i'); let p = 0; const t0 = performance.now();
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    load(did);
+    const tick = () => { p = Math.min(1, (performance.now() - t0) / 1500); bar.style.width = (p * 100) + '%'; if (p < 1) requestAnimationFrame(tick); else { el.classList.add('out'); setTimeout(() => { el.hidden = true; paused = false; if (then) then(); setTimeout(chapterCard, 400); }, 500); } };
+    tick();
+  }));
+}
+// ---- cinematic chapter cards ----
+const NUMW = ['One', 'Two', 'Three', 'Four', 'Five'];
+function chapterCard(force) {
+  if (FAST || inside) return; if (!$('modal').hidden || paused || !fe().hidden) { setTimeout(() => chapterCard(force), 700); return; }
+  const c = chap(); S.cards = S.cards || {}; if (!c || (!force && (S.cards[c.d] || (S.story[c.d] || 0) > 0))) return; S.cards[c.d] = 1; saveS();
+  const el = $('chCard'); el.innerHTML = '<div class="ccBars"></div><div class="ccIn"><small>Chapter ' + NUMW[c.d] + '</small><h2>' + esc(c.title) + '</h2><p>' + esc(c.sub) + '</p></div>'; el.hidden = false; el.classList.remove('out'); void el.offsetWidth; el.classList.add('in');
+  music.sting('promo'); paused = true; document.body.classList.add('cine'); const end = () => { el.onclick = null; el.classList.add('out'); document.body.classList.remove('cine'); setTimeout(() => { el.hidden = true; el.classList.remove('in', 'out'); paused = false; }, 600); };
+  const tm = setTimeout(end, 4200); el.onclick = () => { clearTimeout(tm); end(); };
+}
+// ---- autosave icon ----
+let saveVisT = 0;
+function saveS() { L.saveState(S); const now = performance.now(); if (now - saveVisT < 5000 || ATTRACT) return; saveVisT = now; const el = $('saving'); el.hidden = false; el.classList.add('in'); setTimeout(() => { el.classList.remove('in'); setTimeout(() => { el.hidden = true; }, 400); }, 1400); }
+// ---- camera shake ----
+const SHK = { t: 0, a: 0 };
+function shake(a, d) { if (!S.cfg.shake || !S.cfg.motion) return; SHK.a = Math.max(SHK.a, a); SHK.t = Math.max(SHK.t, d || .4); }
+function shakeUpdate(dt) { if (SHK.t <= 0) { if (cv.style.transform) cv.style.transform = ''; return; } SHK.t -= dt; const k = SHK.a * Math.max(0, SHK.t); cv.style.transform = 'translate(' + ((Math.random() - .5) * k * 2).toFixed(1) + 'px,' + ((Math.random() - .5) * k * 2).toFixed(1) + 'px)'; if (SHK.t <= 0) SHK.a = 0; }
+// ---- photo mode ----
+let PHOTO = null;
+const FILTERS = [['Natural', 'none'], ['Noir', 'grayscale(1) contrast(1.3) brightness(.95)'], ['Golden Hour', 'sepia(.35) saturate(1.4) hue-rotate(-12deg) brightness(1.06)'], ['Midnight', 'saturate(.65) hue-rotate(18deg) brightness(.85) contrast(1.15)'], ['Vintage Film', 'sepia(.6) contrast(.92) brightness(1.08) saturate(.8)'], ['Vivid', 'saturate(1.65) contrast(1.12)']];
+function photoMode() {
+  if (PHOTO || ATTRACT) return; closeModal(); PHOTO = { f: 0, vig: true, mark: true, was: paused }; paused = true; document.body.classList.add('photo');
+  const el = $('photo'); el.hidden = false;
+  const draw = () => { el.innerHTML = '<div class="phTop"><b>PHOTO MODE</b><small>Drag to frame · pinch or ± to zoom</small></div><div class="phBar"><div class="phF">' + FILTERS.map((f, i) => '<button type="button" data-f="' + i + '" class="' + (i === PHOTO.f ? 'on' : '') + '">' + f[0] + '</button>').join('') + '</div><div class="phR"><button type="button" id="phV" class="' + (PHOTO.vig ? 'on' : '') + '">Vignette</button><button type="button" id="phM" class="' + (PHOTO.mark ? 'on' : '') + '">Logo</button><button type="button" id="phZo">−</button><button type="button" id="phZi">+</button><button type="button" class="phShot" id="phShot">📸 Capture</button><button type="button" id="phX">Exit</button></div></div><div class="phVig' + (PHOTO.vig ? '' : ' off') + '"></div>' + (PHOTO.mark ? '<div class="phMark"><b>PATROL CITY</b><small>' + esc(WORLD.city) + ' · ' + esc(W.D.name) + '</small></div>' : '');
+    cv.style.filter = FILTERS[PHOTO.f][1] === 'none' ? '' : FILTERS[PHOTO.f][1];
+    el.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { PHOTO.f = +b.dataset.f; feSound('move'); draw(); });
+    $('phV').onclick = () => { PHOTO.vig = !PHOTO.vig; draw(); }; $('phM').onclick = () => { PHOTO.mark = !PHOTO.mark; draw(); };
+    $('phZi').onclick = () => { cam.z = Math.min(2.6, cam.z * 1.15); }; $('phZo').onclick = () => { cam.z = Math.max(.5, cam.z / 1.15); };
+    $('phShot').onclick = capture; $('phX').onclick = photoExit; };
+  draw();
+}
+function capture() {
+  const c = document.createElement('canvas'); c.width = cv.width; c.height = cv.height; const g = c.getContext('2d');
+  g.filter = FILTERS[PHOTO.f][1]; g.drawImage(cv, 0, 0); g.filter = 'none';
+  if (PHOTO.vig) { const v = g.createRadialGradient(c.width / 2, c.height / 2, Math.min(c.width, c.height) * .35, c.width / 2, c.height / 2, Math.max(c.width, c.height) * .75); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = v; g.fillRect(0, 0, c.width, c.height); }
+  if (PHOTO.mark) { const s = c.width / 1400; g.font = '900 ' + Math.round(54 * s) + 'px "Barlow Condensed", sans-serif'; g.fillStyle = 'rgba(255,255,255,.92)'; g.textBaseline = 'bottom'; g.fillText('PATROL', 36 * s, c.height - 62 * s); g.fillStyle = '#f5b800'; g.fillText('CITY', 36 * s + g.measureText('PATROL ').width, c.height - 62 * s); g.font = '700 ' + Math.round(18 * s) + 'px system-ui'; g.fillStyle = 'rgba(255,255,255,.75)'; g.fillText(WORLD.city + ' · ' + W.D.name + ' · ' + S.cs, 38 * s, c.height - 36 * s); }
+  const fl = document.createElement('div'); fl.className = 'phFlash'; document.body.appendChild(fl); setTimeout(() => fl.remove(), 600);
+  if (S.sound) { beep(2400, .03, 'square', .03); beep(1200, .06, 'square', .02, .05); }
+  try { const a = document.createElement('a'); a.download = 'patrol-city-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.png'; a.href = c.toDataURL('image/png'); a.click(); } catch (e) { toast('Could not save the photo on this device.'); }
+  S.photos = (S.photos || 0) + 1; saveS();
+}
+function photoExit() { if (!PHOTO) return; cv.style.filter = ''; document.body.classList.remove('photo'); $('photo').hidden = true; $('photo').innerHTML = ''; paused = PHOTO.was; PHOTO = null; }
+
 // ---------- boot ----------
-function resize() { dpr = Math.min(2, window.devicePixelRatio || 1); cw = innerWidth; ch = innerHeight; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; if (!S.zoom) cam.z = cw < 600 ? .85 : 1.15; else cam.z = S.zoom; }
+const FAST = /[?&]skiptitle\b/.test(location.search); // test / dev: no logos or loading screens
+function resize() { const q = (S.cfg || {}).quality || 'high'; dpr = Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : q === 'ultra' ? 3 : 2, window.devicePixelRatio || 1); cw = innerWidth; ch = innerHeight; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; if (!S.zoom) cam.z = cw < 600 ? .85 : 1.15; else cam.z = S.zoom; }
 addEventListener('resize', resize); resize();
-function frame(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); } render(now); } requestAnimationFrame(frame); }
+function frame(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; shakeUpdate(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); } render(now); } requestAnimationFrame(frame); }
 // ---------- the unlock from the study hub ----------
 // The hub opens this page with a pass code once the cadet passes a 100-question test at 85% or better.
 function hubCheck(s) { let h = 2166136261; const t = s + '|patrol-city'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }
@@ -1210,7 +1399,7 @@ function lockedScreen() {
   $('loading').textContent = 'Loading the city…';
   try { await L.loadBank('../ch5.json'); } catch (e) { $('loading').textContent = 'Could not load the question bank. Check your connection and refresh.'; return; }
   $('loading').hidden = true;
-  attractStart(); requestAnimationFrame(frame); if (/[?&]skiptitle\b/.test(location.search)) { S.seenIntro = 1; startScreen(); } else titleScreen();
+  attractStart(); requestAnimationFrame(frame); applyCfg(); if (FAST) { S.seenIntro = 1; startScreen(); } else bootSequence(titleScreen);
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); } if (net && W && !ATTRACT) net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name }); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
