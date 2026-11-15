@@ -280,7 +280,7 @@ function runQuestions(head, qs, done) {
   };
   show();
 }
-function award(xp, why) { const before = L.rankOf(S.xp).name; S.xp += xp; const after = L.rankOf(S.xp).name; L.saveState(S); hud(); toast('+' + xp + ' XP · ' + why); if (after !== before) setTimeout(() => { chirp(); toast('Promoted to ' + after + '!'); }, 900); if (net) net.status('patrol'); }
+function award(xp, why) { const before = L.rankOf(S.xp).name; S.xp += xp; const after = L.rankOf(S.xp).name; L.saveState(S); hud(); toast('+' + xp + ' RP · ' + why); if (after !== before) setTimeout(() => { chirp(); toast('Promoted to ' + after + '!'); }, 900); if (net) net.status('patrol'); }
 function openCallScene(c) {
   if (net) net.status('call');
   const n = c.prio === 1 ? 4 : 3, qs = L.pick(S, [c.les], 'q', n), fast = clock - c.t0 < 40;
@@ -353,7 +353,7 @@ function endOfWatch() {
 // ---------- HUD ----------
 function hud() {
   const r = L.rankOf(S.xp), m = L.districtMastery(S, W.did);
-  $('hCs').textContent = S.cs; $('hRank').textContent = r.name + ' · ' + S.xp + ' XP';
+  $('hCs').textContent = S.cs; $('hRank').textContent = r.name + ' · ' + S.xp + ' RP';
   $('hDist').textContent = W.D.name; $('hDist').style.setProperty('--dc', W.D.color);
   $('hMast').style.setProperty('--p', Math.round(m.pct * 100)); $('hMastN').textContent = m.done + '/' + m.total;
   $('bCar').textContent = P.inCar ? 'Exit car' : 'Car'; $('bCar').classList.toggle('on', P.inCar);
