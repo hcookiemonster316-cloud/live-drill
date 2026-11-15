@@ -1,5 +1,5 @@
 // Patrol City: game loop, camera, input, people and traffic, lighting, dispatch, learning scenes and HUD.
-import { N, TW, TH, T, CH, iso, unIso, buildDistrict, drawGround, setRes, RES, drawBuilding, drawProp, car, person, dog, vehicle, CAR_COLORS, shade } from './world.js';
+import { N, TW, TH, T, CH, iso, unIso, buildDistrict, drawGround, setRes, setSun, RES, drawBuilding, drawProp, car, person, dog, vehicle, CAR_COLORS, shade } from './world.js';
 import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
 import * as L from './learn.js';
 import { startNet } from './net.js';
@@ -79,7 +79,7 @@ function sunFor(h) { return isNight(h) ? { len: 0, a: 0 } : { len: Math.round(18
 let SUN = null, SPR_LIT = 1, lampT = 0;
 // building sprites are drawn the first time they come on screen and dropped again when long unseen
 function buildSprites() {
-  const h = hourNow(); NIGHT = isNight(h); SUN = sunFor(h); SPR_LIT = !NIGHT ? 0 : h >= 18 && h < 23 ? 1.5 : h >= 23 || h < 2 ? 1 : .5; lampsUpdate(h);
+  const h = hourNow(); NIGHT = isNight(h); SUN = sunFor(h); setSun(inside ? 0 : SUN.len); SPR_LIT = !NIGHT ? 0 : h >= 18 && h < 23 ? 1.5 : h >= 23 || h < 2 ? 1 : .5; lampsUpdate(h);
   SPR = W.buildings.map((b) => { const A = iso(b.x, b.y), Bp = iso(b.x + b.w, b.y), C = iso(b.x + b.w, b.y + b.d), Dp = iso(b.x, b.y + b.d), ex = b.dome ? 60 : 30;
     return { b, depth: b.x + b.w - 1 + b.y + b.d - 1 + .9, bx: Dp[0] - 6, by: A[1] - b.h - ex, bw: Bp[0] - Dp[0] + 80, bh: C[1] - A[1] + b.h + ex + 40, canvas: null, lights: [] }; });
 }
@@ -243,9 +243,9 @@ function render(now) {
   Object.keys(others).forEach((k) => { const o = others[k]; if ((o.n == null ? -1 : o.n) !== (inside ? inside.idx : -1)) return; const [sx, sy] = iso(o.rx, o.ry); if (!vis(sx, sy)) return; list.push({ d: o.rx + o.ry, f: () => { const ou = unitOf(o.u); if (o.v) vehicle(ctx, sx, sy, o.d || 0, o.v === 2 ? { kind: 'boat' } : ou.ride, now, NIGHT, o.st === 'call'); else { person(ctx, sx, sy, { kit: kitWith(kitOf((String(o.f || '').split(',').find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1), o.u), o.f ? looks(String(o.f).split(',')) : {}), moving: o.moving, face: 1, skin: o.skin, s: 1 }, now); if (o.u === 'k9') dog(ctx, sx - 14, sy + 6, 1, o.moving, now); { const tk = String(o.f || 'ostd').split(','), of = (tk.find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1); flair(Object.assign({}, outfitLook(of), looks(tk)), sx, sy, now, 1); } } const mate = S.squad && o.g === S.squad.code; if (mate) { ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, 15, 7.5, 0, 0, Math.PI * 2); ctx.stroke(); } label(sx, sy - (o.v ? 40 : 50), (o.k ? '[' + o.k + '] ' : '') + ou.icon + ' ' + o.c + (o.sh && o.sh !== S.shift ? ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') : ''), '#9cc3ff'); if (o.say && performance.now() - o.sayAt < 7000) speech(sx, sy - (o.v ? 52 : 68), o.say.length > 34 ? o.say.slice(0, 32) + '…' : o.say); else if (o.q && now - o.qAt < 6000) speech(sx, sy - (o.v ? 52 : 68), QUICK[o.q.k] || ''); } }); });
   if (!ATTRACT) { const [sx, sy] = iso(P.x, P.y); list.push({ d: P.x + P.y, f: () => { if (P.boat) vehicle(ctx, sx, sy, P.dir, { kind: 'boat' }, now, NIGHT, call && call.accepted); else if (P.inCar) vehicle(ctx, sx, sy, P.dir, U().ride, now, NIGHT, call && call.accepted); else person(ctx, sx, sy, { kit: kitWith(myKit(), myLooks()), moving: P.moving, face: P.face, skin: S.skin || '#c68e63', s: 1.08 }, now); } }); }
   liveDraw(list, vis, now); if (!ATTRACT) storyCast(list, vis, now);
-  ambienceGround();
+  ambienceGround(); vfxGround(now, vis);
   list.sort((a, b) => a.d - b.d).forEach((e) => e.f());
-  ambienceWorld(now);
+  ambienceWorld(now); sirenWash(now);
   // player ghost outline so you never lose yourself behind a building
   { const [sx, sy] = iso(P.x, P.y); ctx.globalAlpha = .35; ctx.strokeStyle = '#f5b800'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, 13, 6.5, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
   if (P.path.length) { const [tx, ty] = P.path[P.path.length - 1], [sx, sy] = iso(tx, ty); ctx.strokeStyle = 'rgba(245,184,0,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, 10 + Math.sin(now / 150) * 2, 5, 0, 0, Math.PI * 2); ctx.stroke(); }
@@ -274,6 +274,8 @@ function render(now) {
     W.props.forEach((p) => { if (p.t === 'lamp' && p.on) { const [ix, iy] = iso(p.x, p.y); glow(ix + 10, iy - 37, 18, 'rgba(255,220,150,.55)'); glow(ix + 10, iy - 37, 46, 'rgba(255,200,120,.12)'); glow(ix + 10, iy - 2, 40, 'rgba(255,190,110,.10)'); } });
     // lit windows and signs spill a little warm light; cars show headlights and taillights
     SPR.forEach((sp) => { if (sp.canvas) sp.lights.forEach((q, k) => { if (k % 2 === 0) glow(q[0], q[1], 16, 'rgba(255,214,140,.10)'); }); });
+    if (dk.a > .3) { const beam = (sx, sy, dir) => { const f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][dir & 3], x0 = sx + f[0] * 14, y0 = sy + f[1] * 14 - 4, x1 = sx + f[0] * 120, y1 = sy + f[1] * 120, nx = -f[1] * 34, ny = f[0] * 34, X = (v) => cv.width / 2 + (v - cam.x) * z, Yy = (v) => cv.height / 2 + (v - cam.y) * z; const bg = ctx.createLinearGradient(X(x0), Yy(y0), X(x1), Yy(y1)); bg.addColorStop(0, 'rgba(255,245,215,.22)'); bg.addColorStop(1, 'rgba(255,245,215,0)'); ctx.fillStyle = bg; ctx.beginPath(); ctx.moveTo(X(x0 - nx * .15), Yy(y0 - ny * .15)); ctx.lineTo(X(x1 - nx), Yy(y1 - ny)); ctx.lineTo(X(x1 + nx), Yy(y1 + ny)); ctx.lineTo(X(x0 + nx * .15), Yy(y0 + ny * .15)); ctx.closePath(); ctx.fill(); };
+      traffic.forEach((c) => { const off = laneOff(c), [ix, iy] = iso(c.x + off[0], c.y + off[1]); beam(ix, iy, c.dir); }); if (P.inCar && !inside) { const [ix, iy] = iso(P.x, P.y); beam(ix, iy, P.dir || 0); } }
     if (dk.a > .3) traffic.forEach((c) => { const off = laneOff(c), [ix, iy] = iso(c.x + off[0], c.y + off[1]), f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][c.dir]; glow(ix + f[0] * 22, iy + f[1] * 22 - 6, 26, 'rgba(255,245,210,.20)'); glow(ix - f[0] * 14, iy - f[1] * 14 - 6, 9, 'rgba(255,40,30,.45)'); });
     ambienceGlow(glow, now);
     const bar = (x, y, on) => { const ph = Math.floor(now / 180) % 2; glow(x, y - 22, 46, on ? (ph ? 'rgba(255,40,40,.45)' : 'rgba(40,90,255,.45)') : 'rgba(0,0,0,0)'); };
@@ -412,7 +414,11 @@ function flair(L, sx, sy, now, s) {
   if (L.glow) { ctx.fillStyle = 'rgba(245,184,0,' + (.25 + Math.sin(now / 300) * .15) + ')'; ctx.beginPath(); ctx.ellipse(sx, sy - 34 * s, 10 * s, 3 * s, 0, 0, Math.PI * 2); ctx.fill(); }
   if (L.clipboard) { ctx.fillStyle = '#8b5a2b'; ctx.fillRect(sx + 6 * s, sy - 20 * s, 7 * s, 9 * s); ctx.fillStyle = '#fff'; ctx.fillRect(sx + 7 * s, sy - 18 * s, 5 * s, 6 * s); ctx.fillStyle = '#9ca3af'; ctx.fillRect(sx + 8 * s, sy - 21 * s, 3 * s, 2 * s); }
 }
-function rainDraw() { if (!FX.rain) return; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = 'rgba(30,40,60,.18)'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.strokeStyle = 'rgba(190,210,235,.45)'; ctx.lineWidth = 1.2 * dpr; ctx.beginPath(); FX.drops.forEach((d) => { const x = d.x * cv.width, y = d.y * cv.height; ctx.moveTo(x, y); ctx.lineTo(x - 4 * dpr, y + 14 * dpr); }); ctx.stroke(); }
+let FLASH = 0;
+function rainDraw() { if (!FX.rain) return; ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (!inside) { ctx.strokeStyle = 'rgba(210,225,245,.55)'; ctx.lineWidth = 1 * dpr; for (let i = 0; i < 26; i++) { const k = (performance.now() / 380 + i * .137) % 1, x = ((i * 7919) % 997) / 997 * cv.width, y = (((i * 3571) % 991) / 991 * .85 + .1) * cv.height; ctx.globalAlpha = 1 - k; ctx.beginPath(); ctx.ellipse(x, y, (1 + k * 6) * dpr, (.5 + k * 2.4) * dpr, 0, 0, Math.PI * 2); ctx.stroke(); } ctx.globalAlpha = 1; }
+  if (NIGHT && !inside && !ATTRACT && Math.random() < .0009 && S.cfg.motion) { FLASH = 1; if (S.sound) setTimeout(() => { const a = audio(); if (!a) return; const t = a.currentTime, n = a.createBufferSource(), b = a.createBuffer(1, a.sampleRate * 2, a.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2); n.buffer = b; const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 180; const gg = a.createGain(); gg.gain.setValueAtTime(.0001, t); gg.gain.exponentialRampToValueAtTime(.35 * S.cfg.sfx, t + .3); gg.gain.exponentialRampToValueAtTime(.0001, t + 2); n.connect(f); f.connect(gg); gg.connect(a.destination); n.start(t); }, 900); }
+  if (FLASH > 0) { ctx.fillStyle = 'rgba(220,230,255,' + (FLASH * .35) + ')'; ctx.fillRect(0, 0, cv.width, cv.height); FLASH -= .06; } ctx.fillStyle = 'rgba(30,40,60,.18)'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.strokeStyle = 'rgba(190,210,235,.45)'; ctx.lineWidth = 1.2 * dpr; ctx.beginPath(); FX.drops.forEach((d) => { const x = d.x * cv.width, y = d.y * cv.height; ctx.moveTo(x, y); ctx.lineTo(x - 4 * dpr, y + 14 * dpr); }); ctx.stroke(); }
 // a top-of-screen banner for discoveries
 let bannerT = 0;
 function banner(icon, title, sub, secret) { const el = $('banner'); el.className = 'banner' + (secret ? ' secret' : ''); el.innerHTML = '<span>' + icon + '</span><div><b>' + esc(title) + '</b><small>' + esc(sub || '') + '</small></div>'; el.hidden = false; clearTimeout(bannerT); bannerT = setTimeout(() => el.hidden = true, 4200); }
@@ -535,7 +541,7 @@ function enterBuilding(l) { stat('inside'); if (l && l.name) { S.inside = S.insi
   if (inside || P.inCar || P.boat) return;
   const idx = W.lots.indexOf(l), I = buildInterior(l, W, idx);
   inside = { idx, lot: l, O: { W, G, SPR, peds, traffic, citizens, infos, observes, FX, pcar, pboat, NIGHT, x: P.x, y: P.y } };
-  W = I; G = I.ground; SPR = []; peds = []; traffic = []; pcar = null; pboat = null;
+  W = I; G = I.ground; SPR = []; peds = []; traffic = []; pcar = null; pboat = null; setSun(0);
   citizens = I.citz.map((c) => Object.assign(newCitizen(), { x: c[0], y: c[1], les: rnd(I.D.lessons) }));
   const lmLes = (LANDMARKS[l.kind] || {}).info, inLes = lmLes != null && I.D.lessons.indexOf(lmLes) >= 0 ? lmLes : rnd(I.D.lessons);
   infos = I.infos.map((p) => ({ x: p[0], y: p[1], les: inLes, name: I.name, kind: 'in-' + l.kind, cool: 0 }));
@@ -551,6 +557,7 @@ function enterBuilding(l) { stat('inside'); if (l && l.name) { S.inside = S.insi
 }
 function exitBuilding() {
   if (!inside) return; const O = inside.O, l = inside.lot;
+  setSun(SUN ? SUN.len : 0);
   W = O.W; G = O.G; SPR = O.SPR; peds = O.peds; traffic = O.traffic; citizens = O.citizens; infos = O.infos; observes = O.observes; FX = O.FX; pcar = O.pcar; pboat = O.pboat;
   inside = null; const [dx, dy] = doorSpot(l); P.x = dx; P.y = dy + .8; P.path = []; K9.x = P.x - .6; K9.y = P.y; cam.free = false; buildSprites();
   $('hDist').textContent = W.D.name; $('hExp').textContent = 'Explored ' + Math.floor(exCount / exTotal * 100) + '%'; beep(440, .08, 'triangle', .04); beep(330, .1, 'triangle', .04, .08);
@@ -746,10 +753,24 @@ function learn(id) { S.skills = S.skills || {}; S.skills[id] = Date.now(); saveS
 // ---------- ambience: clouds, fireflies, steam, wet reflections, color grade ----------
 let AMB = { grass: [], holes: [] };
 function ambienceInit() {
-  AMB = { grass: [], holes: [] }; if (!W || W.inside) return;
-  for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) { const v = W.at(x, y); if (v === T.GRASS && (x * 7 + y * 13) % 5 === 0) AMB.grass.push([x + .5, y + .5, Math.random() * 9]); if (v === T.ROAD && x % 11 === 1 && y % 11 === 6) AMB.holes.push([x + .5, y + .5]); }
+  AMB = { grass: [], holes: [], water: [], puddles: [] }; if (!W || W.inside) return;
+  for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) { const v = W.at(x, y); if (v === T.GRASS && (x * 7 + y * 13) % 5 === 0) AMB.grass.push([x + .5, y + .5, Math.random() * 9]); if (v === T.ROAD && x % 11 === 1 && y % 11 === 6) AMB.holes.push([x + .5, y + .5]); if (v === T.WATER && (x + y * 3) % 2 === 0) AMB.water.push([x, y]); if ((v === T.ROAD || v === T.LOT || v === T.WALK) && ((x * 92821) ^ (y * 68917)) % 23 === 0) AMB.puddles.push([x + .3 + ((x * 7) % 5) / 12, y + .3 + ((y * 11) % 5) / 12, .6 + ((x + y) % 4) / 6]); }
 }
 function ambienceGround() { if (inside) return; AMB.holes.forEach(([x, y]) => { const [sx, sy] = iso(x, y); ctx.fillStyle = '#2b3038'; ctx.beginPath(); ctx.ellipse(sx, sy, 9, 4.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#4a515c'; ctx.lineWidth = 1; ctx.stroke(); }); }
+function vfxGround(now, vis) { // under the objects: puddles in the rain, sparkles on the water
+  if (inside) return; const h = hourNow(), day = h >= 7 && h < 18.5;
+  if (FX.rain) AMB.puddles.forEach(([x, y, r]) => { const [sx, sy] = iso(x, y); if (!vis(sx, sy)) return; const pg = ctx.createRadialGradient(sx - 4, sy - 2, 1, sx, sy, 16 * r); pg.addColorStop(0, day ? 'rgba(200,220,240,.35)' : 'rgba(255,220,160,.22)'); pg.addColorStop(.7, 'rgba(60,80,110,.25)'); pg.addColorStop(1, 'rgba(60,80,110,0)'); ctx.fillStyle = pg; ctx.beginPath(); ctx.ellipse(sx, sy, 18 * r, 8 * r, 0, 0, Math.PI * 2); ctx.fill();
+    const k = ((now / 700 + x * 3.1) % 1); ctx.strokeStyle = 'rgba(220,235,250,' + (.5 * (1 - k)) + ')'; ctx.lineWidth = .8; ctx.beginPath(); ctx.ellipse(sx + Math.sin(x * 9) * 6, sy + Math.cos(y * 7) * 2, 1 + k * 7, .5 + k * 3.5, 0, 0, Math.PI * 2); ctx.stroke(); });
+  if (S.cfg.quality !== 'low') { const tw = now / 1000; for (let i = 0; i < AMB.water.length; i += 1) { const [x, y] = AMB.water[i], ph = (x * 1.7 + y * 2.3), k = Math.sin(tw * 2.2 + ph) ; if (k < .86) continue; const [sx, sy] = iso(x + .5 + Math.sin(ph) * .3, y + .5 + Math.cos(ph) * .3); if (!vis(sx, sy)) continue; const a = (k - .86) / .14; ctx.fillStyle = day ? 'rgba(255,255,255,' + (.8 * a) + ')' : 'rgba(255,240,200,' + (.45 * a) + ')'; ctx.beginPath(); ctx.moveTo(sx - 4 * a, sy); ctx.lineTo(sx, sy - 1.5 * a); ctx.lineTo(sx + 4 * a, sy); ctx.lineTo(sx, sy + 1.5 * a); ctx.fill(); } }
+}
+function sirenWash(now) { // emergency lights wash over the street, day and night
+  if (inside) return; const ph = Math.floor(now / 160) % 2, night = NIGHT, src = [];
+  if ((P.inCar || P.boat) && call && call.accepted) src.push([P.x, P.y]);
+  Object.keys(others).forEach((k) => { const o = others[k]; if (o.v && o.st === 'call') src.push([o.rx, o.ry]); });
+  if (!src.length) return; ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  src.forEach(([x, y]) => { const [sx, sy] = iso(x, y); [[-1, ph ? '255,40,40' : '40,90,255'], [1, ph ? '40,90,255' : '255,40,40']].forEach(([d, c]) => { const gx = sx + d * 26, gy = sy + 4, gg = ctx.createRadialGradient(gx, gy, 2, gx, gy, 90); gg.addColorStop(0, 'rgba(' + c + ',' + (night ? .45 : .2) + ')'); gg.addColorStop(1, 'rgba(' + c + ',0)'); ctx.fillStyle = gg; ctx.beginPath(); ctx.ellipse(gx, gy, 90, 46, 0, 0, Math.PI * 2); ctx.fill(); }); });
+  ctx.restore();
+}
 function ambienceWorld(now) { // drawn in world space, after objects, before lighting
   const h = hourNow(), day = h >= 7 && h < 18;
   if (day && !inside) { // cloud shadows drifting across the city

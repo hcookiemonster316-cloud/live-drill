@@ -345,6 +345,8 @@ export function drawGround(W, cx, cy) {
 // a building drawn once into its own canvas; night version lights some windows
 // render scale for cached art (buildings, ground): 1 = standard, up to 3 for 4K
 export let RES = 1; export function setRes(k) { RES = k; }
+let SUNLEN = 0; export function setSun(len) { SUNLEN = len || 0; }
+function castShadow(g, sx, sy, w, k) { if (!SUNLEN) return; const L = SUNLEN * k; g.save(); g.translate(sx + L * .42, sy + L * .21); g.rotate(.46); g.fillStyle = 'rgba(10,16,30,.20)'; g.beginPath(); g.ellipse(0, 0, L * .5 + w * .4, w * .45, 0, 0, Math.PI * 2); g.fill(); g.restore(); }
 export function hiCanvas(w, h, k) { const c = document.createElement('canvas'); k = k || 1; c.width = Math.ceil(w * k); c.height = Math.ceil(h * k); c.lw = c.width / k; c.lh = c.height / k; const g = c.getContext('2d'); g.scale(k, k); return [c, g]; }
 export function drawBuilding(b, night, sun) {
   const R = rng(b.x * 131 + b.y * 977 + b.h);
@@ -563,6 +565,7 @@ export function person(g, sx, sy, o, t) {
   const outer = top === 'jacket' ? jacket : top === 'hoodie' ? shade(shirt, .85) : shirt, sleeve = top === 'tank' ? 0 : top === 'tee' || top === 'dress' ? .45 : 1;
   const OL = 'rgba(12,16,26,.55)', lw = .7 * s, Y = sy - bob * s, W2 = (x) => x * bw;
   const RR = (x, y, w, h, r, fill, stroke) => { g.beginPath(); g.roundRect(x, y, w, h, r); g.fillStyle = fill; g.fill(); if (stroke) { g.strokeStyle = OL; g.lineWidth = lw; g.stroke(); } };
+  castShadow(g, sx, sy, 9 * s * bw, .9 * s);
   // contact shadow
   const sh = g.createRadialGradient(sx + 1, sy, 0, sx + 1, sy, 9 * s); sh.addColorStop(0, 'rgba(0,0,0,.38)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = sh; g.beginPath(); g.ellipse(sx + 1, sy, 9 * s * bw, 4 * s, 0, 0, Math.PI * 2); g.fill();
   if (K && K.camelbak) RR(sx + (face > 0 ? -8.5 : 2.5) * s, Y - 25 * s, 6 * s, 12 * s, 2 * s, '#1f2937', true);
@@ -676,6 +679,7 @@ export function drawVehicle(g, sx, sy, dir, v, t, night, on) {
   const s = v.scale || 1, kind = v.kind || 'sedan', tall = { armored: 1.55, van: 1.45, suv: 1.2, truck: 1.15 }[kind] || 1;
   const hl = kind === 'van' || kind === 'armored' ? .44 : .41, hw = .2, H = 8.5 * tall, R = rig(sx, sy, dir, s, hl, hw), P = R.P, uE = R.uVis, vE = R.vVis;
   const body = v.body, sideCol = v.side || body, line = 'rgba(8,12,20,.45)';
+  castShadow(g, sx, sy, 22 * s, .7 * s);
   // soft shadow
   const c0 = P(0, 0, 0), sg = g.createRadialGradient(c0[0] + 2, c0[1] + 2, 2, c0[0] + 2, c0[1] + 2, 22 * s); sg.addColorStop(0, 'rgba(0,0,0,.42)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
   g.fillStyle = sg; g.beginPath(); g.ellipse(c0[0] + 2, c0[1] + 2, 22 * s, 11 * s, 0, 0, Math.PI * 2); g.fill();
