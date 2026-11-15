@@ -52,7 +52,7 @@ export const LANDMARKS = {
 // Dispatch calls per lesson: [title, priority, where (landmark kind or 'any'), radio line].
 export const CALLS = {
   0: [['Proactive patrol: business district', 3, 'bank', 'Make a visible pass through the business district and check on business owners.'],
-      ['Car with interior light on at 2 a.m.', 2, 'parking', 'Caller reports a car in a closed lot with its dome light on.'],
+      ['Car with its dome light on in a closed lot', 2, 'parking', 'Caller reports a car parked in a closed lot with its dome light on.'],
       ['Neighborhood watch meeting', 3, 'any', 'Watch captain asks for an officer to stop by and talk about recent thefts.']],
   1: [['Suspicious person, hands in waistband', 2, 'any', 'Caller reports a man pacing and reaching into his waistband.'],
       ['Shots-fired report', 1, 'garage', 'Several calls about possible gunshots near the garage. Use cover on approach.']],
@@ -110,3 +110,52 @@ export const PHONETIC = ['Adam', 'Boy', 'Charles', 'David', 'Edward', 'Frank', '
 export const QUICK = ['10-4', 'En route', 'On scene', 'Need backup', 'Code 4, all clear', 'Clear, back in service', 'Good job', 'Thanks for the assist'];
 // same ranks and point steps as the study hub (called RP, Reputation Points, in the game): RP to reach rank L is 100 x L x (L - 1)
 export const RANKS = ['Cadet', 'Squad Leader 4', 'Squad Leader 3', 'Squad Leader 2', 'Squad Leader 1', 'Guide', 'Vice President', 'President', 'State Certified', 'Graduate'].map((n, i) => [100 * (i + 1) * i, n]);
+
+// Specialty units. Every cadet trains with one; it is shown as "(In Training)" everywhere.
+// Stats are 1-5 and each unit's add up to 15. What they do in the game:
+//   Response: walking and driving speed       Perception: how far away you spot "something's off"
+//   Rapport: RP from citizens and study points  Composure: how long a call waits for you
+//   Tactics: RP from priority 1 and 2 calls
+export const STATS = [
+  ['res', 'Response', 'Walk and drive faster'],
+  ['per', 'Perception', 'Spot trouble from farther away'],
+  ['rap', 'Rapport', 'More RP from citizens and study points'],
+  ['com', 'Composure', 'Calls wait longer for you'],
+  ['tac', 'Tactics', 'More RP from priority calls']
+];
+// kit: uniform look. ride: vehicle look and handling. fav: lessons whose calls pay the unit's bonus.
+export const UNITS = [
+  { id: 'swat', name: 'SWAT', icon: '🛡️', color: '#4b5320', st: { res: 2, per: 3, rap: 1, com: 4, tac: 5 },
+    perk: 'Entry team', perkText: 'Priority 1 calls pay 50% more RP. Building and area search calls come up more often.', fav: [17, 18, 1],
+    kit: { shirt: '#3d4532', pants: '#2f3527', hat: 'helmet', hatCol: '#2b3022', vest: '#8a7a55', vestText: 'POLICE', patch: '#d8c99a' },
+    ride: { kind: 'armored', label: 'Armored rescue vehicle', body: '#2f3527', side: '#3d4532', stripe: null, bar: 'grille', speed: .85, scale: 1.3 } },
+  { id: 'k9', name: 'K9', icon: '🐕', color: '#b45309', st: { res: 4, per: 5, rap: 2, com: 2, tac: 2 },
+    perk: 'Partner', perkText: 'Your dog walks with you and alerts on anything off from twice as far. Area search calls pay double.', fav: [18, 17, 5],
+    kit: { shirt: '#1f2f50', pants: '#1f2f50', hat: 'cap', hatCol: '#1a2440', vest: null, patch: '#d4a017', badgeText: 'K-9' },
+    ride: { kind: 'suv', label: 'K-9 SUV', body: '#f2f2f2', side: '#f2f2f2', stripe: '#b45309', bar: 'full', speed: 1.05, scale: 1.12, text: 'K-9' } },
+  { id: 'neg', name: 'Crisis Negotiator', icon: '📞', color: '#0e7490', st: { res: 2, per: 2, rap: 5, com: 5, tac: 1 },
+    perk: 'Talk it down', perkText: 'Disturbance, threat and dispute calls pay double RP. Calls wait the longest for you.', fav: [4, 7, 14, 15],
+    kit: { shirt: '#1e3a5f', pants: '#5b5246', hat: 'headset', hatCol: '#111', vest: '#0e7490', vestText: 'NEGOTIATOR', patch: '#e0f2fe' },
+    ride: { kind: 'suv', label: 'Unmarked SUV', body: '#1b1f27', side: '#262b35', stripe: null, bar: 'hidden', speed: 1, scale: 1.12 } },
+  { id: 'marine', name: 'Marine Unit', icon: '⚓', color: '#0369a1', st: { res: 3, per: 4, rap: 2, com: 3, tac: 3 },
+    perk: 'On the water', perkText: 'In Riverside you launch a patrol boat on the river. Animal and crowd calls pay double RP.', fav: [11, 16, 12],
+    kit: { shirt: '#7aa7d6', pants: '#1f2f50', hat: 'boonie', hatCol: '#1f2f50', vest: '#f97316', vestText: '', patch: '#fff' },
+    ride: { kind: 'truck', label: 'Marine unit truck', body: '#f2f2f2', side: '#f2f2f2', stripe: '#0369a1', bar: 'full', speed: 1, scale: 1.15, text: 'MARINE' } },
+  { id: 'brt', name: 'Behavioral Resource', icon: '🤝', color: '#0d9488', st: { res: 2, per: 3, rap: 4, com: 5, tac: 1 },
+    perk: 'Steady presence', perkText: 'Well-being checks and death notifications pay double RP and build twice the community trust.', fav: [9, 10, 8],
+    kit: { shirt: '#14b8a6', pants: '#a8977a', hat: 'none', vest: null, patch: '#fff', lanyard: '#0d9488' },
+    ride: { kind: 'sedan', label: 'Unmarked compact', body: '#e8e8e8', side: '#d4d4d4', stripe: '#0d9488', bar: 'hidden', speed: 1, scale: .95 } },
+  { id: 'hoi', name: 'Homeless Initiative', icon: '🏠', color: '#65a30d', st: { res: 3, per: 3, rap: 5, com: 3, tac: 1 },
+    perk: 'Outreach', perkText: 'Two extra citizens need you on every shift, and citizen contacts pay 50% more RP.', fav: [8, 13, 14],
+    kit: { shirt: '#4d7c0f', pants: '#3f3a32', hat: 'cap', hatCol: '#365314', vest: null, patch: '#fef9c3' },
+    ride: { kind: 'van', label: 'Outreach van', body: '#f8fafc', side: '#e2e8f0', stripe: '#65a30d', bar: 'full', speed: .95, scale: 1.22, text: 'OUTREACH' } },
+  { id: 'det', name: 'Detective', icon: '🔎', color: '#6b7280', st: { res: 3, per: 5, rap: 3, com: 3, tac: 1 },
+    perk: 'Investigator', perkText: 'One more "something\'s off" in every district, study points recharge twice as fast, and records and property calls pay double.', fav: [3, 13, 19],
+    kit: { shirt: '#e5e7eb', pants: '#374151', hat: 'none', vest: null, tie: '#7f1d1d', plain: true, patch: '#f5b800' },
+    ride: { kind: 'sedan', label: 'Unmarked sedan', body: '#5b616b', side: '#4b5058', stripe: null, bar: 'hidden', speed: 1.05, scale: 1 } },
+  { id: 'sro', name: 'School Resource', icon: '🎓', color: '#7c3aed', st: { res: 2, per: 3, rap: 5, com: 3, tac: 2 },
+    perk: 'Teach back', perkText: 'Study points pay double RP. School and well-being calls pay double.', fav: [9, 12, 8],
+    kit: { shirt: '#22355e', pants: '#1b2a4a', hat: 'cap', hatCol: '#3b2a6b', vest: null, patch: '#c4b5fd' },
+    ride: { kind: 'suv', label: 'School resource SUV', body: '#f2f2f2', side: '#f2f2f2', stripe: '#7c3aed', bar: 'full', speed: 1, scale: 1.12, text: 'SRO' } }
+];
+export const unitName = (u) => (u ? u.name : 'Patrol') + ' (In Training)';

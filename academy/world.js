@@ -309,16 +309,93 @@ export function car(g, sx, sy, dir, color, police, t, night, scale, bar) {
   g.fillStyle = night ? '#fff6cc' : '#e9edf0'; g.fillRect(hl[0] - 2, hl[1] - 1.5, 4, 3); g.fillRect(hr[0] - 2, hr[1] - 1.5, 4, 3);
 }
 
-// people: officer or civilian, walking frame from time
+// people: civilians, or cadets in a unit kit (o.kit from data.js UNITS)
 export function person(g, sx, sy, o, t) {
   const s = o.s || 1, walk = o.moving ? Math.sin(t / 90 + (o.ph || 0)) : 0, face = o.face || 1;
+  const K = o.kit || (o.officer ? { shirt: '#22355e', pants: '#1b2a4a', hat: 'cap', hatCol: '#16213d', patch: '#f5b800' } : null);
   g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(sx + 2, sy + 1, 9 * s, 4 * s, 0, 0, Math.PI * 2); g.fill();
-  const pants = o.officer ? '#1b2a4a' : o.pants || '#3b4a5c', shirt = o.officer ? '#22355e' : o.shirt || '#c0392b', skin = o.skin || '#e0b48f';
-  g.fillStyle = pants; g.fillRect(sx - 4 * s, sy - 12 * s, 3.5 * s, 12 * s + walk * 2 * s); g.fillRect(sx + .5 * s, sy - 12 * s, 3.5 * s, 12 * s - walk * 2 * s);
+  const pants = K ? K.pants : o.pants || '#3b4a5c', shirt = K ? K.shirt : o.shirt || '#c0392b', skin = o.skin || '#e0b48f';
+  g.fillStyle = K && K.plain ? '#1f2937' : '#111'; g.fillRect(sx - 4 * s, sy - 1.5 * s + walk * 2 * s, 3.5 * s, 1.8 * s); g.fillRect(sx + .5 * s, sy - 1.5 * s - walk * 2 * s, 3.5 * s, 1.8 * s);
+  g.fillStyle = pants; g.fillRect(sx - 4 * s, sy - 12 * s, 3.5 * s, 11 * s + walk * 2 * s); g.fillRect(sx + .5 * s, sy - 12 * s, 3.5 * s, 11 * s - walk * 2 * s);
   g.fillStyle = shirt; g.beginPath(); g.roundRect(sx - 6 * s, sy - 24 * s, 12 * s, 13 * s, 3 * s); g.fill();
-  g.fillStyle = shade(shirt.length === 7 ? shirt : '#22355e', .8); g.fillRect(sx - 7.5 * s, sy - 23 * s + walk * s, 2.5 * s, 10 * s); g.fillRect(sx + 5 * s, sy - 23 * s - walk * s, 2.5 * s, 10 * s);
-  if (o.officer) { g.fillStyle = '#f5b800'; g.fillRect(sx + (face > 0 ? 1 : -4) * s, sy - 21 * s, 3 * s, 3 * s); g.fillStyle = '#111'; g.fillRect(sx - 6 * s, sy - 13 * s, 12 * s, 2 * s); }
+  g.fillStyle = shade(shirt, .8); g.fillRect(sx - 7.5 * s, sy - 23 * s + walk * s, 2.5 * s, 10 * s); g.fillRect(sx + 5 * s, sy - 23 * s - walk * s, 2.5 * s, 10 * s);
+  g.fillStyle = skin; g.fillRect(sx - 7.5 * s, sy - 13.5 * s + walk * s, 2.5 * s, 2.5 * s); g.fillRect(sx + 5 * s, sy - 13.5 * s - walk * s, 2.5 * s, 2.5 * s);
+  if (K) {
+    if (K.vest) { g.fillStyle = K.vest; g.beginPath(); g.roundRect(sx - 6.3 * s, sy - 23 * s, 12.6 * s, 10.5 * s, 2 * s); g.fill(); if (K.vestText) { g.fillStyle = K.vest === '#f97316' ? '#111' : '#fff'; g.font = '800 ' + (2.6 * s) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(K.vestText, sx, sy - 18 * s); } }
+    if (K.tie) { g.fillStyle = K.tie; g.beginPath(); g.moveTo(sx - 1 * s, sy - 23.5 * s); g.lineTo(sx + 1 * s, sy - 23.5 * s); g.lineTo(sx + 1.4 * s, sy - 15 * s); g.lineTo(sx, sy - 13.5 * s); g.lineTo(sx - 1.4 * s, sy - 15 * s); g.fill(); }
+    if (K.lanyard) { g.strokeStyle = K.lanyard; g.lineWidth = 1 * s; g.beginPath(); g.moveTo(sx - 3 * s, sy - 23.5 * s); g.lineTo(sx, sy - 17 * s); g.lineTo(sx + 3 * s, sy - 23.5 * s); g.stroke(); g.fillStyle = '#fff'; g.fillRect(sx - 1.5 * s, sy - 17 * s, 3 * s, 3.5 * s); }
+    g.fillStyle = '#111'; g.fillRect(sx - 6 * s, sy - 13 * s, 12 * s, 2 * s);
+    g.fillStyle = K.patch || '#f5b800'; if (K.plain) g.fillRect(sx + 2 * s, sy - 13.2 * s, 2.4 * s, 2.4 * s); else if (!K.vest) g.fillRect(sx + (face > 0 ? 1 : -4) * s, sy - 21 * s, 3 * s, 3 * s);
+    g.fillStyle = K.patch || '#f5b800'; g.fillRect(sx + (face > 0 ? -7.5 : 5) * s, sy - 22 * s, 2.5 * s, 2.5 * s);
+  }
   g.fillStyle = skin; g.beginPath(); g.arc(sx, sy - 28 * s, 5 * s, 0, Math.PI * 2); g.fill();
-  if (o.officer) { g.fillStyle = '#16213d'; g.beginPath(); g.ellipse(sx, sy - 32 * s, 6 * s, 2.6 * s, 0, 0, Math.PI * 2); g.fill(); g.fillRect(sx - 4.5 * s, sy - 35 * s, 9 * s, 3.5 * s); g.fillStyle = '#f5b800'; g.fillRect(sx - 1 * s, sy - 34.5 * s, 2 * s, 2 * s); }
+  const hat = K ? K.hat : 'hair', hc = K && K.hatCol || '#16213d';
+  if (hat === 'cap') { g.fillStyle = hc; g.beginPath(); g.arc(sx, sy - 29.5 * s, 5.2 * s, Math.PI, 0); g.fill(); g.fillRect(sx + (face > 0 ? 0 : -7) * s, sy - 30 * s, 7 * s, 1.8 * s); g.fillStyle = K.patch || '#f5b800'; g.fillRect(sx - 1 * s, sy - 33 * s, 2 * s, 1.6 * s); }
+  else if (hat === 'helmet') { g.fillStyle = hc; g.beginPath(); g.arc(sx, sy - 29 * s, 6.4 * s, Math.PI * 1.05, -.05); g.fill(); g.fillRect(sx - 6.4 * s, sy - 29.5 * s, 12.8 * s, 2.2 * s); g.fillStyle = '#111'; g.fillRect(sx - 2 * s, sy - 34.5 * s, 4 * s, 1.5 * s); }
+  else if (hat === 'boonie') { g.fillStyle = hc; g.beginPath(); g.ellipse(sx, sy - 30 * s, 8 * s, 2.4 * s, 0, 0, Math.PI * 2); g.fill(); g.beginPath(); g.arc(sx, sy - 30.5 * s, 4.6 * s, Math.PI, 0); g.fill(); }
+  else if (hat === 'headset') { g.fillStyle = '#2b1d14'; g.beginPath(); g.arc(sx, sy - 30 * s, 5 * s, Math.PI, 0); g.fill(); g.strokeStyle = '#111'; g.lineWidth = 1.2 * s; g.beginPath(); g.arc(sx, sy - 29 * s, 5.6 * s, Math.PI * 1.1, -.1); g.stroke(); g.fillStyle = '#111'; g.fillRect(sx + (face > 0 ? 4 : -6) * s, sy - 29 * s, 2 * s, 3 * s); }
   else { g.fillStyle = o.hair || '#2b1d14'; g.beginPath(); g.arc(sx, sy - 30 * s, 5 * s, Math.PI, 0); g.fill(); }
+}
+
+// a working dog that trots beside its handler
+export function dog(g, sx, sy, face, moving, t) {
+  const b = moving ? Math.sin(t / 70) * 1.2 : 0, f = face || 1;
+  g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 1, sy + 1, 8, 3, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#3a2614'; g.fillRect(sx - 6, sy - 5 + b, 2, 5); g.fillRect(sx + 4, sy - 5 - b, 2, 5);
+  g.fillStyle = '#8b5a2b'; g.beginPath(); g.ellipse(sx, sy - 7, 8, 3.6, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#2b1a0c'; g.beginPath(); g.ellipse(sx - f * 1, sy - 9, 5, 2.2, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#8b5a2b'; g.beginPath(); g.arc(sx + f * 8, sy - 11, 3.4, 0, Math.PI * 2); g.fill(); g.fillRect(sx + f * 9 - (f < 0 ? 4 : 0), sy - 11, 4, 2.4);
+  g.fillStyle = '#2b1a0c'; g.beginPath(); g.moveTo(sx + f * 6.5, sy - 13.5); g.lineTo(sx + f * 7.5, sy - 17.5); g.lineTo(sx + f * 9, sy - 13.5); g.fill();
+  g.strokeStyle = '#8b5a2b'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(sx - f * 8, sy - 8); g.lineTo(sx - f * 11, sy - 12 + b); g.stroke();
+  g.fillStyle = '#c0392b'; g.fillRect(sx + f * 5 - 1, sy - 10, 2, 2);
+}
+
+// unit vehicles: v = { kind, body, side, stripe, bar ('full'|'hidden'|'grille'), scale, text }
+export function vehicle(g, sx, sy, dir, v, t, night, on) {
+  if (v.kind === 'boat') return boat(g, sx, sy, dir, t, on);
+  const s = v.scale || 1, along = dir % 2 === 0, tall = v.kind === 'armored' ? 1.5 : v.kind === 'van' ? 1.35 : v.kind === 'suv' || v.kind === 'truck' ? 1.18 : 1;
+  const L = 24 * s, Wd = 11 * s, H = 9 * s * tall;
+  const ax = along ? [L * .5, L * .25] : [-L * .5, L * .25], aw = along ? [-Wd * .5, Wd * .25] : [Wd * .5, Wd * .25];
+  const P = (u, w, h) => [sx + ax[0] * u + aw[0] * w, sy + ax[1] * u + aw[1] * w - h];
+  const quad = (a, b, c, d, f) => { g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.closePath(); g.fillStyle = f; g.fill(); };
+  g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(sx + 3, sy + 3, L * .62, L * .34, 0, 0, Math.PI * 2); g.fill();
+  const body = v.body, side = v.side || shade(body, .8), side2 = shade(side, .85);
+  g.fillStyle = '#111'; [[-.62, 1], [.62, 1], [.62, -1]].forEach(([u, w]) => { const q = P(u, w, 1.5 * s); g.beginPath(); g.ellipse(q[0], q[1], 3 * s, 2 * s, 0, 0, Math.PI * 2); g.fill(); });
+  quad(P(-1, 1, 1), P(1, 1, 1), P(1, 1, H), P(-1, 1, H), side);
+  quad(P(1, -1, 1), P(1, 1, 1), P(1, 1, H), P(1, -1, H), side2);
+  if (v.stripe) { quad(P(-1, 1, H * .38), P(1, 1, H * .38), P(1, 1, H * .62), P(-1, 1, H * .62), v.stripe); quad(P(1, -1, H * .38), P(1, 1, H * .38), P(1, 1, H * .62), P(1, -1, H * .62), shade(v.stripe, .85)); }
+  if (v.text) { const c = P(-.1, 1, H * .5); g.save(); g.translate(c[0], c[1]); g.transform(1, along ? .5 : -.5, 0, 1, 0, 0); g.fillStyle = v.stripe ? '#fff' : '#111'; g.font = '800 ' + (3.4 * s) + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(v.text, 0, 0); g.restore(); }
+  const top = v.kind === 'van' || v.kind === 'armored';
+  if (top) {
+    quad(P(-1, -1, H), P(1, -1, H), P(1, 1, H), P(-1, 1, H), shade(body, 1.08));
+    quad(P(.72, .85, H * .62), P(1, .85, H * .62), P(1, .85, H * .95), P(.72, .85, H * .95), '#24323f');
+    quad(P(1, -.85, H * .62), P(1, .85, H * .62), P(1, .85, H * .95), P(1, -.85, H * .95), '#1b2731');
+    if (v.kind === 'armored') { g.fillStyle = '#1c2016'; for (let k = -2; k <= 1; k++) { const q = P(k * .3, 1, H * .78); g.fillRect(q[0] - 1.5, q[1] - 1, 3, 3); } }
+  } else {
+    quad(P(-1, -1, H), P(1, -1, H), P(1, 1, H), P(-1, 1, H), body);
+    const cH = H + 7 * s, back = v.kind === 'suv' ? -.95 : v.kind === 'truck' ? -.1 : -.45, fr = v.kind === 'truck' ? .55 : .45;
+    quad(P(back, .85, H), P(fr, .85, H), P(fr - .1, .7, cH), P(back + .05, .7, cH), '#2a3a4c');
+    quad(P(fr, -.85, H), P(fr, .85, H), P(fr - .1, .7, cH), P(fr - .1, -.7, cH), '#1d2b3a');
+    quad(P(back + .05, -.7, cH), P(fr - .1, -.7, cH), P(fr - .1, .7, cH), P(back + .05, .7, cH), shade(body, 1.06));
+    if (v.kind === 'truck') { quad(P(-1, -1, H), P(-.15, -1, H), P(-.15, 1, H), P(-1, 1, H), '#0b5e8a'); g.fillStyle = '#e2e8f0'; const q = P(-.6, 0, H + 3 * s); g.beginPath(); g.ellipse(q[0], q[1], 7 * s, 3 * s, along ? .46 : -.46, 0, Math.PI * 2); g.fill(); }
+  }
+  const cH = top ? H : H + 7 * s, blink = on && Math.floor(t / 180) % 2;
+  if (v.bar === 'full') { quad(P(-.1, -.6, cH), P(.1, -.6, cH), P(.1, 0, cH + 3), P(-.1, 0, cH + 3), blink ? '#ff2d2d' : '#7a1a1a'); quad(P(-.1, 0, cH + 3), P(.1, 0, cH + 3), P(.1, .6, cH), P(-.1, .6, cH), on && !blink ? '#2d6bff' : '#1a2f7a'); }
+  else if (on) { g.fillStyle = blink ? '#ff2d2d' : '#2d6bff'; const a = P(1, .5, H * .55), b2 = P(1, -.5, H * .55); g.fillRect((blink ? a : b2)[0] - 2, (blink ? a : b2)[1] - 2, 4, 4); }
+  const hl = P(1, .55, H * .4), hr = P(1, -.55, H * .4);
+  g.fillStyle = night ? '#fff6cc' : '#e9edf0'; g.fillRect(hl[0] - 2, hl[1] - 1.5, 4, 3); g.fillRect(hr[0] - 2, hr[1] - 1.5, 4, 3);
+}
+function boat(g, sx, sy, dir, t, on) {
+  const along = dir % 2 === 0, bob = Math.sin(t / 400) * 1.2, L = 30, Wd = 12;
+  const ax = along ? [L * .5, L * .25] : [-L * .5, L * .25], aw = along ? [-Wd * .5, Wd * .25] : [Wd * .5, Wd * .25];
+  const P = (u, w, h) => [sx + ax[0] * u + aw[0] * w, sy + ax[1] * u + aw[1] * w - h + bob];
+  const poly = (pts, f) => { g.beginPath(); pts.forEach((q, i) => i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.closePath(); g.fillStyle = f; g.fill(); };
+  g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1.5; g.beginPath(); const w0 = P(-1.2, 0, -2); g.ellipse(w0[0], w0[1], 10, 4, 0, 0, Math.PI * 2); g.stroke();
+  poly([P(-1, 1, 0), P(.7, 1, 0), P(1.15, 0, 2), P(.7, -1, 0), P(-1, -1, 0)], '#0b4a6f');
+  poly([P(-1, 1, 0), P(.7, 1, 0), P(.7, 1, 5), P(-1, 1, 5)], '#f2f2f2');
+  poly([P(-1, 1, 5), P(.7, 1, 5), P(1.15, 0, 6), P(.7, -1, 5), P(-1, -1, 5)], '#dfe7ee');
+  poly([P(-1, 1, 2), P(.7, 1, 2), P(.7, 1, 3.2), P(-1, 1, 3.2)], '#0369a1');
+  poly([P(-.4, .7, 5), P(.25, .7, 5), P(.15, .6, 12), P(-.35, .6, 12)], '#24323f');
+  poly([P(-.35, -.6, 12), P(.15, -.6, 12), P(.15, .6, 12), P(-.35, .6, 12)], '#f2f2f2');
+  const blink = on && Math.floor(t / 180) % 2; g.fillStyle = blink ? '#ff2d2d' : on ? '#2d6bff' : '#1a2f7a'; const q = P(-.1, 0, 14); g.fillRect(q[0] - 3, q[1] - 2, 6, 3);
 }

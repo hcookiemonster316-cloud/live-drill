@@ -14,7 +14,7 @@ export async function startNet(onPlayers) {
     async join(did, shift, info) {
       if (base) N.leave();
       base = 'mmo/' + did + '/' + shift + '/p';
-      me = Object.assign({ s: shift, c: info.cs, x: info.x, y: info.y, v: 0, st: 'patrol', r: info.rank || 'Cadet' }, { t: db.TS });
+      me = Object.assign({ s: shift, u: info.unit || 'swat', c: info.cs, x: info.x, y: info.y, v: 0, st: 'patrol', r: info.rank || 'Cadet' }, { t: db.TS });
       await db.set(base + '/' + db.uid, me);
       db.onLeave(base + '/' + db.uid, null);
       // listen to every shift this one can see (midshift sees day and night; they each see midshift)
@@ -23,7 +23,7 @@ export async function startNet(onPlayers) {
       clearInterval(timer); timer = setInterval(() => N.beat(), 10000);
     },
     move(x, y, v, dir) {
-      if (!base) return; me.x = Math.round(x * 10) / 10; me.y = Math.round(y * 10) / 10; me.v = v ? 1 : 0; me.d = dir;
+      if (!base) return; me.x = Math.round(x * 10) / 10; me.y = Math.round(y * 10) / 10; me.v = v ? +v : 0; me.d = dir;
       const now = Date.now(); if (now - lastSent < 350) return; lastSent = now;
       db.update(base + '/' + db.uid, { x: me.x, y: me.y, v: me.v, d: me.d || 0, t: db.TS });
     },

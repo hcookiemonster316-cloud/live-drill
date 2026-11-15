@@ -1,6 +1,6 @@
 // Patrol City: game loop, camera, input, people and traffic, lighting, dispatch, learning scenes and HUD.
-import { N, TW, TH, T, iso, unIso, buildDistrict, drawGround, drawBuilding, drawProp, car, person, CAR_COLORS, shade } from './world.js';
-import { DISTRICTS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK } from './data.js';
+import { N, TW, TH, T, iso, unIso, buildDistrict, drawGround, drawBuilding, drawProp, car, person, dog, vehicle, CAR_COLORS, shade } from './world.js';
+import { DISTRICTS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
 import * as L from './learn.js';
 import { startNet } from './net.js';
 
@@ -14,6 +14,15 @@ let cam = { x: 0, y: 0, z: 1, free: false }, dpr = 1, cw = 0, ch = 0;
 const P = { x: 0, y: 0, path: [], face: 1, moving: false, inCar: false, dir: 0, onArrive: null };
 let pcar = null, peds = [], traffic = [], citizens = [], infos = [], observes = [], call = null, scene = null, clock = 0, nextCall = 15, paused = false, toastT = 0;
 const shiftOf = () => SHIFTS.find((s) => s.id === S.shift) || SHIFTS[0];
+// ---------- specialty unit: stats and perks ----------
+const unitOf = (id) => UNITS.find((u) => u.id === id) || UNITS[0];
+const U = () => unitOf(S.unit);
+const DBL = { k9: [18], neg: [4, 7, 14, 15], marine: [11, 16], brt: [9, 10], det: [3, 13], sro: [9, 12] }; // lessons whose calls pay double
+const rapMult = () => 1 + (U().st.rap - 3) * .1;
+const spotR = () => (3 + U().st.per * .8) * (S.unit === 'k9' ? 2 : 1);
+const callWait = () => 90 + U().st.com * 20; // game minutes before another unit takes the call
+function callMult(c) { const u = U(); let m = c.prio <= 2 ? 1 + (u.st.tac - 3) * .1 : 1; if (u.id === 'swat' && c.prio === 1) m *= 1.5; if ((DBL[u.id] || []).indexOf(c.les) >= 0) m *= 2; return m; }
+let pboat = null; const K9 = { x: 0, y: 0, face: 1, moving: false };
 
 // ---------- sound (tiny synth, no files) ----------
 let AC = null; const audio = () => { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } return AC; };
@@ -63,11 +72,13 @@ function load(did) {
   traffic = []; for (let i = 0; i < Math.round(11 * busy) + 2; i++) traffic.push(newCar());
   citizens = []; infos = []; observes = []; call = null; nextCall = 12;
   W.lots.forEach((l) => { const lm = LANDMARKS[l.kind]; if (lm && lm.info != null && DISTRICTS[did].lessons.indexOf(lm.info) >= 0 && !infos.some((i) => i.kind === l.kind)) infos.push({ x: l.info[0] + .5, y: l.info[1] + .5, les: lm.info, name: lm.name, kind: l.kind, cool: 0 }); });
-  for (let i = 0; i < 3; i++) citizens.push(newCitizen());
-  for (let i = 0; i < 2; i++) observes.push(newObserve());
+  for (let i = 0; i < 3 + (S.unit === 'hoi' ? 2 : 0); i++) citizens.push(newCitizen());
+  for (let i = 0; i < 2 + (S.unit === 'det' ? 1 : 0); i++) observes.push(newObserve());
+  pboat = null; P.boat = false; K9.x = P.x - .8; K9.y = P.y + .4;
+  if (W.river && S.unit === 'marine') { const y = Math.max(2, Math.min(N - 3, Math.round(P.y))); pboat = { x: 36.6, y: y + .5, dir: 1, dock: [35.5, y + .5] }; }
   cam.x = iso(P.x, P.y)[0]; cam.y = iso(P.x, P.y)[1]; cam.free = false;
   hud(); radio('Dispatch', 'All units, ' + shiftOf().name.toLowerCase() + ' in ' + W.D.name + ' is on. ' + S.cs + ', you are in service.');
-  if (net) net.join(did, S.shift, { cs: S.cs, x: P.x, y: P.y, rank: L.rankOf(S.xp).name });
+  if (net) net.join(did, S.shift, { cs: S.cs, unit: S.unit, x: P.x, y: P.y, rank: L.rankOf(S.xp).name });
 }
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
 const SKIN = ['#f1c9a5', '#e0b48f', '#c68e63', '#a26a42', '#7a4b2a', '#5a3620'], SHIRT = ['#c0392b', '#2980b9', '#27ae60', '#f39c12', '#8e44ad', '#ecf0f1', '#16a085', '#d35400', '#7f8c8d', '#f5b7b1'], HAIR = ['#2b1d14', '#4a3020', '#8a5a2b', '#d8b46a', '#1a1a1a', '#9a9a9a'];
@@ -78,7 +89,7 @@ function newObserve() { const did = W.did, ls = W.D.lessons.filter((l) => OBSERV
 
 // ---------- dispatch ----------
 function dispatchCall() {
-  const les = L.weakest(S, W.did), list = CALLS[les] || [['Assist a citizen', 3, 'any', 'Citizen flagging down an officer.']], c = rnd(list);
+  const fav = U().fav.filter((l) => W.D.lessons.indexOf(l) >= 0 && !L.mastery(S, l).done), les = fav.length && Math.random() < .3 ? fav[Math.floor(Math.random() * fav.length)] : L.weakest(S, W.did), list = CALLS[les] || [['Assist a citizen', 3, 'any', 'Citizen flagging down an officer.']], c = rnd(list);
   const lot = c[2] !== 'any' && W.lots.find((l) => l.kind === c[2] || (c[2] === 'parking' && (l.kind === 'parking' || l.kind === 'lot')) || (c[2] === 'houses' && l.kind === 'houses'));
   const spot = lot ? lot.door : rnd(W.walk), where = lot ? (LANDMARKS[lot.kind] || {}).name || 'the ' + lot.kind : 'block ' + (100 + spot[1] * 10) + ' ' + ['Main St', 'Bay St', 'Oak Ave', 'Pine St', 'Harbor Rd'][spot[0] % 5];
   call = { les, title: c[0], prio: c[1], text: c[3], x: spot[0] + .5, y: spot[1] + .5, where, t0: clock, accepted: false, backup: false };
@@ -95,7 +106,7 @@ function callCard() {
 
 // ---------- movement ----------
 function goTo(x, y, onArrive) {
-  const pass = P.inCar ? (a, b) => W.drivable(a, b) : (a, b) => W.walkable(a, b) && !gateBlock(a, b);
+  const pass = P.boat ? (a, b) => W.at(a, b) === T.WATER : P.inCar ? (a, b) => W.drivable(a, b) : (a, b) => W.walkable(a, b) && !gateBlock(a, b) && W.at(a, b) !== T.WATER;
   const p = astar(P.x, P.y, x, y, pass, !P.inCar);
   if (!p) { toast('No way through from here.'); return; }
   P.path = p; P.onArrive = onArrive || null; cam.free = false;
@@ -117,25 +128,27 @@ function update(dt, now) {
   if (paused) return;
   clock += dt * .75; // one real second is 45 game seconds; a 12-hour shift takes 16 minutes
   { const hr = Math.floor(hourNow()); if (hr !== sprHour) { sprHour = hr; const was = NIGHT; buildSprites(); if (was !== NIGHT) radio('Dispatch', NIGHT ? 'All units, sunset. Lights on.' : 'All units, sunrise.'); } }
-  const sp = P.inCar ? (call && call.accepted ? 7.5 : 5.5) : 3.4;
+  const st = U().st, sp = P.boat ? 8 : P.inCar ? (call && call.accepted ? 6.6 : 4.8) * U().ride.speed * (.88 + st.res * .06) : 2.9 + st.res * .2;
   if (P.path.length) { const done = stepAlong(P, dt, sp); if (done && P.onArrive) { const f = P.onArrive; P.onArrive = null; f(); } }
   else P.moving = false;
   if (P.inCar && pcar) { pcar.x = P.x; pcar.y = P.y; pcar.dir = P.dir; pcar.bar = !!(call && call.accepted); }
+  if (P.boat && pboat) { pboat.x = P.x; pboat.y = P.y; pboat.dir = P.dir; }
+  if (S.unit === 'k9' && !P.inCar && !P.boat) { const tx = P.x - (P.face > 0 ? .7 : -.7) * .7, ty = P.y + .55, d = Math.hypot(tx - K9.x, ty - K9.y); K9.moving = d > .08; if (d > 6) { K9.x = tx; K9.y = ty; } else { K9.x += (tx - K9.x) * Math.min(1, dt * 4); K9.y += (ty - K9.y) * Math.min(1, dt * 4); } K9.face = P.face; }
   if (!cam.free) { const [ix, iy] = iso(P.x, P.y); cam.x += (ix - cam.x) * Math.min(1, dt * 6); cam.y += (iy - 22 - cam.y) * Math.min(1, dt * 6); }
   peds.forEach((p) => { if (p.wait > 0) { p.wait -= dt; p.moving = false; return; } if (!p.path.length) { const t = rnd(W.walk); const path = Math.hypot(t[0] - p.x, t[1] - p.y) < 16 ? astar(p.x, p.y, t[0], t[1], pedPass, true) : null; if (path) p.path = path; else p.wait = 1; return; } if (stepAlong(p, dt, p.sp)) p.wait = 1 + Math.random() * 4; });
   traffic.forEach((c) => { if (!c.path.length) { for (let k = 0; k < 6; k++) { const x = Math.floor(Math.random() * N), y = Math.floor(Math.random() * N); if (roadPass(x, y) && Math.hypot(x - c.x, y - c.y) < 24) { const p = astar(c.x, c.y, x, y, roadPass, false); if (p && p.length > 3) { c.path = p; break; } } } return; } stepAlong(c, dt, c.sp); });
   // arrive on a call
   if (call && Math.hypot(call.x - P.x, call.y - P.y) < 1.7 && !scene) { const c = call; call = null; callCard(); openCallScene(c); }
   if (!call && !scene) { nextCall -= dt; if (nextCall <= 0) dispatchCall(); }
-  if (call && clock - call.t0 > 150) { radio('Dispatch', S.cs + ', disregard; another unit took that call.'); call = null; callCard(); nextCall = 20; if (net) { net.status('patrol'); net.backup(null); } }
+  if (call && clock - call.t0 > callWait()) { radio('Dispatch', S.cs + ', disregard; another unit took that call.'); call = null; callCard(); nextCall = 20; if (net) { net.status('patrol'); net.backup(null); } }
   // observation moments appear only up close
-  observes.forEach((o) => { if (!o.seen && Math.hypot(o.x - P.x, o.y - P.y) < 4.5) { o.seen = true; toast('Something\'s off: ' + o.text + '. Tap the ! to check it out.'); beep(880, .08, 'sine', .04); } });
+  observes.forEach((o) => { if (!o.seen && Math.hypot(o.x - P.x, o.y - P.y) < spotR()) { o.seen = true; toast((S.unit === 'k9' ? 'Your K9 alerts. ' : '') + 'Something\'s off: ' + o.text + '. Tap the ! to check it out.'); beep(880, .08, 'sine', .04); if (S.unit === 'k9') { beep(520, .07, 'square', .03, .1); beep(520, .07, 'square', .03, .22); } } });
   infos.forEach((i) => { if (i.cool > 0) i.cool -= dt; });
   // gates
   W.gates.forEach((g) => { if (Math.abs(P.x - (g.x + .5)) < 1.2 && Math.abs(P.y - (g.y + 1)) < 1.6 && !g.prompted) { g.prompted = true; gatePrompt(g); } else if (Math.hypot(P.x - (g.x + .5), P.y - (g.y + 1)) > 3) g.prompted = false; });
   // siren
-  if (P.inCar && call && call.accepted) { sirenT -= dt; if (sirenT <= 0) { sirenT = .9; beep(720, .42, 'sine', .018); beep(980, .42, 'sine', .018, .45); } }
-  if (net && now - moveSent > 120) { moveSent = now; net.move(P.x, P.y, P.inCar, P.dir); }
+  if ((P.inCar || P.boat) && call && call.accepted) { sirenT -= dt; if (sirenT <= 0) { sirenT = .9; beep(720, .42, 'sine', .018); beep(980, .42, 'sine', .018, .45); } }
+  if (net && now - moveSent > 120) { moveSent = now; net.move(P.x, P.y, P.boat ? 2 : P.inCar ? 1 : 0, P.dir); }
   hudClock();
   if (clock >= SHIFT_MIN && !scene) endOfWatch();
 }
@@ -163,9 +176,11 @@ function render(now) {
   peds.forEach((p) => { const [sx, sy] = iso(p.x, p.y); if (vis(sx, sy)) list.push({ d: p.x + p.y, f: () => person(ctx, sx, sy, p, now) }); });
   citizens.forEach((p) => { const [sx, sy] = iso(p.x, p.y); if (vis(sx, sy)) list.push({ d: p.x + p.y, f: () => { person(ctx, sx, sy, p, now); bubble(sx, sy - 46, '?', '#f5b800', now); } }); });
   traffic.forEach((c) => { const off = laneOff(c), [sx, sy] = iso(c.x + off[0], c.y + off[1]); if (vis(sx, sy)) list.push({ d: c.x + c.y, f: () => car(ctx, sx, sy, c.dir, c.color, false, now, NIGHT, 1) }); });
-  if (pcar && !P.inCar) { const [sx, sy] = iso(pcar.x, pcar.y); list.push({ d: pcar.x + pcar.y, f: () => { car(ctx, sx, sy, pcar.dir, '#000', true, now, NIGHT, 1.05, false); if (Math.hypot(pcar.x - P.x, pcar.y - P.y) < 5) label(sx, sy - 34, 'Your patrol car', '#f5b800'); } }); }
-  Object.keys(others).forEach((k) => { const o = others[k]; const [sx, sy] = iso(o.rx, o.ry); if (!vis(sx, sy)) return; list.push({ d: o.rx + o.ry, f: () => { if (o.v) car(ctx, sx, sy, o.d || 0, '#000', true, now, NIGHT, 1.05, o.st === 'call'); else person(ctx, sx, sy, { officer: true, moving: o.moving, face: 1, skin: o.skin, s: 1 }, now); label(sx, sy - (o.v ? 34 : 50), o.c + (o.sh && o.sh !== S.shift ? ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') : ''), '#9cc3ff'); if (o.q && now - o.qAt < 6000) speech(sx, sy - (o.v ? 52 : 68), QUICK[o.q.k] || ''); } }); });
-  { const [sx, sy] = iso(P.x, P.y); list.push({ d: P.x + P.y, f: () => { if (P.inCar) car(ctx, sx, sy, P.dir, '#000', true, now, NIGHT, 1.05, call && call.accepted); else person(ctx, sx, sy, { officer: true, moving: P.moving, face: P.face, skin: S.skin || '#c68e63', s: 1.08 }, now); } }); }
+  if (pcar && !P.inCar) { const [sx, sy] = iso(pcar.x, pcar.y); list.push({ d: pcar.x + pcar.y, f: () => { vehicle(ctx, sx, sy, pcar.dir, U().ride, now, NIGHT, false); if (Math.hypot(pcar.x - P.x, pcar.y - P.y) < 5) label(sx, sy - 40, 'Your ' + U().ride.label.toLowerCase(), '#f5b800'); } }); }
+  if (pboat && !P.boat) { const [sx, sy] = iso(pboat.x, pboat.y); list.push({ d: pboat.x + pboat.y, f: () => { vehicle(ctx, sx, sy, pboat.dir, { kind: 'boat' }, now, NIGHT, false); if (Math.hypot(pboat.x - P.x, pboat.y - P.y) < 6) label(sx, sy - 30, 'Patrol boat', '#7dd3fc'); } }); }
+  if (S.unit === 'k9' && !P.inCar && !P.boat) { const [sx, sy] = iso(K9.x, K9.y); list.push({ d: K9.x + K9.y, f: () => dog(ctx, sx, sy, K9.face, K9.moving, now) }); }
+  Object.keys(others).forEach((k) => { const o = others[k]; const [sx, sy] = iso(o.rx, o.ry); if (!vis(sx, sy)) return; list.push({ d: o.rx + o.ry, f: () => { const ou = unitOf(o.u); if (o.v) vehicle(ctx, sx, sy, o.d || 0, o.v === 2 ? { kind: 'boat' } : ou.ride, now, NIGHT, o.st === 'call'); else { person(ctx, sx, sy, { kit: ou.kit, moving: o.moving, face: 1, skin: o.skin, s: 1 }, now); if (o.u === 'k9') dog(ctx, sx - 14, sy + 6, 1, o.moving, now); } label(sx, sy - (o.v ? 40 : 50), ou.icon + ' ' + o.c + (o.sh && o.sh !== S.shift ? ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') : ''), '#9cc3ff'); if (o.q && now - o.qAt < 6000) speech(sx, sy - (o.v ? 52 : 68), QUICK[o.q.k] || ''); } }); });
+  { const [sx, sy] = iso(P.x, P.y); list.push({ d: P.x + P.y, f: () => { if (P.boat) vehicle(ctx, sx, sy, P.dir, { kind: 'boat' }, now, NIGHT, call && call.accepted); else if (P.inCar) vehicle(ctx, sx, sy, P.dir, U().ride, now, NIGHT, call && call.accepted); else person(ctx, sx, sy, { kit: U().kit, moving: P.moving, face: P.face, skin: S.skin || '#c68e63', s: 1.08 }, now); } }); }
   list.sort((a, b) => a.d - b.d).forEach((e) => e.f());
   // player ghost outline so you never lose yourself behind a building
   { const [sx, sy] = iso(P.x, P.y); ctx.globalAlpha = .35; ctx.strokeStyle = '#f5b800'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, 13, 6.5, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
@@ -184,7 +199,7 @@ function render(now) {
     W.props.forEach((p) => { if (p.t === 'lamp') { const [ix, iy] = iso(p.x, p.y); hole(ix + 10, iy - 6, 92, .85); } if (p.t === 'canopy') { const [ix, iy] = iso(p.x, p.y); hole(ix, iy, 110, .9); } if (p.t === 'mast') { const [ix, iy] = iso(p.x, p.y); hole(ix, iy - 200, 16, .9); } });
     SPR.forEach((sp) => sp.lights.forEach((q) => hole(q[0], q[1], 34, .55)));
     traffic.forEach((c) => { const off = laneOff(c), [ix, iy] = iso(c.x + off[0], c.y + off[1]), f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][c.dir]; hole(ix + f[0] * 34, iy + f[1] * 34, 56, .7); });
-    { const [ix, iy] = iso(P.x, P.y); hole(ix, iy - 10, P.inCar ? 120 : 96, .8); }
+    { const [ix, iy] = iso(P.x, P.y); hole(ix, iy - 10, P.inCar || P.boat ? 120 : 96, .8); }
     Object.keys(others).forEach((k) => { const o = others[k], [ix, iy] = iso(o.rx, o.ry); hole(ix, iy - 10, 70, .6); });
     const marks = markerPoints(); marks.forEach((m) => hole(m[0], m[1], 50, .7));
     ctx.drawImage(lc, 0, 0, cv.width, cv.height);
@@ -193,7 +208,7 @@ function render(now) {
     const glow = (ix, iy, r, col) => { const x = cv.width / 2 + (ix - cam.x) * z, y = cv.height / 2 + (iy - cam.y) * z, rr = r * z; if (x < -rr || y < -rr || x > cv.width + rr || y > cv.height + rr) return; const gr = ctx.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.fill(); };
     W.props.forEach((p) => { if (p.t === 'lamp') { const [ix, iy] = iso(p.x, p.y); glow(ix + 10, iy - 37, 18, 'rgba(255,220,150,.55)'); } });
     const bar = (x, y, on) => { const ph = Math.floor(now / 180) % 2; glow(x, y - 22, 46, on ? (ph ? 'rgba(255,40,40,.45)' : 'rgba(40,90,255,.45)') : 'rgba(0,0,0,0)'); };
-    if (P.inCar && call && call.accepted) { const [ix, iy] = iso(P.x, P.y); bar(ix, iy, true); }
+    if ((P.inCar || P.boat) && call && call.accepted) { const [ix, iy] = iso(P.x, P.y); bar(ix, iy, true); }
     Object.keys(others).forEach((k) => { const o = others[k]; if (o.v && o.st === 'call') { const [ix, iy] = iso(o.rx, o.ry); bar(ix, iy, true); } });
     ctx.globalCompositeOperation = 'source-over';
   }
@@ -249,11 +264,15 @@ function tap(px, py) {
   for (const o of observes) if (o.seen && near(o.x, o.y, 30)) return reach(o.x, o.y, () => observeScene(o));
   if (call && near(call.x, call.y, 34)) { call.accepted = true; callCard(); return goTo(call.x, call.y); }
   for (const k in others) { const o = others[k]; if (o.b && near(o.b.x, o.b.y, 34)) return reach(o.b.x, o.b.y, () => backupScene(k, o)); }
-  if (pcar && !P.inCar && near(pcar.x, pcar.y, 34)) return reach(pcar.x, pcar.y, enterCar);
+  if (pcar && !P.inCar && !P.boat && near(pcar.x, pcar.y, 34)) return reach(pcar.x, pcar.y, enterCar);
+  if (pboat && !P.boat && !P.inCar && near(pboat.x, pboat.y, 34)) return reach(pboat.dock[0], pboat.dock[1], enterBoat);
+  if (P.boat) { const [wx, wy] = unIso(ix, iy); if (W.at(Math.floor(wx), Math.floor(wy)) !== T.WATER) { toast('Docking. Tap the water to keep patrolling.'); return exitBoat(); } }
   const [wx, wy] = unIso(ix, iy); goTo(wx, wy);
 }
 addEventListener('keydown', (e) => { if (scene || paused || e.target.closest('input,textarea')) return; const k = { ArrowUp: [-1, -1], w: [-1, -1], ArrowDown: [1, 1], s: [1, 1], ArrowLeft: [-1, 1], a: [-1, 1], ArrowRight: [1, -1], d: [1, -1] }[e.key]; if (!k) return; e.preventDefault(); goTo(P.x + k[0] * 1.6, P.y + k[1] * 1.6); });
-function enterCar() { P.inCar = true; P.x = pcar.x; P.y = pcar.y; const r = nearest(Math.floor(P.x), Math.floor(P.y), (x, y) => W.drivable(x, y)); if (r) { P.x = r[0] + .5; P.y = r[1] + .5; } toast('In your patrol car. Tap the road to drive; lights and siren come on when you respond to a call.'); hud(); }
+function enterCar() { P.inCar = true; P.x = pcar.x; P.y = pcar.y; const r = nearest(Math.floor(P.x), Math.floor(P.y), (x, y) => W.drivable(x, y)); if (r) { P.x = r[0] + .5; P.y = r[1] + .5; } toast('In your ' + U().ride.label.toLowerCase() + '. Tap the road to drive; lights and siren come on when you respond to a call.'); hud(); }
+function enterBoat() { if (!pboat) return; P.boat = true; P.x = pboat.x; P.y = pboat.y; P.path = []; toast('Patrol boat launched. Tap the water to move; tap the shore to dock.'); hud(); }
+function exitBoat() { if (!P.boat) return; P.boat = false; P.path = []; pboat.x = P.x; pboat.y = P.y; const r = nearest(Math.floor(P.x), Math.floor(P.y), (x, y) => W.at(x, y) === T.SAND); if (r) { P.x = r[0] + .5; P.y = r[1] + .5; pboat.dock = [P.x, P.y]; } hud(); }
 function exitCar() { if (!P.inCar) return; P.inCar = false; P.path = []; pcar.x = P.x; pcar.y = P.y; const r = nearest(Math.floor(P.x), Math.floor(P.y), (x, y) => W.walkable(x, y) && W.at(x, y) !== T.ROAD); if (r) { P.x = r[0] + .5; P.y = r[1] + .5; } hud(); }
 
 // ---------- learning scenes ----------
@@ -285,14 +304,14 @@ function openCallScene(c) {
   if (net) net.status('call');
   const n = c.prio === 1 ? 4 : 3, qs = L.pick(S, [c.les], 'q', n), fast = clock - c.t0 < 40;
   runQuestions('<div class="sceneHead p' + c.prio + '"><b>ON SCENE · ' + esc(c.where) + '</b><h2>' + esc(c.title) + '</h2><p>' + esc(c.text) + '</p></div>', qs, (r) => {
-    S.calls++; const xp = r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0); S.trust[W.did] = Math.min(100, (S.trust[W.did] || 50) + r.right - (r.n - r.right));
-    openModal('<div class="sceneHead done"><b>CALL CLEARED</b><h2>' + r.right + ' of ' + r.n + ' handled by the book</h2><p>' + (fast ? 'Quick response bonus. ' : '') + (r.right === r.n ? 'Clean call. ' : 'Review what you missed in the hub.') + '</p></div>' + masteryLine() + '<div class="qAct"><button type="button" id="mDone">Back in service</button></div>');
+    S.calls++; const mult = callMult(c), xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
+    openModal('<div class="sceneHead done"><b>CALL CLEARED</b><h2>' + r.right + ' of ' + r.n + ' handled by the book</h2><p>' + (fast ? 'Quick response bonus. ' : '') + (mult > 1.01 ? U().icon + ' ' + esc(U().perk) + ' bonus. ' : '') + (r.right === r.n ? 'Clean call. ' : 'Review what you missed in the hub.') + '</p></div>' + masteryLine() + '<div class="qAct"><button type="button" id="mDone">Back in service</button></div>');
     $('mDone').onclick = () => { closeModal(); radio(S.cs, 'Clear, back in service.'); award(xp, 'call cleared'); nextCall = 25 + Math.random() * 25; if (net) net.backup(null); };
   });
 }
 function citizenTalk(c) {
   const qs = L.pick(S, [c.les], 'jq', 1);
-  runQuestions('<div class="sceneHead cit"><b>CITIZEN CONTACT</b><h2>"Officer, quick question about something I read..."</h2></div>', qs, (r) => { closeModal(); award(r.right ? 15 : 5, 'citizen contact'); const i = citizens.indexOf(c); if (i >= 0) citizens[i] = newCitizen(); });
+  runQuestions('<div class="sceneHead cit"><b>CITIZEN CONTACT</b><h2>"Officer, quick question about something I read..."</h2></div>', qs, (r) => { closeModal(); award(Math.round((r.right ? 15 : 5) * rapMult() * (S.unit === 'hoi' ? 1.5 : 1)), 'citizen contact'); const i = citizens.indexOf(c); if (i >= 0) citizens[i] = newCitizen(); });
 }
 function observeScene(o) {
   const qs = L.pick(S, [o.les], 'q', 1);
@@ -302,7 +321,7 @@ function infoPoint(i) {
   if (i.cool > 0) { toast('You checked ' + i.name + ' recently. Come back in a bit.'); return; }
   const f = L.fact(S, i.les); if (!f) return;
   openModal('<div class="sceneHead info"><b>' + esc(i.name.toUpperCase()) + ' · ' + esc(L.lessonName(i.les)) + '</b><h2>Know this</h2></div><p class="fact">' + esc(f.text) + ' <em>p. ' + esc(f.pg) + '</em></p><div class="qAct"><button type="button" id="mGo">Got it · quick check</button></div>');
-  $('mGo').onclick = () => { const qs = L.pick(S, [i.les], 'tq', 1); runQuestions('<div class="sceneHead info"><b>QUICK CHECK</b></div>', qs, (r) => { closeModal(); i.cool = 120; award(r.right ? 10 : 3, 'study point'); }); };
+  $('mGo').onclick = () => { const qs = L.pick(S, [i.les], 'tq', 1); runQuestions('<div class="sceneHead info"><b>QUICK CHECK</b></div>', qs, (r) => { closeModal(); i.cool = S.unit === 'det' ? 60 : 120; award(Math.round((r.right ? 10 : 3) * rapMult() * (S.unit === 'sro' ? 2 : 1)), 'study point'); }); };
 }
 function backupScene(uid, o) {
   const ls = W.D.lessons.indexOf(6) >= 0 ? [6] : W.D.lessons, qs = L.pick(S, ls, 'q', 2);
@@ -322,8 +341,8 @@ function districtBoard() {
       (un ? '<div class="dLes">' + d.lessons.map((l, k) => { const x = m.lessons[k]; return '<div class="dL"><span>' + esc(L.lessonName(l)) + '</span><i><b style="width:' + Math.round(Math.min(1, x.n / 8) * x.pct * 100) + '%" class="' + (x.done ? 'ok' : '') + '"></b></i></div>'; }).join('') + '</div>' : '<p class="dLock">Master the district before it to unlock.</p>') +
       '<div class="dAct">' + (cl ? '<span class="cleared">★ District cleared</span>' : '') + (un && !here ? '<button type="button" data-go="' + d.id + '">Patrol here</button>' : '') + (here && !cl ? '<button type="button" data-final="1" ' + (m.ready ? '' : 'disabled') + '>' + (m.ready ? 'Take the District Final Call' : 'Final Call · master every lesson first') + '</button>' : '') + '</div></div>';
   }).join('');
-  openModal('<div class="sceneHead"><b>CITY MAP · DISTRICTS</b><h2>Master a district to open the next one</h2><p>A lesson is mastered at 80% or better over your last ten answers on it (at least eight).</p></div><div class="dList">' + rows + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
-  $('mClose').onclick = closeModal;
+  openModal('<div class="uNow" style="--uc:' + U().color + '"><span>' + U().icon + '</span><div><b>' + esc(unitName(U())) + '</b><small>' + esc(U().perk) + '</small></div><button type="button" id="uSw">Switch unit</button></div><div class="sceneHead"><b>CITY MAP · DISTRICTS</b><h2>Master a district to open the next one</h2><p>A lesson is mastered at 80% or better over your last ten answers on it (at least eight).</p></div><div class="dList">' + rows + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
+  $('mClose').onclick = closeModal; $('uSw').onclick = unitPicker;
   document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { closeModal(); S.home = S.home == null ? +b.dataset.go : S.home; L.saveState(S); clock = 0; load(+b.dataset.go); });
   const fb = document.querySelector('[data-final]'); if (fb) fb.onclick = finalCall;
 }
@@ -353,17 +372,17 @@ function endOfWatch() {
 // ---------- HUD ----------
 function hud() {
   const r = L.rankOf(S.xp), m = L.districtMastery(S, W.did);
-  $('hCs').textContent = S.cs; $('hRank').textContent = r.name + ' · ' + S.xp + ' RP';
+  $('hCs').textContent = U().icon + ' ' + S.cs; $('hUnit').textContent = unitName(U()); $('hUnit').style.setProperty('--uc', U().color); $('hRank').textContent = r.name + ' · ' + S.xp + ' RP';
   $('hDist').textContent = W.D.name; $('hDist').style.setProperty('--dc', W.D.color);
   $('hMast').style.setProperty('--p', Math.round(m.pct * 100)); $('hMastN').textContent = m.done + '/' + m.total;
-  $('bCar').textContent = P.inCar ? 'Exit car' : 'Car'; $('bCar').classList.toggle('on', P.inCar);
-  $('bSnd').textContent = S.sound ? '🔊' : '🔇';
+  { const k = U().ride.kind, lab = P.boat ? 'Dock' : P.inCar ? 'Exit' : k === 'van' ? 'Van' : k === 'armored' || k === 'truck' ? 'Truck' : k === 'suv' ? 'SUV' : 'Car'; $('bCar').innerHTML = '<i>' + (P.boat ? '⚓' : P.inCar ? '🚶' : '🚓') + '</i>' + lab; } $('bCar').classList.toggle('on', P.inCar || P.boat);
+  $('bSnd').innerHTML = '<i>' + (S.sound ? '🔊' : '🔇') + '</i>Sound';
 }
 function hudClock() { const t = (shiftOf().start * 60 + Math.floor(clock)) % 1440; const s = String(Math.floor(t / 60)).padStart(2, '0') + String(t % 60).padStart(2, '0') + ' hrs'; const el = $('hClock'); if (el.textContent !== s) el.textContent = shiftOf().name + ' · ' + s; }
 const feed = [];
 function radio(who, msg) { feed.push([who, msg]); while (feed.length > 30) feed.shift(); const el = $('radio'); el.innerHTML = feed.slice(-3).map((f) => '<div><b>' + esc(f[0]) + ':</b> ' + esc(f[1]) + '</div>').join(''); }
 function toast(t) { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 3800); }
-$('bCar').onclick = () => { if (P.inCar) exitCar(); else if (pcar) { if (Math.hypot(pcar.x - P.x, pcar.y - P.y) < 2.2) enterCar(); else { toast('Walking back to your patrol car.'); goTo(pcar.x, pcar.y, enterCar); } } };
+$('bCar').onclick = () => { if (P.boat) exitBoat(); else if (P.inCar) exitCar(); else if (pcar) { if (Math.hypot(pcar.x - P.x, pcar.y - P.y) < 2.2) enterCar(); else { toast('Walking back to your ' + U().ride.label.toLowerCase() + '.'); goTo(pcar.x, pcar.y, enterCar); } } };
 $('bMap').onclick = districtBoard;
 $('bSnd').onclick = () => { S.sound = !S.sound; L.saveState(S); hud(); };
 $('bMe').onclick = () => { cam.free = false; };
@@ -381,33 +400,51 @@ function onPlayers(all, uid) {
     if (v.q && (!o.q || o.q.t !== v.q.t) && now - v.q.t < 8000) { o.qAt = performance.now(); radio(v.c, QUICK[v.q.k] || ''); }
     if (v.b && v.b.t && (!o.b || o.b.t !== v.b.t) && now - v.b.t < 60000) { radio(v.c, 'Requesting backup: ' + (v.b.l || '')); chirp(); toast(v.c + ' requests backup. Tap the blue marker to respond.'); }
     if (v.a === uid && o.a !== uid) { toast(v.c + ' arrived to back you up.'); good(); }
-    Object.assign(o, { sh: v.s, tx: v.x, ty: v.y, c: v.c, v: v.v, d: v.d, st: v.st, q: v.q, b: v.b, a: v.a });
+    Object.assign(o, { u: v.u, sh: v.s, tx: v.x, ty: v.y, c: v.c, v: v.v, d: v.d, st: v.st, q: v.q, b: v.b, a: v.a });
   });
   Object.keys(others).forEach((k) => { if (!seen[k]) delete others[k]; });
   $('hOn').textContent = (Object.keys(others).length + 1) + ' on shift';
 }
 function smoothOthers(dt) { Object.keys(others).forEach((k) => { const o = others[k]; if (o.tx == null) return; const dx = o.tx - o.rx, dy = o.ty - o.ry; o.moving = Math.hypot(dx, dy) > .05; o.rx += dx * Math.min(1, dt * 5); o.ry += dy * Math.min(1, dt * 5); }); }
 
+// ---------- unit picker ----------
+function unitCards(sel) {
+  return '<div class="uList">' + UNITS.map((u) => '<button type="button" class="uCard' + (u.id === sel ? ' on' : '') + '" data-u="' + u.id + '" style="--uc:' + u.color + '">' +
+    '<div class="uTop"><span class="uIco">' + u.icon + '</span><div><b>' + esc(u.name) + '</b><em>(In Training)</em></div></div>' +
+    '<div class="uStats">' + STATS.map((x) => '<div title="' + esc(x[2]) + '"><span>' + x[1] + '</span><i>' + [1, 2, 3, 4, 5].map((k) => '<b class="' + (k <= u.st[x[0]] ? 'f' : '') + '"></b>').join('') + '</i></div>').join('') + '</div>' +
+    '<p class="uPerk"><b>' + esc(u.perk) + ':</b> ' + esc(u.perkText) + '</p><p class="uRide">' + esc(u.ride.label) + '</p></button>').join('') + '</div>';
+}
+function unitPicker() {
+  let sel = S.unit;
+  const draw = () => { openModal('<div class="sceneHead"><b>SPECIALTY UNIT</b><h2>Switch your training unit</h2><p>Your rank and RP stay with you.</p></div>' + unitCards(sel) + '<div class="qAct"><button type="button" id="uGo">Train with ' + esc(unitOf(sel).name) + '</button><button type="button" class="ghost" id="uNo">Cancel</button></div>');
+    document.querySelectorAll('.uCard').forEach((b) => b.onclick = () => { sel = b.dataset.u; draw(); });
+    $('uGo').onclick = () => { if (P.inCar) exitCar(); if (P.boat) exitBoat(); S.unit = sel; L.saveState(S); closeModal(); load(W.did); }; $('uNo').onclick = closeModal; };
+  draw();
+}
+
 // ---------- start screen ----------
 function callsign(did) { return (did + 1) + '-' + rnd(PHONETIC) + '-' + (10 + Math.floor(Math.random() * 89)); }
 function startScreen() {
-  let did = S.home != null ? S.home : 0, shift = S.shift || 'day', cs = S.cs || callsign(did);
+  let did = S.home != null ? S.home : 0, shift = SHIFTS.some((x) => x.id === S.shift) ? S.shift : 'day', cs = S.cs || callsign(did), unit = S.unit || '';
   const draw = () => {
     $('start').innerHTML = '<div class="stBox"><div class="stBrand"><span class="stBadge">★</span><div><b>PATROL CITY</b><small>Learn the job on the street · Chapter 5</small></div></div>' +
       '<label class="stL">Your call sign</label><div class="stCs"><b>' + esc(cs) + '</b><button type="button" id="stRe">New call sign</button></div>' +
       (S.home == null ? '<label class="stL">Pick your district</label><div class="stD">' + DISTRICTS.map((d) => '<button type="button" class="' + (d.id === did ? 'on' : '') + '" data-d="' + d.id + '" style="--dc:' + d.color + '"><b>' + esc(d.name) + '</b><span>' + esc(d.unit) + '</span></button>').join('') + '</div><p class="stNote">You start locked to this district. Master it to open the next one.</p>' : '<p class="stNote">Your district: <b>' + esc(DISTRICTS[S.home].name) + '</b>. Change districts from the city map once others are open.</p>') +
+      '<label class="stL">Pick your specialty unit</label>' + unitCards(unit) +
       '<label class="stL">Pick your shift</label><div class="stS">' + SHIFTS.map((s) => '<button type="button" class="' + (s.id === shift ? 'on' : '') + '" data-s="' + s.id + '"><b>' + s.name + '</b><span>' + s.hours + '</span><small>' + s.note + '</small></button>').join('') + '</div>' +
       '<button type="button" class="stGo" id="stGo">Start roll call</button><p class="stFine">Sim training game for FBRTP cadets. Answers come from your Chapter 5 study material.</p></div>';
     $('stRe').onclick = () => { cs = callsign(did); draw(); };
     document.querySelectorAll('[data-d]').forEach((b) => b.onclick = () => { did = +b.dataset.d; cs = callsign(did); draw(); });
     document.querySelectorAll('[data-s]').forEach((b) => b.onclick = () => { shift = b.dataset.s; draw(); });
-    $('stGo').onclick = () => { audio(); S.cs = cs; S.shift = shift; if (S.home == null) { S.home = did; S.unlocked = [did]; } L.saveState(S); $('start').hidden = true; clock = 0; load(S.home != null && S.unlocked.includes(did) ? did : S.home); rollCall(); };
+    document.querySelectorAll('.uCard').forEach((b) => b.onclick = () => { unit = b.dataset.u; draw(); });
+    $('stGo').disabled = !unit; if (!unit) $('stGo').textContent = 'Pick a specialty unit';
+    $('stGo').onclick = () => { if (!unit) return; audio(); S.cs = cs; S.shift = shift; S.unit = unit; if (S.home == null) { S.home = did; S.unlocked = [did]; } L.saveState(S); $('start').hidden = true; clock = 0; load(S.home != null && S.unlocked.includes(did) ? did : S.home); rollCall(); };
   };
   draw(); $('start').hidden = false;
 }
 function rollCall() {
   const d = W.D;
-  openModal('<div class="sceneHead"><b>ROLL CALL · ' + esc(shiftOf().name.toUpperCase()) + '</b><h2>' + esc(d.name) + '</h2><p>' + esc(d.blurb) + '</p></div><p class="fact">Tonight\'s focus: ' + d.lessons.map((l) => esc(L.lessonName(l))).join(' · ') + '.</p><ul class="how"><li>Tap the street to walk; tap your patrol car to drive.</li><li>Answer dispatch calls, help citizens with a <b>?</b>, check study points <b>i</b> and anything that looks off <b>!</b>.</li><li>Master every lesson here, then take the District Final Call to open the next district.</li></ul><div class="qAct"><button type="button" id="mDone">Hit the street</button></div>');
+  openModal('<div class="sceneHead"><b>ROLL CALL · ' + esc(shiftOf().name.toUpperCase()) + '</b><h2>' + esc(d.name) + '</h2><p>' + esc(d.blurb) + '</p></div><p class="fact">' + U().icon + ' <b>' + esc(unitName(U())) + '.</b> ' + esc(U().perk) + ': ' + esc(U().perkText) + '</p><p class="fact">Focus this shift: ' + d.lessons.map((l) => esc(L.lessonName(l))).join(' · ') + '.</p><ul class="how"><li>Tap the street to walk; tap your patrol car to drive.</li><li>Answer dispatch calls, help citizens with a <b>?</b>, check study points <b>i</b> and anything that looks off <b>!</b>.</li><li>Master every lesson here, then take the District Final Call to open the next district.</li></ul><div class="qAct"><button type="button" id="mDone">Hit the street</button></div>');
   $('mDone').onclick = closeModal;
 }
 
@@ -421,7 +458,7 @@ function frame(now) { const dt = Math.min(.05, (now - last) / 1000); last = now;
   $('loading').hidden = true;
   startScreen();
   requestAnimationFrame(frame);
-  try { net = await startNet(onPlayers); if (net && W) net.join(W.did, S.shift, { cs: S.cs, x: P.x, y: P.y, rank: L.rankOf(S.xp).name }); } catch (e) { net = null; }
+  try { net = await startNet(onPlayers); if (net && W) net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, x: P.x, y: P.y, rank: L.rankOf(S.xp).name }); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { S, get W() { return W; }, P, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { S, get W() { return W; }, P, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };

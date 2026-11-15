@@ -98,6 +98,85 @@
           ".validate": "newData.hasChildren(['p','n','kind','text']) && newData.child('text').isString() && newData.child('text').val().length <= 160"
         }
       }
+    },
+    "mmo": {
+      "$d": {
+        "$s": {
+          "p": {
+            ".read": "auth != null",
+            "$uid": {
+              ".write": "auth != null && auth.uid === $uid",
+              ".validate": "$d.matches(/^[0-4]$/) && $s.matches(/^(day|mid|night)$/) && newData.hasChildren(['c','x','y','t'])",
+              "c": {
+                ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 20"
+              },
+              "x": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 46"
+              },
+              "y": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 46"
+              },
+              "v": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 2"
+              },
+              "d": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+              },
+              "s": {
+                ".validate": "newData.val() === $s"
+              },
+              "u": {
+                ".validate": "newData.isString() && newData.val().matches(/^(swat|k9|neg|marine|brt|hoi|det|sro)$/)"
+              },
+              "st": {
+                ".validate": "newData.isString() && newData.val().matches(/^(patrol|call)$/)"
+              },
+              "r": {
+                ".validate": "newData.isString() && newData.val().length <= 24"
+              },
+              "t": {
+                ".validate": "newData.val() === now"
+              },
+              "q": {
+                ".validate": "newData.hasChildren(['k','t'])",
+                "k": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 7"
+                },
+                "t": {
+                  ".validate": "newData.val() === now"
+                },
+                "$o": {
+                  ".validate": false
+                }
+              },
+              "b": {
+                ".validate": "newData.hasChildren(['x','y','t'])",
+                "x": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 46"
+                },
+                "y": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 46"
+                },
+                "l": {
+                  ".validate": "newData.isString() && newData.val().length <= 48"
+                },
+                "t": {
+                  ".validate": "newData.val() === now"
+                },
+                "$o": {
+                  ".validate": false
+                }
+              },
+              "a": {
+                ".validate": "newData.isString() && newData.val().length <= 128"
+              },
+              "$o": {
+                ".validate": false
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

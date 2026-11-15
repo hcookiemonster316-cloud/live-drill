@@ -5,7 +5,7 @@ const KEY = 'patrolcity:v1';
 export function loadState() {
   let s = null; try { s = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { s = null; }
   s = s || {};
-  return Object.assign({ cs: '', home: null, unlocked: [], cleared: [], shift: 'day', xp: 0, log: {}, seen: {}, miss: {}, calls: 0, answered: 0, right: 0, sound: true, trust: {}, zoom: 0, shiftStats: null }, s);
+  return Object.assign({ cs: '', home: null, unlocked: [], cleared: [], shift: 'day', xp: 0, log: {}, seen: {}, miss: {}, calls: 0, answered: 0, right: 0, sound: true, trust: {}, zoom: 0, shiftStats: null, unit: '' }, s);
 }
 export function saveState(S) { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 export function rankOf(xp) { let r = RANKS[0][1], next = null; for (let i = 0; i < RANKS.length; i++) { if (xp >= RANKS[i][0]) { r = RANKS[i][1]; next = RANKS[i + 1] || null; } } return { name: r, next }; }
