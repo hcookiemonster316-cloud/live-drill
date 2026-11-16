@@ -303,7 +303,9 @@ function fill(W, L, R) {
 export const CAR_COLORS = ['#c0392b', '#2c3e50', '#ecf0f1', '#7f8c8d', '#2980b9', '#27ae60', '#f39c12', '#8e44ad', '#34495e', '#d35400', '#bdc3c7', '#16a085'];
 
 // ---------- art ----------
-const shade = (hex, f) => { let r, g, b; hex = String(hex); if (hex[0] === '#') { const h6 = hex.length === 4 ? hex.replace(/^#(.)(.)(.)$/, '#$1$1$2$2$3$3') : hex, n = parseInt(h6.slice(1, 7), 16); r = n >> 16; g = (n >> 8) & 255; b = n & 255; } else { const m = hex.match(/\d+(\.\d+)?/g) || [128, 128, 128]; r = +m[0]; g = +m[1]; b = +m[2]; } r = Math.max(0, Math.min(255, Math.round(r * f))); g = Math.max(0, Math.min(255, Math.round(g * f))); b = Math.max(0, Math.min(255, Math.round(b * f))); return 'rgb(' + r + ',' + g + ',' + b + ')'; };
+const shade0 = (hex, f) => { let r, g, b; hex = String(hex); if (hex[0] === '#') { const h6 = hex.length === 4 ? hex.replace(/^#(.)(.)(.)$/, '#$1$1$2$2$3$3') : hex, n = parseInt(h6.slice(1, 7), 16); r = n >> 16; g = (n >> 8) & 255; b = n & 255; } else { const m = hex.match(/\d+(\.\d+)?/g) || [128, 128, 128]; r = +m[0]; g = +m[1]; b = +m[2]; } r = Math.max(0, Math.min(255, Math.round(r * f))); g = Math.max(0, Math.min(255, Math.round(g * f))); b = Math.max(0, Math.min(255, Math.round(b * f))); return 'rgb(' + r + ',' + g + ',' + b + ')'; };
+const SHADEC = new Map();
+const shade = (hex, f) => { const k = hex + '|' + f; let v = SHADEC.get(k); if (v === undefined) { if (SHADEC.size > 6000) SHADEC.clear(); v = shade0(hex, f); SHADEC.set(k, v); } return v; };
 export { shade };
 
 // ground: drawn once per district into one large canvas
@@ -565,11 +567,11 @@ function mini(g, tx, x, y, w, d, h, base, color) {
 const PROPC = new Map(), PROP_STATIC = new Set(['hydrant', 'bin', 'bush', 'flowers', 'stall', 'cone', 'bench', 'pump', 'canopy', 'crate', 'scrap', 'hoop', 'lumberstack', 'lamp']);
 export function drawPropFast(g, p, sx, sy, t, night) {
   let key = null, ox = 0, q = p;
-  if (p.t === 'tree' || p.t === 'palm') { const v = Math.floor(p.x * 7 + p.y * 13) & 3; key = p.t + '|' + v + '|' + (p.s || 1); ox = p.t === 'tree' ? Math.sin(t / 1100 + p.x * 3) * 1.2 : Math.sin(t / 900 + p.x) * .8; q = Object.assign({}, p, { x: 0, y: v }); }
-  else if (PROP_STATIC.has(p.t)) { key = p.t; for (const k in p) if (k !== 'x' && k !== 'y' && k !== 't') key += '|' + k + '=' + p[k]; }
+  if (p.t === 'tree' || p.t === 'palm') { const v = Math.floor(p.x * 7 + p.y * 13) & 3; key = p.t + '|' + v + '|' + (p.s || 1); ox = p.t === 'tree' ? Math.sin(t / 1100 + p.x * 3) * 1.2 : Math.sin(t / 900 + p.x) * .8; q = null; }
+  else if (PROP_STATIC.has(p.t)) { key = p.t; if (p._pk == null) { let pk = ''; for (const k in p) if (k !== 'x' && k !== 'y' && k !== 't' && k !== 'on' && k[0] !== '_') pk += '|' + k + '=' + p[k]; p._pk = pk; } key += p._pk + (p.on ? '|on' : ''); }
   if (!key) return drawProp(g, p, sx, sy, t, night);
   key += '|' + (night ? 1 : 0) + '|' + RES; let c = PROPC.get(key);
-  if (!c) { if (PROPC.size > 500) PROPC.clear(); const [cv, cg] = hiCanvas(120, 150, RES); drawProp(cg, q, 60, 130, 0, night); c = cv; PROPC.set(key, c); }
+  if (!c) { if (PROPC.size > 500) PROPC.clear(); const [cv, cg] = hiCanvas(120, 150, RES); if (!q) { q = {}; for (const k in p) if (k[0] !== '_') q[k] = p[k]; q.x = 0; q.y = Math.floor(p.x * 7 + p.y * 13) & 3; } drawProp(cg, q, 60, 130, 0, night); c = cv; PROPC.set(key, c); }
   g.drawImage(c, sx - 60 + ox, sy - 130, c.lw, c.lh);
 }
 // props, people and cars are drawn each frame (cheap shapes)
@@ -633,18 +635,19 @@ const JACKETS = ['#2f3b4c', '#5a3e2b', '#3b5249', '#7a2e2e', '#1f2937', '#4b4f8a
 // a crowd-friendly person: each pose is drawn once into a small canvas and reused (8 walk frames per look and facing),
 // so sixty cadets on screen cost sixty image copies instead of sixty full drawings
 const PCACHE = new Map(), TAU = Math.PI * 2; let SHSPR = null;
-let PHIT = 0;
+let PHIT = 0; const PCAP = navigator.deviceMemory && navigator.deviceMemory < 4 ? 700 : 1200;
 export function personFast(g, sx, sy, o, t, key, lod) {
   const s = o.s || 1, mv = !!o.moving, cyc = mv ? (o.stride != null ? o.stride * 6.4 : t / 95) + (o.ph || 0) : 0, fr0 = mv ? Math.floor((((cyc % TAU) + TAU) % TAU) / TAU * 8) : 0, fr = lod ? fr0 & 6 : fr0;
-  const k = key + '|' + fr + '|' + (o.face || 1) + '|' + (mv && o.back ? 1 : 0) + '|' + (mv ? 1 : 0) + '|' + s + '|' + RES;
+  // in a crowd, people facing left are the right-facing sprite mirrored, and sprites are a little softer: half the sprites, half the memory
+  const flip = lod && (o.face || 1) < 0, sr = lod ? Math.min(RES, 1.5) : RES, k = key + '|' + fr + '|' + (flip ? 1 : o.face || 1) + '|' + (mv && o.back ? 1 : 0) + '|' + (mv ? 1 : 0) + '|' + s + '|' + sr;
   let c = PCACHE.get(k);
   // least-recently-used eviction: a crowd never empties the whole cache at once
   if (c) { if (++PHIT % 8 === 0) { PCACHE.delete(k); PCACHE.set(k, c); } }
-  if (!c) { if (PCACHE.size > 900) { let n = 120; for (const kk of PCACHE.keys()) { PCACHE.delete(kk); if (--n <= 0) break; } } const [cv, cg] = hiCanvas(56, 84, RES); person(cg, 28, 74, Object.assign({}, o, { noShadow: true, glance: false, stride: mv ? ((fr + .5) / 8 * TAU - (o.ph || 0)) / 6.4 : null, moving: mv }), 0); c = cv; PCACHE.set(k, c); }
+  if (!c) { if (PCACHE.size > PCAP) { let n = 120; for (const kk of PCACHE.keys()) { PCACHE.delete(kk); if (--n <= 0) break; } } const [cv, cg] = hiCanvas(56, 84, sr); person(cg, 28, 74, Object.assign({}, o, { face: flip ? 1 : o.face, noShadow: true, glance: false, stride: mv ? ((fr + .5) / 8 * TAU - (o.ph || 0)) / 6.4 : null, moving: mv }), 0); c = cv; PCACHE.set(k, c); }
   castShadow(g, sx, sy, 9 * s, .9 * s);
   if (!SHSPR) { const [cv, cg] = hiCanvas(24, 12, 2), gr = cg.createRadialGradient(12, 6, 0, 12, 6, 9); gr.addColorStop(0, 'rgba(0,0,0,.38)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); cg.fillStyle = gr; cg.beginPath(); cg.ellipse(12, 6, 9, 4, 0, 0, TAU); cg.fill(); SHSPR = cv; }
   g.drawImage(SHSPR, sx + 1 - 12 * s, sy - 6 * s, 24 * s, 12 * s);
-  g.drawImage(c, sx - 28, sy - 74, c.lw, c.lh);
+  if (flip) { g.save(); g.translate(sx, 0); g.scale(-1, 1); g.drawImage(c, -28, sy - 74, c.lw, c.lh); g.restore(); } else g.drawImage(c, sx - 28, sy - 74, c.lw, c.lh);
 }
 export function person(g, sx, sy, o, t) {
   const s = o.s || 1, ph = o.ph || 0, mv = !!o.moving, cyc = (o.stride != null ? o.stride * 6.4 : t / 95) + ph, walk = mv ? Math.sin(cyc) : 0;
@@ -780,6 +783,13 @@ export function dog(g, sx, sy, face, moving, t) {
   g.fillStyle = '#c0392b'; g.fillRect(hx - f * 2.6 - (f < 0 ? 1.6 : 0), hy + 1.2, 1.6, 2.2);
   if (moving) { g.fillStyle = '#e57373'; g.beginPath(); g.ellipse(hx + f * 3.4, hy + 2.6, .9, 1.4, 0, 0, Math.PI * 2); g.fill(); }
 }
+// dogs are drawn once per animation frame and stamped (a trot is 10 frames, standing is 8)
+const DCACHE = new Map();
+export function dogFast(g, sx, sy, face, moving, t) {
+  const f = face < 0 ? -1 : 1, per = moving ? 534 : 1005, n = moving ? 10 : 8, fr = Math.floor(((t % per) + per) % per / per * n), k = f + '|' + (moving ? 1 : 0) + '|' + fr + '|' + RES;
+  let c = DCACHE.get(k); if (!c) { if (DCACHE.size > 80) DCACHE.clear(); const [cv, cg] = hiCanvas(44, 34, RES); dog(cg, 22, 28, f, moving, fr * per / n); c = cv; DCACHE.set(k, c); }
+  g.drawImage(c, sx - 22, sy - 28, c.lw, c.lh);
+}
 
 // ---------- vehicles: one renderer for every car, truck, van and SUV ----------
 // local coordinates: u runs nose (+1) to tail (-1), v runs across, h is height in px. dir 0..3 = +x, +y, -x, -y.
@@ -847,14 +857,22 @@ export function drawVehicle(g, sx, sy, dir, v, t, night, on) {
   // specular glint along the roof edge
   if (!night) { g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = .8; const a = P(-1, vE, H), b = P(1, vE, H); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
 }
+const VCACHE = new Map();
+function vehicleFast(g, sx, sy, dir, v, t, night, on) {
+  if (on) return drawVehicle(g, sx, sy, dir, v, t, night, on);
+  let k = dir + '|' + (night ? 1 : 0) + '|' + Math.round(SUNLEN) + '|' + RES; for (const f in v) k += '|' + f + '=' + v[f];
+  let c = VCACHE.get(k);
+  if (!c) { if (VCACHE.size > 260) { let n = 40; for (const kk of VCACHE.keys()) { VCACHE.delete(kk); if (--n <= 0) break; } } const sc = v.scale || 1, W = Math.ceil(150 * sc), Hh = Math.ceil(120 * sc), [cv, cg] = hiCanvas(W, Hh, RES); drawVehicle(cg, W / 2, Hh * .72, dir, v, 0, night, false); cv.ax = W / 2; cv.ay = Hh * .72; c = cv; VCACHE.set(k, c); }
+  g.drawImage(c, sx - c.ax, sy - c.ay, c.lw, c.lh);
+}
 export function car(g, sx, sy, dir, color, police, t, night, scale, bar) {
-  if (police) return drawVehicle(g, sx, sy, dir, { kind: 'sedan', body: '#111418', side: '#111418', doors: '#f2f2f2', bar: 'full', push: true, text: 'POLICE', scale: scale || 1 }, t, night, bar);
-  return drawVehicle(g, sx, sy, dir, { kind: (color.charCodeAt(1) + color.charCodeAt(2)) % 5 === 0 ? 'suv' : 'sedan', body: color, side: color, scale: scale || 1 }, t, night, false);
+  if (police) return vehicleFast(g, sx, sy, dir, { kind: 'sedan', body: '#111418', side: '#111418', doors: '#f2f2f2', bar: 'full', push: true, text: 'POLICE', scale: scale || 1 }, t, night, bar);
+  return vehicleFast(g, sx, sy, dir, { kind: (color.charCodeAt(1) + color.charCodeAt(2)) % 5 === 0 ? 'suv' : 'sedan', body: color, side: color, scale: scale || 1 }, t, night, false);
 }
 export function vehicle(g, sx, sy, dir, v, t, night, on) {
   if (v.kind === 'boat') return boat(g, sx, sy, dir, t, on);
   const spec = Object.assign({}, v); if (v.body === '#14171c') { spec.doors = '#f2f2f2'; spec.push = true; spec.side = v.body; }
-  return drawVehicle(g, sx, sy, dir, spec, t, night, on);
+  return vehicleFast(g, sx, sy, dir, spec, t, night, on);
 }
 
 function boat(g, sx, sy, dir, t, on) {

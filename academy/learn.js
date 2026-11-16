@@ -13,8 +13,10 @@ export function saveState(S) { try { localStorage.setItem(KEY, JSON.stringify(S)
 export function rankOf(xp) { let r = RANKS[0][1], next = null; for (let i = 0; i < RANKS.length; i++) { if (xp >= RANKS[i][0]) { r = RANKS[i][1]; next = RANKS[i + 1] || null; } } return { name: r, next }; }
 
 let BANK = null;
+// the page starts these downloads before the game code has even loaded (see index.html)
+async function early(url) { const p = window.__pre && window.__pre[url]; if (!p) return null; window.__pre[url] = null; return p; }
 export async function loadBank(url) {
-  const d = await (await fetch(url, { cache: 'no-cache' })).json();
+  const d = await early(url) || await (await fetch(url, { cache: 'no-cache' })).json();
   const by = { q: {}, jq: {}, tq: {} };
   d.q.forEach((r, i) => { (by.q[r[3]] = by.q[r[3]] || []).push({ id: 'q' + i, kind: 'q', stem: r[0], opts: r[1], c: r[2], les: r[3], ex: r[4], pg: r[5] }); });
   (d.jq || []).forEach((r, i) => { (by.jq[r[3]] = by.jq[r[3]] || []).push({ id: 'j' + i, kind: 'jq', stem: r[0].replace(/\bTHIS\b/g, '______'), opts: r[1], c: r[2], les: r[3], ex: r[4], pg: r[5] }); });
@@ -47,7 +49,7 @@ function prepare(q) {
 // A fact is complete once you answer one of its questions correctly.
 let FACTS = [], POOL = [];
 export async function loadFacts(url) {
-  const d = await (await fetch(url, { cache: 'no-cache' })).json(); POOL = d.q;
+  const d = await early(url) || await (await fetch(url, { cache: 'no-cache' })).json(); POOL = d.q;
   FACTS = d.f.map((f, i) => ({ id: 'F' + i, les: f[0], text: f[1], pg: f[2], qs: f[3] }));
   return FACTS.length;
 }

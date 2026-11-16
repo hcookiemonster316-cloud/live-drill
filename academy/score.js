@@ -12,11 +12,11 @@ export function createScore(getCtx, synth) {
   function graph() {
     const a = ctx(); if (!a || master) return !!master;
     master = a.createGain(); master.gain.value = vol; lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = rainy ? 5200 : 16000; lp.connect(master); master.connect(a.destination);
-    decks = [0, 1].map(() => { const el = new Audio(); el.src = FILE; el.loop = true; el.preload = 'auto'; el.crossOrigin = 'anonymous'; el.setAttribute('playsinline', ''); const g = a.createGain(); g.gain.value = 0; let src = null; try { src = a.createMediaElementSource(el); src.connect(g); } catch (e) {} g.connect(lp); return { el, g, src }; });
+    decks = [0, 1].map((i) => { const el = new Audio(); el.preload = i ? 'none' : 'auto'; el.src = FILE; el.loop = true; el.crossOrigin = 'anonymous'; el.setAttribute('playsinline', ''); const g = a.createGain(); g.gain.value = 0; let src = null; try { src = a.createMediaElementSource(el); src.connect(g); } catch (e) {} g.connect(lp); return { el, g, src }; });
     const d0 = decks[0].el, ok = () => { if (ready) return; ready = true; if (on && cur) { synth.stop(); jump(cur, true); } };
     d0.addEventListener('canplaythrough', ok, { once: true }); d0.addEventListener('loadeddata', ok, { once: true });
     d0.addEventListener('error', () => { failed = true; if (on && cur) synth.start(cur); }, { once: true });
-    d0.load(); decks[1].el.load(); return true;
+    d0.load(); d0.addEventListener('canplaythrough', () => { decks[1].el.load(); }, { once: true }); return true;
   }
   function jump(mood, now) {
     const a = ctx(); if (!a || !ready) return; const k = ORDER.indexOf(mood), at = (k < 0 ? 0 : k) * SEG, t = a.currentTime, nxt = live < 0 ? 0 : 1 - live, D = decks[nxt], O = live < 0 ? null : decks[live];

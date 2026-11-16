@@ -6,6 +6,38 @@
 <title>Patrol City</title>
 <meta name="theme-color" content="#0b1630">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2l12 4v9c0 8-5 13-12 15C9 28 4 23 4 15V6z' fill='%23f5b800'/%3E%3Cpath d='M16 8l2 4 4.5.6-3.3 3.1.8 4.5-4-2.1-4 2.1.8-4.5-3.3-3.1 4.5-.6z' fill='%230b1630'/%3E%3C/svg%3E">
+<!-- every game module and the study data start downloading at once, instead of one after another -->
+<link rel="modulepreload" href="game.js">
+<link rel="modulepreload" href="academy.js">
+<link rel="modulepreload" href="data.js">
+<link rel="modulepreload" href="epic.js">
+<link rel="modulepreload" href="epicdata.js">
+<link rel="modulepreload" href="events.js">
+<link rel="modulepreload" href="feel.js">
+<link rel="modulepreload" href="friends.js">
+<link rel="modulepreload" href="friends2.js">
+<link rel="modulepreload" href="interiors.js">
+<link rel="modulepreload" href="items.js">
+<link rel="modulepreload" href="learn.js">
+<link rel="modulepreload" href="life.js">
+<link rel="modulepreload" href="minigames.js">
+<link rel="modulepreload" href="music.js">
+<link rel="modulepreload" href="net.js">
+<link rel="modulepreload" href="ngplus.js">
+<link rel="modulepreload" href="npcgen.js">
+<link rel="modulepreload" href="offduty.js">
+<link rel="modulepreload" href="onboard.js">
+<link rel="modulepreload" href="people2.js">
+<link rel="modulepreload" href="polish.js">
+<link rel="modulepreload" href="safe.js">
+<link rel="modulepreload" href="score.js">
+<link rel="modulepreload" href="sidequests.js">
+<link rel="modulepreload" href="skills.js">
+<link rel="modulepreload" href="story.js">
+<link rel="modulepreload" href="voices.js">
+<link rel="modulepreload" href="world.js">
+<script>window.__pre = {}; ['../ch5.json', 'facts.json'].forEach(function (u) { window.__pre[u] = fetch(u, { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); });</script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
