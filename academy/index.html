@@ -702,7 +702,7 @@ body.cine .offHud,body.photo .offHud,body.attract .offHud{display:none!important
 .dlgOpts button.seen .ot{color:#94a3b8}.dlgOpts button.seen .ot::before{content:"✓ ";color:#64748b}
 .dlgCtl{position:absolute;top:8px;right:10px;display:flex;gap:4px;z-index:2}
 .dlgCtl button{width:30px;height:28px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#cbd5e1;font-size:.82rem;opacity:.75;transition:opacity .15s,background .15s}
-.dlgCtl button:hover{opacity:1}.dlgCtl button.on{background:var(--acc);color:#111;opacity:1;border-color:transparent}
+.dlgCtl button:hover{opacity:1}.dlgCtl .dlgLeave{width:auto;padding:0 9px;font:700 .72rem system-ui,sans-serif;letter-spacing:.02em;white-space:nowrap}.dlgCtl .dlgLeave.arm{background:#f59e0b;color:#111;opacity:1;border-color:transparent;animation:lvPulse .6s ease-in-out infinite alternate}@keyframes lvPulse{to{transform:scale(1.06)}}.dlgCtl button.on{background:var(--acc);color:#111;opacity:1;border-color:transparent}
 .dlgChoice .dlgCtl [data-c="skip"],.dlgChoice .dlgNext{display:none}
 .dlgMem{position:fixed;left:50%;top:calc(9vh + 14px + var(--safe-t,0px));transform:translateX(-50%);z-index:3;padding:8px 16px;border-radius:99px;background:rgba(8,14,30,.92);border:1px solid rgba(245,184,0,.6);color:#ffe9a8;font:700 .82rem system-ui;letter-spacing:.02em;box-shadow:0 10px 30px rgba(0,0,0,.5);white-space:nowrap}
 .dlgMem.in{animation:memIn 2.6s ease forwards}@keyframes memIn{0%{opacity:0;transform:translate(-50%,-10px)}10%{opacity:1;transform:translate(-50%,0)}85%{opacity:1}100%{opacity:0}}

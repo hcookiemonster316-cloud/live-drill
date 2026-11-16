@@ -34,7 +34,7 @@ export function installEpic(H) {
     const radio = el.querySelector('.icRadio'), lines = [['Dispatch', 'Good morning, Port Meridian. All units, day shift is on the air.'], ['2-Baker-14', 'Baker-14, ten-eight. Coffee in hand.'], ['Dispatch', 'Copy. Be advised, we have a new cadet on the street today.'], ['Sgt. Castillo', 'That one\'s mine. Go easy on them, Velvet.'], ['Dispatch', 'I always do, Sergeant. Welcome to Port Meridian, cadet.']];
     lines.forEach((l, k) => setTimeout(() => { if (!cine) return; radio.innerHTML = '<div><b>' + esc(l[0]) + ':</b> ' + esc(l[1]) + '</div>'; radio.classList.remove('in'); void radio.offsetWidth; radio.classList.add('in'); H.chirp(); }, 1600 + k * 4200));
     cine = { t: 0, dur: 24, pts, z0, el }; H.setMood('title');
-    const end = () => { if (!cine) return; const c = cine; cine = null; S.seenCine = 1; H.saveS(); c.el.classList.add('out'); cam.z = c.z0; cam.free = false; H.setMood(null); setTimeout(() => { c.el.remove(); document.body.classList.remove('introOn'); busy = false; H.pause(false); }, 700); };
+    const end = () => { if (!cine) return; const c = cine; cine = null; S.seenCine = 1; H.saveS(); c.el.classList.add('out'); cam.free = false; H.setMood(null); setTimeout(() => { c.el.remove(); document.body.classList.remove('introOn'); busy = false; H.pause(false); }, 700); };
     el.querySelector('.icSkip').onclick = (e) => { e.stopPropagation(); end(); }; cine.end = end;
   }
   function cineTick(dt) {
@@ -75,13 +75,13 @@ export function installEpic(H) {
   // ================= 4. camera polish =================
   let idle = 0, slow = 0, punch = 0, flash = 0;
   function camTick(dt) {
+    if (punch > 0) { punch -= dt; const k = Math.max(0, punch / .9); H.cam.zMul = 1 + .08 * Math.sin(k * Math.PI); if (punch <= 0) H.cam.zMul = 1; }
     if (cine || H.cam.free || H.inside) { idle = 0; return; } const P = H.P; if (P.path && P.path.length) { idle = 0; return; } idle += dt;
     if (idle > 4 && H.S.cfg.motion !== false) { const t = performance.now() / 1000; H.cam.x += Math.sin(t * .35) * .06; H.cam.y += Math.cos(t * .27) * .04; }
-    if (punch > 0) { punch -= dt; const k = Math.max(0, punch / .9); H.cam.z = H.cam.zBase * (1 + .08 * Math.sin(k * Math.PI)); if (punch <= 0) H.cam.z = H.cam.zBase; }
   }
   const timeScale = () => (slow > 0 ? .35 : 1);
   function slowMo(sec) { if (H.S.cfg.motion === false) return; slow = sec; flash = 1; }
-  function zoomPunch() { if (H.S.cfg.motion === false || punch > 0) return; H.cam.zBase = H.cam.z; punch = .9; }
+  function zoomPunch() { if (H.S.cfg.motion === false || punch > 0) return; punch = .9; }
   function fxDraw(ctx, cv) { if (slow > 0) { slow -= 1 / 60; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); const g = ctx.createRadialGradient(cv.width / 2, cv.height / 2, cv.height * .3, cv.width / 2, cv.height / 2, cv.height * .8); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(10,20,40,.35)'); ctx.fillStyle = g; ctx.fillRect(0, 0, cv.width, cv.height); ctx.restore(); }
     if (flash > 0) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = 'rgba(255,240,200,' + flash * .22 + ')'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.restore(); flash -= .05; } }
 

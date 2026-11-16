@@ -36,7 +36,8 @@ const DRS = { k: 1, ts: [], at: 0, refresh: 16.7, hz: 0 }; // dynamic resolution
 { let n = 0, prev = 0; const d = []; const f = (t) => { if (prev) d.push(t - prev); prev = t; if (++n < 45) requestAnimationFrame(f); else { d.sort((a, b) => a - b); DRS.hz = Math.max(6.5, Math.min(17.5, d[Math.floor(d.length * .25)] || 16.7)); } }; requestAnimationFrame(f); }
 const lc = document.createElement('canvas'), lx = lc.getContext('2d'), glc = document.createElement('canvas'), gx = glc.getContext('2d');
 let W = null, G = null, SPR = [], NIGHT = false, net = null, others = {}, myUid = '';
-let cam = { x: 0, y: 0, z: 1, free: false }, dpr = 1, cw = 0, ch = 0;
+// zUser is the zoom the player chose; zMul is a short effect (a punch-in); cam.z eases toward zUser x zMul (or a cinematic's zoom)
+let cam = { x: 0, y: 0, z: 1, zUser: 1, zMul: 1, free: false }, dpr = 1, cw = 0, ch = 0;
 const P = { x: 0, y: 0, path: [], face: 1, moving: false, inCar: false, dir: 0, onArrive: null };
 let OCOUNT = 0; let pcar = null, peds = [], traffic = [], citizens = [], infos = [], observes = [], call = null, scene = null, clock = 0, nextCall = 15, paused = false, toastT = 0;
 const shiftOf = () => SHIFTS.find((s) => s.id === S.shift) || SHIFTS[0];
@@ -283,12 +284,12 @@ function update(dt, now) {
   if (P.inCar && pcar) { pcar.x = P.x; pcar.y = P.y; pcar.dir = P.dir; pcar.bar = !!(call && call.accepted); }
   if (P.boat && pboat) { pboat.x = P.x; pboat.y = P.y; pboat.dir = P.dir; }
   if (S.unit === 'k9' && !P.inCar && !P.boat) { const tx = P.x - (P.face > 0 ? .7 : -.7) * .7, ty = P.y + .55, d = Math.hypot(tx - K9.x, ty - K9.y); K9.moving = d > .08; if (d > 6) { K9.x = tx; K9.y = ty; } else { K9.x += (tx - K9.x) * Math.min(1, dt * 4); K9.y += (ty - K9.y) * Math.min(1, dt * 4); } K9.face = P.face; }
-  if (!cam.free) { const [ix, iy] = iso(P.x, P.y); cam.x += (ix - cam.x) * Math.min(1, dt * 6); cam.y += (iy - 22 - cam.y) * Math.min(1, dt * 6); }
+  if (!cam.free) { const [ix, iy] = iso(P.x, P.y), kf = 1 - Math.exp(-dt * 6); cam.x += (ix - cam.x) * kf; cam.y += (iy - 22 - cam.y) * kf; }
   { const f = focus(); peds.forEach((p, k) => { if (Math.hypot(p.x - f[0], p.y - f[1]) > 30) peds[k] = newPed(); }); traffic.forEach((c, k) => { if (Math.hypot(c.x - f[0], c.y - f[1]) > 34) traffic[k] = newCar(); }); }
   peds.forEach((p) => { if (p.wait > 0) { p.wait -= dt; p.moving = false; return; } if (!p.path.length) { const t = nearTile(W.walk, 24); const path = Math.hypot(t[0] - p.x, t[1] - p.y) < 16 ? astar(p.x, p.y, t[0], t[1], pedPass, true) : null; if (path) p.path = path; else p.wait = 1; return; } if (stepAlong(p, dt, p.sp)) p.wait = 1 + Math.random() * 4; });
   traffic.forEach((c) => { if (c.stopped) return; if (c.stopT > 0) { c.stopT -= dt; c.moving = false; return; } if (!c.path.length) { if (c.bus && !c.stopT0) { c.stopT = 3.5; c.stopT0 = 1; return; } c.stopT0 = 0; for (let k = 0; k < 6; k++) { const x = Math.floor(c.x + (Math.random() - .5) * 40), y = Math.floor(c.y + (Math.random() - .5) * 40); if (roadPass(x, y)) { const p = astar(c.x, c.y, x, y, roadPass, false); if (p && p.length > 3) { c.path = p; break; } } } return; } stepAlong(c, dt, c.sp); });
   // arrive on a call
-  if (call && !inside && Math.hypot(call.x - P.x, call.y - P.y) < 1.7 && !scene) { const c = call; call = null; callCard(); openCallScene(c); }
+  if (call && !inside && Math.hypot(call.x - P.x, call.y - P.y) < 1.7 && !scene && !heldByLeave()) { const c = call; call = null; callCard(); openCallScene(c); }
   if (!call && !scene && !S.x6 && !S.offDuty) { nextCall -= dt; if (nextCall <= 0) dispatchCall(); }
   if (call && clock - call.t0 > callWait() + BUFF.wait) { radio('Dispatch', S.cs + ', disregard; another unit took that call.'); call = null; callCard(); nextCall = 20; if (net) { net.status('patrol'); net.backup(null); } }
   // observation moments appear only up close
@@ -319,7 +320,7 @@ function darkness() {
 let RNOW = 0, RZ = 1, RES_CAP = 2, resWant = 0, resN = 0;
 // sprite resolution follows the on-screen scale once the zoom has settled for a moment (never while pinching)
 function spriteResTick(now) {
-  const q = (S.cfg || {}).quality || 'high', lo = q === 'low' ? 1 : 1.25, t = Math.max(lo, Math.min(RES_CAP, Math.floor(cam.z * dpr * 10 + .02) / 10));
+  const q = (S.cfg || {}).quality || 'high', lo = q === 'low' ? 1 : 1.25, t = Math.max(lo, Math.min(RES_CAP, Math.floor(zoomTarget() * dpr * 10 + .02) / 10));
   if (t === RES) { resN = 0; return; } if (t !== resWant) { resWant = t; resN = 0; } if (!now && ++resN < 24) return;
   setRes(t); resN = 0; SPR.forEach((x) => { if (x.canvas) x.stale = 1; });
 }
@@ -817,7 +818,7 @@ function sideDone(q) {
   good(); $('mDone').onclick = () => { closeModal(); award(rw.rp || 100, 'side case'); if (rw.loot) queueLoot('Side case: ' + q.title, 1, rw.loot); };
 }
 function storyUpdate(dt) {
-  storyCool -= dt; if (storyBusy || scene || storyCool > 0 || !$('modal').hidden) return;
+  storyCool -= dt; if (storyBusy || scene || storyCool > 0 || !$('modal').hidden || heldByLeave()) return;
   if (!inside) for (const q of SIDE) { if (!sideAvail(q) || (offerNo[q.id] || 0) > performance.now()) continue; const r = giverPos(q); if (r && Math.hypot(r.x - P.x, r.y - P.y) < 1.8) { offerSide(q); return; } }
   const st = chStep(), t = stepTarget(); if (!st || !t) return;
   if (t.exit || t.door) return; // walk to the door; the scene starts once inside
@@ -859,14 +860,17 @@ function hintLine() {
 const PRAISE = ['Exactly right.', 'That\'s it, by the book.', 'Good. That\'s how it\'s done.', 'Right answer. You were listening in class.', 'Correct. Nice.'];
 const CORRECT = ['Not quite. Here\'s how it actually works:', 'Close, but no. Remember this:', 'Careful. The chapter says otherwise:', 'That\'s not it. For next time:'];
 const CINE = { on: false, x: 0, y: 0, z: 1, z0: 1, back: 0 };
-function cineFocus(x, y, z) { const [ix, iy] = iso(x, y); CINE.on = true; CINE.x = ix; CINE.y = iy - 18; CINE.z0 = CINE.z0 && CINE.back > 0 ? CINE.z0 : cam.z; CINE.z = Math.min(2.2, Math.max(cam.z, z || (innerWidth < 600 ? 1.35 : 1.7))); CINE.back = 0; }
+function cineFocus(x, y, z) { const [ix, iy] = iso(x, y); CINE.on = true; CINE.x = ix; CINE.y = iy - 18; CINE.z = Math.min(2.2, Math.max(cam.zUser, z || (innerWidth < 600 ? 1.35 : 1.7))); CINE.back = 0; }
 function cineRelease() { if (!CINE.on) return; CINE.on = false; CINE.back = 1; }
 function cineCam(dt) {
-  if (!S.cfg || S.cfg.motion === false) { if (CINE.on) { cam.x = CINE.x; cam.y = CINE.y; } return; }
-  const k = Math.min(1, dt * 2.6);
-  if (CINE.on) { cam.free = true; cam.x += (CINE.x - cam.x) * k; cam.y += (CINE.y - cam.y) * k; cam.z += (CINE.z - cam.z) * k; }
-  else if (CINE.back > 0) { cam.z += (CINE.z0 - cam.z) * k; CINE.back -= dt * 1.2; if (CINE.back <= 0) { cam.z = CINE.z0; cam.free = false; CINE.z0 = 0; } }
+  if (!S.cfg || S.cfg.motion === false) { if (CINE.on) { cam.x = CINE.x; cam.y = CINE.y; } cam.z = (CINE.on ? CINE.z : cam.zUser); if (!CINE.on && CINE.back > 0) { CINE.back = 0; cam.free = false; } return; }
+  // one place eases the zoom, so cinematics, punch-ins, settings and resizes can never snap it
+  const k = 1 - Math.exp(-dt * 2.6), kz = 1 - Math.exp(-dt * 3.2);
+  if (CINE.on) { cam.free = true; cam.x += (CINE.x - cam.x) * k; cam.y += (CINE.y - cam.y) * k; }
+  else if (CINE.back > 0) { CINE.back -= dt * 1.2; if (CINE.back <= 0) cam.free = false; }
+  const tz = (CINE.on ? CINE.z : cam.zUser) * (cam.zMul || 1); if (Math.abs(tz - cam.z) < .0008) cam.z = tz; else cam.z += (tz - cam.z) * kz;
 }
+function zoomTarget() { return CINE.on ? CINE.z : cam.zUser; }
 function scoreAnswer(q, ans, retry) {
   const ok = L.isRight(q, ans); L.record(S, q, ok); SS.answered++;
   if (ok && retry) { SS.right++; stat('right'); stat('retryRight'); COMBO = 0; good(); }
@@ -920,6 +924,11 @@ function toneOf(o) {
   if (/^(tell|say|explain|remind|praise)/i.test(t)) return ['💬', 'Talk'];
   return ['▸', ''];
 }
+// after walking away, the same person or call does not grab you again until you have moved off (or a little while passes)
+let LEFT = null;
+function leaveHere() { LEFT = { x: P.x, y: P.y, t: performance.now() }; }
+function heldByLeave() { if (!LEFT) return false; if (Math.hypot(P.x - LEFT.x, P.y - LEFT.y) > 2.6 || performance.now() - LEFT.t > 25000) { LEFT = null; return false; } return true; }
+function leaveDefault() { storyBusy = false; if (!PAUSED_BY_MENU) paused = false; scene = null; storyCool = 2; if (net) net.status('patrol'); if (S.sound) music.start(moodNow()); }
 function dialogue(lines, done, opts) {
   opts = opts || {}; const box = $('dlg'); let seq = lines.slice(), i = -1, typing = null, full = '', auto = !!(S.cfg && S.cfg.autoDlg), skipping = false, autoT = 0, alive = true, lastSp = null, lastName = '';
   const res = { right: 0, n: 0, choices: [] };
@@ -928,10 +937,10 @@ function dialogue(lines, done, opts) {
   // the frame is built once; each line swaps the body so the portrait and controls can animate between speakers
   box.innerHTML = '<div class="dlgBar top">' + kick + '</div><div class="dlgBar bot"></div><div class="dlgMem" hidden></div>' +
     '<div class="dlgPanel"><div class="dlgPlate"><b></b><small></small></div><div class="dlgPortWrap"><div class="dlgPort"><canvas class="dlgCv" width="192" height="192"></canvas><span class="dlgIco"></span></div><span class="dlgEmo"></span></div>' +
-    '<div class="dlgBody"></div><div class="dlgCtl"><button type="button" data-c="log" title="Conversation log">📜</button><button type="button" data-c="auto" title="Auto-advance">▶</button><button type="button" data-c="skip" title="Skip to the next choice">⏩</button></div><i class="dlgNext">▸</i></div><div class="dlgLogBox" hidden></div>';
+    '<div class="dlgBody"></div><div class="dlgCtl"><button type="button" data-c="log" title="Conversation log">📜</button><button type="button" data-c="auto" title="Auto-advance">▶</button><button type="button" data-c="skip" title="Skip to the next choice">⏩</button><button type="button" data-c="leave" class="dlgLeave" title="Walk away (Esc)">🚶 Leave</button></div><i class="dlgNext">▸</i></div><div class="dlgLogBox" hidden></div>';
   clearTimeout(DLG_HIDE_T); const wasOpen = !box.hidden; box.hidden = false; if (wasOpen) box.classList.add('on'); else requestAnimationFrame(() => box.classList.add('on'));
   const panel = box.querySelector('.dlgPanel'), body = box.querySelector('.dlgBody'), plate = box.querySelector('.dlgPlate'), portW = box.querySelector('.dlgPortWrap'), port = box.querySelector('.dlgPort'), cvp = box.querySelector('.dlgCv'), ico = box.querySelector('.dlgIco'), emo = box.querySelector('.dlgEmo'), mem = box.querySelector('.dlgMem'), logBox = box.querySelector('.dlgLogBox');
-  const ctl = (c) => box.querySelector('[data-c="' + c + '"]'); ctl('auto').classList.toggle('on', auto); if (opts.noSkip) ctl('skip').hidden = true;
+  const ctl = (c) => box.querySelector('[data-c="' + c + '"]'); ctl('auto').classList.toggle('on', auto); if (opts.noSkip) ctl('skip').hidden = true; if (opts.noLeave) ctl('leave').hidden = true;
   // the live portrait: the speaker's own character, breathing, nodding when they talk
   const pg = cvp.getContext('2d'); let pLook = null, pTalk = 0, pNod = 0, pTilt = 0, pRaf = 0;
   const drawPort = (now) => {
@@ -1024,10 +1033,15 @@ function dialogue(lines, done, opts) {
   ctl('log').onclick = (e) => { e.stopPropagation(); openLog(); };
   ctl('auto').onclick = (e) => { e.stopPropagation(); auto = !auto; S.cfg.autoDlg = auto; ctl('auto').classList.toggle('on', auto); if (auto && !typing && box.onclick) autoT = setTimeout(() => alive && box.onclick && next(), 900); else clearTimeout(autoT); };
   ctl('skip').onclick = (e) => { e.stopPropagation(); if (!box.onclick) return; skipping = true; finishTyping(); next(); };
+  // walk away at any point: nothing is lost (answers already given still count), and the person is there when you come back
+  let leaveArm = 0; const walkAway = () => { if (!alive || opts.noLeave) return; const b = ctl('leave'); if (Date.now() - leaveArm > 2200) { leaveArm = Date.now(); b.classList.add('arm'); b.textContent = 'Tap again to leave'; setTimeout(() => { if (alive && b) { b.classList.remove('arm'); b.textContent = '🚶 Leave'; } }, 2200); return; }
+    const d = done; done = null; end(); leaveHere(); try { (opts.onLeave || leaveDefault)(res); } catch (er) {} toast('🚶 You stepped away. Come back anytime.'); };
+  ctl('leave').onclick = (e) => { e.stopPropagation(); walkAway(); };
   logBox.onclick = (e) => e.stopPropagation();
   const keys = (e) => {
     if (box.hidden || !alive) return;
     if (!logBox.hidden) { if (e.key === 'Escape' || e.key === 'l' || e.key === 'L') { logBox.hidden = true; e.preventDefault(); } return; }
+    if (e.key === 'Escape') { walkAway(); e.preventDefault(); return; }
     const opt = [...box.querySelectorAll('.dlgOpts [data-k]:not([disabled])')];
     if (opt.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { const at = opt.indexOf(document.activeElement); const nx = opt[(at + (e.key === 'ArrowDown' ? 1 : opt.length - 1) + (at < 0 && e.key === 'ArrowDown' ? 0 : 0)) % opt.length] || opt[0]; nx.focus(); e.preventDefault(); return; }
     const b = box.querySelector('[data-k="' + (parseInt(e.key, 10) - 1) + '"]') || (/^[a-f]$/i.test(e.key) ? box.querySelector('.dlgOpts.q [data-k="' + ('abcdef'.indexOf(e.key.toLowerCase())) + '"]') : null);
@@ -1322,7 +1336,7 @@ function attractStart() {
   peds = []; for (let i = 0; i < 18; i++) peds.push(newPed()); traffic = []; for (let i = 0; i < 10; i++) traffic.push(newCar());
   citizens = []; infos = []; observes = []; call = null; regs = [];
   FX = { rain: Math.random() < .35, drops: [], birds: [], events: [], train: null, trainT: 1e9, sail: W.river ? { x: 40.5, y: 6, dir: 1 } : null, caches: [], disc: {} };
-  cam.z = innerWidth < 600 ? .8 : 1.05; attT = 0; ambienceInit();
+  cam.z = cam.zUser = innerWidth < 600 ? .8 : 1.05; attT = 0; ambienceInit();
 }
 function attractUpdate(dt, now) {
   lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
@@ -1377,8 +1391,9 @@ let ptrs = new Map(), downAt = null, panFrom = null, pinch0 = 0, z0 = 1;
 cv.addEventListener('pointerdown', (e) => { audio(); cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); if (ptrs.size === 1) { downAt = [e.clientX, e.clientY, performance.now()]; panFrom = [cam.x, cam.y]; } else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); z0 = cam.z; downAt = null; } });
 cv.addEventListener('pointermove', (e) => { if (!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, [e.clientX, e.clientY]); if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); setZoom(z0 * d / pinch0); return; } if (downAt && Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 10) { cam.free = true; cam.x = panFrom[0] - (e.clientX - downAt[0]) / cam.z; cam.y = panFrom[1] - (e.clientY - downAt[1]) / cam.z; } });
 cv.addEventListener('pointerup', (e) => { ptrs.delete(e.pointerId); if (downAt && !cam.free && performance.now() - downAt[2] < 600) tap(e.clientX, e.clientY); else if (downAt && cam.free && Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) <= 10) tap(e.clientX, e.clientY); downAt = null; });
-cv.addEventListener('wheel', (e) => { e.preventDefault(); setZoom(cam.z * (e.deltaY < 0 ? 1.1 : .9)); }, { passive: false });
-function setZoom(z) { cam.z = Math.max(.45, Math.min(2.2, z)); S.zoom = cam.z; }
+cv.addEventListener('wheel', (e) => { e.preventDefault(); setZoom(cam.zUser * (e.deltaY < 0 ? 1.1 : .9)); }, { passive: false });
+// pinch and the mouse wheel follow the fingers exactly; the + and - buttons glide
+function setZoom(z, glide) { cam.zUser = Math.max(.45, Math.min(2.2, z)); S.zoom = cam.zUser; if (!glide && !CINE.on) cam.z = cam.zUser * (cam.zMul || 1); }
 function toWorld(px, py) { const r = cv.getBoundingClientRect(); const ix = (px - r.left - r.width / 2) / cam.z + cam.x, iy = (py - r.top - r.height / 2) / cam.z + cam.y; return [ix, iy]; }
 function tap(px, py) {
   if (paused || scene) return;
@@ -1581,7 +1596,7 @@ function nearestLotTo(x, y) { let best = null, bd = 1e9; (inside ? inside.O.W : 
 function openCallScene(c) { openCallSceneQ(c); }
 function openCallSceneQ(c) {
   if (net) net.status('call'); paused = true;
-  const n = c.prio === 1 ? 4 : 3, qs = L.pickFacts(S, [c.les], n), fast = clock - c.t0 < 40 * (hasSk('pat2') ? 1.5 : 1), a = approachFor(c.les), cl = callerFor(c), cid = sayAs('caller', { name: cl[0], icon: cl[1], role: c.where });
+  const n = 3, qs = L.pickFacts(S, [c.les], n), fast = clock - c.t0 < 40 * (hasSk('pat2') ? 1.5 : 1), a = approachFor(c.les), cl = callerFor(c), cid = sayAs('caller', { name: cl[0], icon: cl[1], role: c.where });
   const lines = [['narr', c.title + '. ' + c.where + '.'], ['velvet', '(over the radio) ' + S.cs + ', you\'re on scene. ' + c.text]];
   const cover = c.cover || (COVER && Date.now() - COVER.t < 180000 ? COVER.c : null); c.coop = cover;
   if (cover) lines.push(['castillo', '(over the radio) ' + cover + ' is on scene as your cover. Contact and cover, like we drilled it: you make contact and do the talking, they watch hands, exits and the crowd.'], ['choice', [
@@ -1605,7 +1620,7 @@ function openCallSceneQ(c) {
     S.calls++; SS.calls++; NG.callCleared(); stat('p' + c.prio); if (inside) stat('inCall'); if (NIGHT) stat('nightCalls'); const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 && hasSk('tac2') ? 1.15 : 1) * (c.prio === 1 && hasSk('tac4') ? 1.25 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM * EP.callMult() * NG.mult() * (hasSk('pat3') && EP.repOf(W.did).idx >= 2 ? 1.1 : 1), xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0) + (c.wrap === 'case' || c.wrap === 'resources' ? 10 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
     const coopOk = c.coop && res.choices.some((o) => o.ok), xpT = Math.round(xp * (coopOk ? 1.25 * (hasSk('pat4') ? 1.15 : 1) : 1)); if (FX.storm) stat('stormCall'); EP.squadCall(); if (c.coop) { stat('coop'); if (coopOk) stat('coopGood'); }
     EP.afterCall(c, (extra) => POL.debrief({ extra, title: c.title, where: c.where, prio: c.prio, right: r.right, n: r.n, fast, resp: (clock - c.t0), approach: !a ? undefined : !c.eff ? null : (APPROACH_BONUS[c.eff] || 1) > 1 ? 'good' : 'ok', wrap: c.wrap, calm: res.choices.some((o) => o.eff2 === 'calm'), qs: res.qs || [], coop: coopOk ? c.coop : null, xp: xpT, role: c.coop ? 'Contact officer' : '' }, () => { closeModal(); radio(S.cs, 'Clear, back in service.'); award(xpT, c.coop ? 'co-op call cleared' : 'call cleared'); queueLoot('Found on scene: ' + c.title, r.right === r.n ? .6 : .3); nextCall = (25 + Math.random() * 25) * (S.unit === 'patrol' ? .75 : 1); if (net) net.backup(null); COVER = null; }));
-  }, { focus: [c.x, c.y], kicker: (c.prio === 1 ? 'PRIORITY 1' : c.prio === 2 ? 'PRIORITY 2' : 'ROUTINE') + ' · ' + c.where.toUpperCase() });
+  }, { focus: [c.x, c.y], kicker: (c.prio === 1 ? 'PRIORITY 1' : c.prio === 2 ? 'PRIORITY 2' : 'ROUTINE') + ' · ' + c.where.toUpperCase(), onLeave: () => { leaveDefault(); c.accepted = true; call = c; callCard(); } });
 }
 function streetLife(e) {
   if (e.k === 'music') { const id = sayAs('busker', { name: 'Street Musician', icon: '🎸', role: 'Founders Plaza regular' });
@@ -1679,41 +1694,65 @@ function districtBoard(tabs) {
   const dr = document.querySelector('[data-drill]'); if (dr) dr.onclick = () => { closeModal(); factDrill(); };
   const ex = document.querySelector('[data-exam]'); if (ex) ex.onclick = () => { closeModal(); chapterExam(); };
 }
-// fact drill: Navarro runs open facts with you, eight at a time
+// fact drill: Navarro runs open facts with you, three at a time
 function factDrill() {
-  const qs = L.pickFacts(S, W.D.lessons, 8), id = 'navarro';
+  const qs = L.pickFacts(S, W.D.lessons, 3), id = 'navarro';
   dialogue([[id, rnd(['Okay. Flashcards. Real ones, not the ones Pike drew on.', 'Fact drill. True or false, fast. I timed myself last night. Don\'t ask.', 'Let\'s knock out some facts. You\'ll thank me at the Final Call.'])]].concat(qs.map((q) => ['q', q, id])).concat([['fx', () => {}]]), (r) => {
     const fp = L.districtMastery(S, W.did).facts; award(r.right * 6, 'fact drill'); ord('study', 1);
     dialogue([[id, r.right + ' of ' + r.n + '. ' + (fp.done >= fp.total ? 'That\'s every fact in ' + W.D.name + '. The Final Call is open. Go.' : (fp.total - fp.done) + ' facts left in ' + W.D.name + '. Same time tomorrow?')]], null, { focus: [P.x, P.y] });
   }, { focus: [P.x, P.y], kicker: 'FACT DRILL · ' + W.D.name.toUpperCase() });
 }
 // the District Final Call: a major incident built from this district's facts. Pass to transfer.
+// long interactions come in short stages of at most three questions. Between stages you can keep going or step
+// away; the run is saved and picks up at the same stage next time
+function stagedRun(key, cfg) {
+  S.runs = S.runs || {}; const per = 3, stages = Math.ceil(cfg.total / per); let run = S.runs[key];
+  const kick = (i) => cfg.kicker + ' · STAGE ' + (i + 1) + ' OF ' + stages;
+  const stage = (first) => {
+    const i = run.stage, k = Math.min(per, cfg.total - i * per), qs = cfg.pick(k); paused = true;
+    const lines = (first ? cfg.intro(run, stages) : []).concat(cfg.beat ? cfg.beat(i, stages) : []).concat(qs.map((q, j) => ['q', q, cfg.speakers[(i * per + j) % cfg.speakers.length]]));
+    dialogue(lines, (r) => {
+      run.right += r.right; run.n += r.n; run.stage++; saveS();
+      if (run.stage >= stages) { delete S.runs[key]; saveS(); paused = false; cfg.done({ right: run.right, n: run.n }); return; }
+      dialogue([['choice', [{ t: 'Keep going: stage ' + (run.stage + 1) + ' of ' + stages, go: 1, reply: [] }, { t: 'Step away for now (progress is saved)', reply: [] }], run.right + ' of ' + run.n + ' by the book so far']], (r2) => {
+        if (r2.choices[0] && r2.choices[0].go) stage(false); else { paused = false; toast('💾 Saved at stage ' + (run.stage + 1) + ' of ' + stages + '. Pick it up anytime.'); }
+      }, { focus: [P.x, P.y], kicker: kick(run.stage), noFollow: true, onLeave: () => { leaveDefault(); } });
+    }, { focus: [P.x, P.y], kicker: kick(i), onLeave: () => { leaveDefault(); toast('💾 Saved at stage ' + (run.stage + 1) + ' of ' + stages + '.'); } });
+  };
+  const fresh = () => { run = S.runs[key] = { stage: 0, right: 0, n: 0, t: Date.now() }; saveS(); stage(true); };
+  if (run && run.stage > 0 && run.stage < stages) { paused = true; dialogue([['choice', [{ t: 'Resume at stage ' + (run.stage + 1) + ' of ' + stages + ' (' + run.right + ' of ' + run.n + ' so far)', go: 1, reply: [] }, { t: 'Start over from stage 1', reply: [] }], cfg.kicker]], (r) => { if (r.choices[0] && r.choices[0].go) stage(true); else fresh(); }, { focus: [P.x, P.y], kicker: cfg.kicker }); }
+  else fresh();
+}
+// the District Final Call: a major incident built from this district's facts, played in five short stages
+const FINAL_BEATS = [['narr', 'Staging. Units pull up two blocks out and wait for a plan.'], ['narr', 'The perimeter goes up. Tape, cones, a lane closed.'], ['narr', 'Contact. Someone at the scene wants to talk, right now.'], ['narr', 'Evidence and witnesses. Nobody leaves without a name.'], ['narr', 'Wrap-up. Command wants it by the book before anyone clears.']];
 function finalCall() {
   const m = L.districtMastery(S, W.did); if (!m.ready) { toast('Complete every fact in ' + W.D.name + ' first (' + m.facts.done + '/' + m.facts.total + ').'); return; }
-  const facts = L.pickFacts(S, W.D.lessons, 10, { exam: true }), qs = L.pickFacts(S, W.D.lessons, 5, { exam: true }), nx = (W.did + 1) % 5, cid = sayAs('ic', { name: 'Incident Command', icon: '🛡️', role: W.D.name + ' · Final Call' });
-  paused = true; music.set && music.start('urgent');
-  const lines = [['narr', 'Major incident. ' + W.D.name + '. Every unit in the district is rolling.'], ['okonkwo', '(over the radio) ' + S.cs + ', this is your Final Call. Everything you learned in ' + W.D.name + ', all at once. Thirteen of fifteen by the book and you transfer out.'],
-    ['choice', [{ t: 'Copy. Show me the scene.', reply: [['castillo', 'Breathe. Slow is smooth. Smooth is fast.']] }, { t: 'Request a moment to check my notes', reply: [['navarro', '(over the radio) You know this. You did every fact. Go.']] }], 'Ready?']];
-  [...facts, ...qs].sort(() => Math.random() - .5).forEach((q, k) => lines.push(['q', q, k % 3 === 0 ? 'castillo' : k % 3 === 1 ? 'okonkwo' : cid]));
-  dialogue(lines, (r) => {
-    const pass = r.right >= 13; if (pass) { if (!S.cleared.includes(W.did)) S.cleared.push(W.did); if (!S.unlocked.includes(nx)) S.unlocked.push(nx); stat('finals'); } saveS(); paused = false;
-    const allDone = S.cleared.length >= 5;
-    openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'DISTRICT CLEARED · TRANSFER APPROVED' : 'FINAL CALL · NOT YET') + '</b><h2>' + r.right + ' of ' + r.n + ' by the book</h2><p>' + (pass ? (allDone ? 'Every district cleared. The Chapter 5 Final Exam is open on the City map.' : 'Transfer orders are signed: ' + esc(DISTRICTS[nx].name) + ' is open. ' + esc(DISTRICTS[nx].unit) + '.') : 'You need 13 of 15. Review the facts you missed and come back.') + '</p></div><div class="qAct">' + (pass && !allDone ? '<button type="button" id="mGo">Transfer to ' + esc(DISTRICTS[nx].name) + '</button>' : '') + '<button type="button" class="' + (pass && !allDone ? 'ghost' : '') + '" id="mDone">' + (pass && !allDone ? 'Stay in ' + esc(W.D.name) + ' for now' : 'Back to patrol') + '</button></div>');
-    if (pass) { good(); music.sting('promo'); shake(6, .5); }
-    $('mDone').onclick = () => { closeModal(); award(pass ? 300 : 40, pass ? 'district cleared' : 'final call attempt'); if (pass) queueLoot('District cleared: ' + W.D.name, 1, 'r'); };
-    if ($('mGo')) $('mGo').onclick = () => { closeModal(); award(300, 'district cleared'); queueLoot('District cleared: ' + W.D.name, 1, 'r'); S.home = nx; saveS(); clock = 0; travel(nx); };
-  }, { focus: [P.x, P.y], kicker: 'DISTRICT FINAL CALL · ' + W.D.name.toUpperCase() });
+  const nx = (W.did + 1) % 5, cid = sayAs('ic', { name: 'Incident Command', icon: '🛡️', role: W.D.name + ' · Final Call' }), did = W.did;
+  music.set && music.start('urgent');
+  stagedRun('final' + did, { total: 15, kicker: 'DISTRICT FINAL CALL · ' + W.D.name.toUpperCase(), speakers: ['castillo', 'okonkwo', cid], pick: (k) => L.pickFacts(S, W.D.lessons, k, { exam: true }),
+    intro: (run, n) => [['narr', 'Major incident. ' + W.D.name + '. Every unit in the district is rolling.'], ['okonkwo', '(over the radio) ' + S.cs + ', this is your Final Call. Everything you learned in ' + W.D.name + '. ' + n + ' short stages, three questions each. Thirteen of fifteen by the book and you transfer out.'],
+      ['choice', [{ t: 'Copy. Show me the scene.', reply: [['castillo', 'Breathe. Slow is smooth. Smooth is fast.']] }, { t: 'Request a moment to check my notes', reply: [['navarro', '(over the radio) You know this. You did every fact. Go.']] }], 'Ready?']],
+    beat: (i) => [FINAL_BEATS[i % FINAL_BEATS.length]],
+    done: (r) => {
+      const pass = r.right / r.n >= 13 / 15 - 1e-9; if (pass) { if (!S.cleared.includes(did)) S.cleared.push(did); if (!S.unlocked.includes(nx)) S.unlocked.push(nx); stat('finals'); } saveS();
+      const allDone = S.cleared.length >= 5;
+      openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'DISTRICT CLEARED · TRANSFER APPROVED' : 'FINAL CALL · NOT YET') + '</b><h2>' + r.right + ' of ' + r.n + ' by the book</h2><p>' + (pass ? (allDone ? 'Every district cleared. The Chapter 5 Final Exam is open on the City map.' : 'Transfer orders are signed: ' + esc(DISTRICTS[nx].name) + ' is open. ' + esc(DISTRICTS[nx].unit) + '.') : 'You need 13 of 15. Review the facts you missed and come back.') + '</p></div><div class="qAct">' + (pass && !allDone ? '<button type="button" id="mGo">Transfer to ' + esc(DISTRICTS[nx].name) + '</button>' : '') + '<button type="button" class="' + (pass && !allDone ? 'ghost' : '') + '" id="mDone">' + (pass && !allDone ? 'Stay in ' + esc(W.D.name) + ' for now' : 'Back to patrol') + '</button></div>');
+      if (pass) { good(); music.sting('promo'); shake(6, .5); }
+      $('mDone').onclick = () => { closeModal(); award(pass ? 300 : 40, pass ? 'district cleared' : 'final call attempt'); if (pass) queueLoot('District cleared: ' + W.D.name, 1, 'r'); };
+      if ($('mGo')) $('mGo').onclick = () => { closeModal(); award(300, 'district cleared'); queueLoot('District cleared: ' + W.D.name, 1, 'r'); S.home = nx; saveS(); clock = 0; travel(nx); };
+    } });
 }
-// after all five districts: the Chapter 5 Final Exam, facts from the whole chapter, 85% to pass
+// after all five districts: the Chapter 5 Final Exam, facts from the whole chapter, 85% to pass, in stages of three
 function chapterExam() {
-  const all = [0, 1, 2, 3, 4].flatMap((d) => DISTRICTS[d].lessons), facts = L.pickFacts(S, all, 50, { exam: true }), sp = ['castillo', 'okonkwo', 'navarro'];
-  paused = true; music.start('story');
-  dialogue([['narr', 'Patrol HQ, the training room. Fifty facts from the whole chapter.'], ['castillo', 'This is the whole chapter, cadet. Eighty-five percent. You\'ve done every one of these on the street already.'], ['choice', [{ t: 'Ready.', reply: [] }, { t: 'Give me a second.', reply: [['castillo', 'Take two. Then we start.']] }], 'Chapter 5 Final Exam']].concat(facts.map((q, k) => ['q', q, sp[k % 3]])), (r) => {
-    paused = false; const pass = r.right / r.n >= .85; if (pass) { S.graduated = Date.now(); stat('exam'); } saveS();
-    openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'CHAPTER 5 · PASSED' : 'CHAPTER EXAM · NOT YET') + '</b><h2>' + r.right + ' of ' + r.n + ' (' + Math.round(r.right / r.n * 100) + '%)</h2><p>' + (pass ? 'Every district, every fact, and the whole chapter on one exam. Port Meridian is proud of you.' : 'You need 85%. Run fact drills in any district and try again.') + '</p></div><div class="qAct"><button type="button" id="mDone">' + (pass ? 'Carry on' : 'Back to patrol') + '</button></div>');
-    if (pass) { music.sting('promo'); shake(8, .6); }
-    $('mDone').onclick = () => { closeModal(); award(pass ? 1000 : 50, pass ? 'chapter exam passed' : 'exam attempt'); if (pass) queueLoot('Chapter 5 Final Exam', 1, 'l'); };
-  }, { focus: [P.x, P.y], kicker: 'CHAPTER 5 FINAL EXAM' });
+  const all = [0, 1, 2, 3, 4].flatMap((d) => DISTRICTS[d].lessons); music.start('story');
+  stagedRun('exam', { total: 50, kicker: 'CHAPTER 5 FINAL EXAM', speakers: ['castillo', 'okonkwo', 'navarro'], pick: (k) => L.pickFacts(S, all, k, { exam: true }),
+    intro: (run, n) => [['narr', 'Patrol HQ, the training room. Fifty facts from the whole chapter.'], ['castillo', 'This is the whole chapter, cadet. Eighty-five percent. Three at a time; take a break between rounds whenever you need one. Your score keeps.'], ['choice', [{ t: 'Ready.', reply: [] }, { t: 'Give me a second.', reply: [['castillo', 'Take two. Then we start.']] }], 'Chapter 5 Final Exam']],
+    done: (r) => {
+      const pass = r.right / r.n >= .85; if (pass) { S.graduated = Date.now(); stat('exam'); } saveS();
+      openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'CHAPTER 5 · PASSED' : 'CHAPTER EXAM · NOT YET') + '</b><h2>' + r.right + ' of ' + r.n + ' (' + Math.round(r.right / r.n * 100) + '%)</h2><p>' + (pass ? 'Every district, every fact, and the whole chapter on one exam. Port Meridian is proud of you.' : 'You need 85%. Run fact drills in any district and try again.') + '</p></div><div class="qAct"><button type="button" id="mDone">' + (pass ? 'Carry on' : 'Back to patrol') + '</button></div>');
+      if (pass) { music.sting('promo'); shake(8, .6); }
+      $('mDone').onclick = () => { closeModal(); award(pass ? 1000 : 50, pass ? 'chapter exam passed' : 'exam attempt'); if (pass) queueLoot('Chapter 5 Final Exam', 1, 'l'); };
+    } });
 }
 function gatePrompt(g) {
   const d = DISTRICTS[g.to];
@@ -1779,7 +1818,7 @@ function setStatus(busy) {
   else { radio(S.cs, 'X8.'); nextCall = Math.min(nextCall, 10); setTimeout(() => radio('Dispatch', '10-4, ' + S.cs + ', X8. Back in service.'), 900); if (net) net.status('patrol'); }
 }
 if ($('bX')) { $('bX').onclick = () => setStatus(!S.x6); statusBtn(); }
-$('zIn').onclick = () => setZoom(cam.z * 1.2); $('zOut').onclick = () => setZoom(cam.z / 1.2);
+$('zIn').onclick = () => setZoom(cam.zUser * 1.2, true); $('zOut').onclick = () => setZoom(cam.zUser / 1.2, true);
 $('bRadio').onclick = () => { const m = $('quick'); m.hidden = !m.hidden; $('bRadio').classList.remove('ping'); if (!m.hidden) { commsPanel(); setTimeout(() => { if (innerWidth > 700) { const i = $('chIn'); if (i) i.focus(); } }, 50); } };
 
 // ---------- district chat ----------
@@ -2301,7 +2340,7 @@ function photoMode() {
     cv.style.filter = FILTERS[PHOTO.f][1] === 'none' ? '' : FILTERS[PHOTO.f][1];
     el.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { PHOTO.f = +b.dataset.f; feSound('move'); draw(); });
     $('phV').onclick = () => { PHOTO.vig = !PHOTO.vig; draw(); }; $('phM').onclick = () => { PHOTO.mark = !PHOTO.mark; draw(); };
-    $('phZi').onclick = () => { cam.z = Math.min(2.6, cam.z * 1.15); }; $('phZo').onclick = () => { cam.z = Math.max(.5, cam.z / 1.15); };
+    $('phZi').onclick = () => { cam.zUser = Math.min(2.6, cam.zUser * 1.15); }; $('phZo').onclick = () => { cam.zUser = Math.max(.5, cam.zUser / 1.15); };
     $('phShot').onclick = capture; $('phX').onclick = photoExit; };
   draw();
 }
@@ -2320,7 +2359,8 @@ function photoExit() { if (!PHOTO) return; cv.style.filter = ''; document.body.c
 // ---------- boot ----------
 const FAST = /[?&]skiptitle\b/.test(location.search); // test / dev: no logos or loading screens
 function resize(drs) { const q = (S.cfg || {}).quality || 'high', dev = window.devicePixelRatio || 1; dpr = q === 'ultra' ? Math.min(3, Math.max(dev, 3840 / Math.max(innerWidth, innerHeight))) : Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : 2, dev); const base = dpr; dpr = Math.max(Math.min(1, base), base * DRS.k);
-  { const want = Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : q === 'ultra' ? 3 : 2, Math.ceil(base * 1.25 * 2) / 2); const gw = Math.min(2, want); if (gw !== GRES) { setGroundRes(gw); if (G && G.chunks) { G.chunks.clear(); G.gen = (G.gen || 0) + 1; } } RES_CAP = want; spriteResTick(true); } cw = innerWidth; ch = innerHeight; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; if (!S.zoom) cam.z = cw < 600 ? .85 : 1.15; else cam.z = S.zoom; }
+  { const want = Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : q === 'ultra' ? 3 : 2, Math.ceil(base * 1.25 * 2) / 2); const gw = Math.min(2, want); if (gw !== GRES) { setGroundRes(gw); if (G && G.chunks) { G.chunks.clear(); G.gen = (G.gen || 0) + 1; } } RES_CAP = want; spriteResTick(true); } cw = innerWidth; ch = innerHeight; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; cam.zUser = S.zoom || (cw < 600 ? .85 : 1.15); if (!ZINIT) { ZINIT = 1; cam.z = cam.zUser; } }
+let ZINIT = 0;
 addEventListener('resize', resize); resize();
 // soft round light and shadow spots are drawn once per color and stamped, instead of building a new gradient for every lamp every frame
 const RADS = new Map();
@@ -2373,7 +2413,7 @@ function lockedScreen() {
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); MG.watch(W.did); EVT.watch(); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { POL, EP, award: (n, w) => award(n, w), SAFE, ON, playStep: (st) => playStep(st), activeQ: () => activeQ(), SIDE, CHAPTERS, get storyBusy() { return storyBusy; }, chapterDone: (i) => chapterDone(CHAPTERS[i]), travel: (d, t) => travel(d, t), openCall: () => { call.accepted = true; openCallScene(call); }, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { POL, EP, award: (n, w) => award(n, w), SAFE, ON, playStep: (st) => playStep(st), activeQ: () => activeQ(), SIDE, CHAPTERS, get storyBusy() { return storyBusy; }, chapterDone: (i) => chapterDone(CHAPTERS[i]), travel: (d, t) => travel(d, t), openCall: () => { call.accepted = true; openCallScene(call); }, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, chapterExam, get LEFT() { return LEFT; }, districtBoard, goTo, load, get others() { return others; } };
 
 // repeat visits open from the device's cache (skipped in tests so they always run the files on disk)
 if ('serviceWorker' in navigator && !/[?&](mock|skiptitle)\b/.test(location.search) && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
