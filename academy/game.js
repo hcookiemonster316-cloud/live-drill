@@ -159,7 +159,7 @@ function dispatchCall() {
   const lot = c[2] !== 'any' && W.lots.filter((l) => l.kind === c[2] || (c[2] === 'parking' && (l.kind === 'parking' || l.kind === 'lot'))).sort((a, b) => Math.hypot(a.door[0] - P.x, a.door[1] - P.y) - Math.hypot(b.door[0] - P.x, b.door[1] - P.y))[0];
   const pk = c[2] === 'parking' && !lot && W.parking.length ? (() => { const near = W.parking.filter((t) => Math.hypot(t[0] - P.x, t[1] - P.y) < 30); return rnd(near.length ? near : W.parking); })() : null;
   const spot = lot ? lot.door : pk || nearTile(W.walk, 28), where = lot ? (lot.name || (LANDMARKS[lot.kind] || {}).name || 'the ' + lot.kind) : pk ? 'the parking lot at ' + ((W.lots.find((l) => !l.sub && pk[0] > l.ox && pk[0] < l.ox + 8 && pk[1] > l.oy && pk[1] < l.oy + 9) || {}).name || 'a business') : 'block ' + (100 + spot[1] * 10) + ' ' + ['Main St', 'Bay St', 'Oak Ave', 'Pine St', 'Harbor Rd'][spot[0] % 5];
-  call = { les, title: c[0], prio: c[1], text: c[3], x: spot[0] + .5, y: spot[1] + .5, where, t0: clock, accepted: false, backup: false };
+  call = { les, title: c[0], prio: c[1], text: c[3], x: spot[0] + .5, y: spot[1] + .5, where, kind: lot ? lot.kind : pk ? 'parking' : 'street', t0: clock, accepted: false, backup: false };
   if (c[1] === 1) shake(5, .5); radio('Dispatch', S.cs + ', ' + (c[1] === 1 ? 'priority one, ' : '') + c[0].toLowerCase() + ' at ' + where + '. ' + c[3]); chirp(); callCard();
 }
 function callCard() {
@@ -1258,7 +1258,7 @@ function tap(px, py) {
   if (pcar && !P.inCar && !P.boat && near(pcar.x, pcar.y, 34)) return reach(pcar.x, pcar.y, enterCar);
   if (inside) {
     if (near(W.door[0], W.door[1], 30)) return reach(W.door[0], W.door[1] - .6, exitBuilding);
-    for (const st of W.staff) if (near(st.x, st.y, 30)) return reach(st.x, st.y + 1, () => { if (st.npc) return npcTalk({ n: st.npc, x: st.x, y: st.y }); const L2 = STAFF_LINES(W.key), id = sayAs('staff', { name: st.name || 'Staff', icon: st.icon || '🙂', role: st.role || W.name }); if (!st.talked) { st.talked = true; award(3, 'small talk'); }
+    for (const st of W.staff) if (near(st.x, st.y, 30)) return reach(st.x, st.y + 1, () => { if (st.npc) return npcTalk({ n: st.npc, x: st.x, y: st.y }); const L2 = STAFF_LINES(W.key), sw = STAFF_WHO[W.key] || ['Employee', '🙂'], id = sayAs('staff', { name: st.name || sw[0], icon: st.icon || sw[1], role: st.role || W.name }); if (!st.talked) { st.talked = true; award(3, 'small talk'); }
       dialogue([[id, L2[Math.floor(Math.random() * L2.length)]], ['choice', [
         { t: 'Anything I should know about this place?', reply: [[id, W.blurb || 'Not much to tell. We keep it running, that\'s all.']] },
         { t: 'Mind if I take a look around?', reply: [[id, 'Go right ahead, officer. Just don\'t touch the coffee machine. It\'s temperamental.']], fx: () => { const sc = (W.secrets || []).find((x) => !S.found[x.id]); if (sc) PINGS.push({ x: sc.x, y: sc.y, t: performance.now(), c: '#a855f7' }); } },
@@ -1380,7 +1380,27 @@ function consequence(eff, c) {
 const APPROACH_BONUS = { quiet: 1.25, smart: 1.2, neighbors: 1.1, observe: 1.2, loud: .9, front: .85, direct: 1, contact: .95 };
 // ---------- every interaction is a scene with choices ----------
 const sayAs = (id, o) => { TEMP[id] = { name: o.name, icon: o.icon || '💬', role: o.role || '' }; return id; };
-const CALLER = [['Caller', '📞'], ['Witness', '👀'], ['Neighbor', '🏠'], ['Store clerk', '🧾'], ['Resident', '🚪']];
+// who calls depends on where the call is: residents at homes, staff at businesses, workers at the yards
+// the person you meet inside a place, when they aren't a named regular
+const STAFF_WHO = { houses: ['Homeowner', '🏡'], apartments: ['Building manager', '🔧'], church: ['Church volunteer', '⛪'], school: ['Front office', '🏫'], hq: ['Desk sergeant', '🗂️'], substation: ['Duty officer', '🚓'], dispatch: ['Dispatcher', '🎧'], records: ['Records clerk', '📁'], bank: ['Teller', '💵'], diner: ['Waitress', '☕'], store: ['Store clerk', '🧾'], gas: ['Night clerk', '🧾'], pawn: ['Pawn clerk', '💍'], motel: ['Front desk', '🛎️'], autoshop: ['Mechanic', '🔧'], firestation: ['Firefighter', '🧑‍🚒'], warehouse: ['Shift supervisor', '📦'], storage: ['Rental clerk', '🔐'], courthouse: ['Court clerk', '🗂️'], jail: ['Booking deputy', '🧾'], office: ['Receptionist', '📞'] };
+const CALLER_BY = {
+  houses: [['Homeowner', '🏡'], ['Neighbor', '🏠'], ['Resident', '🚪']], apartments: [['Tenant', '🧑'], ['Neighbor', '🏠'], ['Building manager', '🔧']],
+  shop: [['Store owner', '🛒'], ['Store clerk', '🧾'], ['Customer', '🛍️']], pharmacy: [['Pharmacist', '💊'], ['Store clerk', '🧾']], mall: [['Store manager', '🛍️'], ['Mall security', '🛡️'], ['Shopper', '👜']],
+  gas: [['Night clerk', '🧾'], ['Customer', '⛽']], diner: [['Manager', '🍳'], ['Waitress', '☕'], ['Customer', '🍽️']], cafe: [['Barista', '☕'], ['Customer', '💻']], pizza: [['Owner', '🍕'], ['Delivery driver', '🛵']],
+  barber: [['Barber', '✂️'], ['Customer', '💈']], nails: [['Salon owner', '💅'], ['Customer', '💁']], books: [['Bookseller', '📖']], laundromat: [['Attendant', '🧺'], ['Customer', '🧦']], carwash: [['Car wash attendant', '🫧']],
+  autoshop: [['Service manager', '📋'], ['Mechanic', '🔧']], pawn: [['Pawn clerk', '💍']], bank: [['Bank manager', '💵'], ['Teller', '🧾']], motel: [['Night manager', '🛎️'], ['Guest', '🧳']], bait: [['Bait shop clerk', '🎣']],
+  truckstop: [['Truck stop manager', '🍳'], ['Trucker', '🚚']], warehouse: [['Shift supervisor', '📦'], ['Security guard', '🔦'], ['Dock worker', '🚛']], lumber: [['Yard foreman', '🪵'], ['Security guard', '🔦']],
+  storage: [['Rental clerk', '🔐'], ['Unit renter', '📦']], scrapyard: [['Scale operator', '⚖️'], ['Yard worker', '🦺']], railyard: [['Rail worker', '🚂'], ['Rail security', '🔦']],
+  school: [['Principal', '🏫'], ['Teacher', '🍎'], ['School resource officer', '🛡️']], church: [['Pastor', '⛪'], ['Volunteer', '🥫']], center: [['Program director', '📣'], ['Youth coach', '🏀']],
+  park: [['Park ranger', '🌲'], ['Witness', '👀'], ['Jogger', '🏃']], plaza: [['Witness', '👀'], ['Vendor', '🌭']], stadium: [['Stadium security', '🛡️'], ['Usher', '🎟️']], marina: [['Dock hand', '⚓'], ['Boat owner', '🛥️']],
+  parking: [['Lot attendant', '🅿️'], ['Car owner', '🚗'], ['Witness', '👀']], lot: [['Property owner', '📋'], ['Witness', '👀']], library: [['Librarian', '📚']], transit: [['Station agent', '🎟️'], ['Bus driver', '🚌']],
+  clinic: [['Nurse', '🩺'], ['Front desk', '📋']], gym: [['Gym owner', '🥊']], tower: [['Building security', '🛡️'], ['Office manager', '🏢']], office: [['Receptionist', '📞'], ['Office manager', '💼']],
+  courthouse: [['Court deputy', '🛡️'], ['Clerk', '🗂️']], records: [['Records clerk', '📁']], bonds: [['Bail agent', '📄']], defender: [['Investigator', '🔎']], farm: [['Farmer', '🌾']], woods: [['Hiker', '🥾'], ['Neighbor', '🏠']],
+  firestation: [['Fire captain', '🧑‍🚒']], jail: [['Booking deputy', '🧾']], sallyport: [['Transport deputy', '🚐']],
+  garage: [['Garage attendant', '🅿️'], ['Car owner', '🚗']], radio: [['Radio technician', '📡']], dispatch: [['Dispatcher', '🎧']], hq: [['Desk sergeant', '🗂️']], substation: [['Duty officer', '🚓']],
+  street: [['Caller', '📞'], ['Witness', '👀'], ['Passerby', '🚶'], ['Driver', '🚗']]
+};
+const CALLER = CALLER_BY.street, callerFor = (c) => rnd(CALLER_BY[c.kind] || ((LANDMARKS[c.kind] || {}).name ? [['Manager', '📋'], ['Employee', '🧾']] : CALLER));
 function sceneEnd(kind, x, y) { stat('scenes'); }
 let factReady = null;
 function factWatch() {
@@ -1419,7 +1439,7 @@ function nearestLotTo(x, y) { let best = null, bd = 1e9; (inside ? inside.O.W : 
 function openCallScene(c) { openCallSceneQ(c); }
 function openCallSceneQ(c) {
   if (net) net.status('call'); paused = true;
-  const n = c.prio === 1 ? 4 : 3, qs = L.pickFacts(S, [c.les], n), fast = clock - c.t0 < 40, a = approachFor(c.les), cl = rnd(CALLER), cid = sayAs('caller', { name: cl[0], icon: cl[1], role: c.where });
+  const n = c.prio === 1 ? 4 : 3, qs = L.pickFacts(S, [c.les], n), fast = clock - c.t0 < 40, a = approachFor(c.les), cl = callerFor(c), cid = sayAs('caller', { name: cl[0], icon: cl[1], role: c.where });
   const lines = [['narr', c.title + '. ' + c.where + '.'], ['velvet', '(over the radio) ' + S.cs + ', you\'re on scene. ' + c.text]];
   if (a) lines.push(['choice', a.opts, a.q]);
   lines.push([cid, rnd(['Officer! Over here. Thank goodness.', 'You got here fast. Okay, here\'s what happened.', 'I\'m the one who called. It\'s been a whole thing.', 'Finally. Let me tell you what I saw.'])]);
