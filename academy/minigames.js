@@ -11,6 +11,7 @@ export const GAMES = {
   spot: { name: 'Spot the Change', icon: '👀', blurb: 'Study the street for four seconds. Something changes. Tap what\'s different.', rounds: 6, round: 12000, show: 4000, ans: 10000, tag: '6 scenes · 75 sec' },
   dispatch: { name: 'Dispatch Desk', icon: '🎧', blurb: 'Calls are stacking up. Send the right unit to each one, fast.', rounds: 8, round: 9000, ans: 7000, tag: '8 calls · 75 sec' },
   squad: { name: 'Squad Scenario', icon: '🛡️', blurb: 'A sim-round team exercise. Each cadet gets a role: contact, cover, perimeter or radio. The squad only succeeds together.', rounds: 5, round: 20000, ans: 16000, tag: '2–4 cadets · 5 steps' },
+  arena: { name: 'Sim Arena', icon: '🎯', blurb: 'Squad vs squad training drill, sim rounds only. Teams Blue and Gold run the same scenario, scored on commands, cover and de-escalation, with a slow-motion replay after every round.', rounds: 3, round: 24000, ans: 17000, tag: '2–8 cadets · 3 rounds · teams' },
   run: { name: 'PT Cadence Run', icon: '🏃', blurb: 'A 100-meter run called in cadence. Tap on the beat to stretch your stride. Off-beat taps barely move you.', dur: 25000, dist: 100, beat: 500, tag: '1 race · 25 sec' }
 };
 const BOTS = [{ id: 'bot_pike', c: 'Cadet Pike', u: '😎', acc: .66, fast: .9 }, { id: 'bot_navarro', c: 'Cadet Navarro', u: '📓', acc: .86, fast: 1.25 }, { id: 'bot_brooks', c: 'Cadet Brooks', u: '🚓', acc: .74, fast: 1 }];
@@ -66,6 +67,11 @@ const SCEN = [
 function squadRound(seed, k) { const S = SCEN[seed % SCEN.length], st = S.steps[k], r = mul(seed * 3 + k * 101), o = {}; ROLES.forEach(([id]) => { const list = st.o[id].map((x) => x.slice()); for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; } o[id] = { opts: list.map((x) => x[0]), c: list.findIndex((x) => x[1]) }; }); return { scen: S.name, n: st.n, o }; }
 const roleIds = (players) => Object.keys(players || {}).sort((a, b) => ((players[a].t || 0) - (players[b].t || 0)) || (a < b ? -1 : 1));
 export const roleOf = (players, id) => { const i = roleIds(players).indexOf(id); return ROLES[(i < 0 ? 0 : i) % 4]; };
+// Sim Arena: Blue and Gold alternate by join order; within a team, roles go contact, cover, perimeter, radio
+const TEAMS = [['Blue', '#3b82f6'], ['Gold', '#f5b800']];
+export const teamOf = (players, id) => { const i = Math.max(0, roleIds(players).indexOf(id)); return i % 2; };
+const arenaRole = (players, id) => { const i = Math.max(0, roleIds(players).indexOf(id)); return ROLES[Math.floor(i / 2) % 4]; };
+const roleFor = (g, players, id) => (g === 'arena' ? arenaRole(players, id) : roleOf(players, id));
 const carTxt = (c) => VC[c.c][0] + ' ' + VT[c.t][0] + ', plate ' + c.p + ', ' + VD[c.d];
 
 // ---------- scoring, worked out the same way on every screen ----------
@@ -79,7 +85,7 @@ export function standings(meta, players, answerOf) {
   const g = meta.g, rows = Object.keys(players || {}).map((id) => { const p = players[id]; let s = 0;
     if (g === 'run') s = p.f ? 2000 + Math.floor((GAMES.run.dur - p.f) / 10) : Math.floor((p.x || 0) * 10);
     else if (g === 'gauntlet') { for (let k = 0; k < GAMES[g].rounds; k++) { const a = (p.a || {})[k], c = answerOf(k, id); if (!a || a.k !== c) break; s += 300 + Math.max(0, Math.floor(200 * (1 - a.ms / GAMES[g].ans))); } }
-    else if (g === 'squad') { for (let k = 0; k < GAMES[g].rounds; k++) { const a = (p.a || {})[k]; if (a && a.k === answerOf(k, id)) s += 300 + Math.max(0, Math.floor(100 * (1 - a.ms / GAMES[g].ans))); } }
+    else if (g === 'squad' || g === 'arena') { for (let k = 0; k < GAMES[g].rounds; k++) { const a = (p.a || {})[k]; if (a && a.k === answerOf(k, id)) s += 300 + Math.max(0, Math.floor(100 * (1 - a.ms / GAMES[g].ans))); } }
     else for (let k = 0; k < GAMES[g].rounds; k++) s += roundPts(g, (p.a || {})[k], answerOf(k, id));
     return { id, c: p.c, u: p.u, s, bot: /^bot_/.test(id) }; });
   return rows.sort((a, b) => b.s - a.s);
@@ -180,19 +186,19 @@ export function createMiniGames(dep) {
     else if (m.g === 'bolo') c = boloRound(m.seed, k);
     else if (m.g === 'spot') c = spotRound(m.seed, k);
     else if (m.g === 'dispatch') c = dispatchRound(m.seed, k);
-    else if (m.g === 'squad') c = squadRound(m.seed, k);
+    else if (m.g === 'squad' || m.g === 'arena') c = squadRound(m.seed, k);
     else if (m.g === 'bowl' || m.g === 'gauntlet') { const ids = String(m.fq || '').split(','), x = (ids[k] || '').split(':'); const q = x[0] ? dep.L.factQFixed(x[0], +x[1], mul(m.seed + k * 131)) : null; c = q ? { q, c: q.c } : null; }
     qCache[key] = c; return c;
   }
-  const answerOf = (k, id) => { const c = content(k); if (!c) return -1; if (room.meta.g === 'squad') return c.o[roleOf(room.players, id || room.uid)[0]].c; return c.c; };
-  const myOpts = (c) => (room.meta.g === 'squad' ? c.o[roleOf(room.players, room.uid)[0]] : null);
+  const answerOf = (k, id) => { const c = content(k); if (!c) return -1; if (room.meta.g === 'squad' || room.meta.g === 'arena') return c.o[roleFor(room.meta.g, room.players, id || room.uid)[0]].c; return c.c; };
+  const myOpts = (c) => (room.meta.g === 'squad' || room.meta.g === 'arena' ? c.o[roleFor(room.meta.g, room.players, room.uid)[0]] : null);
   // practice classmates: answer each round with their own speed and accuracy
   function botsTick(P) {
     if (!room.local || !room.meta || room.meta.st !== 'play') return; const m = room.meta, G = GAMES[m.g]; room.bot = room.bot || {};
     BOTS.forEach((b) => { const p = room.players[b.id]; if (!p) return;
       if (m.g === 'run') { if (P.run) { const st = room.bot[b.id] = room.bot[b.id] || { x: 0, next: 0 }; if (P.t >= st.next) { st.next = P.t + G.beat; st.x += (Math.random() < b.acc ? 3 : Math.random() < .5 ? 1.5 : .3) * (.9 + Math.random() * .2); p.x = Math.min(G.dist, st.x); if (p.x >= G.dist && !p.f) p.f = P.t; } } return; }
       if (P.k == null || !P.open) return; if (m.g === 'gauntlet' && P.k > 0 && !outAlive(p, P.k, b.id)) return; const key = b.id + P.k; if (room.bot[key] == null) room.bot[key] = (G.show || 0) + Math.min(G.ans - (G.show || 0) - 400, (1200 + Math.random() * 4200) * b.fast);
-      if (P.rt >= room.bot[key] && !((p.a || {})[P.k])) { const right = Math.random() < b.acc, c = content(P.k), cc = answerOf(P.k, b.id), nOpt = m.g === 'squad' ? 3 : c.q ? c.q.opts.length : c.opts ? c.opts.length : c.cars ? c.cars.length : c.grid ? 16 : 4; let k2 = right ? cc : (cc + 1 + Math.floor(Math.random() * (nOpt - 1))) % nOpt; p.a = p.a || {}; p.a[P.k] = { k: k2, ms: Math.round(room.bot[key] - (G.show || 0)) }; }
+      if (P.rt >= room.bot[key] && !((p.a || {})[P.k])) { const right = Math.random() < b.acc, c = content(P.k), cc = answerOf(P.k, b.id), nOpt = m.g === 'squad' || m.g === 'arena' ? 3 : c.q ? c.q.opts.length : c.opts ? c.opts.length : c.cars ? c.cars.length : c.grid ? 16 : 4; let k2 = right ? cc : (cc + 1 + Math.floor(Math.random() * (nOpt - 1))) % nOpt; p.a = p.a || {}; p.a[P.k] = { k: k2, ms: Math.round(room.bot[key] - (G.show || 0)) }; }
     });
   }
   const outAlive = (p, k, id) => { for (let i = 0; i < k; i++) { const a = (p.a || {})[i]; if (!a || a.k !== answerOf(i, id)) return false; } return true; };
@@ -240,6 +246,9 @@ export function createMiniGames(dep) {
       if (m.g === 'gauntlet') body = (dead ? '<p class="mgRetry">You\'re out. Watching the survivors…</p>' : '') + '<p class="mgQ">' + esc(c.q.stem) + '</p>' + opts(c.q.opts, dead ? { k: -1 } : mine, c.c, P, false) + '<p class="mgNote">' + Object.keys(room.players).filter((id) => outAlive(room.players[id], k, id)).length + ' still standing</p>';
       if (m.g === 'spot') body = P.memo ? '<p class="mgQ">Study the street…</p><div class="mgGrid">' + c.grid.map((e) => '<span>' + e + '</span>').join('') + '</div>' : '<p class="mgQ">What changed?</p><div class="mgGrid">' + c.after.map((e, i) => '<button type="button" data-o="' + i + '" class="' + cls(i, mine, c.c, P) + '"' + (mine || !P.open ? ' disabled' : '') + '>' + e + '</button>').join('') + '</div>' + (P.reveal ? '<p class="mgEx">It was a ' + c.grid[c.c] + ' before. Now: ' + c.after[c.c] + '</p>' : '');
       if (m.g === 'dispatch') body = '<div class="mgCall"><small>INCOMING CALL</small><b>' + esc(c.call) + '</b></div><p class="mgQ">Who do you send?</p>' + opts(c.opts, mine, c.c, P, false);
+      if (m.g === 'arena') { const role = arenaRole(room.players, room.uid), tm = TEAMS[teamOf(room.players, room.uid)], mo = myOpts(c);
+        body = '<div class="mgScen"><small>' + esc(c.scen.replace(/ \(sim round\)/i, '')) + ' · SIM ROUND ' + (k + 1) + ' OF ' + G.rounds + '</small><p>' + esc(c.n) + '</p></div><div class="mgRole"><i class="arTeam" style="--tc:' + tm[1] + '">' + tm[0] + '</i> ' + role[2] + ' Your role: <b>' + role[1] + '</b></div>' + opts(mo.opts, mine, mo.c, P, false) +
+          (P.reveal ? '<div class="arReplay"><small>⏪ SLOW-MOTION REPLAY</small>' + [0, 1].map((t) => '<div class="arTeamRow" style="--tc:' + TEAMS[t][1] + '"><b>' + TEAMS[t][0] + '</b>' + roleIds(room.players).filter((id) => teamOf(room.players, id) === t).map((id, j) => { const p = room.players[id], r2 = arenaRole(room.players, id), a = (p.a || {})[k], o = c.o[r2[0]], okk = a && a.k === o.c; return '<span class="' + (okk ? 'ok' : 'no') + '" style="--j:' + j + '">' + r2[2] + ' ' + esc((p.c || '').replace(/^Cadet /, '')) + ': ' + (a ? esc(o.opts[a.k] || '') : 'no call') + '</span>'; }).join('') + '</div>').join('') + '</div>' : ''); }
       if (m.g === 'squad') { const role = roleOf(room.players, room.uid), mo = myOpts(c); body = '<div class="mgScen"><small>' + esc(c.scen) + '</small><p>' + esc(c.n) + '</p></div><div class="mgRole">' + role[2] + ' Your role: <b>' + role[1] + '</b></div>' + opts(mo.opts, mine, mo.c, P, false) +
         (P.reveal ? '<div class="mgTeam">' + roleIds(room.players).map((id) => { const p = room.players[id], r2 = roleOf(room.players, id), a = (p.a || {})[k], okk = a && a.k === answerOf(k, id); return '<span class="' + (okk ? 'ok' : 'no') + '">' + r2[2] + ' ' + esc(r2[1]) + ': ' + esc((p.c || '').replace(/^Cadet /, '')) + (okk ? ' ✓' : a ? ' ✗' : ' (no call)') + '</span>'; }).join('') + '</div>' : ''); }
       if (P.reveal && m.g === 'bowl') body += '<p class="mgEx">' + esc(c.q.fact || c.q.ex || '') + '</p>';
@@ -281,6 +290,8 @@ export function createMiniGames(dep) {
     const m = room.meta, G = GAMES[m.g]; if (el._key) { removeEventListener('keydown', el._key); el._key = null; }
     if (m.g === 'run' && !room.local) { const p = room.players[room.uid]; if (p && runX > (p.x || 0)) p.x = runX; }
     const rows = standings(m, room.players, answerOf), humans = rows.filter((r) => !r.bot).length, myRank = rows.findIndex((r) => r.id === room.uid), key = 'res' + rows.map((r) => r.id + r.s).join(',');
+    let arena = null; if (m.g === 'arena') { arena = [0, 0]; rows.forEach((r) => { arena[teamOf(room.players, r.id)] += r.s; }); const mine = teamOf(room.players, room.uid), won = arena[mine] >= arena[1 - mine];
+      if (!room.awarded) { room.awarded = true; dep.award(won ? 140 : 70, 'sim arena'); dep.stat('mg'); dep.stat('mg_arena'); if (won && humans >= 2) dep.stat('mgwin'); dep.beep(won ? 1047 : 659, .4, 'triangle', .05); } }
     let team = null; if (m.g === 'squad') { let ok = 0, tot = 0; Object.keys(room.players).forEach((id) => { for (let k = 0; k < G.rounds; k++) { tot++; const a = (room.players[id].a || {})[k]; if (a && a.k === answerOf(k, id)) ok++; } }); team = tot ? ok / tot : 0; }
     if (!room.awarded && team != null) { room.awarded = true; dep.award(Math.round(60 + team * 160), 'squad scenario'); dep.stat('mg'); dep.stat('mg_squad'); if (team >= .8) dep.stat('squadwin'); dep.beep(team >= .8 ? 1047 : 659, .4, 'triangle', .05); }
     if (!room.awarded) {
@@ -292,7 +303,7 @@ export function createMiniGames(dep) {
     }
     if (lastRender === key) return; lastRender = key;
     const isHost = room.local || m.h === me();
-    el.innerHTML = '<div class="mgCard"><div class="mgHead"><span>' + G.icon + ' ' + esc(G.name) + ' · final</span><h2>' + (team != null ? (team >= .8 ? 'Mission success' : team >= .5 ? 'Partial success' : 'Debrief needed') : myRank === 0 ? 'You won!' : 'You placed ' + (myRank + 1) + ' of ' + rows.length) + '</h2><p>' + (team != null ? 'The squad made ' + Math.round(team * 100) + '% of its calls correctly. Sim rounds only: this is how teams get good before it counts.' : m.g === 'bowl' || m.g === 'gauntlet' ? 'Every right answer counted toward your chapter facts.' : 'Good training. Same time next shift?') + '</p></div><div class="mgList">' + podium(rows) + '</div>' +
+    el.innerHTML = '<div class="mgCard"><div class="mgHead"><span>' + G.icon + ' ' + esc(G.name) + ' · final</span><h2>' + (arena ? (arena[0] === arena[1] ? 'Dead heat' : TEAMS[arena[0] > arena[1] ? 0 : 1][0] + ' team wins the drill') : team != null ? (team >= .8 ? 'Mission success' : team >= .5 ? 'Partial success' : 'Debrief needed') : myRank === 0 ? 'You won!' : 'You placed ' + (myRank + 1) + ' of ' + rows.length) + '</h2><p>' + (arena ? 'Blue ' + arena[0] + ' · Gold ' + arena[1] + '. Sim rounds only: scored on clear commands, cover and de-escalation, never on force.' : team != null ? 'The squad made ' + Math.round(team * 100) + '% of its calls correctly. Sim rounds only: this is how teams get good before it counts.' : m.g === 'bowl' || m.g === 'gauntlet' ? 'Every right answer counted toward your chapter facts.' : 'Good training. Same time next shift?') + '</p></div><div class="mgList">' + podium(rows) + '</div>' +
       '<div class="mgAct">' + (isHost ? '<button type="button" id="mgAgain">Play again</button>' : '<p class="mgNote">The host can start another round.</p>') + '<button type="button" class="ghost" id="mgHub">Other games</button><button type="button" class="ghost" id="mgX">Back to patrol</button></div></div>';
     const a = el.querySelector('#mgAgain'); if (a) a.onclick = () => again();
     el.querySelector('#mgHub').onclick = () => hub(); el.querySelector('#mgX').onclick = close;

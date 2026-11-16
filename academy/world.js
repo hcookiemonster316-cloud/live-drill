@@ -421,7 +421,7 @@ function reuse(base) { return MISS >= 6 ? LASTC.get(base) : null; }
 function remember(base, c) { MISS++; if (LASTC.size > 4000) LASTC.clear(); LASTC.set(base, c); }
 let SUNLEN = 0; export function setSun(len) { SUNLEN = len || 0; }
 function castShadow(g, sx, sy, w, k) { if (!SUNLEN) return; const L = SUNLEN * k; g.save(); g.translate(sx + L * .42, sy + L * .21); g.rotate(.46); g.fillStyle = 'rgba(10,16,30,.20)'; g.beginPath(); g.ellipse(0, 0, L * .5 + w * .4, w * .45, 0, 0, Math.PI * 2); g.fill(); g.restore(); }
-export function hiCanvas(w, h, k) { const c = document.createElement('canvas'); k = k || 1; c.width = Math.ceil(w * k); c.height = Math.ceil(h * k); c.lw = c.width / k; c.lh = c.height / k; const g = c.getContext('2d'); g.scale(k, k); return [c, g]; }
+export function hiCanvas(w, h, k) { k = k || 1; const c = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(1, 1); c.width = Math.ceil(w * k); c.height = Math.ceil(h * k); c.lw = c.width / k; c.lh = c.height / k; const g = c.getContext('2d'); g.scale(k, k); return [c, g]; }
 export function drawBuilding(b, night, sun) {
   const R = rng(b.x * 131 + b.y * 977 + b.h);
   const A = iso(b.x, b.y), Bp = iso(b.x + b.w, b.y), C = iso(b.x + b.w, b.y + b.d), Dp = iso(b.x, b.y + b.d);

@@ -20,7 +20,9 @@ export function createScore(getCtx, synth) {
   }
   function jump(mood, now) {
     const a = ctx(); if (!a || !ready) return; const k = ORDER.indexOf(mood), at = (k < 0 ? 0 : k) * SEG, t = a.currentTime, nxt = live < 0 ? 0 : 1 - live, D = decks[nxt], O = live < 0 ? null : decks[live];
-    try { D.el.currentTime = at; } catch (e) {} const p = D.el.play(); if (p && p.catch) p.catch(() => {});
+    // land on the same beat: the new section starts at the same position within its bar as the old one was
+    let off = 0; if (O && !now) { const t0 = O.el.currentTime % SEG; off = t0 < SEG - 2.5 ? t0 : 0; }
+    try { D.el.currentTime = at + off; } catch (e) {} const p = D.el.play(); if (p && p.catch) p.catch(() => {});
     D.g.gain.cancelScheduledValues(t); D.g.gain.setValueAtTime(D.g.gain.value, t); D.g.gain.linearRampToValueAtTime(1, t + (now ? .6 : 1.8));
     if (O) { O.g.gain.cancelScheduledValues(t); O.g.gain.setValueAtTime(O.g.gain.value, t); O.g.gain.linearRampToValueAtTime(0, t + 1.8); const old = O.el; setTimeout(() => { if (decks[live] && decks[live].el !== old) old.pause(); }, 2000); }
     live = nxt; lastJump = performance.now();

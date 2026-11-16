@@ -88,10 +88,10 @@ export function installEpic(H) {
   // ================= 5. background radio traffic =================
   let chatT = 30, chatQ = [];
   function chatter(dt) {
-    if (H.inside || H.cine() || H.S.offDuty || !H.W) return; chatT -= dt; if (chatT > 0) return; chatT = 45 + Math.random() * 60;
+    if (H.cine() || H.S.offDuty || !H.W) return; chatT -= dt; if (chatT > 0) return; chatT = 45 + Math.random() * 60;
     if (!chatQ.length) { const k = Math.floor(Math.random() * CHATTER.length); chatQ = [CHATTER[k]]; if (CHATTER[k + 1] && /^(Copy|Code 4|I\'ll|Engine 3|Return)/.test(CHATTER[k + 1][1]) || (CHATTER[k + 1] && CHATTER[k + 1][0] === 'Engine 3')) chatQ.push(CHATTER[k + 1]); }
     const [who, msg] = chatQ.shift(), lots = H.W.lots.filter((l) => l.name), place = lots.length ? rnd(lots).name : 'Main St', street = rnd(['Main St', 'Bay St', 'Oak Ave', 'Pine St', 'Harbor Rd']);
-    H.radio(who, msg.replace('{place}', place).replace('{street}', street)); if (H.S.sound && (H.S.cfg.vRadio == null || H.S.cfg.vRadio > 0)) H.chirp(); if (chatQ.length) chatT = 4 + Math.random() * 3;
+    H.radio(who + (H.inside ? ' (muffled)' : ''), msg.replace('{place}', place).replace('{street}', street)); if (H.S.sound && (H.S.cfg.vRadio == null || H.S.cfg.vRadio > 0)) H.chirp(who); if (chatQ.length) chatT = 4 + Math.random() * 3;
   }
 
   // ================= 6. chapter endings =================
@@ -276,9 +276,10 @@ export function installEpic(H) {
       '<div class="setGrid"><label>Brightness<input type="range" min=".7" max="1.4" step=".02" value="' + c.bright + '" data-x="bright"></label><label>Subtitle background<input type="range" min=".4" max="1" step=".05" value="' + (c.subBg == null ? .97 : c.subBg) + '" data-x="subBg"></label>' +
       '<label>Subtitle size<div class="seg">' + [['normal', 'Normal'], ['large', 'Large'], ['xl', 'Extra large']].map(([k, t]) => '<button type="button" data-ss="' + k + '" class="' + ((c.subSize || 'normal') === k ? 'on' : '') + '">' + t + '</button>').join('') + '</div></label>' +
       '<label>Voice volume<input type="range" min="0" max="1" step=".05" value="' + (c.vVoice == null ? 1 : c.vVoice) + '" data-x="vVoice"></label><label>Radio volume<input type="range" min="0" max="1" step=".05" value="' + (c.vRadio == null ? 1 : c.vRadio) + '" data-x="vRadio"></label>' +
-      '<label>Screen edge padding (TVs and notched phones)<input type="range" min="0" max="48" step="2" value="' + (c.safe || 0) + '" data-x="safe"></label></div><div class="feBtns"><button type="button" class="feBtn ghost" id="dpReset">Reset</button><button type="button" class="feBtn" id="dpBack">Back</button></div></div>';
+      '<label>Screen edge padding (TVs and notched phones)<input type="range" min="0" max="48" step="2" value="' + (c.safe || 0) + '" data-x="safe"></label>' + (H.comfort ? H.comfort().comfortRows() : '') + '</div><div class="feBtns"><button type="button" class="feBtn ghost" id="dpReset">Reset</button><button type="button" class="feBtn" id="dpBack">Back</button></div></div>';
       el.querySelectorAll('[data-x]').forEach((r) => r.oninput = () => { c[r.dataset.x] = +r.value; applyDisplay(); H.saveS(); });
       el.querySelectorAll('[data-ss]').forEach((b) => b.onclick = () => { c.subSize = b.dataset.ss; applyDisplay(); H.saveS(); draw(); });
+      if (H.comfort) H.comfort().bindComfort(el, draw);
       H.$('dpReset').onclick = () => { c.bright = 1; c.subBg = .97; c.subSize = 'normal'; c.vVoice = 1; c.vRadio = 1; c.safe = 0; applyDisplay(); H.saveS(); draw(); };
       H.$('dpBack').onclick = () => { back ? back() : (el.hidden = true); }; };
     draw();

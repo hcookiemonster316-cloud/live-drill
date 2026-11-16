@@ -128,6 +128,7 @@ export function installPolish(H) {
     if (A) lines.push('Next: ' + A.step.goal + (A.side ? ' (side case: ' + A.title + ')' : '') + '.');
     const fr = Object.keys(S.npc || {}).filter((k) => S.npc[k] >= 3).length; if (fr) lines.push('You have ' + fr + ' friend' + (fr > 1 ? 's' : '') + ' in the city' + (fr > 3 ? '. People are starting to know your name.' : '.'));
     const lo = Object.keys(S.lore || {}).length; lines.push(lo + ' pages in your field journal.');
+    if (H.sessLines) H.sessLines().forEach((l) => lines.push(l));
     const el = document.createElement('div'); el.className = 'tCard recap'; el.innerHTML = '<div class="tcBar t"></div><div class="tcBar b"></div><div class="tcIn"><small>PREVIOUSLY IN PATROL CITY</small><h1>Last time…</h1><i></i>' + lines.map((l, k) => '<p style="--d:' + (k * 350 + 500) + 'ms">' + esc(l) + '</p>').join('') + '<em>Tap to continue</em></div>';
     cardBusy = true; H.pause(true); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on')); H.sting('card');
     const close = () => { el.classList.add('out'); setTimeout(() => { el.remove(); cardBusy = false; H.pause(false); }, 600); }; setTimeout(() => { el.onclick = close; }, 800);

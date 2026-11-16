@@ -19,6 +19,7 @@ import { installOnboard } from './onboard.js';
 import { installFeel } from './feel.js';
 import { installSafe } from './safe.js';
 import { installNGPlus } from './ngplus.js';
+import { installPremium } from './premium.js';
 SIDE2.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); LORE2.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); }); LORE_PLACES.concat(LORE_PEOPLE).forEach((e) => { if (!LORE.some((o) => o.id === e.id || o.when === e.when)) LORE.push(e); });
 import { createMusic } from './music.js';
 import { createScore } from './score.js';
@@ -59,7 +60,8 @@ let pboat = null; const K9 = { x: 0, y: 0, face: 1, moving: false };
 // ---------- sound (tiny synth, no files) ----------
 let AC = null; const audio = () => { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } return AC; };
 function beep(f, d, type, v, when) { if (!S.sound) return; const a = audio(); if (!a) return; const o = a.createOscillator(), g = a.createGain(); o.type = type || 'square'; o.frequency.value = f; const vv = (v || .04) * (S.cfg ? S.cfg.sfx : 1); o.connect(g); g.connect(a.destination); const t = a.currentTime + (when || 0); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vv, t + .008); g.gain.exponentialRampToValueAtTime(.0001, t + Math.max(.03, d)); o.start(t); o.stop(t + d + .03); }
-const chirp = () => { const v = S.cfg && S.cfg.vRadio != null ? S.cfg.vRadio : 1; if (!v) return; beep(1400, .06, 'square', .03 * v); beep(1900, .07, 'square', .03 * v, .07); };
+const chirp = (who) => { let v = S.cfg && S.cfg.vRadio != null ? S.cfg.vRadio : 1; if (!v) return; let f = 1; if (who) { let h = 7; for (const ch of String(who)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; f = .86 + (h % 9) * .035; } const mu = typeof inside !== 'undefined' && inside ? .55 : 1; v *= mu;
+  beep(1400 * f * (mu < 1 ? .8 : 1), .06, 'square', .03 * v); beep(1900 * f * (mu < 1 ? .8 : 1), .07, 'square', .03 * v, .07); if (Math.random() < .5) beep(95 + Math.random() * 60, .05, 'sawtooth', .012 * v, .16); };
 const good = () => { beep(660, .12, 'triangle', .06); beep(990, .18, 'triangle', .06, .1); };
 const bad = () => beep(180, .22, 'sawtooth', .04);
 let sirenT = 0;
@@ -106,9 +108,19 @@ function buildSprites() {
 // when the hour changes the light changes: sprites are marked stale and redrawn a few per frame, still showing the old drawing until then
 let RELIT = 0;
 function relightSprites() { const h = hourNow(); NIGHT = isNight(h); SUN = sunFor(h); setSun(inside ? 0 : SUN.len); SPR_LIT = !NIGHT ? 0 : h >= 18 && h < 23 ? 1.5 : h >= 23 || h < 2 ? 1 : .5; lampsUpdate(h); SPR.forEach((s) => { if (s.canvas) s.stale = 1; }); }
-function spriteOf(s) { if (!s.canvas || (s.stale && RELIT < 3)) { if (s.canvas) RELIT++; s.stale = 0; Object.assign(s, drawBuilding(s.b, NIGHT ? SPR_LIT : false, SUN)); } s.used = performance.now(); return s; }
+// a building on screen with no drawing yet is painted right away (never a pop-in); relights and buildings just off
+// screen go to the sprite worker, and the old drawing stays up until the new one arrives
+function spriteOf(s) {
+  if (!s.canvas) { s.stale = 0; setSprite(s, drawBuilding(s.b, NIGHT ? SPR_LIT : false, SUN)); }
+  else if (s.stale && !s.pending) { if (SPRW) sprAsk(s); else if (RELIT < 3) { RELIT++; s.stale = 0; setSprite(s, drawBuilding(s.b, NIGHT ? SPR_LIT : false, SUN)); } }
+  s.used = performance.now(); return s; }
+function setSprite(s, r) { if (s.canvas && s.canvas.close) s.canvas.close(); s.canvas = r.canvas; s.x = r.x; s.y = r.y; s.lights = r.lights; s.res = RES; }
+let SPRW = null, SPRN = 0; const SPRJ = new Map();
+try { if (typeof OffscreenCanvas !== 'undefined' && !/[?&]noworker\b/.test(location.search)) { SPRW = new Worker(new URL('./sprw.js', import.meta.url), { type: 'module' }); SPRW.onmessage = (e) => { const d = e.data, s = SPRJ.get(d.id); SPRJ.delete(d.id); if (!s) { if (d.bmp) d.bmp.close(); return; } s.pending = 0; if (d.fail) { SPRW = null; return; } if (d.res !== RES || s.gen !== SPRGEN) { if (d.bmp) d.bmp.close(); s.stale = 1; return; } d.bmp.lw = d.lw; d.bmp.lh = d.lh; s.stale = 0; setSprite(s, { canvas: d.bmp, x: d.x, y: d.y, lights: d.lights }); }; SPRW.onerror = () => { SPRW = null; }; } } catch (e) { SPRW = null; }
+let SPRGEN = 0;
+function sprAsk(s) { if (!SPRW || s.pending || SPRJ.size > 6) return; const id = ++SPRN; s.pending = 1; s.gen = SPRGEN; SPRJ.set(id, s); try { SPRW.postMessage({ id, b: s.b, lit: NIGHT ? SPR_LIT : false, sun: SUN, res: RES }); } catch (e) { SPRJ.delete(id); s.pending = 0; SPRW = null; } }
 // never drop a building that was on screen in the last second (dropping visible ones made them flash in and out)
-function trimSprites() { const live = SPR.filter((s) => s.canvas), t = performance.now(), recent = live.filter((s) => t - s.used < 1000).length, cap = Math.max(recent + 12, Math.round(120 / Math.max(1, RES * RES * .6))); if (live.length < cap + 20) return; live.filter((s) => t - s.used >= 1000).sort((a, b) => a.used - b.used).slice(0, live.length - cap).forEach((s) => { s.canvas = null; s.lights = []; }); }
+function trimSprites() { const live = SPR.filter((s) => s.canvas), t = performance.now(), recent = live.filter((s) => t - s.used < 1000).length, cap = Math.max(recent + 12, Math.round(120 / Math.max(1, RES * RES * .6))); if (live.length < cap + 20) return; live.filter((s) => t - s.used >= 1000).sort((a, b) => a.used - b.used).slice(0, live.length - cap).forEach((s) => { if (s.canvas && s.canvas.close) s.canvas.close(); s.canvas = null; s.lights = []; }); }
 // street lights come on one by one at dusk and go off one by one at dawn; each has its own photocell
 function lampsUpdate(h) { if (!W || !W.props) return; if (h == null) h = hourNow(); W.props.forEach((p) => { if (p.t !== 'lamp') return; const k = ((p.x * 7.13 + p.y * 3.71) % 1 + 1) % 1; p.on = inside ? true : (h >= 18.1 + k * .9 || h < 5.7 + k * .7); }); }
 function focus() { return ATTRACT || !P ? unIso(cam.x, cam.y) : [P.x, P.y]; }
@@ -192,7 +204,7 @@ let sprHour = -1;
 function load(did) {
   refreshGear();
   inside = null; if (net && net.inside) net.inside(-1);
-  W = buildDistrict(did); G = { chunks: new Map() }; buildSprites(); sprHour = Math.floor(hourNow());
+  W = PREBUILT.get(did) || buildDistrict(did); PREBUILT.delete(did); G = { chunks: new Map() }; buildSprites(); sprHour = Math.floor(hourNow()); setTimeout(prebuildSoon, 4000);
   P.x = W.spawn[0] + .5; P.y = W.spawn[1] + .5; P.path = []; P.inCar = false;
   pcar = W.carSpot ? { x: W.carSpot[0], y: W.carSpot[1], dir: 0, bar: false } : null; setTimeout(() => { LIFE.setup(); OFF.setup(); ACAD.setup(); EVT.setup(); }, 0);
   const h0 = hourNow(), busy = isNight(h0) ? (h0 >= 18.75 && h0 < 22 ? .6 : .38) : 1;
@@ -228,11 +240,14 @@ function newObserve() { const did = W.did, ls = W.D.lessons.filter((l) => OBSERV
 
 // ---------- dispatch ----------
 function dispatchCall() {
-  const fav = U().fav.filter((l) => W.D.lessons.indexOf(l) >= 0 && !L.mastery(S, l).done), les = fav.length && Math.random() < .3 ? fav[Math.floor(Math.random() * fav.length)] : L.weakest(S, W.did), list = CALLS[les] || [['Assist a citizen', 3, 'any', 'Citizen flagging down an officer.']], c = NG.remix(EVT.stormCall() || EP.wxCall() || rnd(list));
+  const fav = U().fav.filter((l) => W.D.lessons.indexOf(l) >= 0 && !L.mastery(S, l).done), les = fav.length && Math.random() < .3 ? fav[Math.floor(Math.random() * fav.length)] : L.weakest(S, W.did), list = CALLS[les] || [['Assist a citizen', 3, 'any', 'Citizen flagging down an officer.']]; let c = NG.remix(EVT.stormCall() || EP.wxCall() || rnd(list));
+  const th = PREM.threadCall(); if (th) c = th.c;
   const lot = c[2] !== 'any' && W.lots.filter((l) => l.kind === c[2] || (c[2] === 'parking' && (l.kind === 'parking' || l.kind === 'lot'))).sort((a, b) => Math.hypot(a.door[0] - P.x, a.door[1] - P.y) - Math.hypot(b.door[0] - P.x, b.door[1] - P.y))[0];
   const pk = c[2] === 'parking' && !lot && W.parking.length ? (() => { const near = W.parking.filter((t) => Math.hypot(t[0] - P.x, t[1] - P.y) < 30); return rnd(near.length ? near : W.parking); })() : null;
   const spot = lot ? lot.door : pk || nearTile(W.walk, 28), where = lot ? (lot.name || (LANDMARKS[lot.kind] || {}).name || 'the ' + lot.kind) : pk ? 'the parking lot at ' + ((W.lots.find((l) => !l.sub && pk[0] > l.ox && pk[0] < l.ox + 8 && pk[1] > l.oy && pk[1] < l.oy + 9) || {}).name || 'a business') : 'block ' + (100 + spot[1] * 10) + ' ' + ['Main St', 'Bay St', 'Oak Ave', 'Pine St', 'Harbor Rd'][spot[0] % 5];
   call = { les, title: c[0], prio: c[1], text: c[3], x: spot[0] + .5, y: spot[1] + .5, where, kind: lot ? lot.kind : pk ? 'parking' : 'street', t0: clock, accepted: false, backup: false };
+  if (th) { call.thread = th.t; th.t.at = 1e12; saveS(); }
+  PREM.buzz(c[1] === 1 ? 'p1' : 'call'); setTimeout(() => { if (call && !call.accepted) PREM.callIntro(call); }, 650);
   if (c[1] === 1) { shake(5, .5); EP.zoomPunch(); if (S.sound) setTimeout(() => music.sting('p1'), 300); } radio('Dispatch', S.cs + ', ' + (c[1] === 1 ? 'priority one, ' : '') + c[0].toLowerCase() + ' at ' + where + '. ' + c[3]); chirp(); callCard();
 }
 function callCard() {
@@ -279,7 +294,10 @@ function update(dt, now) {
   clock += dt * .75; // one real second is 45 game seconds; a 12-hour shift takes 16 minutes
   { const hr = Math.floor(hourNow()); if (hr !== sprHour) { sprHour = hr; const was = NIGHT; relightSprites(); if (was !== NIGHT && NIGHT && !inside) LIFE.nightLamps(); if (was !== NIGHT) radio('Dispatch', NIGHT ? 'All units, sunset. Lights on.' : 'All units, sunrise.'); } }
   const st = ST(), sp = P.boat ? 8 * (1 + gp('drive') / 100) : P.inCar ? (call && call.accepted ? 6.6 : 4.8) * U().ride.speed * (.88 + st.res * .06) * (1 + gp('drive') / 100) * LIFE.carMult() * RIDES[RIDE()].sp : (2.9 + st.res * .2) * (1 + gp('speed') / 100); const spB = sp * (clock < BUFF.speedTo ? (BUFF.speedMul || 1.25) : 1);
-  if (P.path.length) { const done = stepAlong(P, dt, spB); if (done && P.onArrive) { const f = P.onArrive; P.onArrive = null; f(); } }
+  // the cruiser has weight: speed builds over a second, bleeds off near the stop, and the nose dips when braking
+  let spW = spB; if (P.inCar && !P.boat && S.cfg.motion !== false) { const left = P.path.length ? Math.hypot(P.path[P.path.length - 1][0] - P.x, P.path[P.path.length - 1][1] - P.y) + (P.path.length - 1) * .7 : 0, want = P.path.length ? spB * Math.min(1, Math.max(.32, left / 3.2)) : 0, v0 = P.vel || 0;
+    P.vel = v0 + (want - v0) * (1 - Math.exp(-dt * (want > v0 ? 1.9 : 4.5))); spW = Math.max(.9, P.vel); P.pitch = (P.pitch || 0) * Math.exp(-dt * 5) + Math.max(-1, Math.min(1, (v0 - P.vel) / Math.max(dt, .001) / 9)) * (1 - Math.exp(-dt * 5)); } else { P.vel = 0; P.pitch = 0; }
+  if (P.path.length) { const done = stepAlong(P, dt, spW); if (done && P.onArrive) { const f = P.onArrive; P.onArrive = null; f(); } }
   else P.moving = false;
   if (P.inCar && pcar) { pcar.x = P.x; pcar.y = P.y; pcar.dir = P.dir; pcar.bar = !!(call && call.accepted); }
   if (P.boat && pboat) { pboat.x = P.x; pboat.y = P.y; pboat.dir = P.dir; }
@@ -287,9 +305,12 @@ function update(dt, now) {
   if (!cam.free) { const [ix, iy] = iso(P.x, P.y), kf = 1 - Math.exp(-dt * 6); cam.x += (ix - cam.x) * kf; cam.y += (iy - 22 - cam.y) * kf; }
   { const f = focus(); peds.forEach((p, k) => { if (Math.hypot(p.x - f[0], p.y - f[1]) > 30) peds[k] = newPed(); }); traffic.forEach((c, k) => { if (Math.hypot(c.x - f[0], c.y - f[1]) > 34) traffic[k] = newCar(); }); }
   peds.forEach((p) => { if (p.wait > 0) { p.wait -= dt; p.moving = false; return; } if (!p.path.length) { const t = nearTile(W.walk, 24); const path = Math.hypot(t[0] - p.x, t[1] - p.y) < 16 ? astar(p.x, p.y, t[0], t[1], pedPass, true) : null; if (path) p.path = path; else p.wait = 1; return; } if (stepAlong(p, dt, p.sp)) p.wait = 1 + Math.random() * 4; });
-  traffic.forEach((c) => { if (c.stopped) return; if (c.stopT > 0) { c.stopT -= dt; c.moving = false; return; } if (!c.path.length) { if (c.bus && !c.stopT0) { c.stopT = 3.5; c.stopT0 = 1; return; } c.stopT0 = 0; for (let k = 0; k < 6; k++) { const x = Math.floor(c.x + (Math.random() - .5) * 40), y = Math.floor(c.y + (Math.random() - .5) * 40); if (roadPass(x, y)) { const p = astar(c.x, c.y, x, y, roadPass, false); if (p && p.length > 3) { c.path = p; break; } } } return; } stepAlong(c, dt, c.sp); });
+  const lights = P.inCar && call && call.accepted && !inside; TRF = (TRF + 1) % 3; const fv = focus();
+  traffic.forEach((c, ci) => { if (lights && !c.yieldT && Math.hypot(c.x - P.x, c.y - P.y) < 5.5) { c.yieldT = 2.6; c.yieldK = 0; } if (c.yieldT > 0) { c.yieldT -= dt; c.yieldK = Math.min(1, (c.yieldK || 0) + dt * 2.5); c.moving = false; if (c.yieldT <= 0) { c.yieldT = 0; c.yieldK = 0; } return; }
+    if (Math.abs(c.x - fv[0]) + Math.abs(c.y - fv[1]) > 22 && ci % 3 !== TRF) return; const cdt = Math.abs(c.x - fv[0]) + Math.abs(c.y - fv[1]) > 22 ? dt * 3 : dt;
+    if (c.stopped) return; if (c.stopT > 0) { c.stopT -= cdt; c.moving = false; return; } if (!c.path.length) { if (c.bus && !c.stopT0) { c.stopT = 3.5; c.stopT0 = 1; return; } c.stopT0 = 0; for (let k = 0; k < 6; k++) { const x = Math.floor(c.x + (Math.random() - .5) * 40), y = Math.floor(c.y + (Math.random() - .5) * 40); if (roadPass(x, y)) { const p = astar(c.x, c.y, x, y, roadPass, false); if (p && p.length > 3) { c.path = p; break; } } } return; } stepAlong(c, cdt, c.sp); });
   // arrive on a call
-  if (call && !inside && Math.hypot(call.x - P.x, call.y - P.y) < 1.7 && !scene && !heldByLeave()) { const c = call; call = null; callCard(); openCallScene(c); }
+  if (call && !inside && Math.hypot(call.x - P.x, call.y - P.y) < 1.7 && !scene && !heldByLeave() && !RING) ringOpen(call);
   if (!call && !scene && !S.x6 && !S.offDuty) { nextCall -= dt; if (nextCall <= 0) dispatchCall(); }
   if (call && clock - call.t0 > callWait() + BUFF.wait) { radio('Dispatch', S.cs + ', disregard; another unit took that call.'); if (call.backup && net) net.backup(null); call = null; callCard(); nextCall = 20; if (net) { net.status('patrol'); net.backup(null); } }
   // observation moments appear only up close
@@ -317,6 +338,9 @@ function darkness() {
   return { a: .74, tint: null, col: '8,12,34' };
 }
 // static things (props, doors, manholes) keep their screen position and their draw entry, so a frame allocates almost nothing for them
+// districts you can travel to next are built ahead of time between frames, so a transfer loads instantly
+const PREBUILT = new Map();
+function prebuildSoon() { idleSoon((dl) => { if (!W || ATTRACT) return; const next = (S.unlocked || []).filter((d) => d !== W.did && !PREBUILT.has(d)).slice(0, 2 - PREBUILT.size); if (!next.length || dl.timeRemaining() < 20 && !dl.didTimeout) { if (next.length) setTimeout(prebuildSoon, 3000); return; } try { PREBUILT.set(next[0], buildDistrict(next[0])); } catch (e) {} if (next.length > 1) setTimeout(prebuildSoon, 2000); }); }
 let RNOW = 0, RZ = 1, RES_CAP = 2, resWant = 0, resN = 0;
 // sprite resolution follows the on-screen scale once the zoom has settled for a moment (never while pinching)
 function spriteResTick(now) {
@@ -338,7 +362,7 @@ function render(now) { RNOW = now; frameStart(); spriteResTick(false);
   const list = [];
   // buildings between you and the camera fade so you can always see yourself (and others near you)
   const [pix, piy] = iso(P.x, P.y), pd = P.x + P.y;
-  let fresh = 0; RELIT = 0; SPR.forEach((s) => { if (s.bx + s.bw > vx0 && s.bx < vx1 && s.by + s.bh > vy0 && s.by < vy1) { if (!s.canvas) { if (fresh > 6) return; fresh++; } spriteOf(s);
+  let fresh = 0; RELIT = 0; const PF = (vx1 - vx0) * .5; SPR.forEach((s) => { if (!(s.bx + s.bw > vx0 && s.bx < vx1 && s.by + s.bh > vy0 && s.by < vy1)) { if (SPRW && (!s.canvas || s.stale) && s.bx + s.bw > vx0 - PF && s.bx < vx1 + PF && s.by + s.bh > vy0 - PF && s.by < vy1 + PF) sprAsk(s); return; } { if (!s.canvas) { if (fresh > 6) return; fresh++; } spriteOf(s);
     const b = s.b, near = !ATTRACT && s.depth > pd && P.x < b.x + b.w + 2.5 && P.y < b.y + b.d + 2.5 && P.x > b.x - 3 && P.y > b.y - 3,
       cover = !ATTRACT && s.depth > pd && pix > s.x + 6 && pix < s.x + s.canvas.lw - 6 && piy - 30 > s.y + 10 && piy - 6 < s.y + s.canvas.lh;
     const target = near || cover ? .3 : 1; s.al = s.al == null ? 1 : s.al + (target - s.al) * .18;
@@ -354,7 +378,7 @@ function render(now) { RNOW = now; frameStart(); spriteResTick(false);
     personFast(ctx, sx, sy, p, now, p._pk || (p._pk = 'p' + p.ph + (p.shirt || '') + (p.skin || '') + (p.top || '') + (p.kit ? JSON.stringify(p.kit) : ''))); } }); });
   citizens.forEach((p) => { const [sx, sy] = iso(p.x, p.y); if (vis(sx, sy)) list.push({ d: p.x + p.y, f: () => { person(ctx, sx, sy, p, now); bubble(sx, sy - 46, '?', '#f5b800', now); } }); });
   traffic.forEach((c) => { const off = laneOff(c), [sx, sy] = iso(c.x + off[0], c.y + off[1]); if (vis(sx, sy)) list.push({ d: c.x + c.y, f: () => c.v ? vehicle(ctx, sx, sy, c.dir, c.v, now, NIGHT, false) : car(ctx, sx, sy, c.dir, c.color, false, now, NIGHT, 1) }); });
-  if (!inside && !ATTRACT) LIFE.drawKid(list, vis, now);
+  if (!inside && !ATTRACT) { LIFE.drawKid(list, vis, now); PREM.drawSigns(list, vis, ctx); }
   if (!inside && !ATTRACT) SIDE.forEach((q) => { if (!q.giverAt || !sideAvail(q)) return; const g = giverPos(q), t = TEMP[q.giver]; if (!g || !t) return; const [sx, sy] = iso(g.x, g.y); if (!vis(sx, sy)) return; const h = [...q.giver].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
     list.push({ d: g.x + g.y, f: () => { person(ctx, sx, sy, { ph: h % 997, shirt: ['#c0392b', '#2e86de', '#16a085', '#8e44ad', '#e67e22', '#2c3e50', '#d35400', '#27ae60'][h % 8], skin: ['#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#ffdbac', '#a0662f'][(h >> 3) % 6], hair: ['#2b1d14', '#5a3825', '#1a1a1a', '#b07b3c', '#9a9a9a'][(h >> 5) % 5], moving: false, face: -1, s: /age \d/.test(t.name) ? .82 : 1 }, now); label(sx, sy - 50, t.icon + ' ' + t.name, '#7dd3fc'); } }); });
   if (pcar && !P.inCar) { const [sx, sy] = iso(pcar.x, pcar.y); list.push({ d: pcar.x + pcar.y, f: () => { if (RIDE() !== 'car') rideArt(ctx, sx, sy, pcar.dir || 0, RIDE(), now, false, RIDE() === 'horse' ? () => {} : () => {}, false); else vehicle(ctx, sx, sy, pcar.dir, LIFE.ride(U().ride), now, NIGHT, false); if (Math.hypot(pcar.x - P.x, pcar.y - P.y) < 5) label(sx, sy - 40, RIDE() === 'car' ? 'Your ' + U().ride.label.toLowerCase() : 'Your ' + RIDES[RIDE()].name.toLowerCase(), '#f5b800'); } }); }
@@ -362,7 +386,7 @@ function render(now) { RNOW = now; frameStart(); spriteResTick(false);
   if (S.unit === 'k9' && !P.inCar && !P.boat) { const [sx, sy] = iso(K9.x, K9.y); list.push({ d: K9.x + K9.y, f: () => dogFast(ctx, sx, sy, K9.face, K9.moving, now) }); }
   Object.keys(others).forEach((k) => { const o = others[k]; if ((o.n == null ? -1 : o.n) !== (inside ? inside.idx : -1)) return; const [sx, sy] = iso(o.rx, o.ry); if (!vis(sx, sy)) return; list.push({ d: o.rx + o.ry, f: () => { const ou = unitOf(o.u); if (o.v) vehicle(ctx, sx, sy, o.d || 0, o.v === 2 ? { kind: 'boat' } : ou.ride, now, NIGHT, o.st === 'call'); else { const ck = (o.f || '') + '|' + o.u; if (o._ck !== ck) { const tk = String(o.f || 'ostd').split(','), of = (tk.find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1), lk = looks(tk); o._ck = ck; o._kit = kitWith(kitOf(of, o.u), o.f ? lk : {}); o._fl = Object.assign({}, outfitLook(of), lk); o._po = { kit: o._kit, s: 1 }; }
       const po = o._po; po.moving = o.moving; po.face = o.face || 1; po.back = o.back; po.stride = o.stride; po.skin = o.skin; personFast(ctx, sx, sy, po, now, 'o' + ck + (o.skin || ''), OCOUNT > 20); if (o.u === 'k9') dogFast(ctx, sx - 14, sy + 6, 1, o.moving, now); if (cam.z > .6 || DRAWN_OTHERS < 25) flair(o._fl, sx, sy, now, 1); } const mate = S.squad && o.g === S.squad.code; if (mate) { ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, 15, 7.5, 0, 0, Math.PI * 2); ctx.stroke(); } if (mate || o.nearRank < (innerWidth < 700 ? 10 : 18)) label(sx, sy - (o.v ? 40 : 50), (o.k ? '[' + o.k + '] ' : '') + ou.icon + ' ' + o.c + (o.sh && o.sh !== S.shift ? ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') : ''), '#9cc3ff'); if (!(mate || o.nearRank < 8)) { /* bubbles only for the closest few */ } else if (o.say && performance.now() - o.sayAt < 7000) speech(sx, sy - (o.v ? 52 : 68), o.say.length > 34 ? o.say.slice(0, 32) + '…' : o.say); else if (o.q && now - o.qAt < 6000) speech(sx, sy - (o.v ? 52 : 68), QUICK[o.q.k] || ''); } }); });
-  if (!ATTRACT) { const [sx, sy] = iso(P.x, P.y); list.push({ d: P.x + P.y, f: () => { if (P.boat) vehicle(ctx, sx, sy, P.dir, { kind: 'boat' }, now, NIGHT, call && call.accepted); else if (P.inCar && RIDE() !== 'car') rideArt(ctx, sx, sy, P.dir || 0, RIDE(), now, !!(P.path && P.path.length), riderFn(now), (call && call.accepted) || STOPLIGHTS); else if (P.inCar) { FEEL.wetLights(ctx, sx, sy, now); const rl = FEEL.rollIn(ctx, sx, sy); vehicle(ctx, sx, sy, P.dir, LIFE.ride(U().ride), now, NIGHT, (call && call.accepted) || STOPLIGHTS); if (rl) ctx.restore(); } else person(ctx, sx, sy, { kit: kitWith(myKit(), myLooks()), moving: P.moving, face: P.face, back: P.back, stride: P.stride, glance: false, skin: S.skin || '#c68e63', s: 1.08 }, now); } }); }
+  if (!ATTRACT) { const [sx, sy] = iso(P.x, P.y); list.push({ d: P.x + P.y, f: () => { if (P.boat) vehicle(ctx, sx, sy, P.dir, { kind: 'boat' }, now, NIGHT, call && call.accepted); else if (P.inCar && RIDE() !== 'car') rideArt(ctx, sx, sy, P.dir || 0, RIDE(), now, !!(P.path && P.path.length), riderFn(now), (call && call.accepted) || STOPLIGHTS); else if (P.inCar) { FEEL.wetLights(ctx, sx, sy, now); const rl = FEEL.rollIn(ctx, sx, sy), dip = P.pitch || 0; if (dip) { ctx.save(); const f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][P.dir & 3]; ctx.translate(sx, sy); ctx.rotate(dip * .035 * (f[0] > 0 ? 1 : -1)); ctx.translate(-sx, -sy + Math.abs(dip) * .8); } vehicle(ctx, sx, sy, P.dir, LIFE.ride(U().ride), now, NIGHT, (call && call.accepted) || STOPLIGHTS); if (dip) ctx.restore(); if (rl) ctx.restore(); } else person(ctx, sx, sy, { kit: kitWith(myKit(), myLooks()), moving: P.moving, face: P.face, back: P.back, stride: P.stride, glance: false, skin: S.skin || '#c68e63', s: 1.08 }, now); } }); }
   liveDraw(list, vis, now); if (!ATTRACT) storyCast(list, vis, now);
   ambienceGround(); vfxGround(now, vis); if (!ATTRACT) trailDraw(now);
   list.sort((a, b) => a.d - b.d).forEach((e) => e.f());
@@ -395,6 +419,8 @@ function render(now) { RNOW = now; frameStart(); spriteResTick(false);
     gx.setTransform(1, 0, 0, 1, 0, 0); gx.globalCompositeOperation = 'source-over'; gx.clearRect(0, 0, glc.width, glc.height); gx.globalCompositeOperation = 'lighter'; let glowN = 0;
     const glow = (ix, iy, r, col) => { const x = (ix * z + tx) * s, y = (iy * z + ty) * s, rr = r * z * s; if (x < -rr || y < -rr || x > glc.width + rr || y > glc.height + rr) return; glowN++; gx.drawImage(radSprite(col), x - rr, y - rr, rr * 2, rr * 2); };
     lightProps().forEach((p) => { if (p.t === 'lamp' && p.on) { const q = isoC(p), ix = q[0], iy = q[1]; glow(ix + 10, iy - 37, 18, 'rgba(255,220,150,.55)'); glow(ix + 10, iy - 37, 46, 'rgba(255,200,120,.12)'); glow(ix + 10, iy - 2, 40, 'rgba(255,190,110,.10)'); } });
+    if (FX.rain && !inside) { const glowE = (ix, iy, rx, ry, col) => { const x = (ix * z + tx) * s, y = (iy * z + ty) * s, w = rx * z * s, h = ry * z * s; if (x < -w || y < -h || x > glc.width + w || y > glc.height + h) return; glowN++; gx.drawImage(radSprite(col), x - w, y - h * .2, w * 2, h * 2); };
+      lightProps().forEach((p) => { if (p.t === 'lamp' && p.on) { const q = isoC(p); glowE(q[0] + 10, q[1] + 4, 9, 26, 'rgba(255,205,130,.22)'); } }); }
     // lit windows and signs spill a little warm light; cars show headlights and taillights
     SPR.forEach((sp) => { if (sp.canvas) sp.lights.forEach((q, k) => { if (k % 2 === 0) glow(q[0], q[1], 16, 'rgba(255,214,140,.10)'); }); });
     if (dk.a > .3) { const beam = (sx, sy, dir) => { const f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][dir & 3], x0 = sx + f[0] * 14, y0 = sy + f[1] * 14 - 4, x1 = sx + f[0] * 120, y1 = sy + f[1] * 120, nx = -f[1] * 34, ny = f[0] * 34, X = (v) => cv.width / 2 + (v - cam.x) * z, Yy = (v) => cv.height / 2 + (v - cam.y) * z; const bg = ctx.createLinearGradient(X(x0), Yy(y0), X(x1), Yy(y1)); bg.addColorStop(0, 'rgba(255,245,215,.22)'); bg.addColorStop(1, 'rgba(255,245,215,0)'); ctx.fillStyle = bg; ctx.beginPath(); ctx.moveTo(X(x0 - nx * .15), Yy(y0 - ny * .15)); ctx.lineTo(X(x1 - nx), Yy(y1 - ny)); ctx.lineTo(X(x1 + nx), Yy(y1 + ny)); ctx.lineTo(X(x0 + nx * .15), Yy(y0 + ny * .15)); ctx.closePath(); ctx.fill(); };
@@ -410,6 +436,7 @@ function render(now) { RNOW = now; frameStart(); spriteResTick(false);
   grade(); rainDraw(); EVT.drawFog(); if (!ATTRACT) { EP.skyDraw(ctx, cv, now); EP.fxDraw(ctx, cv); }
   // markers drawn above the lighting so they stay readable
   ctx.setTransform(z, 0, 0, z, cv.width / 2 - cam.x * z, cv.height / 2 - cam.y * z);
+  ringPlace(z, tx, ty);
   if (!ATTRACT) { guideDraw(now, z); if (!inside) { EVT.draw(now); LIFE.draw(now); OFF.draw(now); ACAD.draw(now); POL.drawBarks(ctx); EP.clueDraw(now); regs.forEach((r) => { if (OFF.arcReady(r.n.id)) { const [sx, sy] = iso(r.x, r.y); bubble(sx, sy - 92, '💛', '#f472b6', now); } }); } storyMarker(now); floatsDraw(now); pingsDraw(now); if (SELF_SAY.text && performance.now() - SELF_SAY.at < 6000) { const [sx, sy] = iso(P.x, P.y); speech(sx, sy - (P.inCar ? 52 : 70), SELF_SAY.text.length > 34 ? SELF_SAY.text.slice(0, 32) + '…' : SELF_SAY.text); } }
   if (call) { const [sx, sy] = iso(call.x, call.y); ring(sx, sy, call.prio === 1 ? '#ff4d4d' : '#f5b800', now); bubble(sx, sy - 40, '📻', call.prio === 1 ? '#ff4d4d' : '#f5b800', now); label(sx, sy - 66, call.title, '#ffffff'); }
   infos.forEach((i) => { const [sx, sy] = iso(i.x, i.y); bubble(sx, sy - 30, '📖', i.cool > 0 ? '#6b7280' : '#8b5cf6', now); });
@@ -451,7 +478,7 @@ function trustMap(did) {
 // life in the city: self-initiated work, traffic stops, your patrol car (see life.js)
 let STOPLIGHTS = false;
 const LIFE = installLife({ S, L, get W() { return W; }, get P() { return P; }, get pcar() { return pcar; }, get inside() { return inside; }, NIGHT: () => NIGHT, traffic: () => traffic, call: () => call, clock: () => clock, rain: () => !!FX.rain,
-  dialogue: (...a) => dialogue(...a), sayAs: (...a) => sayAs(...a), award: (...a) => award(...a), stat: (...a) => stat(...a), ord: (...a) => ord(...a), toast: (m) => toast(m), banner: (...a) => banner(...a), beep: (...a) => beep(...a), chirp: () => chirp(), good: () => good(), bad: () => bad(), radio: (...a) => radio(...a),
+  dialogue: (...a) => dialogue(...a), sayAs: (...a) => sayAs(...a), award: (...a) => award(...a), stat: (...a) => stat(...a), ord: (...a) => ord(...a), toast: (m) => toast(m), banner: (...a) => banner(...a), beep: (...a) => beep(...a), chirp: (w) => chirp(w), good: () => good(), bad: () => bad(), radio: (...a) => radio(...a),
   saveS: () => saveS(), hud: () => hud(), openModal: (h) => openModal(h), closeModal: () => closeModal(), $: (id) => $(id), esc: (x) => esc(x), iso: (x, y) => iso(x, y), get ctx() { return ctx; }, bubble: (...a) => bubble(...a), label: (...a) => label(...a), person: (...a) => person(...a),
   rideKind: () => RIDE(), motorPool: () => motorPool(), goTo: (...a) => goTo(...a), doorSpot: (l) => doorSpot(l), whereAt: (x, y) => { const n = nearestLotTo(x, y); return n ? 'near ' + n : 'on patrol'; }, lights: (on) => { STOPLIGHTS = on; } });
 // off the clock: off-duty mode, leisure, ride-alongs, homes, morale and friendship stories (see offduty.js)
@@ -469,17 +496,19 @@ const EVT = installEvents({ S, L, get W() { return W; }, get P() { return P; }, 
   toast: (m) => toast(m), banner: (...a) => banner(...a), good: () => good(), beep: (...a) => beep(...a), saveS: () => saveS(), queueLoot: (...a) => queueLoot(...a), openModal: (h) => openModal(h), closeModal: () => closeModal(), $: (id) => $(id), esc: (x) => esc(x),
   iso: (x, y) => iso(x, y), bubble: (...a) => bubble(...a), label: (...a) => label(...a), dname: (d) => DISTRICTS[d].name, allLandmarks: () => LANDMARK_LIST, refreshLook: () => { refreshGear(); hud(); if (net && net.flair) net.flair(myTokens()); } });
 let POLMOOD = null, DLGMOOD = null, COVER = null;
-const POL = installPolish({ S, NPCS, CHAPTERS, LANDMARKS, esc: (x) => esc(x), $: (id) => $(id), fe: () => fe(), openModal: (h) => openModal(h), closeModal: () => closeModal(), stat: (...a) => stat(...a), saveS: () => saveS(), award: (...a) => award(...a), banner: (...a) => banner(...a), toast: (m) => toast(m), beep: (...a) => beep(...a),
+const PREM = installPremium({ S, esc: (x) => esc(x), inside: () => !!inside, busy: () => stageBusy(), clockStr: () => { const h = hourNow(); return String(Math.floor(h)).padStart(2, '0') + String(Math.floor(h % 1 * 60)).padStart(2, '0') + ' hrs'; }, setPaused: (v) => { paused = v; }, cineFocus: (x, y, z) => cineFocus(x, y, z), cineRelease: () => cineRelease(),
+  saveS: () => saveS(), sting: (k) => music.sting(k), W: () => W, P, callTitles: () => Object.values(CALLS).flat().map((c) => c[0]), hourAt: (t) => (shiftOf().start + t / 60) % 24, beep: (...a) => beep(...a), radio: (w, m) => radio(w, m), clock: () => clock, iso: (x, y) => iso(x, y), hiCanvas: (...a) => hiCanvas(...a), toast: (m) => toast(m), shiftKey: () => new Date().toDateString() + S.shift });
+const POL = installPolish({ S, sessLines: () => PREM.sessLines(), NPCS, CHAPTERS, LANDMARKS, esc: (x) => esc(x), $: (id) => $(id), fe: () => fe(), openModal: (h) => openModal(h), closeModal: () => closeModal(), stat: (...a) => stat(...a), saveS: () => saveS(), award: (...a) => award(...a), banner: (...a) => banner(...a), toast: (m) => toast(m), beep: (...a) => beep(...a),
   sting: (k) => { if (S.sound) music.sting(k); }, setMood: (m) => { POLMOOD = m; }, get W() { return W; }, get P() { return P; }, get regs() { return regs; }, get peds() { return peds; }, get inside() { return inside; }, get LORE() { return LORE; },
   cine: () => document.body.classList.contains('cine'), paused: () => paused || !!scene, pause: (on) => { paused = on; }, hour: () => hourNow(), homeOf: (n) => NPC_AT[n.id] || n.home, moveReg: (r, lot) => moveReg(r, lot), faceTo: (r) => { r.face = P.x < r.x ? -1 : 1; },
   iso: (x, y) => iso(x, y), duck: (on) => { if (S.sound) music.volume(S.cfg.music * (on ? .35 : 1)); }, move: (dx, dy) => goTo(P.x + dx * 1.6, P.y + dy * 1.6), use: () => { if (!paused && !scene) tapAtWorld(P.x, P.y); }, journal: () => journal(),
   dname: (d) => DISTRICTS[d].name, activeQ: () => activeQ(), loreDist: (n) => LORE_DIST[n], sideQ: (id) => sideQ(id), placeIcon: (n) => { for (const D of DISTRICTS) { const f = (x) => Array.isArray(x) && x[1] === n ? x : x && x.strip ? x.strip.map(f).find(Boolean) : null; const hit = D.lots.map(f).find(Boolean); if (hit) return (LANDMARKS[hit[0]] || {}).icon || '📍'; } return '📍'; },
   loreHint: (w) => loreHint(w), wxBark: () => EP.wxBark(), ready: () => S.seenCine && !EP.busy && !looting && !loreBusy && !storyBusy && !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !document.querySelector('.lorePop'), hud: () => hud(), refreshLook: () => { refreshGear(); hud(); } });
 const loreHint = (w) => w === 'start' ? '' : /^d\d$/.test(w) ? 'Opens with ' + DISTRICTS[+w[1]].name + '.' : w.slice(0, 2) === 'ch' ? 'Keep going with the main story.' : w.slice(0, 5) === 'side:' ? 'Close a side case in ' + ((sideQ(w.slice(5)) && DISTRICTS[sideQ(w.slice(5)).d].name) || 'the city') + '.' : w.slice(0, 6) === 'visit:' ? 'Explore ' + (LORE_DIST[w.slice(6)] || 'the city') + '.' : w.slice(0, 7) === 'friend:' ? (() => { const n = NPCS.find((x) => x.id === w.slice(7)); return n ? 'Become friends with ' + (S.npc && S.npc[n.id] ? n.name : 'someone') + ' in ' + DISTRICTS[n.d].name + '.' : ''; })() : '';
-const EP = installEpic({ S, NPCS, esc: (x) => esc(x), $: (id) => $(id), fe: () => fe(), openModal: (h) => openModal(h), closeModal: () => closeModal(), stat: (...a) => stat(...a), st: (k) => st(k), statOnce: (k) => { if (!st(k)) stat(k); }, saveS: () => saveS(), award: (...a) => award(...a), banner: (...a) => banner(...a), toast: (m) => toast(m), beep: (...a) => beep(...a),
+const EP = installEpic({ S, comfort: () => PREM, NPCS, esc: (x) => esc(x), $: (id) => $(id), fe: () => fe(), openModal: (h) => openModal(h), closeModal: () => closeModal(), stat: (...a) => stat(...a), st: (k) => st(k), statOnce: (k) => { if (!st(k)) stat(k); }, saveS: () => saveS(), award: (...a) => award(...a), banner: (...a) => banner(...a), toast: (m) => toast(m), beep: (...a) => beep(...a),
   sting: (k) => { if (S.sound) music.sting(k); }, setMood: (m) => { POLMOOD = m; }, get W() { return W; }, get P() { return P; }, get inside() { return inside; }, get LORE() { return LORE; }, get cam() { return cam; }, get studio() { return STUDIO.name; },
   cine: () => document.body.classList.contains('cine'), pause: (on) => { paused = on; }, hour: () => hourNow(), iso: (x, y) => iso(x, y), dname: (d) => DISTRICTS[d].name, loreDist: (n) => LORE_DIST[n], loreAt: (n) => { const e = LORE.find((x) => x.when === 'visit:' + n); return e ? e.id : null; },
-  radio: (w, m) => radio(w, m), chirp: () => chirp(), wx: () => Object.assign({ label: '' }, EVT.WX || {}, { rain: FX.rain, storm: FX.storm, wind: FX.wind || 0, cold: FX.cold, fog: FX.fog || 0 }), sparkle: (x, y, now, c) => sparkle(x, y, now, c),
+  radio: (w, m) => radio(w, m), chirp: (w) => chirp(w), wx: () => Object.assign({ label: '' }, EVT.WX || {}, { rain: FX.rain, storm: FX.storm, wind: FX.wind || 0, cold: FX.cold, fog: FX.fog || 0 }), sparkle: (x, y, now, c) => sparkle(x, y, now, c),
   dialogue: (l, d, o) => dialogue(l, d, o), week: () => ACAD.week(), weekKey: () => EVT.weekKey ? EVT.weekKey() : '', net: () => net, hasSkill: (id) => hasSk(id), ready: () => !ATTRACT && !looting && !loreBusy && !storyBusy && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !document.querySelector('.lorePop, .tCard') && !paused && !scene });
 const ON = installOnboard({ S, CHAPTERS, esc: (x) => esc(x), get P() { return P; }, get W() { return W; }, storyBusy: () => storyBusy, dlgOpen: () => !$('dlg').hidden, call: () => call, forceCall: () => { if (!call) nextCall = Math.min(nextCall, 2); },
   ready: () => !ATTRACT && !looting && !loreBusy && !storyBusy && !scene && !paused && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !EP.busy && !!S.seenCine && !document.querySelector('.lorePop, .tCard'),
@@ -498,7 +527,9 @@ const MG = createMiniGames({ get net() { return net; }, now: () => N0(), esc: (x
   award: (n, why) => award(n, why), stat: (k) => stat(k), cs: () => S.cs, icon: () => U().icon, did: () => W.did, dname: () => W.D.name, lessons: () => W.D.lessons,
   pause: (on) => { paused = on; if (on) { P.path = []; } if (S.sound) music.start(on ? 'title' : moodNow()); },
   get squadPost() { return net && S.squad ? (m) => { try { net.post(net.sqChatPath(S.squad.code), { c: S.cs, m }); } catch (e) {} } : null; } });
-function laneOff(c) { return [[0, .22], [-.22, 0], [0, -.22], [.22, 0]][c.dir] || [0, 0]; }
+// cars keep right; a car yielding to lights and sirens eases further over to the curb
+function laneOff(c) { const k = .22 + (c.yieldK || 0) * .2; return [[0, k], [-k, 0], [0, -k], [k, 0]][c.dir] || [0, 0]; }
+let TRF = 0;
 function markerPoints() { const m = []; if (call) m.push(iso(call.x, call.y)); infos.forEach((i) => m.push(iso(i.x, i.y))); observes.forEach((o) => o.seen && m.push(iso(o.x, o.y))); citizens.forEach((c) => m.push(iso(c.x, c.y))); return m; }
 function ring(sx, sy, col, now) { const k = (now % 1400) / 1400; ctx.strokeStyle = col; ctx.globalAlpha = 1 - k; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(sx, sy, 12 + k * 26, (12 + k * 26) / 2, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
 function bubble(sx, sy, txt, col, now) { const b = Math.sin(now / 260) * 3; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(sx, sy + b, 11, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(sx - 5, sy + b + 8); ctx.lineTo(sx + 5, sy + b + 8); ctx.lineTo(sx, sy + b + 15); ctx.fill(); ctx.fillStyle = col === '#f5b800' ? '#0b1630' : '#fff'; ctx.font = '800 13px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, sx, sy + b + 1); }
@@ -1224,7 +1255,7 @@ function loreCheck(dt) {
 }
 function lorePop() {
   if (loreBusy || !loreQ.length) return; if (scene || storyBusy || looting || MG.busy || !$('modal').hidden || !$('dlg').hidden || !fe().hidden || EP.busy || document.querySelector('.tCard, .introCine, .gradCred')) { setTimeout(lorePop, 700); return; }
-  loreBusy = true; const es = loreQ.shift(), e = es[0], many = es.length > 1, tot = LORE.length, have = LORE.filter((x) => S.lore[x.id]).length;
+  loreBusy = true; PREM.onLore(); const es = loreQ.shift(), e = es[0], many = es.length > 1, tot = LORE.length, have = LORE.filter((x) => S.lore[x.id]).length;
   const el = document.createElement('div'); el.className = 'lorePop';
   el.innerHTML = '<canvas class="lpFx"></canvas><div class="lpCard"><div class="lpBook"><span>📜</span></div><small>' + (many ? es.length + ' lore entries discovered' : 'Lore discovered') + ' · ' + have + ' of ' + tot + '</small><h2>' + esc(many ? es.map((x) => x.title).join(' · ') : e.title) + '</h2><p>' + esc(many ? 'New pages in your Field Journal.' : e.text) + '</p><div class="lpBtns"><button type="button" data-a="read">' + 'Read in journal' + '</button><button type="button" class="ghost" data-a="ok">Back to patrol</button></div></div>';
   document.body.appendChild(el); paused = true;
@@ -1606,7 +1637,9 @@ function openCallSceneQ(c) {
     { t: 'Send your cover to search the area alone', reply: [['narr', cover + ' heads off. Now nobody is covering you.'], ['castillo', '(over the radio) Cover stays with contact. Pull them back.']] }].sort(() => Math.random() - .5), 'Your cover officer is waiting for a signal.']);
   { const rv = EP.rivalCameo(); if (rv) lines.push(rv); const tr = NG.cameo(); if (tr) lines.push(tr); }
   if (a) lines.push(['choice', a.opts, a.q]);
+  if (c.open === 'assess') lines.push(['narr', 'You stop short of the door and take in the whole scene: exits, hands, who is watching.']); else if (c.open === 'id') lines.push(['narr', 'You ask for ID up front. The caller fumbles for a wallet, then hands it over.']);
   lines.push([cid, rnd(['Officer! Over here. Thank goodness.', 'You got here fast. Okay, here\'s what happened.', 'I\'m the one who called. It\'s been a whole thing.', 'Finally. Let me tell you what I saw.'])]);
+  PREM.threadLines(c, 'velvet').forEach((x) => lines.push(x));
   qs.forEach((q, k) => { lines.push(['q', q, k % 2 ? 'castillo' : cid]); if (k === 0 && qs.length > 2) lines.push(['choice', [
     { t: 'Keep the scene calm and explain each step', eff2: 'calm', trust: 1, reply: [[cid, 'Okay. Okay, thank you for telling me what\'s happening.']] },
     { t: 'Stay focused and keep it brief', eff2: 'brief', reply: [[cid, 'Sure. Right. Whatever you need.']] },
@@ -1621,7 +1654,9 @@ function openCallSceneQ(c) {
     const r = { right: res.right, n: res.n };
     S.calls++; SS.calls++; NG.callCleared(); stat('p' + c.prio); if (inside) stat('inCall'); if (NIGHT) stat('nightCalls'); const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 && hasSk('tac2') ? 1.15 : 1) * (c.prio === 1 && hasSk('tac4') ? 1.25 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM * EP.callMult() * NG.mult() * (hasSk('pat3') && EP.repOf(W.did).idx >= 2 ? 1.1 : 1), xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0) + (c.wrap === 'case' || c.wrap === 'resources' ? 10 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
     const coopOk = c.coop && res.choices.some((o) => o.ok), xpT = Math.round(xp * (coopOk ? 1.25 * (hasSk('pat4') ? 1.15 : 1) : 1)); if (FX.storm) stat('stormCall'); EP.squadCall(); if (c.coop) { stat('coop'); if (coopOk) stat('coopGood'); }
-    EP.afterCall(c, (extra) => POL.debrief({ extra, title: c.title, where: c.where, prio: c.prio, right: r.right, n: r.n, fast, resp: (clock - c.t0), approach: !a ? undefined : !c.eff ? null : (APPROACH_BONUS[c.eff] || 1) > 1 ? 'good' : 'ok', wrap: c.wrap, calm: res.choices.some((o) => o.eff2 === 'calm'), qs: res.qs || [], coop: coopOk ? c.coop : null, xp: xpT, role: c.coop ? 'Contact officer' : '' }, () => { closeModal(); radio(S.cs, 'Clear, back in service.'); award(xpT, c.coop ? 'co-op call cleared' : 'call cleared'); queueLoot('Found on scene: ' + c.title, r.right === r.n ? .6 : .3); nextCall = (25 + Math.random() * 25) * (S.unit === 'patrol' ? .75 : 1); if (net) net.backup(null); COVER = null; }));
+    const more = [c.posRow, PREM.threadDone(c)].filter(Boolean); PREM.helped(c); PREM.seedThread(c);
+    const report = (go) => (PREM.needsReport(c) ? PREM.report(c, (row) => go([row])) : go([]));
+    EP.afterCall(c, (extra0) => report((rr) => POL.debrief({ extra: (extra0 || []).concat(more, rr), title: c.title, where: c.where, prio: c.prio, right: r.right, n: r.n, fast, resp: (clock - c.t0), approach: !a ? undefined : !c.eff ? null : (APPROACH_BONUS[c.eff] || 1) > 1 ? 'good' : 'ok', wrap: c.wrap, calm: res.choices.some((o) => o.eff2 === 'calm'), qs: res.qs || [], coop: coopOk ? c.coop : null, xp: xpT, role: c.coop ? 'Contact officer' : '' }, () => { closeModal(); radio(S.cs, 'Clear, back in service.'); award(xpT, c.coop ? 'co-op call cleared' : 'call cleared'); queueLoot('Found on scene: ' + c.title, r.right === r.n ? .6 : .3); nextCall = (25 + Math.random() * 25) * (S.unit === 'patrol' ? .75 : 1); if (net) net.backup(null); COVER = null; })));
   }, { focus: [c.x, c.y], kicker: (c.prio === 1 ? 'PRIORITY 1' : c.prio === 2 ? 'PRIORITY 2' : 'ROUTINE') + ' · ' + c.where.toUpperCase(), onLeave: () => { leaveDefault(); c.accepted = true; call = c; callCard(); } });
 }
 function streetLife(e) {
@@ -1756,7 +1791,7 @@ function chapterExam() {
       $('mDone').onclick = () => { closeModal(); award(pass ? 1000 : 50, pass ? 'chapter exam passed' : 'exam attempt'); if (pass) queueLoot('Chapter 5 Final Exam', 1, 'l'); };
     } });
 }
-function gatePrompt(g) {
+function gatePrompt(g) { PREM.buzz('gate');
   const d = DISTRICTS[g.to];
   if (!S.unlocked.includes(g.to)) { toast('🔒 ' + d.name + ' is locked. Complete every fact in ' + W.D.name + ' and pass its Final Call to transfer.'); return; }
   openModal('<div class="sceneHead"><b>DISTRICT LINE</b><h2>Head into ' + esc(d.name) + '?</h2><p>' + esc(d.unit) + '. ' + esc(d.blurb) + '</p></div><div class="qAct"><button type="button" id="gGo">Patrol ' + esc(d.name) + '</button><button type="button" class="ghost" id="gNo">Stay here</button></div>');
@@ -1850,7 +1885,7 @@ const SELF_SAY = { text: '', at: 0 };
 const COMMS = { tab: 'd', city: { list: [], seen: new Set() }, sq: { list: [], seen: new Set() }, dm: {}, dmOpen: null, inbox: {}, invites: {}, squad: null, unread: { d: 0, c: 0, s: 0, m: 0 }, started: false, sqStop: null, sqChatStop: null, cityStop: null, sqT: 0 };
 S.squad = S.squad || null; S.dmRead = S.dmRead || {}; S.contacts = S.contacts || {};
 const MAXSQ = 4;
-function stat(k, n) { if (k === 'mgwin') ACAD.weekAdd('w', 1); S.stat = S.stat || {}; S.stat[k] = (S.stat[k] || 0) + (n == null ? 1 : n); }
+function stat(k, n) { if (/^callGrade[SABCD]$/.test(k) && typeof PREM !== 'undefined') PREM.onCall(k.slice(9)); if (k === 'mgwin') ACAD.weekAdd('w', 1); S.stat = S.stat || {}; S.stat[k] = (S.stat[k] || 0) + (n == null ? 1 : n); }
 const sqCode = () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 6; i++) c += A[Math.floor(Math.random() * A.length)]; return c; };
 const tagFrom = (n) => (String(n).toUpperCase().replace(/[^A-Z0-9 ]/g, '').split(/\s+/).filter(Boolean).map((w) => w[0]).join('') || 'SQD').slice(0, 4).padEnd(2, 'X');
 const meInfo = () => ({ c: S.cs, u: S.unit, r: L.rankOf(S.xp).name, d: W && W.did != null ? (inside ? inside.O.W.did : W.did) : 0, s: S.shift, st: call && call.accepted ? 'call' : 'patrol' });
@@ -2022,6 +2057,26 @@ const PINGS = [];
 function pingsDraw(now) { for (let i = PINGS.length - 1; i >= 0; i--) { const p = PINGS[i], a = Math.max(0, (now - p.t) / 2400); if (a > 1) { PINGS.splice(i, 1); continue; } const [sx, sy] = iso(p.x, p.y); ctx.strokeStyle = p.c; ctx.globalAlpha = 1 - a; ctx.lineWidth = 3; for (let k = 0; k < 3; k++) { const r = ((a * 3 + k / 3) % 1) * 60; ctx.beginPath(); ctx.ellipse(sx, sy, r, r / 2, 0, 0, Math.PI * 2); ctx.stroke(); } ctx.globalAlpha = 1; } }
 
 // ---------- multiplayer ----------
+// ---------- arriving on scene: context actions appear around the address, console style; walk off and they fold away ----------
+let RING = null;
+const RING_OPTS = [['contact', '💬', 'Make contact'], ['assess', '👀', 'Assess first'], ['id', '🪪', 'ID first'], ['backup', '📻', 'Backup']];
+function ringOpen(c) {
+  RING = { c, t: performance.now() }; P.path = []; PREM.buzz('tap'); const el = $('ring');
+  el.innerHTML = '<div class="rgHub"><b>' + esc(c.title) + '</b><small>' + esc(c.where) + '</small></div>' + RING_OPTS.filter((o) => o[0] !== 'backup' || (net && !c.backup)).map((o, k) => '<button type="button" data-r="' + o[0] + '" style="--k:' + k + '"><i>' + o[1] + '</i><span>' + o[2] + '</span></button>').join('');
+  el.hidden = false; requestAnimationFrame(() => el.classList.add('on')); beep(740, .06, 'triangle', .03);
+  el.querySelectorAll('[data-r]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); ringPick(b.dataset.r); });
+}
+function ringClose() { const el = $('ring'); el.classList.remove('on'); setTimeout(() => { if (!RING) el.hidden = true; }, 220); RING = null; }
+function ringPick(k) {
+  const c = RING && RING.c; if (!c) return;
+  if (k === 'backup') { c.backup = true; if (net) net.backup({ x: c.x, y: c.y, l: c.title.slice(0, 48), p: c.prio }); radio(S.cs, 'On scene, requesting a cover unit.'); chirp(S.cs); callCard(); const b = $('ring').querySelector('[data-r="backup"]'); if (b) b.remove(); return; }
+  const d = Math.hypot(P.x - c.x, P.y - c.y);
+  // positioning is part of the score: a clear view beats standing in the doorway
+  c.posRow = k === 'assess' ? ['📐', 'Positioning', 10, 10, 'Stepped back and took in the scene first'] : d < .8 ? ['📐', 'Positioning', 3, 10, 'Stood in the doorway'] : ['📐', 'Positioning', 7, 10, 'Workable position'];
+  c.open = k; ringClose(); call = null; callCard(); openCallScene(c);
+}
+function ringTick() { if (!RING) return; if (!call || call !== RING.c || Math.hypot(RING.c.x - P.x, RING.c.y - P.y) > 3 || inside) ringClose(); }
+function ringPlace(z, tx, ty) { if (!RING) return; const [ix, iy] = iso(RING.c.x, RING.c.y), el = $('ring'); el.style.transform = 'translate(' + ((ix * z + tx) / dpr).toFixed(1) + 'px,' + ((iy * z + ty) / dpr - 30).toFixed(1) + 'px)'; }
 // ---------- backup requests: ask, others accept, they get a route, arrive, and take the cover role ----------
 let BKGO = null, BKQ = [], BKDECL = {}, BKT = 0;
 function bkStatus() { const go = Object.keys(others).filter((k) => others[k].a === myUid + '|go').map((k) => others[k].c), on = Object.keys(others).filter((k) => others[k].a === myUid).map((k) => others[k].c);
@@ -2054,7 +2109,7 @@ function onPlayers(all, uid) {
     const o = others[k] || (others[k] = { rx: v.x, ry: v.y, skin: rnd(SKIN) });
     const close = (S.squad && v.g === S.squad.code) || Math.hypot((v.x || 0) - P.x, (v.y || 0) - P.y) < 40 || Object.keys(all).length < 16;
     if (v.q && (!o.q || o.q.t !== v.q.t) && now - v.q.t < 8000) { o.qAt = performance.now(); if (close) radio(v.c, QUICK[v.q.k] || ''); }
-    if (v.b && v.b.t && (!o.b || o.b.t !== v.b.t) && now - v.b.t < 60000 && close) { radio(v.c, 'Requesting backup: ' + (v.b.l || '')); chirp(); bkOffer(k, v); }
+    if (v.b && v.b.t && (!o.b || o.b.t !== v.b.t) && now - v.b.t < 60000 && close) { radio(v.c, 'Requesting backup: ' + (v.b.l || '')); chirp(v.c); bkOffer(k, v); PREM.buzz('backup'); }
     if (o.b && !v.b && BKGO && BKGO.uid === k) bkStood(v.c + ' is Code 4. Backup no longer needed. Thanks for rolling.');
     if (v.a === uid + '|go' && o.a !== v.a) { radio(v.c, 'En route to back you up.'); toast('🚓 ' + v.c + ' accepted your backup request and is en route.'); good(); setTimeout(() => call && callCard(), 0); }
     if (v.a === uid && o.a !== uid) { toast('🛡️ ' + v.c + ' is on scene as your cover officer.'); good(); COVER = { c: v.c, t: Date.now() }; if (call) call.cover = v.c; setTimeout(() => call && callCard(), 0); }
@@ -2411,7 +2466,12 @@ function drsTick(now, ms) {
 // a full-screen menu hides the city behind a blur: keep the last frame instead of redrawing (and re-blurring) it every frame
 let FE_EL = null, coverN = 0;
 function covered() { const e = FE_EL || (FE_EL = $('fe')); const c = !e.hidden && (e.classList.contains('menuBg') || (paused && e.classList.contains('pauseBg'))); coverN = c ? coverN + 1 : 0; return coverN > 18; }
-function frame(now) { const dt = Math.min(.05, (now - last) / 1000) * (typeof EP !== 'undefined' ? EP.timeScale() : 1); drsTick(now, now - last); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); if ((BKT -= dt) <= 0) { BKT = .25; bkTick(); } POL.tick(dt); EP.tick(dt); ON.tick(dt); FEEL.tick(dt); if (!S.seenCine && !EP.busy && W && !inside && !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !paused) EP.intro(); } if (!covered()) render(now); } requestAnimationFrame(frame); }
+// while the game is paused behind a conversation and the camera has settled, the street only has slow ambient motion
+// (a tree sway, a blinking light), so it is redrawn every other frame; anything faster brings back every frame
+let QS = 0;
+function quietSkip() { const tz = (CINE.on ? CINE.z : cam.zUser) * (cam.zMul || 1), settled = Math.abs(cam.z - tz) < .001 && (!CINE.on || Math.abs(cam.x - CINE.x) + Math.abs(cam.y - CINE.y) < .6);
+  if (!paused || !settled || ATTRACT || FX.rain || FX.storm || (call && call.prio === 1) || PHOTO) { QS = 0; return false; } return (QS = (QS + 1) % 2) === 1; }
+function frame(now) { const dt = Math.min(.05, (now - last) / 1000) * (typeof EP !== 'undefined' ? EP.timeScale() : 1); drsTick(now, now - last); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); if ((BKT -= dt) <= 0) { BKT = .25; bkTick(); ringTick(); } PREM.memoryBarks(dt); POL.tick(dt); EP.tick(dt); ON.tick(dt); FEEL.tick(dt); if (!S.seenCine && !EP.busy && W && !inside && !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !paused) EP.intro(); } if (!covered() && !quietSkip()) render(now); } requestAnimationFrame(frame); }
 // ---------- the unlock from the study hub ----------
 // The hub opens this page with a pass code once the cadet passes a 100-question test at 85% or better.
 function hubCheck(s) { let h = 2166136261; const t = s + '|patrol-city'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }
@@ -2442,7 +2502,7 @@ function lockedScreen() {
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); MG.watch(W.did); EVT.watch(); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { POL, EP, award: (n, w) => award(n, w), SAFE, ON, playStep: (st) => playStep(st), activeQ: () => activeQ(), SIDE, CHAPTERS, get storyBusy() { return storyBusy; }, chapterDone: (i) => chapterDone(CHAPTERS[i]), travel: (d, t) => travel(d, t), openCall: () => { call.accepted = true; openCallScene(call); }, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, chapterExam, get LEFT() { return LEFT; }, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { POL, EP, award: (n, w) => award(n, w), SAFE, ON, playStep: (st) => playStep(st), activeQ: () => activeQ(), SIDE, CHAPTERS, get storyBusy() { return storyBusy; }, chapterDone: (i) => chapterDone(CHAPTERS[i]), travel: (d, t) => travel(d, t), openCall: () => { call.accepted = true; openCallScene(call); }, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, chapterExam, PREM, get LEFT() { return LEFT; }, districtBoard, goTo, load, get others() { return others; } };
 
 // repeat visits open from the device's cache (skipped in tests so they always run the files on disk)
 if ('serviceWorker' in navigator && !/[?&](mock|skiptitle)\b/.test(location.search) && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
