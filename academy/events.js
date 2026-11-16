@@ -153,7 +153,7 @@ export function installEvents(H) {
   const gearLook = () => (S.evWear && EV_GEAR[S.evWear] && (S.evGear || {})[S.evWear] ? EV_GEAR[S.evWear].look : null);
   const flap = (now, i) => Math.sin(now / 160 + i * 1.7);
   return {
-    weather, setup, watch, eventCard, collections, photo, daily, dailyTick, dailyText, dailyCard, gearLook, get ev() { return ev; }, get WX() { return WX; },
+    weather, setup, watch, eventCard, collections, photo, daily, dailyTick, dailyText, dailyCard, gearLook, get ev() { return ev; }, get WX() { return WX; }, weekKey: () => weekKey(),
     stormCall: () => (WX.storm && Math.random() < .55 ? STORM_CALLS[Math.floor(Math.random() * STORM_CALLS.length)] : null),
     tap(near, reach) {
       for (const t of tasks) if (near(t.x, t.y, 30)) { reach(t.x, t.y, () => runTask(t)); return true; }

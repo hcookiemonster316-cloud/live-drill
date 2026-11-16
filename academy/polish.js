@@ -18,6 +18,7 @@ export function installPolish(H) {
       d.approach === undefined ? null : ['🎯', 'Approach', d.approach === 'good' ? 10 : d.approach === 'ok' ? 5 : 0, 10, d.approach === 'good' ? 'Right approach for this call' : d.approach === 'ok' ? 'Workable approach' : 'Rethink your approach'],
       ['🤝', 'Community', (d.wrap === 'case' || d.wrap === 'resources' ? 10 : 3) + (d.calm ? 5 : 0), 15, d.wrap === 'case' ? 'Left a case number' : d.wrap === 'resources' ? 'Connected them with resources' : 'Cleared quickly' + (d.calm ? ' · kept it calm' : '')]
     ].filter(Boolean);
+    (d.extra || []).forEach((r) => rows.push(r));
     if (d.coop) rows.push(['🛡️', 'Teamwork', 5, 5, 'Contact and cover with ' + d.coop]);
     const base = rows.filter((r) => r[1] !== 'Teamwork'), score = Math.min(100, Math.round(base.reduce((a, r) => a + r[2], 0) / base.reduce((a, r) => a + r[3], 0) * 100) + (d.coop ? 5 : 0)), g = grade(score), key = d.title, best = S.grades[key];
     const better = !best || 'DCBAS'.indexOf(g) > 'DCBAS'.indexOf(best); if (better) S.grades[key] = g; H.stat('callGrade' + g); if (g === 'S') H.stat('callS'); H.saveS();
@@ -56,6 +57,7 @@ export function installPolish(H) {
   function barkLine(n) {
     const f = (S.npc || {})[n.id] || 0, tr = (S.trust || {})[H.W.did] == null ? 50 : S.trust[H.W.did], h = H.hour(), first = (n.name || '').replace(/^(Mr\.|Mrs\.|Ms\.|Dr\.|Sgt\.|Judge|Father|Coach|Captain|Tía|Doña|Miss)\s+/, '').split(' ')[0];
     if (n.cat) return rnd(['Mrrp.', '(slow blink)', '(tail flick)']);
+    if (f < 5 && Math.random() < .3 && H.wxBark) { const w = H.wxBark(); if (w) return w; }
     const tod = h < 11 ? 'Morning' : h < 17 ? 'Afternoon' : 'Evening';
     if (f >= 5) return rnd(['There\'s my favorite cadet!', 'Hey you! Come say hi!', tod + ', partner!', 'Don\'t be a stranger now!', 'You\'re a sight for sore eyes.']);
     if (f >= 3) return rnd([tod + ', cadet!', 'Hey! How\'s the watch?', 'Stay safe out there!', 'Good to see you around.', 'Cadet! Got a minute later?']);
@@ -98,7 +100,7 @@ export function installPolish(H) {
   function speak(id, name, text, radio) {
     hush(); if (!window.speechSynthesis || !S.sound || id === 'exhibita') return false;
     const clean = String(text).replace(/\([^)]*\)/g, ' ').replace(/[*~]/g, '').replace(/\s+/g, ' ').trim(); if (!clean) return false;
-    try { const u = new SpeechSynthesisUtterance(clean), vf = voiceFor(id, name); if (vf.v) u.voice = vf.v; u.pitch = vf.pitch; u.rate = vf.rate * (radio ? 1.06 : 1); u.volume = Math.min(1, (S.cfg.sfx == null ? .8 : S.cfg.sfx) + .2);
+    try { const u = new SpeechSynthesisUtterance(clean), vf = voiceFor(id, name); if (vf.v) u.voice = vf.v; u.pitch = vf.pitch; u.rate = vf.rate * (radio ? 1.06 : 1); u.volume = S.cfg.vVoice == null ? 1 : S.cfg.vVoice;
       u.onend = u.onerror = () => { speaking = false; H.duck(false); }; speaking = true; H.duck(true); speechSynthesis.speak(u); return true; } catch (e) { speaking = false; return false; }
   }
   function hush() { if (speaking || (window.speechSynthesis && speechSynthesis.speaking)) { try { speechSynthesis.cancel(); } catch (e) {} } speaking = false; H.duck(false); }
