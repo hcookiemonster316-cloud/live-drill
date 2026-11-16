@@ -533,6 +533,55 @@
             }
           }
         }
+      },
+      "save": {
+        "$code": {
+          ".read": "auth != null",
+          ".write": "auth != null && $code.matches(/^[A-HJ-NP-Z2-9]{8}$/)",
+          ".validate": "!newData.exists() || newData.hasChildren(['v','c','t'])",
+          "v": {
+            ".validate": "newData.isString() && newData.val().length <= 600000"
+          },
+          "c": {
+            ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 20"
+          },
+          "t": {
+            ".validate": "newData.isNumber()"
+          },
+          "$o": {
+            ".validate": false
+          }
+        }
+      },
+      "bugs": {
+        "$id": {
+          ".write": "auth != null && !data.exists()",
+          ".validate": "newData.hasChildren(['m','c','t'])",
+          "m": {
+            ".validate": "newData.isString() && newData.val().length <= 2000"
+          },
+          "k": {
+            ".validate": "newData.isString() && newData.val().length <= 40"
+          },
+          "c": {
+            ".validate": "newData.isString() && newData.val().length <= 20"
+          },
+          "t": {
+            ".validate": "newData.isNumber()"
+          },
+          "s": {
+            ".validate": "newData.isString() && newData.val().length <= 12000"
+          },
+          "i": {
+            ".validate": "newData.isString() && newData.val().length <= 160000"
+          },
+          "u": {
+            ".validate": "newData.isString() && newData.val().length <= 128"
+          },
+          "$o": {
+            ".validate": false
+          }
+        }
       }
     }
   }

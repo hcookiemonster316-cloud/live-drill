@@ -53,7 +53,7 @@ export const CLUES = [
   ['c15', 4, 'Courtside Lofts', 'A page inside an old cell door, now a closet. Signed: "Walter Marsh, City Accountant. I kept the books honest."', 'Where cell doors became closet doors.']
 ];
 SIDE_CAST.marsh = { name: 'Lena Marsh', icon: '📰', role: 'Reporter, the Port Meridian Ledger' };
-SIDE_CAST.vance = { name: 'Cadet Jordan Vance', icon: '🎖️', role: 'Your classmate (and rival)' };
+SIDE_CAST.vance = { name: 'Cadet Devin Vance', icon: '🎖️', role: 'Your classmate (and rival)' };
 const clueNeed = (d) => (S) => [0, 1, 2].every((k) => (S.clues || {})['c' + String(d * 3 + k + 1).padStart(2, '0')]);
 const allClues = (S) => CLUES.every((c) => (S.clues || {})[c[0]]);
 export const MYSTERY = [
@@ -85,10 +85,10 @@ export const MYSTERY = [
     reward: { rp: 400, loot: 'l' } }
 ];
 
-// ---------- 8. the rival: Cadet Jordan Vance ----------
+// ---------- 8. the rival: Cadet Devin Vance ----------
 export const RIVAL = [
   { id: 'vance1', d: 0, title: 'Rival: Top of the Class', giver: 'vance', giverAt: 'Downtown Transit Center', req: [0, 2], rival: 1,
-    blurb: 'Cadet Jordan Vance is first in the class standings and wants you to know it.',
+    blurb: 'Cadet Devin Vance is first in the class standings and wants you to know it.',
     offer: [['vance', 'So you\'re the one Castillo keeps talking about. I\'m Vance. First in the class. Every week.'], ['vance', 'Race you. First to answer the transit center\'s lost-property call wins. Loser buys coffee.']],
     steps: [{ at: 'Meridian Office Tower', who: 'vance', goal: 'Beat Vance to the lost-property call at Meridian Tower', say: [['vance', 'Hah, tied. Fine.'], ['vance', 'You talked to the guard for ten minutes. Why? We had the bag in two.'], ['choice', [{ t: 'Because he\'ll call us next time something\'s wrong', set: 'vanceTalk', reply: [['vance', '…Huh. I never thought about next time.']] }, { t: 'Because I was winning on points', reply: [['vance', 'Points. Ha. Okay, I like you a little.']] }]]], quiz: { les: 2, n: 1 } }],
     reward: { rp: 120, loot: 'u' } },
@@ -100,7 +100,7 @@ export const RIVAL = [
   { id: 'vance3', d: 2, title: 'Rival: Captain Vance', giver: 'vance', giverAt: 'River Stadium', req: [2, 2], rival: 1,
     blurb: 'Vance\'s father worked River Stadium detail for twenty years. Vance has never been inside.',
     offer: [['vance', 'My dad worked every home game here. Captain Vance. Everybody knew him.'], ['vance', 'He died my first year in the academy. I\'ve been trying to be first ever since, like that would get him back somehow.']],
-    steps: [{ at: 'Riverside Vet Clinic', who: 'ines', goal: 'Visit Dr. Inés with Vance', say: [['ines', 'Jordan Vance. You look exactly like him. Your father brought me every stray he ever found. Forty-one dogs.'], ['ines', 'He wasn\'t first at anything, you know. He was just there. Every time.'], ['narr', 'Vance is quiet for a long time.']], quiz: { les: 12, n: 1 } }],
+    steps: [{ at: 'Riverside Vet Clinic', who: 'ines', goal: 'Visit Dr. Inés with Vance', say: [['ines', 'Devin Vance. You look exactly like him. Your father brought me every stray he ever found. Forty-one dogs.'], ['ines', 'He wasn\'t first at anything, you know. He was just there. Every time.'], ['narr', 'Vance is quiet for a long time.']], quiz: { les: 12, n: 1 } }],
     reward: { rp: 140, loot: 'r' } },
   { id: 'vance4', d: 3, title: 'Rival: Cover Me', giver: 'vance', giverAt: 'North Spur Yard', req: [3, 1], rival: 1,
     blurb: 'Training call at the rail yard. Vance asks you, not anyone else, to be his cover.',

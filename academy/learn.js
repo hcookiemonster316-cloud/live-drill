@@ -4,6 +4,8 @@ const KEY = 'patrolcity:v1';
 
 export function loadState() {
   let s = null; try { s = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { s = null; }
+  // a damaged or missing save falls back to the newest hourly backup
+  if (!s || typeof s !== 'object') { try { const ks = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.indexOf('patrolcity:bak:') === 0) ks.push(k); } ks.sort().reverse(); for (const k of ks) { const b = JSON.parse(localStorage.getItem(k)); if (b && b.cs) { s = b; break; } } } catch (e) {} }
   s = s || {};
   return Object.assign({ cs: '', home: null, unlocked: [], cleared: [], shift: 'day', xp: 0, log: {}, seen: {}, miss: {}, calls: 0, answered: 0, right: 0, sound: true, trust: {}, zoom: 0, shiftStats: null, unit: '' }, s);
 }

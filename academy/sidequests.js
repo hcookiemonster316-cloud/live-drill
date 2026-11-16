@@ -13,9 +13,9 @@ export const SIDE_CAST = {
   pawnclerk: { name: 'Benita', icon: '💍', role: 'Downtown Pawn & Loan' },
   seller: { name: 'Hoodie guy', icon: '🧥', role: 'Selling bikes on Palmetto Row' },
   shopowner: { name: 'Mrs. Ellery', icon: '📚', role: 'Owns Dog-Eared Books' },
-  hale: { name: 'Reverend Hale', icon: '⛪', role: 'First Light Chapel' },
+  hale: { name: 'Reverend Whitaker', icon: '⛪', role: 'First Light Chapel' },
   gio: { name: 'Gio', icon: '🍕', role: 'Owns Slice of Justice' },
-  barber: { name: 'Lou the Barber', icon: '💈', role: 'Sharp Edges Barbershop' },
+  barber: { name: 'Otis the Barber', icon: '💈', role: 'Sharp Edges Barbershop' },
   teller: { name: 'Mr. Banks', icon: '🏦', role: 'Teller, First Coast Bank' },
   diaz: { name: 'Mrs. Diaz', icon: '🐩', role: 'Walks her poodle at the Dog Run' },
   pio: { name: 'Officer Lane', icon: '📣', role: 'Public information officer' },
@@ -23,10 +23,10 @@ export const SIDE_CAST = {
   mia: { name: 'Mia', icon: '🧢', role: 'Tre\'s little sister' },
   boxer: { name: 'Tre', icon: '🥊', role: 'Iron Will regular' },
   walker: { name: 'Gloria', icon: '🦮', role: 'Walks six dogs at once' },
-  ferretowner: { name: 'Bea', icon: '🦦', role: 'Old Grove Farm, owner of Gary the ferret' },
-  pharmacist: { name: 'Dr. Vance', icon: '💊', role: 'Eastside Pharmacy' },
+  ferretowner: { name: 'Bev', icon: '🦦', role: 'Old Grove Farm, owner of Gary the ferret' },
+  pharmacist: { name: 'Dr. Whitfield', icon: '💊', role: 'Eastside Pharmacy' },
   pastorj: { name: 'Pastor James', icon: '🙏', role: 'Eastside Baptist Church' },
-  principal: { name: 'Principal Grant', icon: '🏫', role: 'Eastside Middle School' },
+  principal: { name: 'Principal Holloway', icon: '🏫', role: 'Eastside Middle School' },
   washkid: { name: 'Kyle', icon: '🧽', role: 'Car wash fundraiser' },
   clerk: { name: 'Benny', icon: '⛽', role: 'Gas & Go clerk' },
   jules: { name: 'Jules', icon: '✂️', role: 'Barber, Fade Factory' },
@@ -64,7 +64,7 @@ export const SIDE_CAST = {
   foreman: { name: 'Foreman Briggs', icon: '🪵', role: 'Sawdust Lumber Yard' },
   sod: { name: 'Farmer Ellis', icon: '🚜', role: 'Sandhill Sod Farm' },
   evtech: { name: 'Evidence Tech Kowalski', icon: '🧾', role: 'County Evidence Storage' },
-  railcop: { name: 'Officer Diaz', icon: '🚂', role: 'Railroad police' },
+  railcop: { name: 'Officer Banks', icon: '🚂', role: 'Railroad police' },
   teens: { name: 'Three teenagers', icon: '🛹', role: 'Definitely not hopping trains' },
   bottler: { name: 'Rhonda', icon: '🥤', role: 'Sunrise Bottling' },
   // Justice Row
@@ -145,7 +145,7 @@ export const SIDE2 = [
     offer: [['barber', 'Three of my older customers got calls about "computer viruses." Tech support, remote access, gift cards. Mrs. Diaz almost bought four hundred dollars of gift cards.'], ['barber', 'The teller at First Coast Bank stopped one of them. Talk to him.']],
     steps: [
       { at: 'First Coast Bank', who: 'teller', goal: 'Talk to the teller at First Coast Bank', say: [['teller', 'He was withdrawing two thousand in cash and kept checking his phone. When I asked, he said "tech support told me not to tell you." That\'s the tell, every time.']], quiz: { les: 3, n: 1 } },
-      { at: 'Sharp Edges Barbershop', who: 'barber', goal: 'Plan something with Lou at Sharp Edges', say: [['barber', 'So what do we do? They trust me. They don\'t trust flyers.'],
+      { at: 'Sharp Edges Barbershop', who: 'barber', goal: 'Plan something with Otis at Sharp Edges', say: [['barber', 'So what do we do? They trust me. They don\'t trust flyers.'],
         ['choice', [
           { t: 'Teach a scam-awareness talk in the barbershop on Saturday', set: 'scamClass', trust: 2, npc: { kevin: 1 }, reply: [['barber', 'In the shop? With free trims? They\'ll come for the trims and stay for the talk.'], ['kevin', '(over the radio) I made slides. Forty slides. Okay, ten.']] },
           { t: 'Leave flyers on the counter', set: 'scamFlyers', reply: [['barber', 'Flyers are good. People do read them. Sometimes.']] }]]] }
@@ -180,12 +180,12 @@ export const SIDE2 = [
           { t: 'Call animal control to check on Gary', reply: [['ferretowner', 'I\'ll meet them here. Thank you for finding him.']] }]]] }
     ], reward: { rp: 110, loot: 'u' } },
   { id: 'forgery', d: 1, title: 'Prescription for Trouble', giver: 'rosa', req: [1, 2], blurb: 'Someone is passing forged prescriptions on Eastside.',
-    offer: [['rosa', 'Mijo, Dr. Vance at the pharmacy is worried. Somebody keeps bringing in fake prescriptions. She asked me to find a police officer I trust.']],
+    offer: [['rosa', 'Mijo, Dr. Whitfield at the pharmacy is worried. Somebody keeps bringing in fake prescriptions. She asked me to find a police officer I trust.']],
     steps: [
-      { at: 'Eastside Pharmacy', who: 'pharmacist', goal: 'Talk to Dr. Vance at Eastside Pharmacy', say: [['pharmacist', 'Same doctor\'s name, wrong license number, three times this month. He comes back tonight to pick up.']], quiz: { les: 4, n: 1 } },
+      { at: 'Eastside Pharmacy', who: 'pharmacist', goal: 'Talk to Dr. Whitfield at Eastside Pharmacy', say: [['pharmacist', 'Same doctor\'s name, wrong license number, three times this month. He comes back tonight to pick up.']], quiz: { les: 4, n: 1 } },
       { at: 'Fuel Depot', who: 'castillo', goal: 'Plan it with Sgt. Castillo at the Fuel Depot', say: [['castillo', 'Filling up. Talk to me. Pharmacy, staff, customers inside. Who\'s contact, who\'s cover, where does he go if he runs?'],
         ['choice', [
-          { t: 'Wait outside and contact him after he leaves the counter', set: 'rxPlan', npc: { rosa: 1 }, reply: [['castillo', 'Away from the staff and the public. Good. That\'s how it\'s done.'], ['rosa', '(over the radio) Dr. Vance says you were so calm. She sent flan. I ate half. Sorry.']] },
+          { t: 'Wait outside and contact him after he leaves the counter', set: 'rxPlan', npc: { rosa: 1 }, reply: [['castillo', 'Away from the staff and the public. Good. That\'s how it\'s done.'], ['rosa', '(over the radio) Dr. Whitfield says you were so calm. She sent flan. I ate half. Sorry.']] },
           { t: 'Contact him at the counter', set: 'rxCounter', reply: [['castillo', 'Hm. Lot of people in a small space. Be ready.']] }]]], quiz: { les: 6, n: 1 } }
     ], reward: { rp: 140, loot: 'r' } },
   { id: 'kickflip', d: 1, title: 'Kickflip Court', giver: 'dez', req: [1, 1], blurb: 'The skaters need somewhere to skate that isn\'t under somebody\'s bedroom window.',
@@ -463,7 +463,7 @@ export const LORE2 = [
   { id: 'l_jail', title: 'Booking Desk Number Two', when: 'visit:County Jail', text: 'The old booking desk, carved oak from 1932, now sits in the jail\'s lobby. Officers sign a ledger there on their first day. Officer Ramos signed it in 2001 and has not missed a shift since, which he says is not a brag but a warning.' },
   { id: 'l_memorial', title: 'The Memorial Wall', when: 'visit:Veterans Memorial Park', text: 'Beside the veterans\' memorial is a smaller wall with the names of Port Meridian officers who died in the line of duty. Every graduating class leaves a single flower there. Sgt. Castillo always arrives first.' },
   { id: 'l_pigeons', title: 'The Sunday Pigeon Club', when: 'side:pigeons', text: 'Sgt. Pruitt\'s Sunday Pigeon Club meets at Founders Park at eight sharp. Its membership is one retired sergeant, one nine-year-old and, according to the club charter, "all pigeons of good character."' },
-  { id: 'l_book', title: 'Pigeons of the American South', when: 'side:overdue', text: 'The library\'s copy now has a note inside the cover, in Reverend Hale\'s hand: "Returned 39 years late by a man who preached about patience and practiced it far too long. Be like him, but faster."' },
+  { id: 'l_book', title: 'Pigeons of the American South', when: 'side:overdue', text: 'The library\'s copy now has a note inside the cover, in Reverend Whitaker\'s hand: "Returned 39 years late by a man who preached about patience and practiced it far too long. Be like him, but faster."' },
   { id: 'l_gary', title: 'Gary the Ferret', when: 'side:sockbandit', text: 'Spin City Laundromat now keeps a jar of single socks by the register labeled "Gary\'s Collection, Returned." Gary has visited twice since, supervised, in a tiny harness.' },
   { id: 'l_chompers', title: 'Mr. Chompers', when: 'side:gator', text: 'Florida\'s nuisance alligator program relocates gators that wander too close to people. Mr. Chompers was moved to a quiet stretch of the river. The children of Little Paddlers still send him drawings, which Bait Shop Bobby promises to deliver.' },
   { id: 'l_hat', title: 'The Orange Hat', when: 'side:retire', text: 'Big Mo\'s lucky hat now hangs above the time clock at Gulf Packaging. New hires are told to tap it on their first day. No one remembers deciding this. Everyone does it.' },

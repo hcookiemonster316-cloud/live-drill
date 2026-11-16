@@ -71,7 +71,7 @@ export function installPolish(H) {
     for (let i = BARKS.length - 1; i >= 0; i--) { BARKS[i].t -= dt; if (BARKS[i].t <= 0) BARKS.splice(i, 1); }
     bT -= dt; if (bT > 0 || H.cine() || H.paused()) return; bT = .5; const P = H.P, now = performance.now(); if (P.inCar && P.moving) return;
     if (BARKS.length >= 2) return;
-    for (const r of H.regs) { const d = Math.hypot(r.x - P.x, r.y - P.y); if (d > 3.2 || d < .6) continue; const id = r.n.id; if ((barkCool.get(id) || 0) > now) continue; barkCool.set(id, now + 90000); BARKS.push({ e: r, text: barkLine(r.n), t: 3.4, t0: 3.4 }); H.faceTo(r); return; }
+    for (const r of H.regs) { const d = Math.hypot(r.x - P.x, r.y - P.y); if (d > 3.2 || d < .6) continue; const id = r.n.id; if ((barkCool.get(id) || 0) > now) continue; barkCool.set(id, now + 90000); BARKS.push({ e: r, text: barkLine(r.n), t: 3.4, t0: 3.4 }); H.faceTo(r); if (((S.npc || {})[id] || 0) >= 1 || Math.random() < .3) r.waveT = now + 1600; return; }
     if (Math.random() < .25) { const tr = (S.trust || {})[H.W.did] == null ? 50 : S.trust[H.W.did]; for (const p of H.peds) { const d = Math.hypot(p.x - P.x, p.y - P.y); if (d > 2.4) continue; if ((p.barkT || 0) > now) continue; p.barkT = now + 120000; BARKS.push({ e: p, text: rnd(tr < 35 ? PED.lo : tr > 70 ? PED.hi : PED.mid), t: 2.8, t0: 2.8 }); return; } }
   }
   function drawBarks(g) {

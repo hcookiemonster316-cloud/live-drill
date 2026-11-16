@@ -561,6 +561,17 @@ function mini(g, tx, x, y, w, d, h, base, color) {
   poly([up(A, base + h), up(B2, base + h), up(C, base + h), up(D2, base + h)], color);
 }
 
+// props are drawn once into a small cached sprite per look (trees sway by sliding the sprite); animated ones still draw live
+const PROPC = new Map(), PROP_STATIC = new Set(['hydrant', 'bin', 'bush', 'flowers', 'stall', 'cone', 'bench', 'pump', 'canopy', 'crate', 'scrap', 'hoop', 'lumberstack', 'lamp']);
+export function drawPropFast(g, p, sx, sy, t, night) {
+  let key = null, ox = 0, q = p;
+  if (p.t === 'tree' || p.t === 'palm') { const v = Math.floor(p.x * 7 + p.y * 13) & 3; key = p.t + '|' + v + '|' + (p.s || 1); ox = p.t === 'tree' ? Math.sin(t / 1100 + p.x * 3) * 1.2 : Math.sin(t / 900 + p.x) * .8; q = Object.assign({}, p, { x: 0, y: v }); }
+  else if (PROP_STATIC.has(p.t)) { key = p.t; for (const k in p) if (k !== 'x' && k !== 'y' && k !== 't') key += '|' + k + '=' + p[k]; }
+  if (!key) return drawProp(g, p, sx, sy, t, night);
+  key += '|' + (night ? 1 : 0) + '|' + RES; let c = PROPC.get(key);
+  if (!c) { if (PROPC.size > 500) PROPC.clear(); const [cv, cg] = hiCanvas(120, 150, RES); drawProp(cg, q, 60, 130, 0, night); c = cv; PROPC.set(key, c); }
+  g.drawImage(c, sx - 60 + ox, sy - 130, c.lw, c.lh);
+}
 // props, people and cars are drawn each frame (cheap shapes)
 export function drawProp(g, p, sx, sy, t, night) {
   switch (p.t) {
@@ -622,11 +633,14 @@ const JACKETS = ['#2f3b4c', '#5a3e2b', '#3b5249', '#7a2e2e', '#1f2937', '#4b4f8a
 // a crowd-friendly person: each pose is drawn once into a small canvas and reused (8 walk frames per look and facing),
 // so sixty cadets on screen cost sixty image copies instead of sixty full drawings
 const PCACHE = new Map(), TAU = Math.PI * 2; let SHSPR = null;
-export function personFast(g, sx, sy, o, t, key) {
-  const s = o.s || 1, mv = !!o.moving, cyc = mv ? (o.stride != null ? o.stride * 6.4 : t / 95) + (o.ph || 0) : 0, fr = mv ? Math.floor((((cyc % TAU) + TAU) % TAU) / TAU * 8) : 0;
+let PHIT = 0;
+export function personFast(g, sx, sy, o, t, key, lod) {
+  const s = o.s || 1, mv = !!o.moving, cyc = mv ? (o.stride != null ? o.stride * 6.4 : t / 95) + (o.ph || 0) : 0, fr0 = mv ? Math.floor((((cyc % TAU) + TAU) % TAU) / TAU * 8) : 0, fr = lod ? fr0 & 6 : fr0;
   const k = key + '|' + fr + '|' + (o.face || 1) + '|' + (mv && o.back ? 1 : 0) + '|' + (mv ? 1 : 0) + '|' + s + '|' + RES;
   let c = PCACHE.get(k);
-  if (!c) { if (PCACHE.size > 900) PCACHE.clear(); const [cv, cg] = hiCanvas(56, 84, RES); person(cg, 28, 74, Object.assign({}, o, { noShadow: true, glance: false, stride: mv ? ((fr + .5) / 8 * TAU - (o.ph || 0)) / 6.4 : null, moving: mv }), 0); c = cv; PCACHE.set(k, c); }
+  // least-recently-used eviction: a crowd never empties the whole cache at once
+  if (c) { if (++PHIT % 8 === 0) { PCACHE.delete(k); PCACHE.set(k, c); } }
+  if (!c) { if (PCACHE.size > 900) { let n = 120; for (const kk of PCACHE.keys()) { PCACHE.delete(kk); if (--n <= 0) break; } } const [cv, cg] = hiCanvas(56, 84, RES); person(cg, 28, 74, Object.assign({}, o, { noShadow: true, glance: false, stride: mv ? ((fr + .5) / 8 * TAU - (o.ph || 0)) / 6.4 : null, moving: mv }), 0); c = cv; PCACHE.set(k, c); }
   castShadow(g, sx, sy, 9 * s, .9 * s);
   if (!SHSPR) { const [cv, cg] = hiCanvas(24, 12, 2), gr = cg.createRadialGradient(12, 6, 0, 12, 6, 9); gr.addColorStop(0, 'rgba(0,0,0,.38)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); cg.fillStyle = gr; cg.beginPath(); cg.ellipse(12, 6, 9, 4, 0, 0, TAU); cg.fill(); SHSPR = cv; }
   g.drawImage(SHSPR, sx + 1 - 12 * s, sy - 6 * s, 24 * s, 12 * s);
@@ -667,7 +681,7 @@ export function person(g, sx, sy, o, t) {
   else if ((K && K.shorts) || (civ && bare)) RR(sx - W2(4.6) * s, Y - 13 * s, W2(9.2) * s, 5.2 * s, 1.5 * s, pants, true);
   // arms with sleeves of the right length
   const arm = (side, sw, back, pose) => {
-    const ax = sx + side * W2(6.2) * s, ay = Y - 23 * s, ang = pose === 'phone' ? -2.5 * side * -1 * face * 0 - 2.6 : sw * .45 * face;
+    const ax = sx + side * W2(6.2) * s, ay = Y - 23 * s, ang = pose === 'phone' ? -2.5 * side * -1 * face * 0 - 2.6 : pose === 'wave' ? (side > 0 ? -2.55 : 2.55) + Math.sin(t / 110) * .32 : sw * .45 * face;
     g.save(); g.translate(ax, ay); g.rotate(pose === 'phone' ? (side > 0 ? -2.75 : 2.75) : ang); if (pose === 'phone') g.scale(1, .52);
     RR(-1.4 * s, 0, 2.8 * s, 9.5 * s, 1.3 * s, back ? shade(skin, .85) : skin, true);
     if (sleeve > 0) RR(-1.5 * s, 0, 3 * s, 9.5 * s * sleeve + .5 * s, 1.3 * s, back ? shade(outer, .7) : shade(outer, .9), true);
@@ -677,7 +691,7 @@ export function person(g, sx, sy, o, t) {
     if (!back && pose === 'phone') { RR(-1 * s, 9 * s, 2 * s, 3.4 * s, .5 * s, '#111', false); }
     g.restore();
   };
-  const pose = acc === 'coffee' ? 'coffee' : acc === 'shopping' ? 'shopping' : acc === 'phone' && !mv ? 'phone' : null;
+  const pose = o.wave && !mv ? 'wave' : acc === 'coffee' ? 'coffee' : acc === 'shopping' ? 'shopping' : acc === 'phone' && !mv ? 'phone' : null;
   g.save(); g.translate(lean * s, 0);
   if (back) arm(face, -walk, true, null); else arm(-face, walk, true, null);
   // torso: shoulders wider than the waist, lit from the upper left

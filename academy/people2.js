@@ -23,7 +23,7 @@ export const NPCS2 = [
     [`Sit. Play. Five minutes. Nobody beats me in five minutes.`, `Chess is like policing. Think three moves ahead, but watch the board you're on.`, `I taught half the kids on this plaza. Some of them beat me now. I let them think it's luck.`],
     { p: [`Check. And mate. Well played.`, `Good move.`], r: [`You took back the move. I'll allow it once.`], a: [`Same time tomorrow. I'll go easy. I won't.`, `Your knight is fine. Your bishop needs work.`] }),
   // ---------- Eastside ----------
-  P('mo', 1, 'Mo', 'Owns the Fuel Depot', 'Fuel Depot', '⛽', { shirt: '#dc2626', pants: '#1f2937', hair: '#1a1a1a', skin: '#a0662f' }, 4,
+  P('mo', 1, 'Sami', 'Owns the Fuel Depot', 'Fuel Depot', '⛽', { shirt: '#dc2626', pants: '#1f2937', hair: '#1a1a1a', skin: '#a0662f' }, 4,
     [`Open twenty-four hours, seven days. I sleep on Tuesdays, I think.`, `My cameras cover every pump. Officers ask for the footage, I hand it over. That's how a neighborhood works.`, `Free coffee for officers and nurses. Everybody else, a dollar.`],
     { p: [`Yes, my friend! Correct!`, `Exactly right.`], r: [`Ah, good. Second pump works.`], a: [`A truck just pulled in. Duty calls.`, `Come by at 3 a.m. That's when the interesting people come out.`] }),
   P('bea', 1, 'Tía Bea', 'Baker at The Donut Stop', 'The Donut Stop', '🍩', { shirt: '#f472b6', pants: '#4b5563', hair: '#4b2e1a', skin: '#c68642', apron: true }, 5,
@@ -139,7 +139,7 @@ export const LORE_PEOPLE = [
   F('carmen', 'Doña Carmen\'s Rice', 'Carmen came from Puerto Rico after Hurricane Maria with one suitcase. She has fed every family who moved into Harbor View since. They call her floor "the fourth-floor kitchen."'),
   F('priya', 'Masala Wheels', 'Anjali was an engineer before she bought the truck. She designed its kitchen herself. The health inspector called it the cleanest truck in the state.'),
   F('hollis', 'The Plaza Champion', 'Hollis played chess in prison for nine years and has been out for twenty. He teaches kids for free on the plaza and tells every one of them the same thing: "Think before you move."'),
-  F('mo', 'The Fuel Depot', 'Mo\'s cameras have helped close more than forty cases. He keeps every thank-you letter from the department taped to the back wall where customers can\'t see them.'),
+  F('mo', 'The Fuel Depot', 'Sami\'s cameras have helped close more than forty cases. He keeps every thank-you letter from the department taped to the back wall where customers can\'t see them.'),
   F('bea', 'Tía Bea\'s Recipe', 'Bea\'s donut recipe came from her mother\'s bakery in Mexico City. She makes one batch every December exactly the old way, by hand, and gives it all away.'),
   F('lewis', 'Mr. Lewis\'s Route', 'In thirty-three years Mr. Lewis found nine neighbors who needed help because their mail piled up. He trained Toby on the Riverside route to look for the same signs.'),
   F('andy', 'Andy\'s Club', 'Andy\'s chess club has sent two kids to the state championship. The trophies sit at the community center next to a photo of his old Army unit.'),

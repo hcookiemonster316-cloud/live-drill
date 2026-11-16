@@ -109,7 +109,7 @@ export function installEpic(H) {
   // ================= 7. the Ledger: clues and the mystery board =================
   let clT = 2;
   function clueTick(dt) {
-    clT -= dt; if (clT > 0 || H.inside || !H.W || busy) return; clT = 1; const P = H.P, d = H.W.did;
+    clT -= dt; if (clT > 0 || H.inside || !H.W || busy || !H.ready()) return; clT = 1; const P = H.P, d = H.W.did;
     CLUES.forEach(([id, cd, place, text]) => { if (cd !== d || S.clues[id]) return; const l = H.W.lots.find((x) => (x.name || '').indexOf(place) >= 0); if (!l) return; if (Math.hypot(l.door[0] - P.x, l.door[1] - P.y) > 3) return;
       S.clues[id] = Date.now(); H.saveS(); H.stat('clue'); H.sting('set'); const n = CLUES.filter((c) => c[1] === d && S.clues[c[0]]).length;
       H.openModal('<div class="clueCard"><span>📜</span><small>THE LEDGER · CLUE ' + Object.keys(S.clues).length + ' OF ' + CLUES.length + '</small><h2>A torn ledger page</h2><p>' + esc(text) + '</p><em>' + (n >= 3 ? 'That\'s all three pages in ' + esc(H.dname(d)) + '. Someone at the Central Library has been asking about these.' : n + ' of 3 pages found in ' + esc(H.dname(d)) + '.') + '</em></div><div class="qAct"><button type="button" class="ghost" id="clBoard">Mystery board</button><button type="button" id="mClose">Keep patrolling</button></div>');
@@ -129,7 +129,7 @@ export function installEpic(H) {
   const rivalRP = () => { const w = H.week(), day = Math.floor(Date.now() / 864e5), k = .82 + ((day * 9301 + 49297) % 233280) / 233280 * .36; return Math.round(Math.max(120, w.rp * k + 40 * (new Date().getDay() || 7))); };
   function rivalPanel() {
     const w = H.week(), me = Math.round(w.rp), him = rivalRP(), parts = ['vance1', 'vance2', 'vance3', 'vance4', 'vance5'].filter((id) => (H.S.side || {})[id] != null && H.S.side[id] >= 1).length, ahead = me >= him;
-    H.openModal('<div class="sceneHead"><b>RIVAL</b><h2>🎖️ Cadet Jordan Vance</h2><p>First in the class most weeks. Competitive, proud, and carrying more than he lets on. ' + (parts >= 4 ? 'These days he\'s your partner more than your rival.' : 'Beat him this week and see what he says.') + '</p></div>' +
+    H.openModal('<div class="sceneHead"><b>RIVAL</b><h2>🎖️ Cadet Devin Vance</h2><p>First in the class most weeks. Competitive, proud, and carrying more than he lets on. ' + (parts >= 4 ? 'These days he\'s your partner more than your rival.' : 'Beat him this week and see what he says.') + '</p></div>' +
       '<div class="rvVs"><div class="' + (ahead ? 'win' : '') + '"><small>You</small><b>' + me + '</b><i>RP this week</i></div><span>VS</span><div class="' + (ahead ? '' : 'win') + '"><small>Vance</small><b>' + him + '</b><i>RP this week</i></div></div>' +
       '<p class="lkSum" style="text-align:center">' + (ahead ? 'You\'re ahead this week. Vance has noticed.' : 'Vance is ahead by ' + (him - me) + ' RP. Close a few calls.') + '</p><div class="cfBar"><i style="width:' + parts * 20 + '%"></i><span>Rival story · ' + parts + ' of 5</span></div>' +
       '<div class="qAct"><button type="button" id="mClose">Close</button></div>');
@@ -148,7 +148,7 @@ export function installEpic(H) {
       .concat([['castillo', 'Twenty-two years, and I keep a list of every cadet who called me "ma\'am" on day one. You\'re on it. You\'re also on the other list. The short one.'], ['narr', 'Sgt. Castillo pins the badge on your chest. Her hands are steady. Her voice, for once, is not.'], ['castillo', 'Officer ' + H.S.cs + '. Go keep them safe.']]), () => credits(), { kicker: 'GRADUATION · FLORIDA BASIC RECRUIT TRAINING', voiced: true });
   }
   function credits() {
-    H.setMood('title'); const st = H.S.stats || {}, cast = ['Sgt. Dana Castillo', 'Lt. Okonkwo', 'Velvet (Dispatch)', 'Officer Pike', 'Det. Navarro', 'Lena Marsh', 'Cadet Jordan Vance'];
+    H.setMood('title'); const st = H.S.stats || {}, cast = ['Sgt. Dana Castillo', 'Lt. Okonkwo', 'Velvet (Dispatch)', 'Officer Pike', 'Det. Navarro', 'Lena Marsh', 'Cadet Devin Vance'];
     const nums = [['Calls cleared', H.S.calls || st.calls || 0], ['S-rank calls', st.callS || 0], ['Friends made', Object.keys(H.S.npc || {}).filter((k) => H.S.npc[k] >= 3).length], ['Field journal pages', Object.keys(H.S.lore || {}).length], ['Ledger pages', Object.keys(S.clues).length + ' / ' + CLUES.length], ['Endings seen', Object.values(S.endings).reduce((a, e) => a + Object.keys(e).length, 0) + ' / 15']];
     const el = document.createElement('div'); el.className = 'gradCred';
     el.innerHTML = '<div class="gcRoll"><h1>PATROL CITY</h1><p class="gcSub">' + esc(H.studio || 'Meridian Forge') + '</p><h3>Your watch</h3>' + nums.map((n) => '<div class="gcRow"><span>' + esc(n[0]) + '</span><b>' + esc(String(n[1])) + '</b></div>').join('') +
@@ -167,7 +167,7 @@ export function installEpic(H) {
     repT -= dt; if (repT > 0 || !H.W || busy) return; repT = 3; const d = H.W.did, r = repOf(d), prev = S.repSeen[d] == null ? r.idx : S.repSeen[d];
     if (r.idx > prev && !H.cine()) { S.repSeen[d] = r.idx; H.saveS(); H.sting('set'); H.banner('🏙️', H.dname(d) + ': ' + r.name, ['', '', 'Locals will radio you tips about hidden places.', 'Calls here pay 10% more RP.', 'Hometown Hero! The district is throwing you a celebration.'][r.idx]); if (r.idx === 4) setTimeout(() => hero(d), 4000); }
     else if (S.repSeen[d] == null) { S.repSeen[d] = r.idx; H.saveS(); }
-    if (r.idx >= 2) { tipT -= 3; if (tipT <= 0 && !H.cine() && !H.inside) { tipT = 150 + Math.random() * 120; tip(d); } }
+    if (r.idx >= 2) { tipT -= 3; if (tipT <= 0 && !H.cine() && !H.inside && H.ready()) { tipT = 150 + Math.random() * 120; tip(d); } }
   }
   function tip(d) {
     const W = H.W, P = H.P, unseen = W.lots.filter((l) => l.name && !H.S.lore['v_' + l.name.replace(/\W+/g, '').toLowerCase()] && H.loreAt(l.name) && !H.S.lore[H.loreAt(l.name)]), clue = CLUES.find((c) => c[1] === d && !S.clues[c[0]]);

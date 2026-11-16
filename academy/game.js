@@ -1,5 +1,5 @@
 // Patrol City: game loop, camera, input, people and traffic, lighting, dispatch, learning scenes and HUD.
-import { N, TW, TH, T, CH, iso, unIso, buildDistrict, drawGround, setRes, setSun, RES, drawBuilding, drawProp, car, person, personFast, dog, vehicle, rideArt, CAR_COLORS, shade } from './world.js';
+import { N, TW, TH, T, CH, iso, unIso, buildDistrict, drawGround, setRes, setSun, RES, drawBuilding, drawProp, car, person, personFast, dog, vehicle, rideArt, CAR_COLORS, shade, drawPropFast, hiCanvas } from './world.js';
 import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
 import * as L from './learn.js';
 import { startNet } from './net.js';
@@ -15,6 +15,9 @@ import { installAcademy } from './academy.js';
 import { installEvents } from './events.js';
 import { installPolish } from './polish.js';
 import { installEpic } from './epic.js';
+import { installOnboard } from './onboard.js';
+import { installFeel } from './feel.js';
+import { installSafe } from './safe.js';
 SIDE2.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); LORE2.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); }); LORE_PLACES.concat(LORE_PEOPLE).forEach((e) => { if (!LORE.some((o) => o.id === e.id || o.when === e.when)) LORE.push(e); });
 import { createMusic } from './music.js';
 import { createScore } from './score.js';
@@ -34,7 +37,7 @@ const lc = document.createElement('canvas'), lx = lc.getContext('2d');
 let W = null, G = null, SPR = [], NIGHT = false, net = null, others = {}, myUid = '';
 let cam = { x: 0, y: 0, z: 1, free: false }, dpr = 1, cw = 0, ch = 0;
 const P = { x: 0, y: 0, path: [], face: 1, moving: false, inCar: false, dir: 0, onArrive: null };
-let pcar = null, peds = [], traffic = [], citizens = [], infos = [], observes = [], call = null, scene = null, clock = 0, nextCall = 15, paused = false, toastT = 0;
+let OCOUNT = 0; let pcar = null, peds = [], traffic = [], citizens = [], infos = [], observes = [], call = null, scene = null, clock = 0, nextCall = 15, paused = false, toastT = 0;
 const shiftOf = () => SHIFTS.find((s) => s.id === S.shift) || SHIFTS[0];
 // ---------- specialty unit: stats and perks ----------
 const unitOf = (id) => UNITS.find((u) => u.id === id) || UNITS[0];
@@ -260,7 +263,7 @@ function render(now) {
       cover = !ATTRACT && s.depth > pd && pix > s.x + 6 && pix < s.x + s.canvas.lw - 6 && piy - 30 > s.y + 10 && piy - 6 < s.y + s.canvas.lh;
     const target = near || cover ? .3 : 1; s.al = s.al == null ? 1 : s.al + (target - s.al) * .18;
     list.push({ d: s.depth, f: () => { if (s.al < .98) { ctx.globalAlpha = s.al; ctx.drawImage(s.canvas, s.x, s.y, s.canvas.lw, s.canvas.lh); ctx.globalAlpha = 1; } else ctx.drawImage(s.canvas, s.x, s.y, s.canvas.lw, s.canvas.lh); } }); } });
-  W.props.forEach((p) => { const [sx, sy] = iso(p.x, p.y); if (vis(sx, sy)) list.push({ d: p.x + p.y, f: p.t === 'furn' ? () => { const fade = p.wall && !p.front && p.x > P.x - .3 && p.y > P.y - .3 && (p.x + p.y) - (P.x + P.y) < 4.5; if (fade) ctx.globalAlpha = .28; drawFurn(ctx, p, sx, sy, now, W.wallCol); ctx.globalAlpha = 1; } : () => drawProp(ctx, p, sx, sy, now, NIGHT) }); });
+  W.props.forEach((p) => { const [sx, sy] = iso(p.x, p.y); if (vis(sx, sy)) list.push({ d: p.x + p.y, f: p.t === 'furn' ? () => { const fade = p.wall && !p.front && p.x > P.x - .3 && p.y > P.y - .3 && (p.x + p.y) - (P.x + P.y) < 4.5; if (fade) ctx.globalAlpha = .28; drawFurn(ctx, p, sx, sy, now, W.wallCol); ctx.globalAlpha = 1; } : () => drawPropFast(ctx, p, sx, sy, now, NIGHT) }); });
   if (inside) { W.staff.forEach((st) => { list.push({ d: st.x + st.y, f: () => { staffDraw(ctx, st, now); if (st.npc) { const [sx, sy] = iso(st.x, st.y); if (Math.hypot(st.x - P.x, st.y - P.y) < 6) label(sx, sy - 48, st.npc.icon + ' ' + st.npc.name, '#fde68a'); if (!talkedNow[st.npc.id]) bubble(sx, sy - 66, '💬', '#fde68a', now); } } }); }); W.visitors.forEach((v) => { list.push({ d: v.x + v.y, f: () => visitorDraw(ctx, v, now) }); }); }
   else { doorMarks(list, vis, now); regsDraw(list, vis, now); }
   // locked gates get a barricade
@@ -275,8 +278,8 @@ function render(now) {
   if (pboat && !P.boat) { const [sx, sy] = iso(pboat.x, pboat.y); list.push({ d: pboat.x + pboat.y, f: () => { vehicle(ctx, sx, sy, pboat.dir, { kind: 'boat' }, now, NIGHT, false); if (Math.hypot(pboat.x - P.x, pboat.y - P.y) < 6) label(sx, sy - 30, 'Patrol boat', '#7dd3fc'); } }); }
   if (S.unit === 'k9' && !P.inCar && !P.boat) { const [sx, sy] = iso(K9.x, K9.y); list.push({ d: K9.x + K9.y, f: () => dog(ctx, sx, sy, K9.face, K9.moving, now) }); }
   Object.keys(others).forEach((k) => { const o = others[k]; if ((o.n == null ? -1 : o.n) !== (inside ? inside.idx : -1)) return; const [sx, sy] = iso(o.rx, o.ry); if (!vis(sx, sy)) return; list.push({ d: o.rx + o.ry, f: () => { const ou = unitOf(o.u); if (o.v) vehicle(ctx, sx, sy, o.d || 0, o.v === 2 ? { kind: 'boat' } : ou.ride, now, NIGHT, o.st === 'call'); else { const ck = (o.f || '') + '|' + o.u; if (o._ck !== ck) { const tk = String(o.f || 'ostd').split(','), of = (tk.find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1), lk = looks(tk); o._ck = ck; o._kit = kitWith(kitOf(of, o.u), o.f ? lk : {}); o._fl = Object.assign({}, outfitLook(of), lk); o._po = { kit: o._kit, s: 1 }; }
-      const po = o._po; po.moving = o.moving; po.face = o.face || 1; po.back = o.back; po.stride = o.stride; po.skin = o.skin; personFast(ctx, sx, sy, po, now, 'o' + ck + (o.skin || '')); if (o.u === 'k9') dog(ctx, sx - 14, sy + 6, 1, o.moving, now); if (cam.z > .6 || DRAWN_OTHERS < 25) flair(o._fl, sx, sy, now, 1); } const mate = S.squad && o.g === S.squad.code; if (mate) { ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, 15, 7.5, 0, 0, Math.PI * 2); ctx.stroke(); } if (mate || o.nearRank < (innerWidth < 700 ? 10 : 18)) label(sx, sy - (o.v ? 40 : 50), (o.k ? '[' + o.k + '] ' : '') + ou.icon + ' ' + o.c + (o.sh && o.sh !== S.shift ? ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') : ''), '#9cc3ff'); if (!(mate || o.nearRank < 8)) { /* bubbles only for the closest few */ } else if (o.say && performance.now() - o.sayAt < 7000) speech(sx, sy - (o.v ? 52 : 68), o.say.length > 34 ? o.say.slice(0, 32) + '…' : o.say); else if (o.q && now - o.qAt < 6000) speech(sx, sy - (o.v ? 52 : 68), QUICK[o.q.k] || ''); } }); });
-  if (!ATTRACT) { const [sx, sy] = iso(P.x, P.y); list.push({ d: P.x + P.y, f: () => { if (P.boat) vehicle(ctx, sx, sy, P.dir, { kind: 'boat' }, now, NIGHT, call && call.accepted); else if (P.inCar && RIDE() !== 'car') rideArt(ctx, sx, sy, P.dir || 0, RIDE(), now, !!(P.path && P.path.length), riderFn(now), (call && call.accepted) || STOPLIGHTS); else if (P.inCar) vehicle(ctx, sx, sy, P.dir, LIFE.ride(U().ride), now, NIGHT, (call && call.accepted) || STOPLIGHTS); else person(ctx, sx, sy, { kit: kitWith(myKit(), myLooks()), moving: P.moving, face: P.face, back: P.back, stride: P.stride, glance: false, skin: S.skin || '#c68e63', s: 1.08 }, now); } }); }
+      const po = o._po; po.moving = o.moving; po.face = o.face || 1; po.back = o.back; po.stride = o.stride; po.skin = o.skin; personFast(ctx, sx, sy, po, now, 'o' + ck + (o.skin || ''), OCOUNT > 20); if (o.u === 'k9') dog(ctx, sx - 14, sy + 6, 1, o.moving, now); if (cam.z > .6 || DRAWN_OTHERS < 25) flair(o._fl, sx, sy, now, 1); } const mate = S.squad && o.g === S.squad.code; if (mate) { ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, 15, 7.5, 0, 0, Math.PI * 2); ctx.stroke(); } if (mate || o.nearRank < (innerWidth < 700 ? 10 : 18)) label(sx, sy - (o.v ? 40 : 50), (o.k ? '[' + o.k + '] ' : '') + ou.icon + ' ' + o.c + (o.sh && o.sh !== S.shift ? ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') : ''), '#9cc3ff'); if (!(mate || o.nearRank < 8)) { /* bubbles only for the closest few */ } else if (o.say && performance.now() - o.sayAt < 7000) speech(sx, sy - (o.v ? 52 : 68), o.say.length > 34 ? o.say.slice(0, 32) + '…' : o.say); else if (o.q && now - o.qAt < 6000) speech(sx, sy - (o.v ? 52 : 68), QUICK[o.q.k] || ''); } }); });
+  if (!ATTRACT) { const [sx, sy] = iso(P.x, P.y); list.push({ d: P.x + P.y, f: () => { if (P.boat) vehicle(ctx, sx, sy, P.dir, { kind: 'boat' }, now, NIGHT, call && call.accepted); else if (P.inCar && RIDE() !== 'car') rideArt(ctx, sx, sy, P.dir || 0, RIDE(), now, !!(P.path && P.path.length), riderFn(now), (call && call.accepted) || STOPLIGHTS); else if (P.inCar) { FEEL.wetLights(ctx, sx, sy, now); const rl = FEEL.rollIn(ctx, sx, sy); vehicle(ctx, sx, sy, P.dir, LIFE.ride(U().ride), now, NIGHT, (call && call.accepted) || STOPLIGHTS); if (rl) ctx.restore(); } else person(ctx, sx, sy, { kit: kitWith(myKit(), myLooks()), moving: P.moving, face: P.face, back: P.back, stride: P.stride, glance: false, skin: S.skin || '#c68e63', s: 1.08 }, now); } }); }
   liveDraw(list, vis, now); if (!ATTRACT) storyCast(list, vis, now);
   ambienceGround(); vfxGround(now, vis); if (!ATTRACT) trailDraw(now);
   list.sort((a, b) => a.d - b.d).forEach((e) => e.f());
@@ -385,13 +388,21 @@ const POL = installPolish({ S, NPCS, CHAPTERS, LANDMARKS, esc: (x) => esc(x), $:
   cine: () => document.body.classList.contains('cine'), paused: () => paused || !!scene, pause: (on) => { paused = on; }, hour: () => hourNow(), homeOf: (n) => NPC_AT[n.id] || n.home, moveReg: (r, lot) => moveReg(r, lot), faceTo: (r) => { r.face = P.x < r.x ? -1 : 1; },
   iso: (x, y) => iso(x, y), duck: (on) => { if (S.sound) music.volume(S.cfg.music * (on ? .35 : 1)); }, move: (dx, dy) => goTo(P.x + dx * 1.6, P.y + dy * 1.6), use: () => { if (!paused && !scene) tapAtWorld(P.x, P.y); }, journal: () => journal(),
   dname: (d) => DISTRICTS[d].name, activeQ: () => activeQ(), loreDist: (n) => LORE_DIST[n], sideQ: (id) => sideQ(id), placeIcon: (n) => { for (const D of DISTRICTS) { const f = (x) => Array.isArray(x) && x[1] === n ? x : x && x.strip ? x.strip.map(f).find(Boolean) : null; const hit = D.lots.map(f).find(Boolean); if (hit) return (LANDMARKS[hit[0]] || {}).icon || '📍'; } return '📍'; },
-  loreHint: (w) => loreHint(w), wxBark: () => EP.wxBark(), ready: () => S.seenCine && !EP.busy && !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !document.querySelector('.lorePop'), hud: () => hud(), refreshLook: () => { refreshGear(); hud(); } });
+  loreHint: (w) => loreHint(w), wxBark: () => EP.wxBark(), ready: () => S.seenCine && !EP.busy && !looting && !loreBusy && !storyBusy && !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !document.querySelector('.lorePop'), hud: () => hud(), refreshLook: () => { refreshGear(); hud(); } });
 const loreHint = (w) => w === 'start' ? '' : /^d\d$/.test(w) ? 'Opens with ' + DISTRICTS[+w[1]].name + '.' : w.slice(0, 2) === 'ch' ? 'Keep going with the main story.' : w.slice(0, 5) === 'side:' ? 'Close a side case in ' + ((sideQ(w.slice(5)) && DISTRICTS[sideQ(w.slice(5)).d].name) || 'the city') + '.' : w.slice(0, 6) === 'visit:' ? 'Explore ' + (LORE_DIST[w.slice(6)] || 'the city') + '.' : w.slice(0, 7) === 'friend:' ? (() => { const n = NPCS.find((x) => x.id === w.slice(7)); return n ? 'Become friends with ' + (S.npc && S.npc[n.id] ? n.name : 'someone') + ' in ' + DISTRICTS[n.d].name + '.' : ''; })() : '';
 const EP = installEpic({ S, NPCS, esc: (x) => esc(x), $: (id) => $(id), fe: () => fe(), openModal: (h) => openModal(h), closeModal: () => closeModal(), stat: (...a) => stat(...a), st: (k) => st(k), statOnce: (k) => { if (!st(k)) stat(k); }, saveS: () => saveS(), award: (...a) => award(...a), banner: (...a) => banner(...a), toast: (m) => toast(m), beep: (...a) => beep(...a),
   sting: (k) => { if (S.sound) music.sting(k); }, setMood: (m) => { POLMOOD = m; }, get W() { return W; }, get P() { return P; }, get inside() { return inside; }, get LORE() { return LORE; }, get cam() { return cam; }, get studio() { return STUDIO.name; },
   cine: () => document.body.classList.contains('cine'), pause: (on) => { paused = on; }, hour: () => hourNow(), iso: (x, y) => iso(x, y), dname: (d) => DISTRICTS[d].name, loreDist: (n) => LORE_DIST[n], loreAt: (n) => { const e = LORE.find((x) => x.when === 'visit:' + n); return e ? e.id : null; },
   radio: (w, m) => radio(w, m), chirp: () => chirp(), wx: () => Object.assign({ label: '' }, EVT.WX || {}, { rain: FX.rain, storm: FX.storm, wind: FX.wind || 0, cold: FX.cold, fog: FX.fog || 0 }), sparkle: (x, y, now, c) => sparkle(x, y, now, c),
-  dialogue: (l, d, o) => dialogue(l, d, o), week: () => ACAD.week(), weekKey: () => EVT.weekKey ? EVT.weekKey() : '', net: () => net, hasSkill: (id) => hasSk(id), ready: () => !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !document.querySelector('.lorePop') && !paused && !scene });
+  dialogue: (l, d, o) => dialogue(l, d, o), week: () => ACAD.week(), weekKey: () => EVT.weekKey ? EVT.weekKey() : '', net: () => net, hasSkill: (id) => hasSk(id), ready: () => !ATTRACT && !looting && !loreBusy && !storyBusy && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !document.querySelector('.lorePop, .tCard') && !paused && !scene });
+const ON = installOnboard({ S, CHAPTERS, esc: (x) => esc(x), get P() { return P; }, get W() { return W; }, storyBusy: () => storyBusy, dlgOpen: () => !$('dlg').hidden, call: () => call, forceCall: () => { if (!call) nextCall = Math.min(nextCall, 2); },
+  ready: () => !ATTRACT && !looting && !loreBusy && !storyBusy && !scene && !paused && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !EP.busy && !!S.seenCine && !document.querySelector('.lorePop, .tCard'),
+  banner: (...a) => banner(...a), award: (...a) => award(...a), beep: (...a) => beep(...a), saveS: () => saveS(), dname: (d) => DISTRICTS[d].name,
+  toScreen: (x, y) => { const [ix, iy] = iso(x, y); return [(ix - cam.x) * cam.z + cw / 2, (iy - 20 - cam.y) * cam.z + ch / 2]; } });
+const FEEL = installFeel({ S, $: (id) => $(id), audio: () => audio(), beep: (...a) => beep(...a), get P() { return P; }, get W() { return W; }, get regs() { return regs; }, get inside() { return inside; },
+  paused: () => paused || !!scene, cine: () => document.body.classList.contains('cine'), wet: () => !!(FX.rain || FX.storm), lightsOn: () => !!(call && call.accepted) });
+const SAFE = installSafe({ S, esc: (x) => esc(x), $: (id) => $(id), fe: () => fe(), toast: (m) => toast(m), saveS: () => saveS(), stat: (...a) => stat(...a), net: () => net, get W() { return W; }, get P() { return P; }, get inside() { return inside; },
+  get version() { return STUDIO.ver; }, activeTitle: () => { const A = W && activeQ(); return A ? A.title + ': ' + (A.step && A.step.goal) : null; }, reconnect: () => {} });
 function moveReg(r, lot) { W.blocked.delete(Math.floor(r.y) * N + Math.floor(r.x)); regs = regs.filter((x) => x !== r); putOutside(r.n, lot); }
 function tapAtWorld(x, y) { const [ix, iy] = iso(x, y), rc = cv.getBoundingClientRect(); tap(rc.left + rc.width / 2 + (ix - cam.x) * cam.z, rc.top + rc.height / 2 + (iy - 20 - cam.y) * cam.z); }
 // the Rec Room: multiplayer mini games (see minigames.js)
@@ -403,7 +414,14 @@ function laneOff(c) { return [[0, .22], [-.22, 0], [0, -.22], [.22, 0]][c.dir] |
 function markerPoints() { const m = []; if (call) m.push(iso(call.x, call.y)); infos.forEach((i) => m.push(iso(i.x, i.y))); observes.forEach((o) => o.seen && m.push(iso(o.x, o.y))); citizens.forEach((c) => m.push(iso(c.x, c.y))); return m; }
 function ring(sx, sy, col, now) { const k = (now % 1400) / 1400; ctx.strokeStyle = col; ctx.globalAlpha = 1 - k; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(sx, sy, 12 + k * 26, (12 + k * 26) / 2, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
 function bubble(sx, sy, txt, col, now) { const b = Math.sin(now / 260) * 3; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(sx, sy + b, 11, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(sx - 5, sy + b + 8); ctx.lineTo(sx + 5, sy + b + 8); ctx.lineTo(sx, sy + b + 15); ctx.fill(); ctx.fillStyle = col === '#f5b800' ? '#0b1630' : '#fff'; ctx.font = '800 13px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, sx, sy + b + 1); }
-function label(sx, sy, txt, col) { ctx.font = '700 11px system-ui,sans-serif'; const w = ctx.measureText(txt).width + 12; ctx.fillStyle = 'rgba(8,14,28,.82)'; ctx.beginPath(); ctx.roundRect(sx - w / 2, sy - 9, w, 18, 9); ctx.fill(); ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, sx, sy); }
+// name tags are rendered once per text and colour, then stamped; dozens of players cost one drawImage each
+const LABELC = new Map();
+function label(sx, sy, txt, col) {
+  const k = txt + '|' + col + '|' + RES; let c = LABELC.get(k);
+  if (!c) { if (LABELC.size > 300) LABELC.clear(); ctx.font = '700 11px system-ui,sans-serif'; const w = Math.ceil(ctx.measureText(txt).width + 12), [cv, g] = hiCanvas(w + 2, 20, Math.max(2, RES));
+    g.font = '700 11px system-ui,sans-serif'; g.fillStyle = 'rgba(8,14,28,.82)'; g.beginPath(); g.roundRect(1, 1, w, 18, 9); g.fill(); g.fillStyle = col; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, 1 + w / 2, 10); c = cv; LABELC.set(k, c); }
+  ctx.drawImage(c, sx - c.lw / 2, sy - 10, c.lw, c.lh);
+}
 function speech(sx, sy, txt) { ctx.font = '800 12px system-ui,sans-serif'; const w = ctx.measureText(txt).width + 16; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(sx - w / 2, sy - 11, w, 22, 8); ctx.fill(); ctx.beginPath(); ctx.moveTo(sx - 4, sy + 10); ctx.lineTo(sx + 4, sy + 10); ctx.lineTo(sx, sy + 16); ctx.fill(); ctx.fillStyle = '#0b1630'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, sx, sy); }
 function gateArt(sx, sy, open, g, now) {
   if (open) { label(sx, sy - 30, '→ ' + DISTRICTS[g.to].name, '#86efac'); return; }
@@ -529,13 +547,22 @@ function rainDraw() { if (!FX.rain) return; ctx.setTransform(1, 0, 0, 1, 0, 0);
   if (FLASH > 0) { ctx.fillStyle = 'rgba(220,230,255,' + (FLASH * .35) + ')'; ctx.fillRect(0, 0, cv.width, cv.height); FLASH -= .06; } ctx.fillStyle = 'rgba(30,40,60,.18)'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.strokeStyle = 'rgba(190,210,235,.45)'; ctx.lineWidth = 1.2 * dpr; ctx.beginPath(); FX.drops.forEach((d) => { const x = d.x * cv.width, y = d.y * cv.height; ctx.moveTo(x, y); ctx.lineTo(x - 4 * dpr, y + 14 * dpr); }); ctx.stroke(); }
 // a top-of-screen banner for discoveries
 let bannerT = 0;
-function banner(icon, title, sub, secret) { const el = $('banner'); el.className = 'banner' + (secret ? ' secret' : ''); el.innerHTML = '<span>' + icon + '</span><div><b>' + esc(title) + '</b><small>' + esc(sub || '') + '</small></div>'; el.hidden = false; clearTimeout(bannerT); bannerT = setTimeout(() => el.hidden = true, 4200); }
+// pop-up traffic control: one thing on screen at a time. Banners wait for conversations, menus, loot and cards to finish.
+function stageBusy() { return !!(scene || storyBusy || looting || loreBusy || (typeof MG !== 'undefined' && MG.busy) || !$('modal').hidden || !$('dlg').hidden || !fe().hidden || (typeof EP !== 'undefined' && EP.busy) || document.querySelector('.tCard, .lorePop, .introCine, .gradCred')); }
+const bannerQ = []; let bannerOn = false, bannerPoll = 0;
+function banner(icon, title, sub, secret) { if (bannerQ.some((b) => b[1] === title)) return; bannerQ.push([icon, title, sub, secret]); pumpBanner(); }
+function pumpBanner() {
+  if (bannerOn || !bannerQ.length) return; if (stageBusy()) { if (!bannerPoll) bannerPoll = setTimeout(() => { bannerPoll = 0; pumpBanner(); }, 600); return; }
+  const [icon, title, sub, secret] = bannerQ.shift(), el = $('banner'); bannerOn = true;
+  el.className = 'banner' + (secret ? ' secret' : ''); el.innerHTML = '<span>' + icon + '</span><div><b>' + esc(title) + '</b><small>' + esc(sub || '') + '</small></div>'; el.hidden = false;
+  clearTimeout(bannerT); bannerT = setTimeout(() => { el.hidden = true; bannerOn = false; setTimeout(pumpBanner, 350); }, bannerQ.length ? 3200 : 4200);
+}
 // loot: queued so a reveal never lands on top of a question
 const lootQ = [];
 function queueLoot(where, chance, min) { if (Math.random() > Math.min(1, chance * (1 + gp('loot') / 100) + (chance < 1 ? gp('loot') / 200 : 0))) return; lootQ.push([where, min]); setTimeout(runLoot, 400); }
 let looting = false;
 async function runLoot() {
-  if (looting || !lootQ.length) return; if (scene || !$('modal').hidden) { setTimeout(runLoot, 600); return; }
+  if (looting || !lootQ.length) return; if (scene || storyBusy || loreBusy || !$('modal').hidden || !$('dlg').hidden || (typeof EP !== 'undefined' && EP.busy) || document.querySelector('.tCard, .lorePop, .introCine, .gradCred')) { setTimeout(runLoot, 600); return; }
   looting = true; const [where, min] = lootQ.shift(), item = roll(S, min), isNew = !S.items[item.id];
   S.items[item.id] = (S.items[item.id] || 0) + 1; saveS(); paused = true;
   const act = await reveal(item, where, { isNew, canEquip: item.slot && slotOpen(item.slot) && (S.gear || {})[item.slot] !== item.id, lockHint: item.slot && !slotOpen(item.slot) ? 'Goes in your ' + slotOf(item.slot).name + ' slot. ' + slotOf(item.slot).hint + '.' : '', sound: (notes) => { if (!S.sound) return; notes.forEach((f, i) => beep(f, .22 + (i === notes.length - 1 ? .4 : 0), 'triangle', .05, i * .09)); } });
@@ -610,7 +637,7 @@ function cat(sx, sy, now, g) { g = g || ctx; const t = Math.sin(now / 600) * 3; 
 function regsDraw(list, vis, now) {
   regs.forEach((r) => { const [sx, sy] = iso(r.x, r.y); if (!vis(sx, sy)) return; const near = Math.hypot(r.x - P.x, r.y - P.y);
     list.push({ d: r.x + r.y, f: () => {
-      if (r.n.cat) cat(sx, sy, now); else { const lk = r.n.look || {}; person(ctx, sx, sy, { kit: r.n.kit || npcKit(lk), hair: r.n.hair || lk.hair, skin: r.n.skin || lk.skin, moving: false, face: r.face, ph: r.ph }, now); if (r.n.glasses || lk.glasses) { ctx.fillStyle = '#111'; ctx.fillRect(sx - 4, sy - 29, 8, 1.2); } }
+      if (r.n.cat) cat(sx, sy, now); else { const lk = r.n.look || {}; person(ctx, sx, sy, { kit: r.n.kit || npcKit(lk), hair: r.n.hair || lk.hair, skin: r.n.skin || lk.skin, moving: false, face: r.face, ph: r.ph, wave: (r.waveT || 0) > performance.now() }, now); if (r.n.glasses || lk.glasses) { ctx.fillStyle = '#111'; ctx.fillRect(sx - 4, sy - 29, 8, 1.2); } }
       if (near < 5.5) label(sx, sy - (r.n.cat ? 26 : 48), r.n.icon + ' ' + r.n.name, '#fde68a');
       if (!talkedNow[r.n.id] && near < 10) bubble(sx, sy - (r.n.cat ? 42 : 66), '💬', '#fde68a', now);
     } });
@@ -1094,7 +1121,7 @@ function loreCheck(dt) {
   if (fresh.length) { saveS(); loreQ.push(fresh); stat('lore', fresh.length); setTimeout(lorePop, 300); }
 }
 function lorePop() {
-  if (loreBusy || !loreQ.length) return; if (scene || storyBusy || looting || MG.busy || !$('modal').hidden || !$('dlg').hidden) { setTimeout(lorePop, 700); return; }
+  if (loreBusy || !loreQ.length) return; if (scene || storyBusy || looting || MG.busy || !$('modal').hidden || !$('dlg').hidden || !fe().hidden || EP.busy || document.querySelector('.tCard, .introCine, .gradCred')) { setTimeout(lorePop, 700); return; }
   loreBusy = true; const es = loreQ.shift(), e = es[0], many = es.length > 1, tot = LORE.length, have = LORE.filter((x) => S.lore[x.id]).length;
   const el = document.createElement('div'); el.className = 'lorePop';
   el.innerHTML = '<canvas class="lpFx"></canvas><div class="lpCard"><div class="lpBook"><span>📜</span></div><small>' + (many ? es.length + ' lore entries discovered' : 'Lore discovered') + ' · ' + have + ' of ' + tot + '</small><h2>' + esc(many ? es.map((x) => x.title).join(' · ') : e.title) + '</h2><p>' + esc(many ? 'New pages in your Field Journal.' : e.text) + '</p><div class="lpBtns"><button type="button" data-a="read">' + 'Read in journal' + '</button><button type="button" class="ghost" data-a="ok">Back to patrol</button></div></div>';
@@ -1297,8 +1324,8 @@ function exitBoat() { if (!P.boat) return; P.boat = false; P.path = []; pboat.x 
 function exitCar() { if (!P.inCar) return; P.inCar = false; P.path = []; pcar.x = P.x; pcar.y = P.y; const r = nearest(Math.floor(P.x), Math.floor(P.y), (x, y) => W.walkable(x, y) && W.at(x, y) !== T.ROAD); if (r) { P.x = r[0] + .5; P.y = r[1] + .5; } hud(); }
 
 // ---------- learning scenes ----------
-function openModal(html) { const m = $('modal'); m.innerHTML = '<div class="mBox">' + html + '</div>'; m.hidden = false; paused = false; }
-function closeModal() { $('modal').hidden = true; scene = null; }
+function openModal(html) { const m = $('modal'); if (m.hidden && typeof FEEL !== 'undefined' && S.sound) FEEL.UI.open(); m.innerHTML = '<div class="mBox">' + html + '</div>'; m.hidden = false; paused = false; }
+function closeModal() { if (!$('modal').hidden && typeof FEEL !== 'undefined' && S.sound) FEEL.UI.close(); $('modal').hidden = true; scene = null; }
 // a run of questions with feedback; done(result) at the end
 function runQuestions(head, qs, done) {
   let i = 0, right = 0; scene = { qs };
@@ -1629,7 +1656,7 @@ const ico = (k) => '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICON[k] + '<
 function setIcons() { [['bRadio', 'comms', 'Comms'], ['bMe', 'target', 'Center'], ['bLock', 'locker', 'Locker'], ['bMap', 'map', 'City'], ['bPause', 'menu', 'Menu']].forEach(([id, k, t]) => { const b = $(id); if (!b) return; const badge = b.querySelector('.bBadge'); b.innerHTML = '<i>' + ico(k) + '</i><span>' + t + '</span>'; if (badge) b.appendChild(badge); }); }
 function hud() {
   const r = L.rankOf(S.xp), m = L.districtMastery(S, W.did);
-  $('hCs').textContent = U().icon + ' ' + S.cs; $('hUnit').textContent = unitName(U()); $('hUnit').style.setProperty('--uc', U().color); $('hRank').textContent = (S.title ? '🏷️ ' + S.title + ' · ' : '') + r.name + ' · ' + S.xp + ' RP · $' + (S.cash || 0);
+  $('hCs').textContent = U().icon + ' ' + S.cs; $('hUnit').textContent = unitName(U()); $('hUnit').style.setProperty('--uc', U().color); FEEL.rankLine(S.title ? '🏷️ ' + S.title + ' · ' : '', r.name, S.xp, S.cash || 0);
   $('hDist').textContent = inside ? W.name : W.D.name; $('hDist').style.setProperty('--dc', W.D.color);
   $('hMast').style.setProperty('--p', Math.round(m.pct * 100)); $('hMastN').textContent = Math.floor(m.pct * 100) + '%'; $('hMast').title = m.facts.done + ' of ' + m.facts.total + ' facts in ' + W.D.name;
   { const k = U().ride.kind, lab = P.boat ? 'Dock' : P.inCar ? 'Exit' : RIDE() === 'moto' ? 'Moto' : RIDE() === 'bike' ? 'Bike' : RIDE() === 'horse' ? 'Horse' : k === 'van' ? 'Van' : k === 'armored' || k === 'truck' ? 'Truck' : k === 'suv' ? 'SUV' : 'Car'; $('bCar').innerHTML = '<i>' + ico(P.boat ? 'anchor' : P.inCar ? 'walk' : 'car') + '</i><span>' + lab + '</span>'; } $('bCar').classList.toggle('on', P.inCar || P.boat);
@@ -1640,7 +1667,9 @@ const feed = [];
 function radio(who, msg) { feed.push([who, msg]); while (feed.length > 30) feed.shift(); const el = $('radio'); el.innerHTML = feed.slice(-3).map((f) => '<div><b>' + esc(f[0]) + ':</b> ' + esc(f[1]) + '</div>').join(''); placeOrders(); }
 function placeOrders() { const r = $('radio'), o = $('orders'); if (!r || !o) return; const b = r.getBoundingClientRect(); o.style.top = Math.max(b.bottom + 6, 0) + 'px'; }
 addEventListener('resize', placeOrders);
-function toast(t) { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 3800); }
+const toastQ = []; let toastOn = false;
+function toast(t) { if (toastOn && $('toast').textContent === t) return; if (toastQ.indexOf(t) >= 0) return; if (toastQ.length >= 3) toastQ.shift(); toastQ.push(t); pumpToast(); }
+function pumpToast() { if (toastOn || !toastQ.length) return; const el = $('toast'); el.textContent = toastQ.shift(); el.hidden = false; toastOn = true; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; toastOn = false; setTimeout(pumpToast, 250); }, toastQ.length ? 2600 : 3800); }
 $('bCar').onclick = () => { if (inside) { toast('Head outside first. The door is the glowing spot by the exit.'); return; } if (P.boat) exitBoat(); else if (P.inCar) exitCar(); else if (pcar) { if (Math.hypot(pcar.x - P.x, pcar.y - P.y) < 2.2) enterCar(); else { toast('Walking back to your ' + U().ride.label.toLowerCase() + '.'); goTo(pcar.x, pcar.y, enterCar); } } };
 $('bMap').onclick = () => { jTab = chStep() ? 'story' : 'map'; journal(); }; $('bLock').onclick = locker;
 $('bPause').onclick = () => pauseMenu();
@@ -1873,7 +1902,7 @@ function onPlayers(all, uid) {
 }
 let DRAWN_OTHERS = 0, rankT = 0;
 function rankOthers(dt) { rankT -= dt; if (rankT > 0) return; rankT = .5; const ks = Object.keys(others); DRAWN_OTHERS = ks.length; ks.map((k) => [k, Math.hypot(others[k].rx - P.x, others[k].ry - P.y)]).sort((a, b) => a[1] - b[1]).forEach(([k], i) => { others[k].nearRank = i; }); }
-function smoothOthers(dt) { rankOthers(dt); Object.keys(others).forEach((k) => { const o = others[k]; if (o.tx == null) return; const dx = o.tx - o.rx, dy = o.ty - o.ry, dd = Math.hypot(dx, dy); o.moving = dd > .05; if (o.moving) { if (Math.abs(dx - dy) > .02) o.face = dx - dy > 0 ? 1 : -1; o.back = dx + dy < -.02; } const kk = Math.min(1, dt * 5); o.stride = (o.stride || 0) + dd * kk; o.rx += dx * kk; o.ry += dy * kk; }); }
+function smoothOthers(dt) { rankOthers(dt); OCOUNT = Object.keys(others).length; Object.keys(others).forEach((k) => { const o = others[k]; if (o.tx == null) return; const dx = o.tx - o.rx, dy = o.ty - o.ry, dd = Math.hypot(dx, dy); o.moving = dd > .05; if (o.moving) { if (Math.abs(dx - dy) > .02) o.face = dx - dy > 0 ? 1 : -1; o.back = dx + dy < -.02; } const kk = Math.min(1, dt * 5); o.stride = (o.stride || 0) + dd * kk; o.rx += dx * kk; o.ry += dy * kk; }); }
 
 // ---------- unit picker ----------
 function unitCards(sel) {
@@ -1929,7 +1958,7 @@ function rollCall() {
 // ---------- front end: studio boot, main menu, settings, pause, loading, trophies, photo mode, credits ----------
 // Meridian Forge is the game's fictional in-world studio (it belongs to the Port Meridian setting).
 const STUDIO = { name: 'MERIDIAN FORGE', sub: 'INTERACTIVE', engine: 'SENTRY ENGINE', ver: 'v1.5.0' };
-S.cfg = Object.assign({ music: .8, sfx: .8, quality: 'high', shake: true, text: 'normal', motion: true }, S.cfg || {});
+S.cfg = Object.assign({ music: .8, sfx: .8, quality: 'high', shake: true, text: 'normal', motion: true, autoQ: true }, S.cfg || {});
 const fe = () => $('fe');
 function feSound(kind) { if (!S.sound) return; if (kind === 'move') beep(880, .03, 'triangle', .02); else if (kind === 'ok') { beep(660, .06, 'triangle', .04); beep(990, .09, 'triangle', .035, .05); } else if (kind === 'back') beep(440, .07, 'triangle', .035); }
 // low boom and shimmer for the studio logo
@@ -1965,6 +1994,7 @@ function settingsPanel(back) {
     '<label>Music volume<input type="range" min="0" max="1" step=".05" value="' + c.music + '" data-r="music"></label>' +
     '<label>Effects volume<input type="range" min="0" max="1" step=".05" value="' + c.sfx + '" data-r="sfx"></label>' +
     '<label>Graphics quality' + seg('quality', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra 4K']]) + '</label>' +
+    '<label>Auto-adjust graphics' + seg('autoQ', [[true, 'On'], [false, 'Off']]) + '</label>' +
     '<label>Text speed' + seg('text', [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast'], ['instant', 'Instant']]) + '</label>' +
     '<label>Camera shake' + seg('shake', [[true, 'On'], [false, 'Off']]) + '</label>' +
     '<label>Motion effects' + seg('motion', [[true, 'Full'], [false, 'Reduced']]) + '</label>' +
@@ -1974,7 +2004,7 @@ function settingsPanel(back) {
     '<label>Font' + seg('font', [['default', 'Default'], ['readable', 'Atkinson Hyperlegible']]) + '</label>' +
     '</div><div class="feBtns"><button type="button" class="feBtn" id="setBack">Back</button></div></div>';
   el.querySelectorAll('.seg button').forEach((b) => b.onclick = () => { const k = b.closest('.seg').dataset.k; let v = b.dataset.v; if (v === 'true') v = true; else if (v === 'false') v = false;
-    if (k === 'sound') { S.sound = v; if (v) { audio(); music.start(ATTRACT ? 'title' : moodNow()); } else music.stop(); hud && !ATTRACT && hud(); } else c[k] = v; saveS(); applyCfg(); feSound('move'); settingsPanel(back); });
+    if (k === 'sound') { S.sound = v; if (v) { audio(); music.start(ATTRACT ? 'title' : moodNow()); } else music.stop(); hud && !ATTRACT && hud(); } else { c[k] = v; if (k === 'quality') c.qMax = v; } saveS(); applyCfg(); feSound('move'); settingsPanel(back); });
   el.querySelectorAll('[data-r]').forEach((r) => r.oninput = () => { c[r.dataset.r] = +r.value; applyCfg(); if (r.dataset.r === 'sfx') beep(880, .05, 'triangle', .04); }); el.querySelectorAll('[data-r]').forEach((r) => r.onchange = () => saveS());
   $('setBack').onclick = () => { feSound('back'); back(); };
 }
@@ -2110,7 +2140,8 @@ function credits(back) {
 function mainMenu(go) {
   const t = $('title'), has = !!S.cs, items = [[has ? 'Continue' : 'Begin Your Career', go, has ? S.cs + ' · ' + L.rankOf(S.xp).name : 'Port Meridian is waiting'], ['Settings', () => settingsPanel(menuBack)], ['Trophies', () => trophyRoom(menuBack), (S.trophies ? Object.keys(S.trophies).length : 0) + ' / ' + TROPHIES.length], ['Credits', () => credits(menuBack)]];
   function menuBack() { const el = fe(); el.hidden = true; el.innerHTML = ''; el.className = 'fe'; t.querySelector('.tiMenu button') && t.querySelector('.tiMenu button').focus(); }
-  const m = t.querySelector('.tiMenu'); m.innerHTML = items.map((x, i) => '<button type="button" data-i="' + i + '"' + (i === 0 ? ' class="pri"' : '') + '><b>' + esc(x[0]) + '</b>' + (x[2] ? '<small>' + esc(x[2]) + '</small>' : '') + '</button>').join('');
+  const m = t.querySelector('.tiMenu'); { const old = t.querySelector('.tiCont'); if (old) old.remove(); if (has) m.insertAdjacentHTML('beforebegin', ON.continueCard()); }
+  m.innerHTML = items.map((x, i) => '<button type="button" data-i="' + i + '"' + (i === 0 ? ' class="pri"' : '') + '><b>' + esc(x[0]) + '</b>' + (x[2] ? '<small>' + esc(x[2]) + '</small>' : '') + '</button>').join('');
   m.querySelectorAll('button').forEach((b) => { b.onmouseenter = () => feSound('move'); b.onclick = (e) => { e.stopPropagation(); feSound('ok'); items[+b.dataset.i][1](); }; });
   m.onkeydown = (e) => { const bs = [...m.querySelectorAll('button')], i = bs.indexOf(document.activeElement); if (e.key === 'ArrowDown') { bs[(i + 1) % bs.length].focus(); feSound('move'); e.preventDefault(); } if (e.key === 'ArrowUp') { bs[(i - 1 + bs.length) % bs.length].focus(); feSound('move'); e.preventDefault(); } };
   setTimeout(() => { const b = m.querySelector('button'); if (b) b.focus({ preventScroll: true }); }, 900);
@@ -2118,10 +2149,11 @@ function mainMenu(go) {
 // ---- pause menu ----
 let PAUSED_BY_MENU = false;
 function pauseMenu() {
-  if (ATTRACT || PHOTO || !$('start').hidden) return; const el = fe(); if (!el.hidden) return;
+  if (ATTRACT || PHOTO || !$('start').hidden || looting || document.querySelector('.lorePop, .tCard, .introCine')) return; const el = fe(); if (!el.hidden) return;
   const was = paused; paused = true; PAUSED_BY_MENU = true; el.hidden = false; el.className = 'fe pauseBg';
   const close = () => { el.hidden = true; el.innerHTML = ''; el.className = 'fe'; paused = was; PAUSED_BY_MENU = false; };
-  const items = [['Resume', close], ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], [S.offDuty ? 'Go back on duty' : 'Go off duty', () => { close(); OFF.toggle(); }], ['PT', () => { close(); ACAD.ptMenu(); }], ['Uniform Inspection', () => { close(); ACAD.inspMenu(); }], ['Class Standing', () => { close(); ACAD.standing(); }], ['Daily Challenges', () => { close(); EVT.dailyCard(); }], ['This Week in the City', () => { close(); EVT.eventCard(); }], ['Academy Season', () => { close(); POL.seasonPanel(); }], ['Mystery Board', () => { close(); EP.board(); }], ['Rival: Cadet Vance', () => { close(); EP.rivalPanel(); }], ['Leaderboards', () => { close(); EP.boards(); }], ['Case Files', () => { close(); POL.caseFiles(); }], ['Collections', () => { close(); EVT.collections(); }], ['Community Trust Map', () => { close(); trustMap(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Controls', () => POL.controlsPanel(pauseMenuAgain)], ['Display & Audio', () => EP.calibrate(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
+  const items = [['Resume', close], ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], [S.offDuty ? 'Go back on duty' : 'Go off duty', () => { close(); OFF.toggle(); }], ['PT', () => { close(); ACAD.ptMenu(); }], ['Uniform Inspection', () => { close(); ACAD.inspMenu(); }], ['Class Standing', () => { close(); ACAD.standing(); }], ['Daily Challenges', () => { close(); EVT.dailyCard(); }], ['This Week in the City', () => { close(); EVT.eventCard(); }], ['Academy Season', () => { close(); POL.seasonPanel(); }], ['Mystery Board', () => { close(); EP.board(); }], ['Rival: Cadet Vance', () => { close(); EP.rivalPanel(); }], ['Leaderboards', () => { close(); EP.boards(); }], ['Case Files', () => { close(); POL.caseFiles(); }], ['Collections', () => { close(); EVT.collections(); }], ['Community Trust Map', () => { close(); trustMap(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Controls', () => POL.controlsPanel(pauseMenuAgain)], ['Display & Audio', () => EP.calibrate(pauseMenuAgain)], ['Saves & Backups', () => SAFE.savesPanel(pauseMenuAgain)], ['Report a problem', () => SAFE.reportPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
+  ON.gateMenu(items); SAFE.cloudSave(false);
   function pauseMenuAgain() { el.hidden = true; paused = was; PAUSED_BY_MENU = false; pauseMenu(); }
   const h = hourNow(), hh = String(Math.floor(h)).padStart(2, '0') + String(Math.floor((h % 1) * 60)).padStart(2, '0');
   el.innerHTML = '<div class="pmBox"><div class="pmHead"><small>' + esc(W.D.name) + ' · ' + hh + ' hrs</small><h2>Paused</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + ' · ' + esc(L.rankOf(S.xp).name) + '</p></div><div class="tiMenu pm">' + items.map((x, i) => '<button type="button" data-i="' + i + '"' + (i === 0 ? ' class="pri"' : '') + '><b>' + x[0] + '</b></button>').join('') + '</div><div class="pmFoot">' + (activeQ() ? '<b>' + esc(activeQ().title) + '</b> · ' + esc(activeQ().step.goal) : 'Patrol your district') + '</div></div>';
@@ -2201,13 +2233,18 @@ function radSprite(col) { let c = RADS.get(col); if (c) return c; if (RADS.size 
 // dynamic resolution: watch the real frame rate against the screen's refresh rate (60, 90, 120 Hz...) and trade a little
 // sharpness for smoothness when frames run long, then sharpen back up when there's headroom
 function drsTick(now, ms) {
-  if (S.cfg && S.cfg.drs === false) return; DRS.ts.push(ms); if (DRS.ts.length > 90) DRS.ts.shift(); if (now - DRS.at < 1500 || DRS.ts.length < 60) return; DRS.at = now;
+  if (S.cfg && S.cfg.drs === false) return; DRS.ts.push(ms); if (DRS.ts.length > 90) DRS.ts.shift(); if (now - DRS.at < 1500 || DRS.ts.length < 20) return; DRS.at = now;
   const sorted = DRS.ts.slice().sort((a, b) => a - b), best = sorted[Math.floor(sorted.length * .1)], med = sorted[Math.floor(sorted.length / 2)];
   DRS.refresh = DRS.hz ? Math.min(DRS.hz, Math.max(6.9, best)) : Math.max(6.9, Math.min(17, best)); // the screen's refresh interval
   let k = DRS.k; if (med > DRS.refresh * 1.3 && k > .6) k = Math.max(.6, k - .1); else if (med < DRS.refresh * 1.08 && k < 1) k = Math.min(1, k + .05);
   if (k !== DRS.k) { DRS.k = k; DRS.ts = []; resize(true); }
+  // auto quality: if even the lowest resolution can't keep up, step the graphics tier down; step back up after a long smooth stretch
+  if (S.cfg.autoQ !== false) { const tiers = ['low', 'medium', 'high', 'ultra'], qi = tiers.indexOf(S.cfg.quality), cap = tiers.indexOf(S.cfg.qMax || 'high');
+    if (k <= .6 && med > DRS.refresh * 1.3) { DRS.lowN = (DRS.lowN || 0) + 1; DRS.hiN = 0; } else if (k >= 1 && med < DRS.refresh * 1.05) { DRS.hiN = (DRS.hiN || 0) + 1; DRS.lowN = 0; } else { DRS.lowN = 0; DRS.hiN = 0; }
+    if (DRS.lowN >= 4 && qi > 0) { S.cfg.quality = tiers[qi - 1]; DRS.lowN = 0; DRS.k = 1; resize(true); saveS(); toast('⚙️ Graphics set to ' + S.cfg.quality + ' to keep things smooth.'); }
+    else if (DRS.hiN >= 24 && qi < cap) { S.cfg.quality = tiers[qi + 1]; DRS.hiN = 0; resize(true); saveS(); } }
 }
-function frame(now) { const dt = Math.min(.05, (now - last) / 1000) * (typeof EP !== 'undefined' ? EP.timeScale() : 1); drsTick(now, now - last); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); POL.tick(dt); EP.tick(dt); if (!S.seenCine && !EP.busy && W && !inside && !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !paused) EP.intro(); } render(now); } requestAnimationFrame(frame); }
+function frame(now) { const dt = Math.min(.05, (now - last) / 1000) * (typeof EP !== 'undefined' ? EP.timeScale() : 1); drsTick(now, now - last); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); POL.tick(dt); EP.tick(dt); ON.tick(dt); FEEL.tick(dt); if (!S.seenCine && !EP.busy && W && !inside && !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !paused) EP.intro(); } render(now); } requestAnimationFrame(frame); }
 // ---------- the unlock from the study hub ----------
 // The hub opens this page with a pass code once the cadet passes a 100-question test at 85% or better.
 function hubCheck(s) { let h = 2166136261; const t = s + '|patrol-city'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }
@@ -2238,4 +2275,4 @@ function lockedScreen() {
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); MG.watch(W.did); EVT.watch(); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { POL, EP, chapterDone: (i) => chapterDone(CHAPTERS[i]), travel: (d, t) => travel(d, t), openCall: () => { call.accepted = true; openCallScene(call); }, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { POL, EP, award: (n, w) => award(n, w), SAFE, ON, playStep: (st) => playStep(st), activeQ: () => activeQ(), SIDE, CHAPTERS, get storyBusy() { return storyBusy; }, chapterDone: (i) => chapterDone(CHAPTERS[i]), travel: (d, t) => travel(d, t), openCall: () => { call.accepted = true; openCallScene(call); }, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
