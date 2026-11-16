@@ -18,6 +18,7 @@ import { installEpic } from './epic.js';
 import { installOnboard } from './onboard.js';
 import { installFeel } from './feel.js';
 import { installSafe } from './safe.js';
+import { installNGPlus } from './ngplus.js';
 SIDE2.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); LORE2.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); }); LORE_PLACES.concat(LORE_PEOPLE).forEach((e) => { if (!LORE.some((o) => o.id === e.id || o.when === e.when)) LORE.push(e); });
 import { createMusic } from './music.js';
 import { createScore } from './score.js';
@@ -153,14 +154,21 @@ function load(did) {
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
 const SKIN = ['#f1c9a5', '#e0b48f', '#c68e63', '#a26a42', '#7a4b2a', '#5a3620'], SHIRT = ['#c0392b', '#2980b9', '#27ae60', '#f39c12', '#8e44ad', '#ecf0f1', '#16a085', '#d35400', '#7f8c8d', '#f5b7b1'], HAIR = ['#2b1d14', '#4a3020', '#8a5a2b', '#d8b46a', '#1a1a1a', '#9a9a9a'];
 function nearTile(list, r) { const c = focus(); for (let k = 0; k < 60; k++) { const t = list[Math.floor(Math.random() * list.length)]; if (t && Math.hypot(t[0] - c[0], t[1] - c[1]) < r) return t; } return list[Math.floor(Math.random() * list.length)]; }
-function newPed() { const s = nearTile(W.walk, 22); return { top: FX && FX.cold ? (Math.random() < .5 ? 'jacket' : 'hoodie') : undefined, x: s[0] + .5, y: s[1] + .5, path: [], wait: Math.random() * 3, sp: 1.1 + Math.random() * .7, skin: rnd(SKIN), shirt: rnd(SHIRT), hair: rnd(HAIR), pants: rnd(['#3b4a5c', '#2c3e50', '#5d4037', '#455a64', '#1c1c1c']), ph: Math.random() * 9, face: 1 }; }
-function newCar() { const roads = [], c0 = focus(); for (let i = 0; i < 120; i++) { const x = Math.floor(c0[0] + (Math.random() - .5) * 44), y = Math.floor(c0[1] + (Math.random() - .5) * 44); if (roadPass(x, y)) { roads.push([x, y]); break; } } const s = roads[0] || [0, 0]; return { x: s[0] + .5, y: s[1] + .5, path: [], sp: 2.6 + Math.random() * 1.6, color: rnd(CAR_COLORS), dir: 0 }; }
+function newPed() { const s = nearTile(W.walk, 22), h = typeof hourNow === 'function' ? hourNow() : 12, r = Math.random(), base = { top: FX && FX.cold ? (Math.random() < .5 ? 'jacket' : 'hoodie') : undefined, x: s[0] + .5, y: s[1] + .5, path: [], wait: Math.random() * 3, sp: 1.1 + Math.random() * .7, s: Math.round((.92 + Math.random() * .16) * 20) / 20, skin: rnd(SKIN), shirt: rnd(SHIRT), hair: rnd(HAIR), pants: rnd(['#3b4a5c', '#2c3e50', '#5d4037', '#455a64', '#1c1c1c']), ph: Math.random() * 9, face: 1 };
+  if (r < .12 && h > 5 && h < 20) return Object.assign(base, { jog: true, sp: 2.4 + Math.random() * .6, top: 'tank', acc: 'none', pants: rnd(['#111827', '#1d4ed8', '#be185d']), shoes: rnd(['#f2f2f2', '#22d3ee', '#f97316']) });
+  if (r < .21) return Object.assign(base, { dog: rnd(['#8b5a2b', '#f5deb3', '#2b2b2b', '#c08040', '#e5e7eb']), sp: .9 + Math.random() * .3 });
+  if (r < .33 && h >= 15 && h < 18.5) return Object.assign(base, { kid: true, s: .72, bike: Math.random() < .55, sp: 1.6 + Math.random() * .6, acc: rnd(['backpack', 'none']) });
+  return base; }
+function newCar() { const roads = [], c0 = focus(); for (let i = 0; i < 120; i++) { const x = Math.floor(c0[0] + (Math.random() - .5) * 44), y = Math.floor(c0[1] + (Math.random() - .5) * 44); if (roadPass(x, y)) { roads.push([x, y]); break; } } const s = roads[0] || [0, 0]; const c = { x: s[0] + .5, y: s[1] + .5, path: [], sp: 2.6 + Math.random() * 1.6, color: rnd(CAR_COLORS), dir: 0 };
+  if (!traffic.some((t) => t.bus) && !inside) Object.assign(c, { bus: true, sp: 2.1, v: { kind: 'van', body: '#f59e0b', side: '#f59e0b', text: 'ROUTE 9', scale: 1.35 } });
+  else if (Math.random() < .14) Object.assign(c, { v: { kind: 'van', body: rnd(['#f5f5f5', '#78350f', '#1d4ed8']), side: '#f5f5f5', text: rnd(['PARCEL', 'FRESH', 'EXPRESS']) }, sp: 2.4 });
+  return c; }
 function newCitizen() { const s = nearTile(W.walk, 26); return { x: s[0] + .5, y: s[1] + .5, skin: rnd(SKIN), shirt: rnd(SHIRT), hair: rnd(HAIR), ph: Math.random() * 9, face: -1, les: rnd(W.D.lessons) }; }
 function newObserve() { const did = W.did, ls = W.D.lessons.filter((l) => OBSERVE[l]); const les = rnd(ls.length ? ls : W.D.lessons); const o = rnd(OBSERVE[les] || [['Something looks out of place', 'door']]); const s = nearTile(W.walk, 30); return { x: s[0] + .5, y: s[1] + .5, les, text: o[0], kind: o[1], seen: false, t0: performance.now() }; void did; }
 
 // ---------- dispatch ----------
 function dispatchCall() {
-  const fav = U().fav.filter((l) => W.D.lessons.indexOf(l) >= 0 && !L.mastery(S, l).done), les = fav.length && Math.random() < .3 ? fav[Math.floor(Math.random() * fav.length)] : L.weakest(S, W.did), list = CALLS[les] || [['Assist a citizen', 3, 'any', 'Citizen flagging down an officer.']], c = EVT.stormCall() || EP.wxCall() || rnd(list);
+  const fav = U().fav.filter((l) => W.D.lessons.indexOf(l) >= 0 && !L.mastery(S, l).done), les = fav.length && Math.random() < .3 ? fav[Math.floor(Math.random() * fav.length)] : L.weakest(S, W.did), list = CALLS[les] || [['Assist a citizen', 3, 'any', 'Citizen flagging down an officer.']], c = NG.remix(EVT.stormCall() || EP.wxCall() || rnd(list));
   const lot = c[2] !== 'any' && W.lots.filter((l) => l.kind === c[2] || (c[2] === 'parking' && (l.kind === 'parking' || l.kind === 'lot'))).sort((a, b) => Math.hypot(a.door[0] - P.x, a.door[1] - P.y) - Math.hypot(b.door[0] - P.x, b.door[1] - P.y))[0];
   const pk = c[2] === 'parking' && !lot && W.parking.length ? (() => { const near = W.parking.filter((t) => Math.hypot(t[0] - P.x, t[1] - P.y) < 30); return rnd(near.length ? near : W.parking); })() : null;
   const spot = lot ? lot.door : pk || nearTile(W.walk, 28), where = lot ? (lot.name || (LANDMARKS[lot.kind] || {}).name || 'the ' + lot.kind) : pk ? 'the parking lot at ' + ((W.lots.find((l) => !l.sub && pk[0] > l.ox && pk[0] < l.ox + 8 && pk[1] > l.oy && pk[1] < l.oy + 9) || {}).name || 'a business') : 'block ' + (100 + spot[1] * 10) + ' ' + ['Main St', 'Bay St', 'Oak Ave', 'Pine St', 'Harbor Rd'][spot[0] % 5];
@@ -219,7 +227,7 @@ function update(dt, now) {
   if (!cam.free) { const [ix, iy] = iso(P.x, P.y); cam.x += (ix - cam.x) * Math.min(1, dt * 6); cam.y += (iy - 22 - cam.y) * Math.min(1, dt * 6); }
   { const f = focus(); peds.forEach((p, k) => { if (Math.hypot(p.x - f[0], p.y - f[1]) > 30) peds[k] = newPed(); }); traffic.forEach((c, k) => { if (Math.hypot(c.x - f[0], c.y - f[1]) > 34) traffic[k] = newCar(); }); }
   peds.forEach((p) => { if (p.wait > 0) { p.wait -= dt; p.moving = false; return; } if (!p.path.length) { const t = nearTile(W.walk, 24); const path = Math.hypot(t[0] - p.x, t[1] - p.y) < 16 ? astar(p.x, p.y, t[0], t[1], pedPass, true) : null; if (path) p.path = path; else p.wait = 1; return; } if (stepAlong(p, dt, p.sp)) p.wait = 1 + Math.random() * 4; });
-  traffic.forEach((c) => { if (c.stopped) return; if (!c.path.length) { for (let k = 0; k < 6; k++) { const x = Math.floor(c.x + (Math.random() - .5) * 40), y = Math.floor(c.y + (Math.random() - .5) * 40); if (roadPass(x, y)) { const p = astar(c.x, c.y, x, y, roadPass, false); if (p && p.length > 3) { c.path = p; break; } } } return; } stepAlong(c, dt, c.sp); });
+  traffic.forEach((c) => { if (c.stopped) return; if (c.stopT > 0) { c.stopT -= dt; c.moving = false; return; } if (!c.path.length) { if (c.bus && !c.stopT0) { c.stopT = 3.5; c.stopT0 = 1; return; } c.stopT0 = 0; for (let k = 0; k < 6; k++) { const x = Math.floor(c.x + (Math.random() - .5) * 40), y = Math.floor(c.y + (Math.random() - .5) * 40); if (roadPass(x, y)) { const p = astar(c.x, c.y, x, y, roadPass, false); if (p && p.length > 3) { c.path = p; break; } } } return; } stepAlong(c, dt, c.sp); });
   // arrive on a call
   if (call && !inside && Math.hypot(call.x - P.x, call.y - P.y) < 1.7 && !scene) { const c = call; call = null; callCard(); openCallScene(c); }
   if (!call && !scene && !S.x6 && !S.offDuty) { nextCall -= dt; if (nextCall <= 0) dispatchCall(); }
@@ -268,9 +276,12 @@ function render(now) {
   else { doorMarks(list, vis, now); regsDraw(list, vis, now); }
   // locked gates get a barricade
   W.gates.forEach((g) => { const [sx, sy] = iso(g.x + .5, g.y + 1); if (!vis(sx, sy)) return; const open = S.unlocked.includes(g.to); list.push({ d: g.x + g.y + 1.5, f: () => gateArt(sx, sy, open, g, now) }); });
-  peds.forEach((p) => { const [sx, sy] = iso(p.x, p.y); if (vis(sx, sy)) list.push({ d: p.x + p.y, f: () => personFast(ctx, sx, sy, p, now, p._pk || (p._pk = 'p' + p.ph + (p.shirt || '') + (p.skin || '') + (p.kit ? JSON.stringify(p.kit) : ''))) }); });
+  peds.forEach((p) => { const [sx, sy] = iso(p.x, p.y); if (vis(sx, sy)) list.push({ d: p.x + p.y, f: () => {
+    if (p.bike) { rideArt(ctx, sx, sy, p.dir || 0, 'bike', now, !!p.moving, (x, y, o) => person(ctx, x, y, Object.assign({ s: .72, shirt: p.shirt, skin: p.skin, hair: p.hair, pants: p.pants, ph: p.ph, glance: false, acc: p.acc }, o), now), false); return; }
+    if (p.dog) { const side = p.face > 0 ? -1 : 1; dog(ctx, sx + side * 13, sy + 4, p.face || 1, !!p.moving, now); ctx.strokeStyle = 'rgba(30,30,30,.7)'; ctx.lineWidth = .8; ctx.beginPath(); ctx.moveTo(sx + side * 4, sy - 14); ctx.quadraticCurveTo(sx + side * 9, sy - 2, sx + side * 13, sy - 4); ctx.stroke(); }
+    personFast(ctx, sx, sy, p, now, p._pk || (p._pk = 'p' + p.ph + (p.shirt || '') + (p.skin || '') + (p.top || '') + (p.kit ? JSON.stringify(p.kit) : ''))); } }); });
   citizens.forEach((p) => { const [sx, sy] = iso(p.x, p.y); if (vis(sx, sy)) list.push({ d: p.x + p.y, f: () => { person(ctx, sx, sy, p, now); bubble(sx, sy - 46, '?', '#f5b800', now); } }); });
-  traffic.forEach((c) => { const off = laneOff(c), [sx, sy] = iso(c.x + off[0], c.y + off[1]); if (vis(sx, sy)) list.push({ d: c.x + c.y, f: () => car(ctx, sx, sy, c.dir, c.color, false, now, NIGHT, 1) }); });
+  traffic.forEach((c) => { const off = laneOff(c), [sx, sy] = iso(c.x + off[0], c.y + off[1]); if (vis(sx, sy)) list.push({ d: c.x + c.y, f: () => c.v ? vehicle(ctx, sx, sy, c.dir, c.v, now, NIGHT, false) : car(ctx, sx, sy, c.dir, c.color, false, now, NIGHT, 1) }); });
   if (!inside && !ATTRACT) LIFE.drawKid(list, vis, now);
   if (!inside && !ATTRACT) SIDE.forEach((q) => { if (!q.giverAt || !sideAvail(q)) return; const g = giverPos(q), t = TEMP[q.giver]; if (!g || !t) return; const [sx, sy] = iso(g.x, g.y); if (!vis(sx, sy)) return; const h = [...q.giver].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
     list.push({ d: g.x + g.y, f: () => { person(ctx, sx, sy, { ph: h % 997, shirt: ['#c0392b', '#2e86de', '#16a085', '#8e44ad', '#e67e22', '#2c3e50', '#d35400', '#27ae60'][h % 8], skin: ['#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#ffdbac', '#a0662f'][(h >> 3) % 6], hair: ['#2b1d14', '#5a3825', '#1a1a1a', '#b07b3c', '#9a9a9a'][(h >> 5) % 5], moving: false, face: -1, s: /age \d/.test(t.name) ? .82 : 1 }, now); label(sx, sy - 50, t.icon + ' ' + t.name, '#7dd3fc'); } }); });
@@ -403,6 +414,8 @@ const FEEL = installFeel({ S, $: (id) => $(id), audio: () => audio(), beep: (...
   paused: () => paused || !!scene, cine: () => document.body.classList.contains('cine'), wet: () => !!(FX.rain || FX.storm), lightsOn: () => !!(call && call.accepted) });
 const SAFE = installSafe({ S, esc: (x) => esc(x), $: (id) => $(id), fe: () => fe(), toast: (m) => toast(m), saveS: () => saveS(), stat: (...a) => stat(...a), net: () => net, get W() { return W; }, get P() { return P; }, get inside() { return inside; },
   get version() { return STUDIO.ver; }, activeTitle: () => { const A = W && activeQ(); return A ? A.title + ': ' + (A.step && A.step.goal) : null; }, reconnect: () => {} });
+const NG = installNGPlus({ S, esc: (x) => esc(x), $: (id) => $(id), fe: () => fe(), banner: (...a) => banner(...a), stat: (...a) => stat(...a), saveS: () => saveS(), snapshot: () => SAFE.snapshot(true), reload: () => location.reload() });
+if (S.fto) L.setHard(true);
 function moveReg(r, lot) { W.blocked.delete(Math.floor(r.y) * N + Math.floor(r.x)); regs = regs.filter((x) => x !== r); putOutside(r.n, lot); }
 function tapAtWorld(x, y) { const [ix, iy] = iso(x, y), rc = cv.getBoundingClientRect(); tap(rc.left + rc.width / 2 + (ix - cam.x) * cam.z, rc.top + rc.height / 2 + (iy - 20 - cam.y) * cam.z); }
 // the Rec Room: multiplayer mini games (see minigames.js)
@@ -787,7 +800,7 @@ function scoreAnswer(q, ans, retry) {
   comboHud(); return ok;
 }
 // ---------- dialogue presentation: live portraits, voiced typewriter, rich text, tone-tagged choices, log, auto and skip ----------
-const DLG_LOG = [];
+const DLG_LOG = []; let DLG_HIDE_T = 0;
 const hashStr = (s) => [...String(s)].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
 // how a speaker looks in their portrait (null: use their icon)
 function portraitLook(id) {
@@ -842,7 +855,7 @@ function dialogue(lines, done, opts) {
   box.innerHTML = '<div class="dlgBar top">' + kick + '</div><div class="dlgBar bot"></div><div class="dlgMem" hidden></div>' +
     '<div class="dlgPanel"><div class="dlgPlate"><b></b><small></small></div><div class="dlgPortWrap"><div class="dlgPort"><canvas class="dlgCv" width="192" height="192"></canvas><span class="dlgIco"></span></div><span class="dlgEmo"></span></div>' +
     '<div class="dlgBody"></div><div class="dlgCtl"><button type="button" data-c="log" title="Conversation log">📜</button><button type="button" data-c="auto" title="Auto-advance">▶</button><button type="button" data-c="skip" title="Skip to the next choice">⏩</button></div><i class="dlgNext">▸</i></div><div class="dlgLogBox" hidden></div>';
-  box.hidden = false; requestAnimationFrame(() => box.classList.add('on'));
+  clearTimeout(DLG_HIDE_T); const wasOpen = !box.hidden; box.hidden = false; if (wasOpen) box.classList.add('on'); else requestAnimationFrame(() => box.classList.add('on'));
   const panel = box.querySelector('.dlgPanel'), body = box.querySelector('.dlgBody'), plate = box.querySelector('.dlgPlate'), portW = box.querySelector('.dlgPortWrap'), port = box.querySelector('.dlgPort'), cvp = box.querySelector('.dlgCv'), ico = box.querySelector('.dlgIco'), emo = box.querySelector('.dlgEmo'), mem = box.querySelector('.dlgMem'), logBox = box.querySelector('.dlgLogBox');
   const ctl = (c) => box.querySelector('[data-c="' + c + '"]'); ctl('auto').classList.toggle('on', auto); if (opts.noSkip) ctl('skip').hidden = true;
   // the live portrait: the speaker's own character, breathing, nodding when they talk
@@ -891,7 +904,7 @@ function dialogue(lines, done, opts) {
       let tries = 0;
       const finish = () => { const ans = q.multi ? picked.slice() : picked[0];
         // a wrong first answer gets one more try (no streak, but it still counts and completes the fact)
-        if (tries === 0 && !L.isRight(q, ans)) { tries = 1; bad(); COMBO = 0; comboHud(); showEmote('🤔'); port.classList.add('no'); setTimeout(() => port.classList.remove('no'), 700);
+        if (tries === 0 && !S.fto && !L.isRight(q, ans)) { tries = 1; bad(); COMBO = 0; comboHud(); showEmote('🤔'); port.classList.add('no'); setTimeout(() => port.classList.remove('no'), 700);
           body.querySelectorAll('[data-k]').forEach((b) => { const k = +b.dataset.k; if (!q.multi && k === ans) { b.disabled = true; b.classList.add('no'); } b.classList.remove('sel'); }); picked = [];
           const tx = body.querySelector('.dlgQs'); if (tx) tx.innerHTML = '<b class="dlgRetry">Not quite. One more try.</b>'; if (q.multi && $('dlgOk')) $('dlgOk').disabled = true; return; }
         const ok = scoreAnswer(q, ans, tries > 0); if (ok && COMBO >= 3 && COMBO % 3 === 0) EP.slowMo(.7); res.qs = res.qs || []; res.qs.push({ stem: q.stem, ok, fact: (q.fact || q.ex || '').trim() }); res.n++; if (ok) res.right++; if (tries && ok) res.retry = (res.retry || 0) + 1; showEmote(ok ? '✨' : '📘');
@@ -930,7 +943,7 @@ function dialogue(lines, done, opts) {
     if (!narr && POL.voiceOn(opts)) POL.speak(id, c.name, full, radio);
   };
   document.body.classList.add('cine'); if (opts.focus) cineFocus(opts.focus[0], opts.focus[1], opts.zoom);
-  const end = () => { alive = false; POL.hush(); DLGMOOD = null; cancelAnimationFrame(pRaf); clearTimeout(typing); clearTimeout(autoT); document.body.classList.remove('cine'); box.classList.remove('on'); if (opts.focus) cineRelease(); setTimeout(() => { if (!box.classList.contains('on')) { box.hidden = true; box.innerHTML = ''; } }, 250); box.onclick = null; removeEventListener('keydown', keys); saveS(); done && done(res); };
+  const end = () => { alive = false; POL.hush(); DLGMOOD = null; cancelAnimationFrame(pRaf); clearTimeout(typing); clearTimeout(autoT); document.body.classList.remove('cine'); box.classList.remove('on'); if (opts.focus) cineRelease(); clearTimeout(DLG_HIDE_T); DLG_HIDE_T = setTimeout(() => { if (!box.classList.contains('on')) { box.hidden = true; box.innerHTML = ''; } }, 250); box.onclick = null; removeEventListener('keydown', keys); saveS(); done && done(res); };
   const finishTyping = () => { clearTimeout(typing); typing = null; pTalk = 0; body.querySelectorAll('#dlgP span.h').forEach((s) => s.classList.remove('h')); if (auto) { const go = () => { if (!alive || !box.onclick) return; if (POL.speaking) { autoT = setTimeout(go, 300); return; } next(); }; autoT = setTimeout(go, Math.max(1300, full.length * 42)); } };
   const click = () => { if (!logBox.hidden) return; if (typing) { finishTyping(); return; } next(); };
   const openLog = () => { logBox.innerHTML = '<div class="dlgLogHead"><b>Conversation log</b><button type="button" data-c="close">Close</button></div><div class="dlgLogList">' + DLG_LOG.slice(-60).map((l) => '<div class="dlgLogRow' + (l.name ? '' : ' narr') + '" style="--acc:' + l.col + '">' + (l.name ? '<b>' + esc(l.name) + '</b>' : '') + '<p>' + esc(l.text.replace(/[*~]/g, '')) + '</p></div>').join('') + '</div>'; logBox.hidden = false; const ls = logBox.querySelector('.dlgLogList'); ls.scrollTop = ls.scrollHeight; logBox.querySelector('[data-c="close"]').onclick = (e) => { e.stopPropagation(); logBox.hidden = true; }; };
@@ -1493,7 +1506,7 @@ function openCallSceneQ(c) {
     { t: 'Signal your cover, then make contact', ok: 1, reply: [['narr', 'A nod. ' + cover + ' takes a position with a clear view of the caller\'s hands and the street.'], ['castillo', '(over the radio) Textbook.']] },
     { t: 'Both of you talk to the caller at once', reply: [['narr', 'Two officers talking over each other. Nobody is watching the street.'], ['castillo', '(over the radio) One talks, one watches. Reset.']] },
     { t: 'Send your cover to search the area alone', reply: [['narr', cover + ' heads off. Now nobody is covering you.'], ['castillo', '(over the radio) Cover stays with contact. Pull them back.']] }].sort(() => Math.random() - .5), 'Your cover officer is waiting for a signal.']);
-  { const rv = EP.rivalCameo(); if (rv) lines.push(rv); }
+  { const rv = EP.rivalCameo(); if (rv) lines.push(rv); const tr = NG.cameo(); if (tr) lines.push(tr); }
   if (a) lines.push(['choice', a.opts, a.q]);
   lines.push([cid, rnd(['Officer! Over here. Thank goodness.', 'You got here fast. Okay, here\'s what happened.', 'I\'m the one who called. It\'s been a whole thing.', 'Finally. Let me tell you what I saw.'])]);
   qs.forEach((q, k) => { lines.push(['q', q, k % 2 ? 'castillo' : cid]); if (k === 0 && qs.length > 2) lines.push(['choice', [
@@ -1507,7 +1520,7 @@ function openCallSceneQ(c) {
   dialogue(lines, (res) => {
     paused = false; const eff = (res.choices.find((o) => o.eff) || {}).eff; c.eff = eff; if (eff) consequence(eff, c);
     const r = { right: res.right, n: res.n };
-    S.calls++; SS.calls++; stat('p' + c.prio); if (inside) stat('inCall'); if (NIGHT) stat('nightCalls'); const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 && hasSk('tac2') ? 1.15 : 1) * (c.prio === 1 && hasSk('tac4') ? 1.25 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM * EP.callMult() * (hasSk('pat3') && EP.repOf(W.did).idx >= 2 ? 1.1 : 1), xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0) + (c.wrap === 'case' || c.wrap === 'resources' ? 10 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
+    S.calls++; SS.calls++; NG.callCleared(); stat('p' + c.prio); if (inside) stat('inCall'); if (NIGHT) stat('nightCalls'); const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 && hasSk('tac2') ? 1.15 : 1) * (c.prio === 1 && hasSk('tac4') ? 1.25 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM * EP.callMult() * NG.mult() * (hasSk('pat3') && EP.repOf(W.did).idx >= 2 ? 1.1 : 1), xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0) + (c.wrap === 'case' || c.wrap === 'resources' ? 10 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
     const coopOk = c.coop && res.choices.some((o) => o.ok), xpT = Math.round(xp * (coopOk ? 1.25 * (hasSk('pat4') ? 1.15 : 1) : 1)); if (FX.storm) stat('stormCall'); EP.squadCall(); if (c.coop) { stat('coop'); if (coopOk) stat('coopGood'); }
     EP.afterCall(c, (extra) => POL.debrief({ extra, title: c.title, where: c.where, prio: c.prio, right: r.right, n: r.n, fast, resp: (clock - c.t0), approach: !a ? undefined : !c.eff ? null : (APPROACH_BONUS[c.eff] || 1) > 1 ? 'good' : 'ok', wrap: c.wrap, calm: res.choices.some((o) => o.eff2 === 'calm'), qs: res.qs || [], coop: coopOk ? c.coop : null, xp: xpT, role: c.coop ? 'Contact officer' : '' }, () => { closeModal(); radio(S.cs, 'Clear, back in service.'); award(xpT, c.coop ? 'co-op call cleared' : 'call cleared'); queueLoot('Found on scene: ' + c.title, r.right === r.n ? .6 : .3); nextCall = (25 + Math.random() * 25) * (S.unit === 'patrol' ? .75 : 1); if (net) net.backup(null); COVER = null; }));
   }, { focus: [c.x, c.y], kicker: (c.prio === 1 ? 'PRIORITY 1' : c.prio === 2 ? 'PRIORITY 2' : 'ROUTINE') + ' · ' + c.where.toUpperCase() });
@@ -1656,7 +1669,7 @@ const ico = (k) => '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICON[k] + '<
 function setIcons() { [['bRadio', 'comms', 'Comms'], ['bMe', 'target', 'Center'], ['bLock', 'locker', 'Locker'], ['bMap', 'map', 'City'], ['bPause', 'menu', 'Menu']].forEach(([id, k, t]) => { const b = $(id); if (!b) return; const badge = b.querySelector('.bBadge'); b.innerHTML = '<i>' + ico(k) + '</i><span>' + t + '</span>'; if (badge) b.appendChild(badge); }); }
 function hud() {
   const r = L.rankOf(S.xp), m = L.districtMastery(S, W.did);
-  $('hCs').textContent = U().icon + ' ' + S.cs; $('hUnit').textContent = unitName(U()); $('hUnit').style.setProperty('--uc', U().color); FEEL.rankLine(S.title ? '🏷️ ' + S.title + ' · ' : '', r.name, S.xp, S.cash || 0);
+  $('hCs').textContent = U().icon + ' ' + (S.fto ? 'FTO · ' : '') + S.cs; $('hUnit').textContent = unitName(U()); $('hUnit').style.setProperty('--uc', U().color); FEEL.rankLine(S.title ? '🏷️ ' + S.title + ' · ' : '', r.name, S.xp, S.cash || 0);
   $('hDist').textContent = inside ? W.name : W.D.name; $('hDist').style.setProperty('--dc', W.D.color);
   $('hMast').style.setProperty('--p', Math.round(m.pct * 100)); $('hMastN').textContent = Math.floor(m.pct * 100) + '%'; $('hMast').title = m.facts.done + ' of ' + m.facts.total + ' facts in ' + W.D.name;
   { const k = U().ride.kind, lab = P.boat ? 'Dock' : P.inCar ? 'Exit' : RIDE() === 'moto' ? 'Moto' : RIDE() === 'bike' ? 'Bike' : RIDE() === 'horse' ? 'Horse' : k === 'van' ? 'Van' : k === 'armored' || k === 'truck' ? 'Truck' : k === 'suv' ? 'SUV' : 'Car'; $('bCar').innerHTML = '<i>' + ico(P.boat ? 'anchor' : P.inCar ? 'walk' : 'car') + '</i><span>' + lab + '</span>'; } $('bCar').classList.toggle('on', P.inCar || P.boat);
@@ -2152,7 +2165,7 @@ function pauseMenu() {
   if (ATTRACT || PHOTO || !$('start').hidden || looting || document.querySelector('.lorePop, .tCard, .introCine')) return; const el = fe(); if (!el.hidden) return;
   const was = paused; paused = true; PAUSED_BY_MENU = true; el.hidden = false; el.className = 'fe pauseBg';
   const close = () => { el.hidden = true; el.innerHTML = ''; el.className = 'fe'; paused = was; PAUSED_BY_MENU = false; };
-  const items = [['Resume', close], ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], [S.offDuty ? 'Go back on duty' : 'Go off duty', () => { close(); OFF.toggle(); }], ['PT', () => { close(); ACAD.ptMenu(); }], ['Uniform Inspection', () => { close(); ACAD.inspMenu(); }], ['Class Standing', () => { close(); ACAD.standing(); }], ['Daily Challenges', () => { close(); EVT.dailyCard(); }], ['This Week in the City', () => { close(); EVT.eventCard(); }], ['Academy Season', () => { close(); POL.seasonPanel(); }], ['Mystery Board', () => { close(); EP.board(); }], ['Rival: Cadet Vance', () => { close(); EP.rivalPanel(); }], ['Leaderboards', () => { close(); EP.boards(); }], ['Case Files', () => { close(); POL.caseFiles(); }], ['Collections', () => { close(); EVT.collections(); }], ['Community Trust Map', () => { close(); trustMap(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Controls', () => POL.controlsPanel(pauseMenuAgain)], ['Display & Audio', () => EP.calibrate(pauseMenuAgain)], ['Saves & Backups', () => SAFE.savesPanel(pauseMenuAgain)], ['Report a problem', () => SAFE.reportPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
+  const items = [['Resume', close], ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], [S.offDuty ? 'Go back on duty' : 'Go off duty', () => { close(); OFF.toggle(); }], ['PT', () => { close(); ACAD.ptMenu(); }], ['Uniform Inspection', () => { close(); ACAD.inspMenu(); }], ['Class Standing', () => { close(); ACAD.standing(); }], ['Daily Challenges', () => { close(); EVT.dailyCard(); }], ['This Week in the City', () => { close(); EVT.eventCard(); }], ['Academy Season', () => { close(); POL.seasonPanel(); }], ['Mystery Board', () => { close(); EP.board(); }], ['Rival: Cadet Vance', () => { close(); EP.rivalPanel(); }], ['Leaderboards', () => { close(); EP.boards(); }], ['Case Files', () => { close(); POL.caseFiles(); }], ['Collections', () => { close(); EVT.collections(); }], ['Community Trust Map', () => { close(); trustMap(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Controls', () => POL.controlsPanel(pauseMenuAgain)], ['Display & Audio', () => EP.calibrate(pauseMenuAgain)], ['Saves & Backups', () => SAFE.savesPanel(pauseMenuAgain)], ['New Game+ · FTO', () => NG.panel(pauseMenuAgain)], ['Report a problem', () => SAFE.reportPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
   ON.gateMenu(items); SAFE.cloudSave(false);
   function pauseMenuAgain() { el.hidden = true; paused = was; PAUSED_BY_MENU = false; pauseMenu(); }
   const h = hourNow(), hh = String(Math.floor(h)).padStart(2, '0') + String(Math.floor((h % 1) * 60)).padStart(2, '0');

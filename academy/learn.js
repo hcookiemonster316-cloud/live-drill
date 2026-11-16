@@ -54,8 +54,10 @@ export async function loadFacts(url) {
 export const factCount = () => FACTS.length;
 export function factList(lessons) { const set = new Set(lessons); return FACTS.filter((f) => set.has(f.les)); }
 export function factProgress(S, lessons) { const all = factList(lessons), f = S.facts || {}; return { done: all.filter((x) => f[x.id]).length, total: all.length }; }
+// FTO mode (New Game+): select-all-that-apply questions come up whenever a fact has one
+let HARD = false; export function setHard(v) { HARD = !!v; }
 function factQuestion(f) {
-  const simple = f.qs.filter((k) => POOL[k] && !Array.isArray(POOL[k][2])), from = simple.length ? simple : f.qs;
+  const simple = f.qs.filter((k) => POOL[k] && !Array.isArray(POOL[k][2])), multiQs = f.qs.filter((k) => POOL[k] && Array.isArray(POOL[k][2])), from = HARD && multiQs.length && Math.random() < .6 ? multiQs : HARD ? f.qs : simple.length ? simple : f.qs;
   const qi = from[Math.floor(Math.random() * from.length)], r = POOL[qi], multi = Array.isArray(r[2]), order = shuffle(r[1].map((_, i) => i));
   return { id: 'P' + qi, fid: f.id, kind: 'fact', les: f.les, stem: r[0], opts: order.map((i) => r[1][i]), c: multi ? r[2].map((k) => order.indexOf(k)) : order.indexOf(r[2]), multi, ex: r[4] || f.text, pg: r[5] || f.pg, fact: f.text };
 }

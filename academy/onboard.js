@@ -48,7 +48,8 @@ export function installOnboard(H) {
     'Rival: Cadet Vance': [() => ((S.story || {})[0] || 0) >= 2, '🎖️', 'Cadet Devin Vance is first in the class. He wants a word.'],
     'Leaderboards': [() => (S.calls || 0) >= 5, '🏅', 'Weekly boards for S-ranks, lore, friends and more.'],
     'Rec Room · Mini Games': [() => (S.calls || 0) >= 2 || (S.xp || 0) >= 200, '🎮', 'Play mini games with other cadets between calls.'],
-    'Class Standing': [() => (S.calls || 0) >= 1, '📊', 'See how you rank against your class this week.']
+    'Class Standing': [() => (S.calls || 0) >= 1, '📊', 'See how you rank against your class this week.'],
+    'New Game+ · FTO': [() => !!S.graduated, '🎖️', 'Train the next cadet: replay the story as a Field Training Officer.']
   };
   function gateMenu(items) {
     for (let i = items.length - 1; i >= 0; i--) { const lbl = items[i][0], g = GATES[lbl]; if (!g) continue; if (!g[0]()) { items.splice(i, 1); continue; }
@@ -62,7 +63,7 @@ export function installOnboard(H) {
   function continueCard() {
     if (!S.cs) return ''; const d = S.home || 0, ch = H.CHAPTERS.find((c) => c.d === d), at = (S.story || {})[d] || 0, goal = ch && at < ch.steps.length ? ch.steps[at].goal : 'Free patrol';
     const ago = S.lastSeen ? Math.round((Date.now() - S.lastSeen) / 60000) : null, when = ago == null ? '' : ago < 2 ? 'just now' : ago < 60 ? ago + ' min ago' : ago < 1440 ? Math.round(ago / 60) + ' hr ago' : Math.round(ago / 1440) + ' days ago';
-    return '<div class="tiCont"><small>CONTINUE' + (when ? ' · LAST PLAYED ' + esc(when.toUpperCase()) : '') + '</small><b>' + esc(H.dname(d)) + (ch ? ' · Chapter ' + (d + 1) + ': ' + esc(ch.title) : '') + '</b><p>➤ ' + esc(goal) + '</p></div>';
+    return '<div class="tiCont"><small>CONTINUE' + (S.fto ? ' · NEW GAME+ ' + (S.ng || 1) + ' · FTO' : '') + (when ? ' · LAST PLAYED ' + esc(when.toUpperCase()) : '') + '</small><b>' + esc(H.dname(d)) + (ch ? ' · Chapter ' + (d + 1) + ': ' + esc(ch.title) : '') + '</b><p>➤ ' + esc(goal) + '</p></div>';
   }
   return { tick: (dt) => { tutTick(); gateTick(dt); }, gateMenu, continueCard, get active() { return !!tut; }, finish };
 }
