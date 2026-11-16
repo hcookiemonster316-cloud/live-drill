@@ -589,7 +589,7 @@ function putOutside(n, lot) {
   regs.push({ n, x: c[0] + .5, y: c[1] + .5, face: Math.random() < .5 ? 1 : -1, ph: Math.random() * 9, lot }); W.blocked.add(c[1] * N + c[0]);
 }
 function npcKit(L) { return { shirt: L.shirt, pants: L.pants, hat: L.cap ? 'cap' : L.hard ? 'helmet' : 'none', hatCol: L.cap || '#f5d000', vest: L.vest ? '#d4ff3a' : L.apron || null, vestText: '', tie: L.tie, plain: !!L.tie, patch: L.badge ? '#f5b800' : L.collar ? '#ffffff' : null }; }
-function cat(sx, sy, now) { const t = Math.sin(now / 600) * 3; ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(sx, sy + 1, 7, 3, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.ellipse(sx, sy - 5, 7, 4.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(sx + 6, sy - 10, 4, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(sx + 3, sy - 13); ctx.lineTo(sx + 4, sy - 17); ctx.lineTo(sx + 6, sy - 13); ctx.moveTo(sx + 7, sy - 13); ctx.lineTo(sx + 9, sy - 17); ctx.lineTo(sx + 9.5, sy - 12); ctx.fill(); ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx - 6, sy - 6); ctx.quadraticCurveTo(sx - 12, sy - 10 + t, sx - 10, sy - 16 + t); ctx.stroke(); ctx.fillStyle = '#111'; ctx.fillRect(sx + 6, sy - 11, 1.2, 1.2); ctx.fillRect(sx + 8, sy - 11, 1.2, 1.2); }
+function cat(sx, sy, now, g) { g = g || ctx; const t = Math.sin(now / 600) * 3; g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(sx, sy + 1, 7, 3, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#f59e0b'; g.beginPath(); g.ellipse(sx, sy - 5, 7, 4.5, 0, 0, Math.PI * 2); g.fill(); g.beginPath(); g.arc(sx + 6, sy - 10, 4, 0, Math.PI * 2); g.fill(); g.beginPath(); g.moveTo(sx + 3, sy - 13); g.lineTo(sx + 4, sy - 17); g.lineTo(sx + 6, sy - 13); g.moveTo(sx + 7, sy - 13); g.lineTo(sx + 9, sy - 17); g.lineTo(sx + 9.5, sy - 12); g.fill(); g.strokeStyle = '#f59e0b'; g.lineWidth = 2; g.beginPath(); g.moveTo(sx - 6, sy - 6); g.quadraticCurveTo(sx - 12, sy - 10 + t, sx - 10, sy - 16 + t); g.stroke(); g.fillStyle = '#111'; g.fillRect(sx + 6, sy - 11, 1.2, 1.2); g.fillRect(sx + 8, sy - 11, 1.2, 1.2); }
 function regsDraw(list, vis, now) {
   regs.forEach((r) => { const [sx, sy] = iso(r.x, r.y); if (!vis(sx, sy)) return; const near = Math.hypot(r.x - P.x, r.y - P.y);
     list.push({ d: r.x + r.y, f: () => {
@@ -742,50 +742,168 @@ function scoreAnswer(q, ans, retry) {
   else if (ok) { SS.right++; stat('right'); S.bestCombo = Math.max(S.bestCombo || 0, COMBO + 1); COMBO++; bestCombo = Math.max(bestCombo, COMBO); ord('right'); if (COMBO === 5) ord('streak'); good(); } else { COMBO = 0; bad(); }
   comboHud(); return ok;
 }
+// ---------- dialogue presentation: live portraits, voiced typewriter, rich text, tone-tagged choices, log, auto and skip ----------
+const DLG_LOG = [];
+const hashStr = (s) => [...String(s)].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
+// how a speaker looks in their portrait (null: use their icon)
+function portraitLook(id) {
+  if (id === '@you') return { kit: kitWith(myKit(), myLooks()), skin: S.skin || '#c68e63', hair: '#1a1a1a' };
+  const c = CAST[id]; if (c && c.look) return { kit: c.look, skin: c.skin, hair: '#1a1a1a' };
+  const n = NPCS.find((x) => x.id === id); if (n) { if (n.cat) return { cat: true }; const lk = n.look || {}; return { kit: npcKit(lk), hair: lk.hair, skin: lk.skin }; }
+  const t = TEMP[id]; if (t) { const h = hashStr(id); return { ph: h % 997, shirt: ['#c0392b', '#2e86de', '#16a085', '#8e44ad', '#e67e22', '#2c3e50', '#d35400', '#27ae60'][h % 8], skin: ['#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#ffdbac', '#a0662f'][(h >> 3) % 6], hair: ['#2b1d14', '#5a3825', '#1a1a1a', '#b07b3c', '#9a9a9a'][(h >> 5) % 5], kid: /age 9|teen|kid|child/i.test((t.name || '') + ' ' + (t.role || '')) }; }
+  return null;
+}
+// a speaker's accent colour and voice (pitch, timbre) stay the same every time you meet them
+function speakerStyle(id, lk) {
+  let col; const h = hashStr(id); col = id === '@you' ? '#f5b800' : CAST[id] ? '#f5b800' : lk && (lk.kit ? lk.kit.shirt : lk.shirt) || ['#38bdf8', '#a78bfa', '#34d399', '#fb923c', '#f472b6'][h % 5];
+  const rgb = /^#[0-9a-f]{6}$/i.test(col) ? [1, 3, 5].map((k) => parseInt(col.substr(k, 2), 16)) : null; if (rgb && !CAST[id] && id !== '@you' && (Math.max(...rgb) - Math.min(...rgb) < 40 || Math.max(...rgb) < 70)) col = ['#38bdf8', '#a78bfa', '#34d399', '#fb923c', '#f472b6'][h % 5];
+  return { col, f: id === 'exhibita' ? 720 : 150 + (h % 9) * 24, wave: ['triangle', 'sine', 'triangle', 'square'][(h >> 4) % 4] };
+}
+const lighten = (hex, k) => { const n = parseInt(hex.slice(1), 16); const m = (v) => Math.round(v + (255 - v) * k); return 'rgb(' + m(n >> 16 & 255) + ',' + m(n >> 8 & 255) + ',' + m(n & 255) + ')'; };
+// rich text: (stage directions), *emphasis*, ~wavy~, and shouted CAPS on an exclaimed line
+function richChars(text) {
+  const out = []; let dir = 0, em = false, wave = false; const loud = /!/.test(text);
+  const caps = new Set(); if (loud) { const re = /\b[A-Z][A-Z'!]{3,}\b/g; let m; while ((m = re.exec(text))) for (let k = m.index; k < m.index + m[0].length; k++) caps.add(k); }
+  for (let k = 0; k < text.length; k++) {
+    const ch = text[k];
+    if (ch === '*') { em = !em; continue; } if (ch === '~') { wave = !wave; continue; }
+    if (ch === '(') dir++;
+    out.push({ ch, cls: (dir ? 'dir ' : '') + (em ? 'em ' : '') + (wave ? 'wave ' : '') + (caps.has(k) ? 'shout' : '') });
+    if (ch === ')' && dir) dir--;
+  }
+  return out;
+}
+function emoteFor(text, mood) {
+  if (mood === 'ok') return '✨'; if (mood === 'no') return '📘';
+  if (/\b(ha(ha)+|lol|laugh)/i.test(text)) return '😄'; if (/\b(cry|cried|crying|tears|miss (him|her)|passed away|died)\b/i.test(text)) return '💧';
+  if (/!/.test(text) && /\b[A-Z]{4,}\b/.test(text)) return '❗'; if (/\?\s*["']?$/.test(text.trim())) return '❓'; if (/^\s*(\.\.\.|…)/.test(text)) return '💭';
+  return '';
+}
+function toneOf(o) {
+  const t = o.t || '', em = t.match(/^(\p{Extended_Pictographic})\uFE0F?\s*/u); if (em) return [em[1], '', em[0].length]; if (o.accept) return ['📁', 'Accept']; if (o.bye) return ['👋', 'Leave'];
+  if (/^(not right now|decline|back away|walk away|leave)/i.test(t)) return ['✋', 'Decline'];
+  if (/^(laugh|joke|trash talk|tease)/i.test(t)) return ['😄', 'Playful'];
+  if (/^(offer|help|volunteer|promise|sign up|bring|connect|introduce|suggest|encourage|invite|give|sit|stay)/i.test(t)) return ['🤝', 'Support'];
+  if (/^(report|call|check|search|look|follow|search)/i.test(t)) return ['📋', 'Investigate'];
+  if (/^(ask|what|how|why|who|where)|\?$/i.test(t)) return ['❓', 'Ask'];
+  if (/^(tell|say|explain|remind|praise)/i.test(t)) return ['💬', 'Talk'];
+  return ['▸', ''];
+}
 function dialogue(lines, done, opts) {
-  opts = opts || {}; const box = $('dlg'); let seq = lines.slice(), i = -1, typing = null, full = '';
+  opts = opts || {}; const box = $('dlg'); let seq = lines.slice(), i = -1, typing = null, full = '', auto = !!(S.cfg && S.cfg.autoDlg), skipping = false, autoT = 0, alive = true, lastSp = null, lastName = '';
   const res = { right: 0, n: 0, choices: [] };
   const who = (id) => TEMP[id] || CAST[id] || NPCS.find((n) => n.id === id) || { name: id, icon: '💬', role: '' };
   const kick = opts.kicker ? '<div class="dlgKick">' + esc(opts.kicker) + '</div>' : '';
-  const next = () => { do { i++; } while (i < seq.length && !condOk(seq[i])); if (i < seq.length) show(); else end(); };
-  const frame = (inner, cls) => { box.innerHTML = '<div class="dlgBar top">' + kick + '</div><div class="dlgBar bot"></div><div class="dlgPanel' + (cls || '') + '">' + inner + '</div>'; box.hidden = false; requestAnimationFrame(() => box.classList.add('on')); };
+  // the frame is built once; each line swaps the body so the portrait and controls can animate between speakers
+  box.innerHTML = '<div class="dlgBar top">' + kick + '</div><div class="dlgBar bot"></div><div class="dlgMem" hidden></div>' +
+    '<div class="dlgPanel"><div class="dlgPlate"><b></b><small></small></div><div class="dlgPortWrap"><div class="dlgPort"><canvas class="dlgCv" width="192" height="192"></canvas><span class="dlgIco"></span></div><span class="dlgEmo"></span></div>' +
+    '<div class="dlgBody"></div><div class="dlgCtl"><button type="button" data-c="log" title="Conversation log">📜</button><button type="button" data-c="auto" title="Auto-advance">▶</button><button type="button" data-c="skip" title="Skip to the next choice">⏩</button></div><i class="dlgNext">▸</i></div><div class="dlgLogBox" hidden></div>';
+  box.hidden = false; requestAnimationFrame(() => box.classList.add('on'));
+  const panel = box.querySelector('.dlgPanel'), body = box.querySelector('.dlgBody'), plate = box.querySelector('.dlgPlate'), portW = box.querySelector('.dlgPortWrap'), port = box.querySelector('.dlgPort'), cvp = box.querySelector('.dlgCv'), ico = box.querySelector('.dlgIco'), emo = box.querySelector('.dlgEmo'), mem = box.querySelector('.dlgMem'), logBox = box.querySelector('.dlgLogBox');
+  const ctl = (c) => box.querySelector('[data-c="' + c + '"]'); ctl('auto').classList.toggle('on', auto); if (opts.noSkip) ctl('skip').hidden = true;
+  // the live portrait: the speaker's own character, breathing, nodding when they talk
+  const pg = cvp.getContext('2d'); let pLook = null, pTalk = 0, pNod = 0, pTilt = 0, pRaf = 0;
+  const drawPort = (now) => {
+    if (!alive) return; pRaf = requestAnimationFrame(drawPort); pg.setTransform(2, 0, 0, 2, 0, 0); pg.clearRect(0, 0, 96, 96); if (!pLook) return;
+    pNod *= .9; pTilt += ((pTalk && full.trim().slice(-1) === '?' ? .06 : 0) - pTilt) * .08;
+    const bob = (typing ? Math.abs(Math.sin(now / 90)) * 1.6 : Math.sin(now / 900) * .6) + pNod * 3, s = pLook.kid ? 2.9 : 3.4;
+    pg.save(); pg.translate(48, 96); pg.rotate(pTilt); pg.translate(-48, -96);
+    if (pLook.cat) { pg.translate(48, 72 - bob); pg.scale(3.4, 3.4); cat(0, 0, now, pg); }
+    else person(pg, 50, 50 + 29 * s - bob, Object.assign({}, pLook, { s, moving: false, face: -1, glance: false, noShadow: true }), now);
+    pg.restore();
+  }; pRaf = requestAnimationFrame(drawPort);
+  const setSpeaker = (id, c, radio, mood) => {
+    const lk = id ? portraitLook(id) : null, st = speakerStyle(id || 'narr', lk), changed = id !== lastSp;
+    pLook = lk; ico.textContent = lk ? '' : (radio ? '📻' : c ? c.icon : ''); port.className = 'dlgPort' + (radio ? ' radio' : '') + (mood ? ' ' + mood : '') + (lk ? '' : ' emoji');
+    panel.style.setProperty('--acc', st.col); panel.style.setProperty('--accL', lighten(st.col.startsWith('#') ? st.col : '#f5b800', .55));
+    if (changed && id) { portW.classList.remove('swap'); void portW.offsetWidth; portW.classList.add('swap'); }
+    lastSp = id; return st;
+  };
+  const showEmote = (e) => { emo.textContent = e; emo.classList.remove('pop'); if (e) { void emo.offsetWidth; emo.classList.add('pop'); } };
+  const remember = (txt) => { mem.textContent = txt; mem.hidden = false; mem.classList.remove('in'); void mem.offsetWidth; mem.classList.add('in'); beep(880, .1, 'sine', .025); beep(1320, .14, 'sine', .02, .09); clearTimeout(mem._t); mem._t = setTimeout(() => { mem.hidden = true; }, 2600); };
+  const log = (name, text, col) => { DLG_LOG.push({ name, text, col }); if (DLG_LOG.length > 120) DLG_LOG.shift(); };
+  const next = () => { clearTimeout(autoT); do { i++; } while (i < seq.length && !condOk(seq[i])); if (i < seq.length) show(); else end(); };
+  const setChoiceMode = (on) => { panel.classList.toggle('dlgChoice', on); box.onclick = on ? null : click; };
   const show = () => {
-    const ln = seq[i];
+    const ln = seq[i]; panel.classList.remove('dlgNarr', 'dlgQuiz'); showEmote('');
     if (ln[0] === 'fx') { try { ln[1](res); } catch (e) {} return next(); }
     if (ln[0] === 'choice') {
-      const opts2 = ln[1];
-      frame('<div class="dlgTxt"><b>Your call</b><small>' + esc(ln[2] || 'What do you do?') + '</small><div class="dlgOpts">' + opts2.map((o, k) => '<button type="button" data-k="' + k + '"><span class="kk">' + (k + 1) + '</span>' + esc(o.t) + '</button>').join('') + '</div></div>', ' dlgChoice'); box.onclick = null;
-      box.querySelectorAll('[data-k]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const o = opts2[+b.dataset.k]; res.choices.push(o); applyChoice(o); beep(660, .08, 'triangle', .04); if (o.fx) { try { o.fx(res); } catch (er) {} } seq.splice(i + 1, 0, ...(o.reply || [])); box.onclick = click; next(); });
+      skipping = false; const opts2 = ln[1], ctxKey = hashStr((seq[0] && seq[0][1]) || '') % 99991;
+      S.seenCh = S.seenCh || {}; setSpeaker('@you', null, false, '');
+      plate.querySelector('b').textContent = 'You'; plate.querySelector('small').textContent = ln[2] || 'What do you do?';
+      body.innerHTML = '<div class="dlgTxt"><div class="dlgOpts">' + opts2.map((o, k) => { const [ti, tl, cut] = toneOf(o), seen = S.seenCh[ctxKey + ':' + hashStr(o.t)]; return '<button type="button" data-k="' + k + '" class="' + (seen ? 'seen' : '') + '" style="--d:' + (k * 60) + 'ms"><span class="kk">' + (k + 1) + '</span><span class="tone" title="' + tl + '">' + ti + '</span><span class="ot">' + esc(cut ? o.t.slice(cut) : o.t) + (o.trust > 0 ? '<i class="chip">Trust ▲</i>' : '') + '</span></button>'; }).join('') + '</div></div>';
+      setChoiceMode(true); const bs = [...body.querySelectorAll('[data-k]')]; bs.forEach((b, k) => b.onmouseenter = () => b.focus());
+      bs.forEach((b) => b.onclick = (e) => { e.stopPropagation(); const o = opts2[+b.dataset.k]; S.seenCh[ctxKey + ':' + hashStr(o.t)] = 1; const ks = Object.keys(S.seenCh); if (ks.length > 800) delete S.seenCh[ks[0]];
+        res.choices.push(o); applyChoice(o); beep(660, .08, 'triangle', .04); log('You', o.t, '#f5b800');
+        if ((o.set || o.npc || o.trust > 0) && lastName && !o.accept && !o.bye) remember('🧠  ' + lastName + ' will remember that.');
+        if (o.fx) { try { o.fx(res); } catch (er) {} } seq.splice(i + 1, 0, ...(o.reply || [])); setChoiceMode(false); next(); });
       return;
     }
     if (ln[0] === 'q') {
-      const q = ln[1], sp = ln[2] || 'castillo', c = who(sp); let picked = []; window.__curQ = q;
-      frame('<div class="dlgPort"><span>' + c.icon + '</span></div><div class="dlgTxt"><b>' + esc(c.name) + '</b><small>' + esc(L.lessonName(q.les != null ? q.les : W.D.lessons[0]) || '') + '</small><p class="dlgQ">' + esc(q.stem) + '</p>' + (q.multi ? '<em class="dlgHint">Select all that apply, then confirm.</em>' : '') + '<div class="dlgOpts q">' + q.opts.map((o, k) => '<button type="button" data-k="' + k + '"><span class="kk">' + 'ABCDEF'[k] + '</span>' + esc(o) + '</button>').join('') + '</div>' + (q.multi ? '<div class="dlgConfirm"><button type="button" id="dlgOk" disabled>Confirm</button></div>' : '') + '</div>', ' dlgChoice dlgQuiz'); box.onclick = null;
+      skipping = false; const q = ln[1], sp = ln[2] || 'castillo', c = who(sp); let picked = []; window.__curQ = q; setSpeaker(sp, c, false, ''); panel.classList.add('dlgQuiz');
+      plate.querySelector('b').textContent = c.name; plate.querySelector('small').textContent = L.lessonName(q.les != null ? q.les : W.D.lessons[0]) || '';
+      body.innerHTML = '<div class="dlgTxt"><small class="dlgQs"></small><p class="dlgQ">' + esc(q.stem) + '</p>' + (q.multi ? '<em class="dlgHint">Select all that apply, then confirm.</em>' : '') + '<div class="dlgOpts q">' + q.opts.map((o, k) => '<button type="button" data-k="' + k + '" style="--d:' + (k * 50) + 'ms"><span class="kk">' + 'ABCDEF'[k] + '</span><span class="ot">' + esc(o) + '</span></button>').join('') + '</div>' + (q.multi ? '<div class="dlgConfirm"><button type="button" id="dlgOk" disabled>Confirm</button></div>' : '') + '</div>';
+      setChoiceMode(true); log(c.name, q.stem, speakerStyle(sp, portraitLook(sp)).col);
       let tries = 0;
       const finish = () => { const ans = q.multi ? picked.slice() : picked[0];
         // a wrong first answer gets one more try (no streak, but it still counts and completes the fact)
-        if (tries === 0 && !L.isRight(q, ans)) { tries = 1; bad(); COMBO = 0; comboHud();
-          box.querySelectorAll('[data-k]').forEach((b) => { const k = +b.dataset.k; if (!q.multi && k === ans) { b.disabled = true; b.classList.add('no'); } b.classList.remove('sel'); }); picked = [];
-          const tx = box.querySelector('.dlgTxt small'); if (tx) tx.innerHTML = '<b class="dlgRetry">Not quite. One more try.</b>'; if (q.multi && $('dlgOk')) $('dlgOk').disabled = true; return; }
-        const ok = scoreAnswer(q, ans, tries > 0); res.n++; if (ok) res.right++; if (tries && ok) res.retry = (res.retry || 0) + 1;
-        box.querySelectorAll('[data-k]').forEach((b) => { const k = +b.dataset.k, isC = q.multi ? q.c.indexOf(k) >= 0 : k === q.c; b.disabled = true; b.classList.add(isC ? 'ok' : picked.indexOf(k) >= 0 ? 'no' : 'dim'); });
+        if (tries === 0 && !L.isRight(q, ans)) { tries = 1; bad(); COMBO = 0; comboHud(); showEmote('🤔'); port.classList.add('no'); setTimeout(() => port.classList.remove('no'), 700);
+          body.querySelectorAll('[data-k]').forEach((b) => { const k = +b.dataset.k; if (!q.multi && k === ans) { b.disabled = true; b.classList.add('no'); } b.classList.remove('sel'); }); picked = [];
+          const tx = body.querySelector('.dlgQs'); if (tx) tx.innerHTML = '<b class="dlgRetry">Not quite. One more try.</b>'; if (q.multi && $('dlgOk')) $('dlgOk').disabled = true; return; }
+        const ok = scoreAnswer(q, ans, tries > 0); res.n++; if (ok) res.right++; if (tries && ok) res.retry = (res.retry || 0) + 1; showEmote(ok ? '✨' : '📘');
+        body.querySelectorAll('[data-k]').forEach((b) => { const k = +b.dataset.k, isC = q.multi ? q.c.indexOf(k) >= 0 : k === q.c; b.disabled = true; b.classList.add(isC ? 'ok' : picked.indexOf(k) >= 0 ? 'no' : 'dim'); });
         const fact = (q.fact || q.ex || '').trim(); setTimeout(() => { const V = VOICES[sp] || VOICES[String(sp).replace(/^reg_/, '')] || ANYONE, nx = seq[i + 1], more = !nx || nx[0] !== 'q', add = [[sp, ok ? rnd(tries ? V.r : V.p) : rnd(CORRECT) + (fact ? ' ' + fact : ''), { quiz: ok ? 'ok' : 'no' }]];
           if (more && !opts.noFollow) { add.push([sp, rnd(V.a)]); if (ok && sp !== 'exhibita' && Math.random() < .4) add.push([sp, (V === ANYONE ? 'Oh, and officer? ' : 'Oh, and one more thing. ') + hintLine()]); }
-          seq.splice(i + 1, 0, ...add); box.onclick = click; next(); }, 750); };
-      box.querySelectorAll('[data-k]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const k = +b.dataset.k; if (q.multi) { const at = picked.indexOf(k); if (at >= 0) picked.splice(at, 1); else picked.push(k); b.classList.toggle('sel'); $('dlgOk').disabled = !picked.length; } else { picked = [k]; finish(); } });
+          seq.splice(i + 1, 0, ...add); setChoiceMode(false); next(); }, 750); };
+      body.querySelectorAll('[data-k]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const k = +b.dataset.k; if (q.multi) { const at = picked.indexOf(k); if (at >= 0) picked.splice(at, 1); else picked.push(k); b.classList.toggle('sel'); $('dlgOk').disabled = !picked.length; } else { picked = [k]; finish(); } });
       if (q.multi) $('dlgOk').onclick = (e) => { e.stopPropagation(); if (picked.length) finish(); };
       return;
     }
-    const narr = ln[0] === 'narr', id = narr ? '' : ln[0], text = narr ? ln[1] : ln[1], c = narr ? null : who(id), radio = !narr && /^\(over the radio\)/.test(text), mood = ln[2] && ln[2].quiz;
+    const narr = ln[0] === 'narr', id = narr ? '' : ln[0], text = ln[1], c = narr ? null : who(id), radio = !narr && /^\(over the radio\)/.test(text), mood = ln[2] && ln[2].quiz;
     full = text.replace(/^\(over the radio\)\s*/, '');
-    frame(narr ? '<div class="dlgTxt narr"><p id="dlgP"></p></div><i class="dlgNext">▸</i>' : '<div class="dlgPort' + (radio ? ' radio' : '') + (mood ? ' ' + mood : '') + '"><span>' + (radio ? '📻' : c.icon) + '</span></div><div class="dlgTxt"><b>' + esc(c.name) + (radio ? ' <em>on the radio</em>' : '') + '</b><small>' + esc(c.role || '') + '</small><p id="dlgP"></p></div><i class="dlgNext">▸</i>', narr ? ' dlgNarr' : '');
-    const spd = { slow: 1, normal: 2, fast: 4, instant: 999 }[S.cfg.text] || 2; let k = 0; const el = $('dlgP'); clearInterval(typing); typing = setInterval(() => { k += spd; el.textContent = full.slice(0, k); if (k >= full.length) { clearInterval(typing); typing = null; } }, 22);
-    if (radio) chirp(); else if (!narr && S.sound) beep(520 + (id.length * 37) % 300, .05, 'triangle', .025);
+    const st = setSpeaker(narr ? null : id, c, radio, mood || '');
+    if (!narr) lastName = (c.name || '').replace(/\s*\(.*\)$/, '').split(' ').filter((w) => !/^(Mr|Mrs|Ms|Dr|Sgt|Lt|Det|Judge|Father|Pastor|Coach|Captain|Tía|Doña|Miss)\.?$/.test(w))[0] || c.name;
+    log(narr ? '' : c.name, full, st.col);
+    if (skipping) return next();
+    if (narr) panel.classList.add('dlgNarr');
+    plate.querySelector('b').innerHTML = narr ? '' : esc(c.name) + (radio ? ' <em>📻 on the radio</em>' : ''); plate.querySelector('small').textContent = narr ? '' : c.role || '';
+    const chars = richChars(full);
+    body.innerHTML = '<div class="dlgTxt' + (narr ? ' narr' : '') + '"><p id="dlgP">' + chars.map((x, k) => '<span class="h ' + x.cls + '" style="--i:' + k + '">' + esc(x.ch) + '</span>').join('') + '</p></div>';
+    const spans = body.querySelectorAll('#dlgP span'), base = 30 / ({ slow: .6, normal: 1, fast: 2, instant: 999 }[S.cfg.text] || 1);
+    let k = 0; clearTimeout(typing); pTalk = narr ? 0 : 1;
+    const step = () => {
+      if (!alive) return; if (k >= spans.length) { typing = null; pTalk = 0; if (auto) autoT = setTimeout(() => { if (alive && box.onclick) next(); }, Math.max(1300, full.length * 42)); return; }
+      const sp = spans[k], ch = chars[k].ch; sp.classList.remove('h'); k++;
+      if (!narr && S.sound && /[a-z0-9]/i.test(ch) && k % 2 === 1 && !/dir/.test(chars[k - 1].cls)) beep(st.f * (radio ? 1.6 : 1) * (.92 + ((k * 7) % 5) * .04), radio ? .03 : .045, radio ? 'square' : st.wave, radio ? .012 : .016);
+      if (ch === '!' && !narr) pNod = 1;
+      const nx = chars[k] ? chars[k].ch : ' ', pause = /[.!?]/.test(ch) && /[\s"')]/.test(nx) ? 9 : /[,;:]/.test(ch) ? 4 : ch === '—' ? 5 : 0;
+      typing = setTimeout(step, base * (1 + pause));
+    };
+    typing = setTimeout(step, base > 100 ? 0 : 60);
+    if (base > 100) { spans.forEach((s) => s.classList.remove('h')); k = spans.length; }
+    const e = emoteFor(full, mood); if (e && !narr) setTimeout(() => alive && showEmote(e), 220);
+    if (radio) chirp();
   };
   document.body.classList.add('cine'); if (opts.focus) cineFocus(opts.focus[0], opts.focus[1], opts.zoom);
-  const end = () => { document.body.classList.remove('cine'); box.classList.remove('on'); if (opts.focus) cineRelease(); setTimeout(() => { if (!box.classList.contains('on')) { box.hidden = true; box.innerHTML = ''; } }, 250); box.onclick = null; removeEventListener('keydown', keys); done && done(res); };
-  const click = () => { if (typing) { clearInterval(typing); typing = null; $('dlgP').textContent = full; return; } next(); };
-  const keys = (e) => { if (box.hidden) return; const b = box.querySelector('[data-k="' + (parseInt(e.key, 10) - 1) + '"]') || (/^[a-f]$/i.test(e.key) ? box.querySelector('.dlgOpts.q [data-k="' + ('abcdef'.indexOf(e.key.toLowerCase())) + '"]') : null); if (b && !b.disabled) { b.click(); e.preventDefault(); return; } if ((e.key === ' ' || e.key === 'Enter') && box.onclick) { e.preventDefault(); click(); } };
+  const end = () => { alive = false; cancelAnimationFrame(pRaf); clearTimeout(typing); clearTimeout(autoT); document.body.classList.remove('cine'); box.classList.remove('on'); if (opts.focus) cineRelease(); setTimeout(() => { if (!box.classList.contains('on')) { box.hidden = true; box.innerHTML = ''; } }, 250); box.onclick = null; removeEventListener('keydown', keys); saveS(); done && done(res); };
+  const finishTyping = () => { clearTimeout(typing); typing = null; pTalk = 0; body.querySelectorAll('#dlgP span.h').forEach((s) => s.classList.remove('h')); if (auto) autoT = setTimeout(() => alive && box.onclick && next(), Math.max(1300, full.length * 42)); };
+  const click = () => { if (!logBox.hidden) return; if (typing) { finishTyping(); return; } next(); };
+  const openLog = () => { logBox.innerHTML = '<div class="dlgLogHead"><b>Conversation log</b><button type="button" data-c="close">Close</button></div><div class="dlgLogList">' + DLG_LOG.slice(-60).map((l) => '<div class="dlgLogRow' + (l.name ? '' : ' narr') + '" style="--acc:' + l.col + '">' + (l.name ? '<b>' + esc(l.name) + '</b>' : '') + '<p>' + esc(l.text.replace(/[*~]/g, '')) + '</p></div>').join('') + '</div>'; logBox.hidden = false; const ls = logBox.querySelector('.dlgLogList'); ls.scrollTop = ls.scrollHeight; logBox.querySelector('[data-c="close"]').onclick = (e) => { e.stopPropagation(); logBox.hidden = true; }; };
+  ctl('log').onclick = (e) => { e.stopPropagation(); openLog(); };
+  ctl('auto').onclick = (e) => { e.stopPropagation(); auto = !auto; S.cfg.autoDlg = auto; ctl('auto').classList.toggle('on', auto); if (auto && !typing && box.onclick) autoT = setTimeout(() => alive && box.onclick && next(), 900); else clearTimeout(autoT); };
+  ctl('skip').onclick = (e) => { e.stopPropagation(); if (!box.onclick) return; skipping = true; finishTyping(); next(); };
+  logBox.onclick = (e) => e.stopPropagation();
+  const keys = (e) => {
+    if (box.hidden || !alive) return;
+    if (!logBox.hidden) { if (e.key === 'Escape' || e.key === 'l' || e.key === 'L') { logBox.hidden = true; e.preventDefault(); } return; }
+    const opt = [...box.querySelectorAll('.dlgOpts [data-k]:not([disabled])')];
+    if (opt.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { const at = opt.indexOf(document.activeElement); const nx = opt[(at + (e.key === 'ArrowDown' ? 1 : opt.length - 1) + (at < 0 && e.key === 'ArrowDown' ? 0 : 0)) % opt.length] || opt[0]; nx.focus(); e.preventDefault(); return; }
+    const b = box.querySelector('[data-k="' + (parseInt(e.key, 10) - 1) + '"]') || (/^[a-f]$/i.test(e.key) ? box.querySelector('.dlgOpts.q [data-k="' + ('abcdef'.indexOf(e.key.toLowerCase())) + '"]') : null);
+    if (b && !b.disabled) { b.click(); e.preventDefault(); return; }
+    if (e.key === 'Enter' && opt.indexOf(document.activeElement) >= 0) { document.activeElement.click(); e.preventDefault(); return; }
+    if (e.key === 'l' || e.key === 'L') { openLog(); e.preventDefault(); return; }
+    if ((e.key === ' ' || e.key === 'Enter') && box.onclick) { e.preventDefault(); click(); }
+  };
   addEventListener('keydown', keys);
   box.onclick = click;
   next();
@@ -1294,7 +1412,7 @@ function npcTalk(r) {
   // after each topic the talk keeps going: the menu comes back with what's left, until you say goodbye
   const menu = (left) => left.map((o) => Object.assign({}, o, { reply: o.reply.concat(left.length > 1 ? [['choice', menu(left.filter((x) => x !== o)).concat([bye]), rnd(['What else?', 'Anything else on your mind?', 'Keep talking, or head out?'])]] : [[id, rnd(['Well, I\'ll let you get back to it.', 'Anyway. Don\'t let me keep you.', 'Good talking with you.'])]]) }));
   const opts = menu(topics).concat([bye]);
-  dialogue([[id, n.cat ? '(Exhibit A regards you from a sunny spot.)' : f >= 3 ? rnd(['There\'s my favorite cadet!', 'Hey, you! Come here, come here.', 'Look who it is.']) : f >= 1 ? rnd(['Oh, hey. Back again?', 'Cadet! Good to see you.']) : rnd(['Can I help you, officer?', 'Oh! Hello there.', 'Afternoon, officer.'])], ['choice', opts, 'You and ' + n.name.split(' ')[0] + ' are ' + tier + '.']], () => sceneEnd('npc'), { focus: [r.x || P.x, r.y || P.y], kicker: n.name.toUpperCase() + ' · ' + (n.role || '').toUpperCase() });
+  dialogue([[id, n.cat ? '(Exhibit A regards you from a sunny spot.)' : f >= 3 ? rnd(['There\'s my favorite cadet!', 'Hey, you! Come here, come here.', 'Look who it is.']) : f >= 1 ? rnd(['Oh, hey. Back again?', 'Cadet! Good to see you.']) : rnd(['Can I help you, officer?', 'Oh! Hello there.', 'Afternoon, officer.'])], ['choice', opts, (f > 0 ? '💛'.repeat(Math.min(6, f)) + '  ' : '') + n.name + ' · ' + tier.charAt(0).toUpperCase() + tier.slice(1)]], () => sceneEnd('npc'), { focus: [r.x || P.x, r.y || P.y], kicker: n.name.toUpperCase() + ' · ' + (n.role || '').toUpperCase() });
 }
 function nearestLotTo(x, y) { let best = null, bd = 1e9; (inside ? inside.O.W : W).lots.forEach((l) => { if (!l.name) return; const d = Math.hypot(l.door[0] - x, l.door[1] - y); if (d < bd) { bd = d; best = l.name; } }); return best; }
 // calls: dispatch, arrival, your approach, the people on scene, then how you wrap it up
