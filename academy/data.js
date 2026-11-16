@@ -254,3 +254,6 @@ export const UNITS = [
     ride: { kind: 'suv', label: 'School resource SUV', body: '#f2f2f2', side: '#f2f2f2', stripe: '#7c3aed', bar: 'full', speed: 1, scale: 1.12, text: 'SRO' } }
 ];
 export const unitName = (u) => (u ? u.name : 'Patrol') + ' (In Training)';
+
+import { NPCS2 } from './people2.js';
+NPCS2.forEach((n) => { if (!NPCS.some((o) => o.id === n.id)) { const { v, ...rest } = n; NPCS.push(rest); } });

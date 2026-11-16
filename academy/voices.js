@@ -75,3 +75,6 @@ export const ANYONE = {
   r: ['Okay, I think I follow now.', 'Got it. Thanks for explaining it twice.'],
   a: ['So what happens now?', 'I\'m glad somebody came out. Really.', 'I\'ll tell my neighbors that one.', 'Okay. I feel a lot calmer about all this.', 'You\'ve got a good way of explaining things.', 'Thanks for taking the time. Most people don\'t.']
 };
+
+import { NPCS2 } from './people2.js';
+NPCS2.forEach((n) => { if (!VOICES[n.id]) VOICES[n.id] = n.v; });
