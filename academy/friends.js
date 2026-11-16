@@ -76,3 +76,6 @@ export const ARCS = {
     [['narr', 'The party. Moore gives a speech. Exhibit A sleeps through it. Hattie gets a framed copy of Admiral\'s license.'], ['hattie', 'Eleven thousand, two hundred and six documents this year. Forty years.'], ['hattie', 'Details, officer. Every one of them is a person. Don\'t ever let anyone tell you paperwork doesn\'t matter.']]
   ] }
 };
+
+import { ARCS2 } from './friends2.js';
+for (const k in ARCS2) if (!ARCS[k]) ARCS[k] = ARCS2[k];

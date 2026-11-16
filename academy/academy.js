@@ -15,7 +15,7 @@ export function installAcademy(H) {
   function setup() {
     acts = []; const W = H.W; if (!W || H.inside) return;
     W.lots.forEach((l) => { const [dx, dy] = H.doorSpot(l), x = dx, y = dy + .9;
-      if (l.kind === 'hq' || l.kind === 'substation') { acts.push({ kind: 'pt', x: x - 1.6, y, icon: '🏋️', col: '#22c55e', label: 'PT' }); acts.push({ kind: 'insp', x: x + 1.6, y, icon: '🎖️', col: '#f5b800', label: 'Inspection' }); }
+      if (l.kind === 'hq' || l.kind === 'substation') { acts.push({ kind: 'pt', x: x - 3, y: y + .4, icon: '🏋️', col: '#22c55e', label: 'PT' }); acts.push({ kind: 'insp', x: x + 3, y: y + .4, icon: '🎖️', col: '#f5b800', label: 'Inspection' }); }
       if (l.kind === 'barber') acts.push({ kind: 'cut', x, y, icon: '💈', col: '#ef4444', label: 'Academy haircut · $10 (' + (l.name || 'barber') + ')' });
       if (l.kind === 'laundromat') acts.push({ kind: 'press', x, y, icon: '👔', col: '#38bdf8', label: 'Wash and press your uniform · $6' });
     });

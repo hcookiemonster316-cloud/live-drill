@@ -20,7 +20,7 @@ export function installLife(H) {
     const busy = W.lots.filter((l) => /park|plaza|stadium|mall|transit|marina/.test(l.kind)); if (busy.length && Math.random() < .6) { const l = rnd(busy), [dx, dy] = H.doorSpot(l); acts.push({ kind: 'kid', x: dx + .6, y: dy + 1, icon: '🧒', col: '#f59e0b', label: 'A child looks lost', where: l.name || 'the park', r: 10, person: true }); }
     // car services by business
     W.lots.forEach((l) => { const svc = { gas: ['fuel', '⛽'], carwash: ['wash', '🧽'], autoshop: ['tune', '🔧'] }[l.kind]; if (!svc) return; const [dx, dy] = H.doorSpot(l); acts.push({ kind: svc[0], x: dx, y: dy + 1.2, icon: svc[1], col: '#0ea5e9', label: l.name || svc[0], lot: l, r: 6, carOnly: true, keep: true }); });
-    W.lots.filter((l) => l.kind === 'hq' || l.kind === 'substation').forEach((l) => { const [dx, dy] = H.doorSpot(l); acts.push({ kind: 'pool', x: dx + 3.2, y: dy + 1.4, icon: '🚔', col: '#1e40af', label: 'Motor pool: choose your ride', r: 8 }); });
+    W.lots.filter((l) => l.kind === 'hq' || l.kind === 'substation').forEach((l) => { const [dx, dy] = H.doorSpot(l); acts.push({ kind: 'pool', x: dx + .5, y: dy + 3.2, icon: '🚔', col: '#1e40af', label: 'Motor pool: choose your ride', r: 8 }); });
     nightLamps();
   }
   function nightLamps() { // at night a few streetlights are out: report them

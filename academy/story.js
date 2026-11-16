@@ -221,7 +221,7 @@ export const SIDE = [
         ['choice', [
           { t: 'Sit down quietly and let her come to you', set: 'catPatient', npc: { exhibita: 2 }, reply: [['pike', 'Three minutes. She just walked over and sat on your boot. How. HOW.']] },
           { t: 'Scoop her up quickly', set: 'catGrab', reply: [['pike', 'She... did not like that. You have been scratched by the court. Is that contempt? I think that\'s contempt.']] }]]] },
-      { at: 'County Courthouse', inside: true, who: 'moore', goal: 'Return Exhibit A to the courthouse', say: [['moore', 'She\'s back. The judge has taken the bench. Court is in session.'], ['moore', 'And she\'s following you. She has never followed anyone. Be honored.', { if: 'catPatient' }], ['moore', 'Ice on those scratches. And maybe don\'t do that again.', { if: 'catGrab' }]] }
+      { at: 'Justice Plaza', who: 'moore', goal: 'Return Exhibit A to her sunny spot at Justice Plaza', say: [['moore', 'She\'s back on her step. The judge has taken the bench. Court is in session.'], ['moore', 'And she\'s following you. She has never followed anyone. Be honored.', { if: 'catPatient' }], ['moore', 'Ice on those scratches. And maybe don\'t do that again.', { if: 'catGrab' }]] }
     ], reward: { rp: 120, loot: 'r' } },
   { id: 'pike', d: 4, title: 'Pike\'s Report', giver: 'hattie', req: [4, 2], blurb: 'Cadet Pike\'s arrest report was rejected. Again.',
     offer: [['hattie', 'Your classmate Cadet Pike filed his practice report. In highlighter. Every line is highlighted. Nothing is in order. Would you help him before Sgt. Castillo sees it?']],

@@ -34,7 +34,7 @@ export function buildDistrict(did) {
   hand.forEach((e) => {
     const nm = nameOf(e), want = (plan.put && plan.put[nm]) || ZONE_OF[kindOf(e)] || 'commercial', near = plan.near && plan.near[nm] && placedAt[plan.near[nm]];
     const anchor = near || plan.center || [6, 6], free = blocks.filter((b) => !taken.has(b.by * NB + b.bx));
-    const score = (b) => Math.hypot(b.bx - anchor[0], b.by - anchor[1]) + (b.z === want ? 0 : (ZONE_OK[want] || []).indexOf(b.z) >= 0 ? 4 : 40);
+    const strict = !!(plan.put && plan.put[nm]), score = (b) => Math.hypot(b.bx - anchor[0], b.by - anchor[1]) + (b.z === want ? 0 : (ZONE_OK[want] || []).indexOf(b.z) >= 0 ? (strict ? 30 : 4) : 40);
     const b = free.sort((a, c) => score(a) - score(c))[0]; taken.set(b.by * NB + b.bx, e); placedAt[nm] = [b.bx, b.by];
   });
   blocks.forEach(({ bx, by, z }) => {
@@ -105,7 +105,7 @@ const cheb = (bx, by, cx, cy) => Math.max(Math.abs(bx - cx), Math.abs(by - cy));
 const PLAN = [
   { // Central District: a downtown core around the station and the plaza, shops around it, neighborhoods at the edges
     zone: (bx, by) => { const d = cheb(bx, by, 6, 6); return d <= 2 ? 'core' : d <= 4 ? 'commercial' : 'residential'; },
-    put: { 'Radio Tower': 'residential', 'Founders Park': 'core', 'Downtown Urgent Care': 'commercial', 'Night Owl Diner': 'commercial' },
+    put: { 'Radio Tower': 'residential', 'Spokes & Spares': 'commercial', 'Founders Park': 'core', 'Downtown Urgent Care': 'commercial', 'Night Owl Diner': 'commercial' },
     near: { 'Dispatch Center': 'Patrol HQ', 'Records · FCIC Terminal': 'Patrol HQ', 'Founders Plaza': 'Patrol HQ', 'Downtown Transit Center': 'Founders Plaza', 'Founders Park': 'Founders Plaza', 'Central Library': 'Founders Park', 'First Coast Bank': 'Founders Plaza', 'City Garage': 'Meridian Office Tower', 'Grind & Badge Coffee': 'Patrol HQ', 'Night Owl Diner': 'Downtown Transit Center' } },
   { // Eastside: the highway corridor of gas, auto and motels through the middle, neighborhoods north and south, a fuel and auto corner by the east gate
     zone: (bx, by) => (by >= 5 && by <= 7) ? (bx >= 10 ? 'industrial' : 'commercial') : (bx >= 4 && bx <= 8 && (by === 4 || by === 8)) ? 'commercial' : (by <= 1 && bx <= 2) || (by >= 11 && bx >= 10) ? 'rural' : 'residential',
@@ -113,12 +113,12 @@ const PLAN = [
     near: { 'Maple Court': 'Eastside Community Center', 'Eastgate Apartments': 'Eastgate Motel', 'Birch Lane': 'Maple Court', 'Eastside Dog Park': 'Maple Court', "Big Earl's Auto": 'Gas & Go', 'Bubbles Car Wash': "Big Earl's Auto", 'Eastgate Motel': 'Eastside Plaza' } },
   { // Riverside: old neighborhoods, a small main street, the waterfront along the river, farmland and woods to the northwest
     zone: (bx, by) => bx >= 10 ? 'waterfront' : (bx <= 3 && by <= 3) ? 'rural' : (by === 6 && bx >= 3 && bx <= 8) ? 'commercial' : 'residential',
-    put: { 'Hook, Line & Sinker': 'waterfront', 'Riverside Park': 'waterfront', 'River Stadium': 'waterfront', 'River Pawn': 'commercial' },
+    put: { 'Willow Creek Farm': 'rural', 'Cypress Hammock': 'rural', 'Hook, Line & Sinker': 'waterfront', 'Riverwalk': 'waterfront', 'Heron Point': 'waterfront', 'Riverside Park': 'waterfront', 'River Stadium': 'waterfront', 'River Pawn': 'commercial' },
     near: { 'Hook, Line & Sinker': 'Riverside Marina', 'Riverside Marina': 'Riverside Park', 'River Stadium': 'Riverside Park', 'Riverside School': 'Community Church', 'Little Paddlers Daycare': 'Riverside School', 'River Bend Apartments': 'Willow Street', 'Fire Station 3': 'Willow Street' },
     center: [8, 6] },
   { // Industrial Park: warehouses and yards along the freight line, worker housing in the northeast, scrubland and pines on the far edges
     zone: (bx, by) => (bx <= 1 && by >= 8) || (by >= 11 && bx <= 4) ? 'rural' : (bx >= 9 && by <= 2) ? 'residential' : (by >= 5 && by <= 7 && bx >= 11) ? 'commercial' : 'industrial',
-    put: { 'Substation': 'industrial', 'Big Rig Truck Stop': 'commercial', 'The Lunch Pail': 'commercial', 'Eastline Rail Yard': 'industrial', 'North Spur Yard': 'industrial' },
+    put: { 'Substation': 'industrial', 'North Spur Pines': 'rural', 'Sandhill Sod Farm': 'rural', 'Big Rig Truck Stop': 'commercial', 'The Lunch Pail': 'commercial', 'Eastline Rail Yard': 'industrial', 'North Spur Yard': 'industrial' },
     near: { 'Eastline Rail Yard': 'Substation', 'North Spur Yard': 'Eastline Rail Yard', 'County Evidence Storage': 'Substation', "Rusty's Scrap & Salvage": 'Green Bin Recycling', 'Big Rig Truck Stop': 'Fuel Depot', 'The Lunch Pail': 'Big Rig Truck Stop' } },
   { // Justice Row: the courthouse square in the middle, law offices and bail bonds around it, homes at the edges
     zone: (bx, by) => { const d = cheb(bx, by, 6, 6); return d <= 2 ? 'civic' : d <= 4 ? 'commercial' : 'residential'; },
