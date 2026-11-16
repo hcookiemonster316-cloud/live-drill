@@ -1,5 +1,5 @@
 // Patrol City: game loop, camera, input, people and traffic, lighting, dispatch, learning scenes and HUD.
-import { N, TW, TH, T, CH, iso, unIso, buildDistrict, drawGround, setRes, setSun, RES, drawBuilding, drawProp, car, person, personFast, dog, dogFast, vehicle, rideArt, CAR_COLORS, shade, drawPropFast, hiCanvas } from './world.js';
+import { N, TW, TH, T, CH, iso, unIso, buildDistrict, drawGround, setRes, setGroundRes, frameStart, setSun, RES, GRES, drawBuilding, drawProp, car, person, personFast, dog, dogFast, vehicle, rideArt, CAR_COLORS, shade, drawPropFast, hiCanvas } from './world.js';
 import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
 import * as L from './learn.js';
 import { startNet } from './net.js';
@@ -34,7 +34,7 @@ const cv = $('view'), ctx = cv.getContext('2d');
 const DRS = { k: 1, ts: [], at: 0, refresh: 16.7, hz: 0 }; // dynamic resolution state (see drsTick)
 // measure the screen's refresh rate once, right away, while almost nothing is drawing (a 120 Hz phone shows ~8.3 ms frames)
 { let n = 0, prev = 0; const d = []; const f = (t) => { if (prev) d.push(t - prev); prev = t; if (++n < 45) requestAnimationFrame(f); else { d.sort((a, b) => a - b); DRS.hz = Math.max(6.5, Math.min(17.5, d[Math.floor(d.length * .25)] || 16.7)); } }; requestAnimationFrame(f); }
-const lc = document.createElement('canvas'), lx = lc.getContext('2d');
+const lc = document.createElement('canvas'), lx = lc.getContext('2d'), glc = document.createElement('canvas'), gx = glc.getContext('2d');
 let W = null, G = null, SPR = [], NIGHT = false, net = null, others = {}, myUid = '';
 let cam = { x: 0, y: 0, z: 1, free: false }, dpr = 1, cw = 0, ch = 0;
 const P = { x: 0, y: 0, path: [], face: 1, moving: false, inCar: false, dir: 0, onArrive: null };
@@ -112,22 +112,66 @@ function trimSprites() { const live = SPR.filter((s) => s.canvas), t = performan
 function lampsUpdate(h) { if (!W || !W.props) return; if (h == null) h = hourNow(); W.props.forEach((p) => { if (p.t !== 'lamp') return; const k = ((p.x * 7.13 + p.y * 3.71) % 1 + 1) % 1; p.on = inside ? true : (h >= 18.1 + k * .9 || h < 5.7 + k * .7); }); }
 function focus() { return ATTRACT || !P ? unIso(cam.x, cam.y) : [P.x, P.y]; }
 // ground chunks around the camera
-function groundDraw(z) {
-  if (G.canvas) { ctx.drawImage(G.canvas, -G.ox, -G.oy, G.canvas.lw || G.canvas.width, G.canvas.lh || G.canvas.height); return; }
-  const hw = cv.width / 2 / z + 80, hh = cv.height / 2 / z + 80, pts = [unIso(cam.x - hw, cam.y - hh), unIso(cam.x + hw, cam.y - hh), unIso(cam.x - hw, cam.y + hh), unIso(cam.x + hw, cam.y + hh)];
-  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), M = Math.ceil(N / CH) - 1, cx0 = Math.max(0, Math.floor(Math.min(...xs) / CH)), cx1 = Math.min(M, Math.floor(Math.max(...xs) / CH)), cy0 = Math.max(0, Math.floor(Math.min(...ys) / CH)), cy1 = Math.min(M, Math.floor(Math.max(...ys) / CH));
-  let made = 0; const now = performance.now();
+// The street is composed once into a screen-sized buffer (plus a margin) and copied to the screen in one pixel-exact
+// stroke. When the camera nears the edge of the buffer, the buffer slides over and only the newly uncovered strip is
+// drawn. Same pixels as drawing every chunk every frame, a fraction of the work. While zooming, chunks draw directly.
+let GB = null, GBX = null, gbZ = 0, gbStable = 0;
+function chunkRange(ix0, iy0, ix1, iy1) {
+  const pts = [unIso(ix0, iy0), unIso(ix1, iy0), unIso(ix0, iy1), unIso(ix1, iy1)], M = Math.ceil(N / CH) - 1;
+  let mnx = 1e9, mxx = -1e9, mny = 1e9, mxy = -1e9; for (const p of pts) { if (p[0] < mnx) mnx = p[0]; if (p[0] > mxx) mxx = p[0]; if (p[1] < mny) mny = p[1]; if (p[1] > mxy) mxy = p[1]; }
+  return [Math.max(0, Math.floor(mnx / CH)), Math.min(M, Math.floor(mxx / CH)), Math.max(0, Math.floor(mny / CH)), Math.min(M, Math.floor(mxy / CH))];
+}
+// draw the chunks covering an iso rectangle into g (whose transform is already set); returns false if a chunk was missing
+let gMade = 0;
+function chunksInto(g, ix0, iy0, ix1, iy1, now) {
+  const [cx0, cx1, cy0, cy1] = chunkRange(ix0 - 80, iy0 - 80, ix1 + 80, iy1 + 80); let whole = true;
   for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
     const k = cx + ',' + cy; let c = G.chunks.get(k);
-    if (!c) { if (made >= 1 && G.chunks.size > 4) { G.miss = 1; continue; } c = drawGround(W, cx, cy); G.chunks.set(k, c); made++; }
-    c.used = now; ctx.drawImage(c.canvas, -c.ox, -c.oy, c.canvas.lw, c.canvas.lh);
+    if (!c) { if (gMade >= 1 && G.chunks.size > 4) { G.miss = 1; whole = false; continue; } c = drawGround(W, cx, cy); G.chunks.set(k, c); G.ver = (G.ver || 0) + 1; gMade++; }
+    c.used = now; g.drawImage(c.canvas, -c.ox, -c.oy, c.canvas.lw, c.canvas.lh);
+  }
+  return whole;
+}
+function gbCanvas(old, w, h) { if (old && old.width === w && old.height === h) return old; const c = document.createElement('canvas'); c.width = w; c.height = h; c.g = c.getContext('2d', { alpha: false }); return c; }
+// paint a device-pixel rectangle (relative to the iso origin) of the buffer
+function gbPaint(b, rx, ry, rw, rh, z, now) {
+  if (rw <= 0 || rh <= 0) return true; const g = b.c.g; g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.beginPath(); g.rect(rx - b.x, ry - b.y, rw, rh); g.clip();
+  g.fillStyle = '#0d1422'; g.fillRect(rx - b.x, ry - b.y, rw, rh); g.setTransform(z, 0, 0, z, -b.x, -b.y);
+  const ok = chunksInto(g, rx / z, ry / z, (rx + rw) / z, (ry + rh) / z, now); g.restore(); return ok;
+}
+function groundDraw(z, tx, ty) {
+  if (G.canvas) { ctx.drawImage(G.canvas, -G.ox, -G.oy, G.canvas.lw || G.canvas.width, G.canvas.lh || G.canvas.height); return; }
+  const now = performance.now(), vw = cv.width, vh = cv.height; gMade = 0;
+  gbStable = z === gbZ ? gbStable + 1 : 0; gbZ = z;
+  const [cx0, cx1, cy0, cy1] = chunkRange(cam.x - vw / 2 / z - 80, cam.y - vh / 2 / z - 80, cam.x + vw / 2 / z + 80, cam.y + vh / 2 / z + 80);
+  if (gbStable < 2 || S.cfg && S.cfg.gbuf === false) { GB = null; chunksInto(ctx, cam.x - vw / 2 / z, cam.y - vh / 2 / z, cam.x + vw / 2 / z, cam.y + vh / 2 / z, now); }
+  else {
+    // the screen, in device pixels measured from the iso origin
+    const sx = -tx, sy = -ty, m = Math.round(Math.max(vw, vh) * .2), bw = vw + m * 2, bh = vh + m * 2;
+    if (!GB || GB.z !== z || GB.G !== G || GB.gen !== G.gen || GB.c.width !== bw || GB.c.height !== bh || (!GB.whole && GB.ver !== G.ver)) {
+      GB = { c: gbCanvas(GB && GB.c, bw, bh), x: sx - m, y: sy - m, z, G, gen: G.gen, ver: G.ver };
+      GB.whole = gbPaint(GB, GB.x, GB.y, bw, bh, z, now); GB.ver = G.ver;
+    } else if (sx < GB.x || sy < GB.y || sx + vw > GB.x + bw || sy + vh > GB.y + bh) {
+      // slide: copy what is still in view, then draw only the uncovered strips
+      const nx = sx - m, ny = sy - m, nb = { c: gbCanvas(GBX && GBX !== GB.c ? GBX : null, bw, bh), x: nx, y: ny, z, G, gen: G.gen };
+      const g = nb.c.g; g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#0d1422'; g.fillRect(0, 0, bw, bh); g.drawImage(GB.c, GB.x - nx, GB.y - ny);
+      const ox0 = Math.max(nx, GB.x), oy0 = Math.max(ny, GB.y), ox1 = Math.min(nx + bw, GB.x + bw), oy1 = Math.min(ny + bh, GB.y + bh); let ok = GB.whole;
+      if (ox0 >= ox1 || oy0 >= oy1) ok = gbPaint(nb, nx, ny, bw, bh, z, now);
+      else { ok = gbPaint(nb, nx, ny, bw, oy0 - ny, z, now) && ok; ok = gbPaint(nb, nx, oy1, bw, ny + bh - oy1, z, now) && ok; ok = gbPaint(nb, nx, oy0, ox0 - nx, oy1 - oy0, z, now) && ok; ok = gbPaint(nb, ox1, oy0, nx + bw - ox1, oy1 - oy0, z, now) && ok; }
+      GBX = GB.c; nb.whole = ok; nb.ver = G.ver; GB = nb;
+    }
+    // keep chunks under the buffer marked as in use so the memory budget never drops them
+    if (gbStable % 30 === 0) chunkRangeTouch(GB, z, now);
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(GB.c, GB.x + tx, GB.y + ty); ctx.restore();
   }
   // chunks just outside the view are prepared in idle time (between frames), never inside a frame, so walking and driving stay smooth
   G.view = [cx0, cx1, cy0, cy1]; if (!G.idle) { G.idle = 1; idleSoon(groundAhead); }
   // memory budget for cached ground: only chunks that have been off screen for a while are dropped, oldest first
+  if ((G.tick = (G.tick || 0) + 1) % 20) return;
   let bytes = 0; G.chunks.forEach((c) => { bytes += c.canvas.width * c.canvas.height * 4; });
   if (bytes > GROUND_BUDGET && G.chunks.size > (cx1 - cx0 + 1) * (cy1 - cy0 + 1) + 4) { const old = [...G.chunks.entries()].filter((e) => now - e[1].used > 1500).sort((a, b) => a[1].used - b[1].used); for (const [k, c] of old) { if (bytes <= GROUND_BUDGET * .85) break; bytes -= c.canvas.width * c.canvas.height * 4; G.chunks.delete(k); } }
 }
+function chunkRangeTouch(b, z, now) { const [a0, a1, b0, b1] = chunkRange(b.x / z - 80, b.y / z - 80, (b.x + b.c.width) / z + 80, (b.y + b.c.height) / z + 80); for (let cy = b0; cy <= b1; cy++) for (let cx = a0; cx <= a1; cx++) { const c = G.chunks.get(cx + ',' + cy); if (c) c.used = now; } }
 // how much memory cached ground may use, by device class
 const GROUND_BUDGET = (navigator.deviceMemory >= 8 ? 320 : navigator.deviceMemory >= 4 ? 200 : navigator.deviceMemory ? 110 : (innerWidth < 700 ? 150 : 260)) * 1e6;
 const idleSoon = (fn) => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 250 }) : setTimeout(() => fn({ timeRemaining: () => 12, didTimeout: false }), 40));
@@ -139,7 +183,7 @@ function groundAhead(dl) {
   const ccx = (cx0 + cx1) / 2 + Math.sign(vx + vy * 2) * .8, ccy = (cy0 + cy1) / 2 + Math.sign(vy * 2 - vx) * .8, want = [];
   for (let cy = Math.max(0, cy0 - 2); cy <= Math.min(M2, cy1 + 2); cy++) for (let cx = Math.max(0, cx0 - 2); cx <= Math.min(M2, cx1 + 2); cx++) if (!G.chunks.has(cx + ',' + cy)) want.push([Math.hypot(cx - ccx, cy - ccy), cx, cy]);
   want.sort((a, b) => a[0] - b[0]);
-  let built = 0; for (const [, cx, cy] of want) { if (built && (dl.timeRemaining() < 8 || performance.now() - t0 > 10)) break; const c2 = drawGround(W, cx, cy); c2.used = performance.now(); G.chunks.set(cx + ',' + cy, c2); built++; if (built >= 2) break; }
+  let built = 0; for (const [, cx, cy] of want) { if (built && (dl.timeRemaining() < 8 || performance.now() - t0 > 10)) break; const c2 = drawGround(W, cx, cy); c2.used = performance.now(); G.chunks.set(cx + ',' + cy, c2); G.ver = (G.ver || 0) + 1; built++; if (built >= 2) break; }
   if (want.length > built) { G.idle = 1; idleSoon(groundAhead); }
 }
 
@@ -272,14 +316,22 @@ function darkness() {
   return { a: .74, tint: null, col: '8,12,34' };
 }
 // static things (props, doors, manholes) keep their screen position and their draw entry, so a frame allocates almost nothing for them
-let RNOW = 0;
+let RNOW = 0, RZ = 1, RES_CAP = 2, resWant = 0, resN = 0;
+// sprite resolution follows the on-screen scale once the zoom has settled for a moment (never while pinching)
+function spriteResTick(now) {
+  const q = (S.cfg || {}).quality || 'high', lo = q === 'low' ? 1 : 1.25, t = Math.max(lo, Math.min(RES_CAP, Math.floor(cam.z * dpr * 10 + .02) / 10));
+  if (t === RES) { resN = 0; return; } if (t !== resWant) { resWant = t; resN = 0; } if (!now && ++resN < 24) return;
+  setRes(t); resN = 0; SPR.forEach((x) => { if (x.canvas) x.stale = 1; });
+}
 const lightProps = () => W._lights || (W._lights = W.props.filter((p) => p.t === 'lamp' || p.t === 'canopy' || p.t === 'mast'));
 const isoC = (o) => o._iso || (o._iso = iso(o.x, o.y));
-function render(now) { RNOW = now;
-  const z = cam.z * dpr; ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = '#0d1422'; ctx.fillRect(0, 0, cv.width, cv.height);
-  ctx.setTransform(z, 0, 0, z, cv.width / 2 - cam.x * z, cv.height / 2 - cam.y * z);
-  groundDraw(z);
+function render(now) { RNOW = now; frameStart(); spriteResTick(false);
+  const z = cam.z * dpr; RZ = z; ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // the camera lands on whole device pixels: crisper sprites, and the ground buffer copies 1:1 with no resampling
+  const tx = Math.round(cv.width / 2 - cam.x * z), ty = Math.round(cv.height / 2 - cam.y * z);
+  if (!GB || GB.z !== z || G.canvas || GB.G !== G) { ctx.fillStyle = '#0d1422'; ctx.fillRect(0, 0, cv.width, cv.height); }
+  ctx.setTransform(z, 0, 0, z, tx, ty);
+  groundDraw(z, tx, ty);
   const vx0 = cam.x - cv.width / 2 / z - 120, vx1 = cam.x + cv.width / 2 / z + 120, vy0 = cam.y - cv.height / 2 / z - 300, vy1 = cam.y + cv.height / 2 / z + 140;
   const vis = (sx, sy) => sx > vx0 && sx < vx1 && sy > vy0 && sy < vy1;
   const list = [];
@@ -289,7 +341,7 @@ function render(now) { RNOW = now;
     const b = s.b, near = !ATTRACT && s.depth > pd && P.x < b.x + b.w + 2.5 && P.y < b.y + b.d + 2.5 && P.x > b.x - 3 && P.y > b.y - 3,
       cover = !ATTRACT && s.depth > pd && pix > s.x + 6 && pix < s.x + s.canvas.lw - 6 && piy - 30 > s.y + 10 && piy - 6 < s.y + s.canvas.lh;
     const target = near || cover ? .3 : 1; s.al = s.al == null ? 1 : s.al + (target - s.al) * .18;
-    if (!s._item || s._item.d !== s.depth) s._item = { d: s.depth, f: () => { if (s.al < .98) { ctx.globalAlpha = s.al; ctx.drawImage(s.canvas, s.x, s.y, s.canvas.lw, s.canvas.lh); ctx.globalAlpha = 1; } else ctx.drawImage(s.canvas, s.x, s.y, s.canvas.lw, s.canvas.lh); } }; list.push(s._item); } });
+    if (!s._item || s._item.d !== s.depth) s._item = { d: s.depth, f: () => { if (s.al < .98) { ctx.globalAlpha = s.al; ctx.drawImage(s.canvas, Math.round(s.x * RZ) / RZ, Math.round(s.y * RZ) / RZ, s.canvas.lw, s.canvas.lh); ctx.globalAlpha = 1; } else ctx.drawImage(s.canvas, Math.round(s.x * RZ) / RZ, Math.round(s.y * RZ) / RZ, s.canvas.lw, s.canvas.lh); } }; list.push(s._item); } });
   W.props.forEach((p) => { const q = isoC(p), sx = q[0], sy = q[1]; if (!vis(sx, sy)) return; if (!p._item) p._item = { d: p.x + p.y, f: p.t === 'furn' ? () => { const fade = p.wall && !p.front && p.x > P.x - .3 && p.y > P.y - .3 && (p.x + p.y) - (P.x + P.y) < 4.5; if (fade) ctx.globalAlpha = .28; drawFurn(ctx, p, sx, sy, RNOW, W.wallCol); ctx.globalAlpha = 1; } : () => drawPropFast(ctx, p, sx, sy, RNOW, NIGHT) }; list.push(p._item); });
   if (inside) { W.staff.forEach((st) => { list.push({ d: st.x + st.y, f: () => { staffDraw(ctx, st, now); if (st.npc) { const [sx, sy] = iso(st.x, st.y); if (Math.hypot(st.x - P.x, st.y - P.y) < 6) label(sx, sy - 48, st.npc.icon + ' ' + st.npc.name, '#fde68a'); if (!talkedNow[st.npc.id]) bubble(sx, sy - 66, '💬', '#fde68a', now); } } }); }); W.visitors.forEach((v) => { list.push({ d: v.x + v.y, f: () => visitorDraw(ctx, v, now) }); }); }
   else { doorMarks(list, vis, now); regsDraw(list, vis, now); }
@@ -326,7 +378,7 @@ function render(now) { RNOW = now;
     lx.setTransform(1, 0, 0, 1, 0, 0); lx.globalCompositeOperation = 'source-over'; lx.clearRect(0, 0, lc.width, lc.height);
     lx.fillStyle = 'rgba(' + (dk.col || '10,14,38') + ',' + dk.a + ')'; lx.fillRect(0, 0, lc.width, lc.height);
     lx.globalCompositeOperation = 'destination-out';
-    const toS = (ix, iy) => [(cv.width / 2 + (ix - cam.x) * z) * s, (cv.height / 2 + (iy - cam.y) * z) * s];
+    const toS = (ix, iy) => [(ix * z + tx) * s, (iy * z + ty) * s];
     const hole = (ix, iy, r, k) => { const [x, y] = toS(ix, iy), rr = r * z * s; if (x < -rr || y < -rr || x > lc.width + rr || y > lc.height + rr) return; lx.globalAlpha = k; lx.drawImage(radSprite('#000'), x - rr, y - rr, rr * 2, rr * 2); lx.globalAlpha = 1; };
     lightProps().forEach((p) => { const q = isoC(p), ix = q[0], iy = q[1]; if (p.t === 'lamp') { if (p.on) hole(ix + 10, iy - 6, 92, .85); } else if (p.t === 'canopy') hole(ix, iy, 110, .9); else if (p.t === 'mast') hole(ix, iy - 200, 16, .9); });
     SPR.forEach((sp) => { if (sp.canvas) sp.lights.forEach((q) => hole(q[0], q[1], 34, .55)); }); trimSprites();
@@ -336,9 +388,11 @@ function render(now) { RNOW = now;
     const marks = markerPoints(); marks.forEach((m) => hole(m[0], m[1], 50, .7));
     FX.events.forEach((e) => { const [ix, iy] = iso(e.x, e.y); hole(ix, iy - 10, 70, .7); });
     ctx.drawImage(lc, 0, 0, cv.width, cv.height);
-    // additive glows
+    // additive glows: soft light, so they gather on a half-resolution layer that is added to the frame in one pass
     ctx.globalCompositeOperation = 'lighter';
-    const glow = (ix, iy, r, col) => { const x = cv.width / 2 + (ix - cam.x) * z, y = cv.height / 2 + (iy - cam.y) * z, rr = r * z; if (x < -rr || y < -rr || x > cv.width + rr || y > cv.height + rr) return; ctx.drawImage(radSprite(col), x - rr, y - rr, rr * 2, rr * 2); };
+    if (glc.width !== lc.width || glc.height !== lc.height) { glc.width = lc.width; glc.height = lc.height; }
+    gx.setTransform(1, 0, 0, 1, 0, 0); gx.globalCompositeOperation = 'source-over'; gx.clearRect(0, 0, glc.width, glc.height); gx.globalCompositeOperation = 'lighter'; let glowN = 0;
+    const glow = (ix, iy, r, col) => { const x = (ix * z + tx) * s, y = (iy * z + ty) * s, rr = r * z * s; if (x < -rr || y < -rr || x > glc.width + rr || y > glc.height + rr) return; glowN++; gx.drawImage(radSprite(col), x - rr, y - rr, rr * 2, rr * 2); };
     lightProps().forEach((p) => { if (p.t === 'lamp' && p.on) { const q = isoC(p), ix = q[0], iy = q[1]; glow(ix + 10, iy - 37, 18, 'rgba(255,220,150,.55)'); glow(ix + 10, iy - 37, 46, 'rgba(255,200,120,.12)'); glow(ix + 10, iy - 2, 40, 'rgba(255,190,110,.10)'); } });
     // lit windows and signs spill a little warm light; cars show headlights and taillights
     SPR.forEach((sp) => { if (sp.canvas) sp.lights.forEach((q, k) => { if (k % 2 === 0) glow(q[0], q[1], 16, 'rgba(255,214,140,.10)'); }); });
@@ -349,6 +403,7 @@ function render(now) { RNOW = now;
     const bar = (x, y, on) => { const ph = Math.floor(now / 180) % 2; glow(x, y - 22, 46, on ? (ph ? 'rgba(255,40,40,.45)' : 'rgba(40,90,255,.45)') : 'rgba(0,0,0,0)'); };
     if ((P.inCar || P.boat) && call && call.accepted) { const [ix, iy] = iso(P.x, P.y); bar(ix, iy, true); }
     Object.keys(others).forEach((k) => { const o = others[k]; if (o.v && o.st === 'call') { const [ix, iy] = iso(o.rx, o.ry); bar(ix, iy, true); } });
+    if (glowN) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(glc, 0, 0, cv.width, cv.height); }
     ctx.globalCompositeOperation = 'source-over';
   }
   grade(); rainDraw(); EVT.drawFog(); if (!ATTRACT) { EP.skyDraw(ctx, cv, now); EP.fxDraw(ctx, cv); }
@@ -450,7 +505,7 @@ function bubble(sx, sy, txt, col, now) { const b = Math.sin(now / 260) * 3; ctx.
 const LABELC = new Map();
 function label(sx, sy, txt, col) {
   const k = txt + '|' + col + '|' + RES; let c = LABELC.get(k);
-  if (!c) { if (LABELC.size > 300) LABELC.clear(); ctx.font = '700 11px system-ui,sans-serif'; const w = Math.ceil(ctx.measureText(txt).width + 12), [cv, g] = hiCanvas(w + 2, 20, Math.max(2, RES));
+  if (!c) { if (LABELC.size > 300) LABELC.clear(); ctx.font = '700 11px system-ui,sans-serif'; const w = Math.ceil(ctx.measureText(txt).width + 12), [cv, g] = hiCanvas(w + 2, 20, Math.max(1.5, RES));
     g.font = '700 11px system-ui,sans-serif'; g.fillStyle = 'rgba(8,14,28,.82)'; g.beginPath(); g.roundRect(1, 1, w, 18, 9); g.fill(); g.fillStyle = col; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, 1 + w / 2, 10); c = cv; LABELC.set(k, c); }
   ctx.drawImage(c, sx - c.lw / 2, sy - 10, c.lw, c.lh);
 }
@@ -1233,22 +1288,28 @@ function ambienceGlow(glow, now) { // additive pass at night
   if (night && !inside) AMB.grass.forEach(([x, y, ph]) => { const t = now / 1000 + ph, fx = x + Math.sin(t * .7) * .6, fy = y + Math.cos(t * .5) * .6, [ix, iy] = iso(fx, fy), on = (Math.sin(t * 2.3) + 1) / 2; if (on > .45) glow(ix, iy - 14 - Math.sin(t) * 6, 6 + on * 4, 'rgba(210,255,120,' + (.35 * on) + ')'); });
   if (FX.rain && !inside) lightProps().forEach((p) => { if (p.t !== 'lamp' || !p.on) return; const q = isoC(p), ix = q[0], iy = q[1]; glow(ix + 10, iy + 10, 22, 'rgba(255,214,150,.22)'); glow(ix + 10, iy + 26, 14, 'rgba(255,214,150,.14)'); });
 }
+// the grade and the sun bloom are smooth gradients that only change with the hour band, so they are painted once at
+// half resolution and stamped onto each frame (the same look, without re-rasterising two gradients every frame)
+const GRADEC = new Map();
+function gradeLayer(key, w, h, paint) { let c = GRADEC.get(key); if (!c) { if (GRADEC.size > 12) GRADEC.clear(); c = document.createElement('canvas'); c.width = Math.max(1, Math.ceil(w / 2)); c.height = Math.max(1, Math.ceil(h / 2)); const g = c.getContext('2d'); g.scale(.5, .5); paint(g, w, h); GRADEC.set(key, c); } return c; }
 function grade(dk) { // screen-space color grade by time of day
   if (S.cfg.quality === 'low') return;
-  const h = hourNow(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-  const g = ctx.createLinearGradient(0, 0, 0, cv.height);
-  if (h >= 6 && h < 8.5) { g.addColorStop(0, 'rgba(255,170,120,.16)'); g.addColorStop(1, 'rgba(255,220,180,0)'); }
-  else if (h >= 8.5 && h < 16.5) { g.addColorStop(0, 'rgba(255,240,210,.07)'); g.addColorStop(1, 'rgba(120,170,255,.05)'); }
-  else if (h >= 16.5 && h < 19.5) { g.addColorStop(0, 'rgba(255,110,90,.16)'); g.addColorStop(1, 'rgba(255,170,90,.08)'); }
-  else { g.addColorStop(0, 'rgba(40,70,160,.12)'); g.addColorStop(1, 'rgba(10,20,60,.06)'); }
-  if (S.cfg.quality === 'ultra') { ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = g; ctx.fillRect(0, 0, cv.width, cv.height); ctx.globalCompositeOperation = 'source-over'; } else { ctx.globalAlpha = .55; ctx.fillStyle = g; ctx.fillRect(0, 0, cv.width, cv.height); ctx.globalAlpha = 1; }
+  const h = hourNow(), W0 = cv.width, H0 = cv.height, ultra = S.cfg.quality === 'ultra'; ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const band = h >= 6 && h < 8.5 ? 0 : h >= 8.5 && h < 16.5 ? 1 : h >= 16.5 && h < 19.5 ? 2 : 3;
+  const gl = gradeLayer('g' + band + ultra + W0 + 'x' + H0, W0, H0, (g) => { const gr = g.createLinearGradient(0, 0, 0, H0);
+    if (band === 0) { gr.addColorStop(0, 'rgba(255,170,120,.16)'); gr.addColorStop(1, 'rgba(255,220,180,0)'); }
+    else if (band === 1) { gr.addColorStop(0, 'rgba(255,240,210,.07)'); gr.addColorStop(1, 'rgba(120,170,255,.05)'); }
+    else if (band === 2) { gr.addColorStop(0, 'rgba(255,110,90,.16)'); gr.addColorStop(1, 'rgba(255,170,90,.08)'); }
+    else { gr.addColorStop(0, 'rgba(40,70,160,.12)'); gr.addColorStop(1, 'rgba(10,20,60,.06)'); }
+    if (!ultra) g.globalAlpha = .55; g.fillStyle = gr; g.fillRect(0, 0, W0, H0); });
+  if (ultra) ctx.globalCompositeOperation = 'soft-light'; ctx.drawImage(gl, 0, 0, W0, H0); ctx.globalCompositeOperation = 'source-over';
   if (inside) return;
   const night = h >= 19.5 || h < 5.5, day = h >= 8 && h < 17;
-  if (night) { ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = 'rgba(128,128,128,.28)'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.globalCompositeOperation = 'source-over'; }
+  if (night) { ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = 'rgba(128,128,128,.28)'; ctx.fillRect(0, 0, W0, H0); ctx.globalCompositeOperation = 'source-over'; }
   else if (day) { // the sun sits up and to the left; a soft warm bloom from that corner
-    const s = ctx.createRadialGradient(cv.width * .1, -cv.height * .1, 0, cv.width * .1, -cv.height * .1, Math.max(cv.width, cv.height) * .9);
-    s.addColorStop(0, 'rgba(255,236,190,' + (FX.rain ? .04 : .14) + ')'); s.addColorStop(1, 'rgba(255,236,190,0)');
-    ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = s; ctx.fillRect(0, 0, cv.width, cv.height); ctx.globalCompositeOperation = 'source-over';
+    const bl = gradeLayer('b' + (FX.rain ? 1 : 0) + W0 + 'x' + H0, W0, H0, (g) => { const sg = g.createRadialGradient(W0 * .1, -H0 * .1, 0, W0 * .1, -H0 * .1, Math.max(W0, H0) * .9);
+      sg.addColorStop(0, 'rgba(255,236,190,' + (FX.rain ? .04 : .14) + ')'); sg.addColorStop(1, 'rgba(255,236,190,0)'); g.fillStyle = sg; g.fillRect(0, 0, W0, H0); });
+    ctx.globalCompositeOperation = 'screen'; ctx.drawImage(bl, 0, 0, W0, H0); ctx.globalCompositeOperation = 'source-over';
   }
 }
 
@@ -2259,7 +2320,7 @@ function photoExit() { if (!PHOTO) return; cv.style.filter = ''; document.body.c
 // ---------- boot ----------
 const FAST = /[?&]skiptitle\b/.test(location.search); // test / dev: no logos or loading screens
 function resize(drs) { const q = (S.cfg || {}).quality || 'high', dev = window.devicePixelRatio || 1; dpr = q === 'ultra' ? Math.min(3, Math.max(dev, 3840 / Math.max(innerWidth, innerHeight))) : Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : 2, dev); const base = dpr; dpr = Math.max(Math.min(1, base), base * DRS.k);
-  { const want = Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : q === 'ultra' ? 3 : 2, Math.ceil(base * 1.25 * 2) / 2); if (want !== RES) { setRes(want); if (G && G.chunks) G.chunks.clear(); SPR.forEach((x) => { x.canvas = null; x.lights = []; }); } } cw = innerWidth; ch = innerHeight; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; if (!S.zoom) cam.z = cw < 600 ? .85 : 1.15; else cam.z = S.zoom; }
+  { const want = Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : q === 'ultra' ? 3 : 2, Math.ceil(base * 1.25 * 2) / 2); const gw = Math.min(2, want); if (gw !== GRES) { setGroundRes(gw); if (G && G.chunks) { G.chunks.clear(); G.gen = (G.gen || 0) + 1; } } RES_CAP = want; spriteResTick(true); } cw = innerWidth; ch = innerHeight; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; if (!S.zoom) cam.z = cw < 600 ? .85 : 1.15; else cam.z = S.zoom; }
 addEventListener('resize', resize); resize();
 // soft round light and shadow spots are drawn once per color and stamped, instead of building a new gradient for every lamp every frame
 const RADS = new Map();
@@ -2278,7 +2339,10 @@ function drsTick(now, ms) {
     if (DRS.lowN >= 4 && qi > 0) { S.cfg.quality = tiers[qi - 1]; DRS.lowN = 0; DRS.k = 1; resize(true); saveS(); toast('⚙️ Graphics set to ' + S.cfg.quality + ' to keep things smooth.'); }
     else if (DRS.hiN >= 24 && qi < cap) { S.cfg.quality = tiers[qi + 1]; DRS.hiN = 0; resize(true); saveS(); } }
 }
-function frame(now) { const dt = Math.min(.05, (now - last) / 1000) * (typeof EP !== 'undefined' ? EP.timeScale() : 1); drsTick(now, now - last); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); POL.tick(dt); EP.tick(dt); ON.tick(dt); FEEL.tick(dt); if (!S.seenCine && !EP.busy && W && !inside && !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !paused) EP.intro(); } render(now); } requestAnimationFrame(frame); }
+// a full-screen menu hides the city behind a blur: keep the last frame instead of redrawing (and re-blurring) it every frame
+let FE_EL = null, coverN = 0;
+function covered() { const e = FE_EL || (FE_EL = $('fe')); const c = !e.hidden && (e.classList.contains('menuBg') || (paused && e.classList.contains('pauseBg'))); coverN = c ? coverN + 1 : 0; return coverN > 18; }
+function frame(now) { const dt = Math.min(.05, (now - last) / 1000) * (typeof EP !== 'undefined' ? EP.timeScale() : 1); drsTick(now, now - last); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); POL.tick(dt); EP.tick(dt); ON.tick(dt); FEEL.tick(dt); if (!S.seenCine && !EP.busy && W && !inside && !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !paused) EP.intro(); } if (!covered()) render(now); } requestAnimationFrame(frame); }
 // ---------- the unlock from the study hub ----------
 // The hub opens this page with a pass code once the cadet passes a 100-question test at 85% or better.
 function hubCheck(s) { let h = 2166136261; const t = s + '|patrol-city'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }

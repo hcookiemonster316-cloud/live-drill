@@ -313,7 +313,7 @@ export { shade };
 export const CH = 16;
 export function drawGround(W, cx, cy) {
   const x0 = cx * CH, y0 = cy * CH, x1 = Math.min(N, x0 + CH) - 1, y1 = Math.min(N, y0 + CH) - 1, pad = 4;
-  const w = (x1 - x0 + y1 - y0 + 2) * TW / 2 + pad * 2, h = (x1 - x0 + y1 - y0 + 2) * TH / 2 + pad * 2, [c, g] = hiCanvas(w, h, Math.min(2, RES));
+  const w = (x1 - x0 + y1 - y0 + 2) * TW / 2 + pad * 2, h = (x1 - x0 + y1 - y0 + 2) * TH / 2 + pad * 2, [c, g] = hiCanvas(w, h, GRES);
   const ox = -(x0 - y1 - 1) * TW / 2 + pad, oy = -(x0 + y0) * TH / 2 + pad;
   let seed = 0; const R = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
   // tile-space to canvas: (u, v) inside tile (x, y), 0..1 each
@@ -411,7 +411,14 @@ export function drawGround(W, cx, cy) {
 
 // a building drawn once into its own canvas; night version lights some windows
 // render scale for cached art (buildings, ground): 1 = standard, up to 3 for 4K
-export let RES = 1; export function setRes(k) { RES = k; }
+// RES: how many pixels a sprite has per world unit. It follows the on-screen scale (zoom x screen density), so cached
+// sprites are stamped at 1:1 instead of being shrunk every frame, which is the expensive direction for a canvas.
+// GRES is the ground's own resolution; the ground goes through a screen buffer, so it does not need to follow zoom.
+export let RES = 1, GRES = 2; export function setRes(k) { RES = k; } export function setGroundRes(k) { GRES = k; }
+// when RES changes, only a few sprites per frame are redrawn; the rest keep using their previous drawing until then
+let MISS = 0; const LASTC = new Map(); export function frameStart() { MISS = 0; }
+function reuse(base) { return MISS >= 6 ? LASTC.get(base) : null; }
+function remember(base, c) { MISS++; if (LASTC.size > 4000) LASTC.clear(); LASTC.set(base, c); }
 let SUNLEN = 0; export function setSun(len) { SUNLEN = len || 0; }
 function castShadow(g, sx, sy, w, k) { if (!SUNLEN) return; const L = SUNLEN * k; g.save(); g.translate(sx + L * .42, sy + L * .21); g.rotate(.46); g.fillStyle = 'rgba(10,16,30,.20)'; g.beginPath(); g.ellipse(0, 0, L * .5 + w * .4, w * .45, 0, 0, Math.PI * 2); g.fill(); g.restore(); }
 export function hiCanvas(w, h, k) { const c = document.createElement('canvas'); k = k || 1; c.width = Math.ceil(w * k); c.height = Math.ceil(h * k); c.lw = c.width / k; c.lh = c.height / k; const g = c.getContext('2d'); g.scale(k, k); return [c, g]; }
@@ -570,8 +577,8 @@ export function drawPropFast(g, p, sx, sy, t, night) {
   if (p.t === 'tree' || p.t === 'palm') { const v = Math.floor(p.x * 7 + p.y * 13) & 3; key = p.t + '|' + v + '|' + (p.s || 1); ox = p.t === 'tree' ? Math.sin(t / 1100 + p.x * 3) * 1.2 : Math.sin(t / 900 + p.x) * .8; q = null; }
   else if (PROP_STATIC.has(p.t)) { key = p.t; if (p._pk == null) { let pk = ''; for (const k in p) if (k !== 'x' && k !== 'y' && k !== 't' && k !== 'on' && k[0] !== '_') pk += '|' + k + '=' + p[k]; p._pk = pk; } key += p._pk + (p.on ? '|on' : ''); }
   if (!key) return drawProp(g, p, sx, sy, t, night);
-  key += '|' + (night ? 1 : 0) + '|' + RES; let c = PROPC.get(key);
-  if (!c) { if (PROPC.size > 500) PROPC.clear(); const [cv, cg] = hiCanvas(120, 150, RES); if (!q) { q = {}; for (const k in p) if (k[0] !== '_') q[k] = p[k]; q.x = 0; q.y = Math.floor(p.x * 7 + p.y * 13) & 3; } drawProp(cg, q, 60, 130, 0, night); c = cv; PROPC.set(key, c); }
+  key += '|' + (night ? 1 : 0); const base = 'p' + key; key += '|' + RES; let c = PROPC.get(key) || reuse(base);
+  if (!c) { if (PROPC.size > 500) PROPC.clear(); const [cv, cg] = hiCanvas(120, 150, RES); if (!q) { q = {}; for (const k in p) if (k[0] !== '_') q[k] = p[k]; q.x = 0; q.y = Math.floor(p.x * 7 + p.y * 13) & 3; } drawProp(cg, q, 60, 130, 0, night); c = cv; PROPC.set(key, c); remember(base, c); }
   g.drawImage(c, sx - 60 + ox, sy - 130, c.lw, c.lh);
 }
 // props, people and cars are drawn each frame (cheap shapes)
@@ -639,11 +646,12 @@ let PHIT = 0; const PCAP = navigator.deviceMemory && navigator.deviceMemory < 4 
 export function personFast(g, sx, sy, o, t, key, lod) {
   const s = o.s || 1, mv = !!o.moving, cyc = mv ? (o.stride != null ? o.stride * 6.4 : t / 95) + (o.ph || 0) : 0, fr0 = mv ? Math.floor((((cyc % TAU) + TAU) % TAU) / TAU * 8) : 0, fr = lod ? fr0 & 6 : fr0;
   // in a crowd, people facing left are the right-facing sprite mirrored, and sprites are a little softer: half the sprites, half the memory
-  const flip = lod && (o.face || 1) < 0, sr = lod ? Math.min(RES, 1.5) : RES, k = key + '|' + fr + '|' + (flip ? 1 : o.face || 1) + '|' + (mv && o.back ? 1 : 0) + '|' + (mv ? 1 : 0) + '|' + s + '|' + sr;
+  let flip = lod && (o.face || 1) < 0, sr = lod ? Math.min(RES, 1.5) : RES, k = key + '|' + fr + '|' + (flip ? 1 : o.face || 1) + '|' + (mv && o.back ? 1 : 0) + '|' + (mv ? 1 : 0) + '|' + s, base = 'h' + k; k += '|' + sr;
   let c = PCACHE.get(k);
   // least-recently-used eviction: a crowd never empties the whole cache at once
   if (c) { if (++PHIT % 8 === 0) { PCACHE.delete(k); PCACHE.set(k, c); } }
-  if (!c) { if (PCACHE.size > PCAP) { let n = 120; for (const kk of PCACHE.keys()) { PCACHE.delete(kk); if (--n <= 0) break; } } const [cv, cg] = hiCanvas(56, 84, sr); person(cg, 28, 74, Object.assign({}, o, { face: flip ? 1 : o.face, noShadow: true, glance: false, stride: mv ? ((fr + .5) / 8 * TAU - (o.ph || 0)) / 6.4 : null, moving: mv }), 0); c = cv; PCACHE.set(k, c); }
+  if (!c) c = reuse(base);
+  if (!c) { if (PCACHE.size > PCAP) { let n = 120; for (const kk of PCACHE.keys()) { PCACHE.delete(kk); if (--n <= 0) break; } } const [cv, cg] = hiCanvas(56, 84, sr); person(cg, 28, 74, Object.assign({}, o, { face: flip ? 1 : o.face, noShadow: true, glance: false, stride: mv ? ((fr + .5) / 8 * TAU - (o.ph || 0)) / 6.4 : null, moving: mv }), 0); c = cv; PCACHE.set(k, c); remember(base, c); }
   castShadow(g, sx, sy, 9 * s, .9 * s);
   if (!SHSPR) { const [cv, cg] = hiCanvas(24, 12, 2), gr = cg.createRadialGradient(12, 6, 0, 12, 6, 9); gr.addColorStop(0, 'rgba(0,0,0,.38)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); cg.fillStyle = gr; cg.beginPath(); cg.ellipse(12, 6, 9, 4, 0, 0, TAU); cg.fill(); SHSPR = cv; }
   g.drawImage(SHSPR, sx + 1 - 12 * s, sy - 6 * s, 24 * s, 12 * s);
@@ -786,8 +794,8 @@ export function dog(g, sx, sy, face, moving, t) {
 // dogs are drawn once per animation frame and stamped (a trot is 10 frames, standing is 8)
 const DCACHE = new Map();
 export function dogFast(g, sx, sy, face, moving, t) {
-  const f = face < 0 ? -1 : 1, per = moving ? 534 : 1005, n = moving ? 10 : 8, fr = Math.floor(((t % per) + per) % per / per * n), k = f + '|' + (moving ? 1 : 0) + '|' + fr + '|' + RES;
-  let c = DCACHE.get(k); if (!c) { if (DCACHE.size > 80) DCACHE.clear(); const [cv, cg] = hiCanvas(44, 34, RES); dog(cg, 22, 28, f, moving, fr * per / n); c = cv; DCACHE.set(k, c); }
+  const f = face < 0 ? -1 : 1, per = moving ? 534 : 1005, n = moving ? 10 : 8, fr = Math.floor(((t % per) + per) % per / per * n), base = 'd' + f + '|' + (moving ? 1 : 0) + '|' + fr, k = base + '|' + RES;
+  let c = DCACHE.get(k) || reuse(base); if (!c) { if (DCACHE.size > 80) DCACHE.clear(); const [cv, cg] = hiCanvas(44, 34, RES); dog(cg, 22, 28, f, moving, fr * per / n); c = cv; DCACHE.set(k, c); remember(base, c); }
   g.drawImage(c, sx - 22, sy - 28, c.lw, c.lh);
 }
 
@@ -860,9 +868,9 @@ export function drawVehicle(g, sx, sy, dir, v, t, night, on) {
 const VCACHE = new Map();
 function vehicleFast(g, sx, sy, dir, v, t, night, on) {
   if (on) return drawVehicle(g, sx, sy, dir, v, t, night, on);
-  let k = dir + '|' + (night ? 1 : 0) + '|' + Math.round(SUNLEN) + '|' + RES; for (const f in v) k += '|' + f + '=' + v[f];
-  let c = VCACHE.get(k);
-  if (!c) { if (VCACHE.size > 260) { let n = 40; for (const kk of VCACHE.keys()) { VCACHE.delete(kk); if (--n <= 0) break; } } const sc = v.scale || 1, W = Math.ceil(150 * sc), Hh = Math.ceil(120 * sc), [cv, cg] = hiCanvas(W, Hh, RES); drawVehicle(cg, W / 2, Hh * .72, dir, v, 0, night, false); cv.ax = W / 2; cv.ay = Hh * .72; c = cv; VCACHE.set(k, c); }
+  let k = dir + '|' + (night ? 1 : 0) + '|' + Math.round(SUNLEN); for (const f in v) k += '|' + f + '=' + v[f]; const base = 'v' + k; k += '|' + RES;
+  let c = VCACHE.get(k) || reuse(base);
+  if (!c) { if (VCACHE.size > 260) { let n = 40; for (const kk of VCACHE.keys()) { VCACHE.delete(kk); if (--n <= 0) break; } } const sc = v.scale || 1, W = Math.ceil(150 * sc), Hh = Math.ceil(120 * sc), [cv, cg] = hiCanvas(W, Hh, RES); drawVehicle(cg, W / 2, Hh * .72, dir, v, 0, night, false); cv.ax = W / 2; cv.ay = Hh * .72; c = cv; VCACHE.set(k, c); remember(base, c); }
   g.drawImage(c, sx - c.ax, sy - c.ay, c.lw, c.lh);
 }
 export function car(g, sx, sy, dir, color, police, t, night, scale, bar) {
