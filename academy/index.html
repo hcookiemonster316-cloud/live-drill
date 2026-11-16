@@ -875,6 +875,15 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--gold)!impo
 #rpTxt{width:100%;min-height:96px;margin:8px 0;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#0b1222;color:#fff;font:500 .9rem/1.45 system-ui;resize:vertical;box-sizing:border-box}
 .rpShot{display:block;width:100%;max-height:180px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.12)}
 .ngList{display:grid;gap:8px;margin:8px 0}.ngList div{padding:9px 12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);font-size:.84rem;line-height:1.4;color:#dbe3ef}.ngList b{color:#fff}
+.bkCard{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(168px + var(--safe-b, 0px));width:min(420px,calc(100% - 20px));z-index:31;padding:11px 13px 13px;border-radius:16px;background:linear-gradient(180deg,rgba(14,26,58,.97),rgba(7,12,28,.97));border:1px solid rgba(59,130,246,.55);box-shadow:0 18px 44px -14px #000,0 0 0 1px rgba(59,130,246,.2);color:#e8eef8;animation:bkIn .35s cubic-bezier(.2,.9,.3,1.2) both;overflow:hidden}
+.bkCard.p1{border-color:rgba(239,68,68,.7);box-shadow:0 18px 44px -14px #000,0 0 26px -6px rgba(239,68,68,.6)}
+@keyframes bkIn{from{opacity:0;transform:translate(-50%,-14px) scale(.96)}to{opacity:1;transform:translate(-50%,0)}}
+.bkTop{display:flex;justify-content:space-between;align-items:center;font:800 .72rem 'Barlow Condensed',system-ui;letter-spacing:.16em;color:#93c5fd}.bkCard.p1 .bkTop b{color:#fca5a5}.bkTop span{letter-spacing:.04em;color:#cbd5e1}
+.bkWho{margin-top:5px;font-size:.98rem}.bkWhat{color:#94a3b8;font-size:.85rem;margin-top:2px}
+.bkBtns{display:flex;gap:8px;margin-top:10px}.bkBtns button{flex:1;padding:10px;border-radius:11px;border:0;font-weight:800;background:#3b82f6;color:#fff;cursor:pointer}.bkBtns button.ghost{flex:.6;background:rgba(255,255,255,.08);color:#cbd5e1;border:1px solid rgba(255,255,255,.12)}
+.bkTime{position:absolute;left:0;bottom:0;height:3px;width:calc(var(--left,1) * 100%);background:#3b82f6;transition:width .25s linear}.bkCard.p1 .bkTime{background:#ef4444}
+.ccBkS{margin-top:6px;font-size:.78rem;color:#93c5fd}
+body.cine .bkCard,body.attract .bkCard{display:none!important}
 </style>
 </head>
 <body>
@@ -896,6 +905,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--gold)!impo
 <div class="mini"><canvas id="mini" width="240" height="240"></canvas></div><div id="hExp" class="hExp">Explored 0%</div>
 <div id="banner" class="banner" hidden></div>
 <div id="callCard" hidden></div>
+<div id="bkCard" class="bkCard" hidden></div>
 <div class="zoom"><button type="button" id="zIn" aria-label="Zoom in">+</button><button type="button" id="zOut" aria-label="Zoom out">−</button></div>
 <div id="quick" hidden></div>
 <nav class="hBot">

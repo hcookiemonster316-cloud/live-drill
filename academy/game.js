@@ -239,9 +239,9 @@ function callCard() {
   const el = $('callCard'); if (!call) { el.hidden = true; return; }
   el.hidden = false; el.className = 'callCard p' + call.prio;
   el.innerHTML = '<div class="ccTop"><b>' + (call.prio === 1 ? 'PRIORITY 1' : call.prio === 2 ? 'PRIORITY 2' : 'ROUTINE') + '</b><span>' + esc(L.lessonName(call.les)) + '</span></div><div class="ccT">' + esc(call.title) + '</div><div class="ccW">' + esc(call.where) + '</div>' +
-    '<div class="ccB"><button type="button" id="ccGo">' + (call.accepted ? 'Navigate' : 'Respond') + '</button><button type="button" class="ghost" id="ccBk">' + (call.backup ? 'Backup requested' : 'Request backup') + '</button></div>';
+    '<div class="ccB"><button type="button" id="ccGo">' + (call.accepted ? 'Navigate' : 'Respond') + '</button><button type="button" class="ghost" id="ccBk">' + (call.backup ? 'Code 4 · cancel backup' : 'Request backup') + '</button></div>' + (call.backup ? '<div class="ccBkS">' + bkStatus() + '</div>' : '');
   $('ccGo').onclick = () => { if (inside) exitBuilding(); call.accepted = true; if (net) net.status('call'); radio(S.cs, 'En route.'); goTo(call.x, call.y, () => {}); callCard(); };
-  $('ccBk').onclick = () => { if (call.backup) return; call.backup = true; if (net) net.backup({ x: call.x, y: call.y, l: call.title.slice(0, 48) }); radio(S.cs, 'Requesting backup at ' + call.where + '.'); callCard(); };
+  $('ccBk').onclick = () => { if (call.backup) { bkCancel('Code 4. No further units needed.'); return; } call.backup = true; if (net) net.backup({ x: call.x, y: call.y, l: call.title.slice(0, 48), p: call.prio }); radio(S.cs, 'Requesting backup at ' + call.where + '.'); chirp(); callCard(); };
 }
 
 // ---------- movement ----------
@@ -291,7 +291,7 @@ function update(dt, now) {
   // arrive on a call
   if (call && !inside && Math.hypot(call.x - P.x, call.y - P.y) < 1.7 && !scene && !heldByLeave()) { const c = call; call = null; callCard(); openCallScene(c); }
   if (!call && !scene && !S.x6 && !S.offDuty) { nextCall -= dt; if (nextCall <= 0) dispatchCall(); }
-  if (call && clock - call.t0 > callWait() + BUFF.wait) { radio('Dispatch', S.cs + ', disregard; another unit took that call.'); call = null; callCard(); nextCall = 20; if (net) { net.status('patrol'); net.backup(null); } }
+  if (call && clock - call.t0 > callWait() + BUFF.wait) { radio('Dispatch', S.cs + ', disregard; another unit took that call.'); if (call.backup && net) net.backup(null); call = null; callCard(); nextCall = 20; if (net) { net.status('patrol'); net.backup(null); } }
   // observation moments appear only up close
   observes.forEach((o) => { if (!o.seen && Math.hypot(o.x - P.x, o.y - P.y) < spotR()) { o.seen = true; toast((S.unit === 'k9' ? 'Your K9 alerts. ' : '') + 'Something\'s off: ' + o.text + '. Tap the ! to check it out.'); beep(880, .08, 'sine', .04); if (S.unit === 'k9') { beep(520, .07, 'square', .03, .1); beep(520, .07, 'square', .03, .22); } } });
   infos.forEach((i) => { if (i.cool > 0) i.cool -= dt; });
@@ -1182,6 +1182,7 @@ function trackerHud(dt) {
 
 // the guide arrow: whenever a case is tracked, an arrow at your feet points the way (and one at the screen edge when it's off screen)
 function guideTarget() {
+  if (BKGO && !inside) return { x: BKGO.x, y: BKGO.y, ax: BKGO.x, ay: BKGO.y, side: false, lab: 'Backup' };
   const t = stepTarget(); if (t) { const p = TRAIL.path, a = p && p.length > 4 ? p[Math.min(4, p.length - 1)] : null; return { x: t.x, y: t.y, ax: a ? a[0] : t.x, ay: a ? a[1] : t.y, side: (activeQ() || {}).side, lab: t.exit ? 'Exit' : '' }; }
   const q = S.track !== 'main' ? sideQ(S.track) : null, d = q && sideLive(q) ? q.d : null; if (d == null || d === W.did) return null;
   if (inside) return { x: W.door[0], y: W.door[1], ax: W.door[0], ay: W.door[1], side: true, lab: 'Exit' };
@@ -1615,6 +1616,7 @@ function openCallSceneQ(c) {
     { t: 'Point them to resources that can help next time', reply: [[cid, 'I didn\'t know half of that existed. Thank you.']], fx: () => { c.wrap = 'resources'; } },
     { t: 'Clear the scene and get back in service', reply: [[cid, 'Oh. Okay. Bye, then.']], fx: () => { c.wrap = 'quick'; nextCall = Math.max(8, nextCall - 10); } }], 'How do you wrap it up?']);
   dialogue(lines, (res) => {
+    if (c.backup && net) { net.backup(null); c.backup = false; }
     paused = false; const eff = (res.choices.find((o) => o.eff) || {}).eff; c.eff = eff; if (eff) consequence(eff, c);
     const r = { right: res.right, n: res.n };
     S.calls++; SS.calls++; NG.callCleared(); stat('p' + c.prio); if (inside) stat('inCall'); if (NIGHT) stat('nightCalls'); const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 && hasSk('tac2') ? 1.15 : 1) * (c.prio === 1 && hasSk('tac4') ? 1.25 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM * EP.callMult() * NG.mult() * (hasSk('pat3') && EP.repOf(W.did).idx >= 2 ? 1.1 : 1), xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0) + (c.wrap === 'case' || c.wrap === 'resources' ? 10 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
@@ -2020,6 +2022,31 @@ const PINGS = [];
 function pingsDraw(now) { for (let i = PINGS.length - 1; i >= 0; i--) { const p = PINGS[i], a = Math.max(0, (now - p.t) / 2400); if (a > 1) { PINGS.splice(i, 1); continue; } const [sx, sy] = iso(p.x, p.y); ctx.strokeStyle = p.c; ctx.globalAlpha = 1 - a; ctx.lineWidth = 3; for (let k = 0; k < 3; k++) { const r = ((a * 3 + k / 3) % 1) * 60; ctx.beginPath(); ctx.ellipse(sx, sy, r, r / 2, 0, 0, Math.PI * 2); ctx.stroke(); } ctx.globalAlpha = 1; } }
 
 // ---------- multiplayer ----------
+// ---------- backup requests: ask, others accept, they get a route, arrive, and take the cover role ----------
+let BKGO = null, BKQ = [], BKDECL = {}, BKT = 0;
+function bkStatus() { const go = Object.keys(others).filter((k) => others[k].a === myUid + '|go').map((k) => others[k].c), on = Object.keys(others).filter((k) => others[k].a === myUid).map((k) => others[k].c);
+  return on.length ? '🛡️ On scene: ' + on.map(esc).join(', ') : go.length ? '🚓 En route: ' + go.map(esc).join(', ') : '📻 Waiting for a unit to accept…'; }
+function bkCancel(why) { if (call) call.backup = false; if (net) net.backup(null); radio(S.cs, why); callCard(); }
+function bkOffer(uid, v) { if (!S.cfg || S.cfg.bkOff) return; const key = uid + ':' + v.b.t; if (BKDECL[key] || (BKGO && BKGO.uid === uid)) return; BKQ = BKQ.filter((x) => x.uid !== uid); BKQ.push({ uid, key, c: v.c, u: v.u, b: v.b, at: performance.now() }); }
+function bkCardTick() {
+  const el = $('bkCard'); BKQ = BKQ.filter((x) => others[x.uid] && others[x.uid].b && performance.now() - x.at < 45000);
+  const r = BKQ[0], free = !stageBusy() && $('dlg').hidden && $('modal').hidden && !scene && !inside;
+  if (!r || !free || BKGO) { if (!el.hidden) el.hidden = true; return; }
+  if (el.dataset.k === r.key && !el.hidden) { const left = Math.max(0, 45 - (performance.now() - r.at) / 1000); el.style.setProperty('--left', (left / 45).toFixed(3)); return; }
+  const d = Math.round(Math.hypot(r.b.x - P.x, r.b.y - P.y) * 4), un = unitOf(r.u) || {}; el.dataset.k = r.key; el.hidden = false; el.className = 'bkCard p' + (r.b.p || 2);
+  el.innerHTML = '<div class="bkTop"><b>' + (r.b.p === 1 ? '🚨 PRIORITY BACKUP' : '📻 BACKUP REQUEST') + '</b><span>' + d + ' m away</span></div><div class="bkWho">' + (un.icon || '🚓') + ' <b>' + esc(r.c) + '</b> needs a cover officer</div><div class="bkWhat">' + esc(r.b.l || 'Cover officer requested') + '</div>' +
+    '<div class="bkBtns"><button type="button" id="bkYes">Accept · en route</button><button type="button" class="ghost" id="bkNo">Decline</button></div><i class="bkTime"></i>';
+  $('bkYes').onclick = () => bkAccept(r); $('bkNo').onclick = () => { BKDECL[r.key] = 1; BKQ.shift(); el.hidden = true; };
+}
+function bkAccept(r) { BKQ = BKQ.filter((x) => x !== r); $('bkCard').hidden = true; BKGO = { uid: r.uid, x: r.b.x, y: r.b.y, c: r.c, l: r.b.l, t: performance.now() };
+  if (net) net.assist(r.uid + '|go'); radio(S.cs, 'Copy, ' + r.c + '. En route to back you up.'); chirp(); if (inside) exitBuilding(); goTo(r.b.x, r.b.y, () => {}); toast('🧭 Follow the blue route to ' + r.c + '.'); }
+function bkStood(msg) { BKGO = null; if (net) net.assist(null); toast('📻 ' + msg); }
+function bkTick() {
+  bkCardTick(); if (!BKGO) return; const o = others[BKGO.uid];
+  if (!o || !o.b) return bkStood((BKGO.c || 'The unit') + ' cleared the call. Backup no longer needed.');
+  if (Math.hypot(BKGO.x - P.x, BKGO.y - P.y) < 2 && !stageBusy() && $('dlg').hidden && !scene) { const uid = BKGO.uid; BKGO = null; backupScene(uid, o); }
+  else if (performance.now() - BKGO.t > 240000) bkStood('Backup request timed out.');
+}
 function onPlayers(all, uid) {
   myUid = uid; const now = N0(), seen = {};
   Object.keys(all).forEach((k) => {
@@ -2027,8 +2054,10 @@ function onPlayers(all, uid) {
     const o = others[k] || (others[k] = { rx: v.x, ry: v.y, skin: rnd(SKIN) });
     const close = (S.squad && v.g === S.squad.code) || Math.hypot((v.x || 0) - P.x, (v.y || 0) - P.y) < 40 || Object.keys(all).length < 16;
     if (v.q && (!o.q || o.q.t !== v.q.t) && now - v.q.t < 8000) { o.qAt = performance.now(); if (close) radio(v.c, QUICK[v.q.k] || ''); }
-    if (v.b && v.b.t && (!o.b || o.b.t !== v.b.t) && now - v.b.t < 60000 && close) { radio(v.c, 'Requesting backup: ' + (v.b.l || '')); chirp(); toast(v.c + ' requests backup. Tap the blue marker to respond.'); }
-    if (v.a === uid && o.a !== uid) { toast('🛡️ ' + v.c + ' is on scene as your cover officer.'); good(); COVER = { c: v.c, t: Date.now() }; if (call) call.cover = v.c; }
+    if (v.b && v.b.t && (!o.b || o.b.t !== v.b.t) && now - v.b.t < 60000 && close) { radio(v.c, 'Requesting backup: ' + (v.b.l || '')); chirp(); bkOffer(k, v); }
+    if (o.b && !v.b && BKGO && BKGO.uid === k) bkStood(v.c + ' is Code 4. Backup no longer needed. Thanks for rolling.');
+    if (v.a === uid + '|go' && o.a !== v.a) { radio(v.c, 'En route to back you up.'); toast('🚓 ' + v.c + ' accepted your backup request and is en route.'); good(); setTimeout(() => call && callCard(), 0); }
+    if (v.a === uid && o.a !== uid) { toast('🛡️ ' + v.c + ' is on scene as your cover officer.'); good(); COVER = { c: v.c, t: Date.now() }; if (call) call.cover = v.c; setTimeout(() => call && callCard(), 0); }
     Object.assign(o, { n: v.n, f: v.f, u: v.u, sh: v.s, tx: v.x, ty: v.y, c: v.c, v: v.v, d: v.d, st: v.st, q: v.q, b: v.b, a: v.a, g: v.g || null, k: v.k || null, r: v.r }); if (S.squad && v.g === S.squad.code && !o.sqHello) { o.sqHello = 1; toast('🛡️ Squadmate ' + v.c + ' is on shift nearby.'); }
   });
   Object.keys(others).forEach((k) => { if (!seen[k]) delete others[k]; });
@@ -2382,7 +2411,7 @@ function drsTick(now, ms) {
 // a full-screen menu hides the city behind a blur: keep the last frame instead of redrawing (and re-blurring) it every frame
 let FE_EL = null, coverN = 0;
 function covered() { const e = FE_EL || (FE_EL = $('fe')); const c = !e.hidden && (e.classList.contains('menuBg') || (paused && e.classList.contains('pauseBg'))); coverN = c ? coverN + 1 : 0; return coverN > 18; }
-function frame(now) { const dt = Math.min(.05, (now - last) / 1000) * (typeof EP !== 'undefined' ? EP.timeScale() : 1); drsTick(now, now - last); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); POL.tick(dt); EP.tick(dt); ON.tick(dt); FEEL.tick(dt); if (!S.seenCine && !EP.busy && W && !inside && !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !paused) EP.intro(); } if (!covered()) render(now); } requestAnimationFrame(frame); }
+function frame(now) { const dt = Math.min(.05, (now - last) / 1000) * (typeof EP !== 'undefined' ? EP.timeScale() : 1); drsTick(now, now - last); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); if ((BKT -= dt) <= 0) { BKT = .25; bkTick(); } POL.tick(dt); EP.tick(dt); ON.tick(dt); FEEL.tick(dt); if (!S.seenCine && !EP.busy && W && !inside && !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !paused) EP.intro(); } if (!covered()) render(now); } requestAnimationFrame(frame); }
 // ---------- the unlock from the study hub ----------
 // The hub opens this page with a pass code once the cadet passes a 100-question test at 85% or better.
 function hubCheck(s) { let h = 2166136261; const t = s + '|patrol-city'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }

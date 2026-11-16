@@ -165,6 +165,9 @@
                 },
                 "$o": {
                   ".validate": false
+                },
+                "p": {
+                  ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
                 }
               },
               "a": {
