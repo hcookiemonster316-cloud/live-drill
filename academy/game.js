@@ -13,6 +13,7 @@ import { installLife } from './life.js';
 import { installOffDuty } from './offduty.js';
 import { installAcademy } from './academy.js';
 import { installEvents } from './events.js';
+import { installPolish } from './polish.js';
 SIDE2.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); LORE2.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); }); LORE_PLACES.concat(LORE_PEOPLE).forEach((e) => { if (!LORE.some((o) => o.id === e.id || o.when === e.when)) LORE.push(e); });
 import { createMusic } from './music.js';
 import { createScore } from './score.js';
@@ -160,7 +161,7 @@ function dispatchCall() {
   const pk = c[2] === 'parking' && !lot && W.parking.length ? (() => { const near = W.parking.filter((t) => Math.hypot(t[0] - P.x, t[1] - P.y) < 30); return rnd(near.length ? near : W.parking); })() : null;
   const spot = lot ? lot.door : pk || nearTile(W.walk, 28), where = lot ? (lot.name || (LANDMARKS[lot.kind] || {}).name || 'the ' + lot.kind) : pk ? 'the parking lot at ' + ((W.lots.find((l) => !l.sub && pk[0] > l.ox && pk[0] < l.ox + 8 && pk[1] > l.oy && pk[1] < l.oy + 9) || {}).name || 'a business') : 'block ' + (100 + spot[1] * 10) + ' ' + ['Main St', 'Bay St', 'Oak Ave', 'Pine St', 'Harbor Rd'][spot[0] % 5];
   call = { les, title: c[0], prio: c[1], text: c[3], x: spot[0] + .5, y: spot[1] + .5, where, kind: lot ? lot.kind : pk ? 'parking' : 'street', t0: clock, accepted: false, backup: false };
-  if (c[1] === 1) shake(5, .5); radio('Dispatch', S.cs + ', ' + (c[1] === 1 ? 'priority one, ' : '') + c[0].toLowerCase() + ' at ' + where + '. ' + c[3]); chirp(); callCard();
+  if (c[1] === 1) { shake(5, .5); if (S.sound) setTimeout(() => music.sting('p1'), 300); } radio('Dispatch', S.cs + ', ' + (c[1] === 1 ? 'priority one, ' : '') + c[0].toLowerCase() + ' at ' + where + '. ' + c[3]); chirp(); callCard();
 }
 function callCard() {
   const el = $('callCard'); if (!call) { el.hidden = true; return; }
@@ -319,7 +320,7 @@ function render(now) {
   grade(); rainDraw(); EVT.drawFog();
   // markers drawn above the lighting so they stay readable
   ctx.setTransform(z, 0, 0, z, cv.width / 2 - cam.x * z, cv.height / 2 - cam.y * z);
-  if (!ATTRACT) { guideDraw(now, z); if (!inside) { EVT.draw(now); LIFE.draw(now); OFF.draw(now); ACAD.draw(now); regs.forEach((r) => { if (OFF.arcReady(r.n.id)) { const [sx, sy] = iso(r.x, r.y); bubble(sx, sy - 92, '💛', '#f472b6', now); } }); } storyMarker(now); floatsDraw(now); pingsDraw(now); if (SELF_SAY.text && performance.now() - SELF_SAY.at < 6000) { const [sx, sy] = iso(P.x, P.y); speech(sx, sy - (P.inCar ? 52 : 70), SELF_SAY.text.length > 34 ? SELF_SAY.text.slice(0, 32) + '…' : SELF_SAY.text); } }
+  if (!ATTRACT) { guideDraw(now, z); if (!inside) { EVT.draw(now); LIFE.draw(now); OFF.draw(now); ACAD.draw(now); POL.drawBarks(ctx); regs.forEach((r) => { if (OFF.arcReady(r.n.id)) { const [sx, sy] = iso(r.x, r.y); bubble(sx, sy - 92, '💛', '#f472b6', now); } }); } storyMarker(now); floatsDraw(now); pingsDraw(now); if (SELF_SAY.text && performance.now() - SELF_SAY.at < 6000) { const [sx, sy] = iso(P.x, P.y); speech(sx, sy - (P.inCar ? 52 : 70), SELF_SAY.text.length > 34 ? SELF_SAY.text.slice(0, 32) + '…' : SELF_SAY.text); } }
   if (call) { const [sx, sy] = iso(call.x, call.y); ring(sx, sy, call.prio === 1 ? '#ff4d4d' : '#f5b800', now); bubble(sx, sy - 40, '📻', call.prio === 1 ? '#ff4d4d' : '#f5b800', now); label(sx, sy - 66, call.title, '#ffffff'); }
   infos.forEach((i) => { const [sx, sy] = iso(i.x, i.y); bubble(sx, sy - 30, '📖', i.cool > 0 ? '#6b7280' : '#8b5cf6', now); });
   observes.forEach((o) => { if (!o.seen) return; const [sx, sy] = iso(o.x, o.y); ring(sx, sy, '#a855f7', now); bubble(sx, sy - 30, '!', '#a855f7', now); });
@@ -364,7 +365,7 @@ const LIFE = installLife({ S, L, get W() { return W; }, get P() { return P; }, g
   saveS: () => saveS(), hud: () => hud(), openModal: (h) => openModal(h), closeModal: () => closeModal(), $: (id) => $(id), esc: (x) => esc(x), iso: (x, y) => iso(x, y), get ctx() { return ctx; }, bubble: (...a) => bubble(...a), label: (...a) => label(...a), person: (...a) => person(...a),
   rideKind: () => RIDE(), motorPool: () => motorPool(), goTo: (...a) => goTo(...a), doorSpot: (l) => doorSpot(l), whereAt: (x, y) => { const n = nearestLotTo(x, y); return n ? 'near ' + n : 'on patrol'; }, lights: (on) => { STOPLIGHTS = on; } });
 // off the clock: off-duty mode, leisure, ride-alongs, homes, morale and friendship stories (see offduty.js)
-const OFF = installOffDuty({ S, L, get W() { return W; }, get P() { return P; }, get inside() { return inside; }, call: () => call, paused: () => paused || !!scene,
+const OFF = installOffDuty({ mood: (m) => { DLGMOOD = m; }, S, L, get W() { return W; }, get P() { return P; }, get inside() { return inside; }, call: () => call, paused: () => paused || !!scene,
   dialogue: (...a) => dialogue(...a), sayAs: (...a) => sayAs(...a), award: (...a) => award(...a), stat: (...a) => stat(...a), toast: (m) => toast(m), banner: (...a) => banner(...a), beep: (...a) => beep(...a), good: () => good(), bad: () => bad(), radio: (...a) => radio(...a),
   saveS: () => saveS(), hud: () => hud(), openModal: (h) => openModal(h), closeModal: () => closeModal(), $: (id) => $(id), esc: (x) => esc(x), iso: (x, y) => iso(x, y), bubble: (...a) => bubble(...a), label: (...a) => label(...a), doorSpot: (l) => doorSpot(l), queueLoot: (...a) => queueLoot(...a),
   refreshLook: () => { refreshGear(); hud(); }, daily: () => EVT.dailyText(), dailyCard: () => EVT.dailyCard(), clearCall: () => { if (call && !call.accepted) { call = null; callCard(); } }, items: () => ITEMS, trophies: () => { const t = TROPHIES.filter((x) => (S.trophies || {})[x[0]]); return { n: t.length, list: t.map((x) => x[1]) }; } });
@@ -377,6 +378,16 @@ const LANDMARK_LIST = (() => { const out = []; DISTRICTS.forEach((D, d) => { con
 const EVT = installEvents({ S, L, get W() { return W; }, get P() { return P; }, get inside() { return inside; }, get ctx() { return ctx; }, net: () => net, doorSpot: (l) => doorSpot(l), sayAs: (...a) => sayAs(...a), dialogue: (...a) => dialogue(...a), award: (...a) => award(...a), stat: (...a) => stat(...a),
   toast: (m) => toast(m), banner: (...a) => banner(...a), good: () => good(), beep: (...a) => beep(...a), saveS: () => saveS(), queueLoot: (...a) => queueLoot(...a), openModal: (h) => openModal(h), closeModal: () => closeModal(), $: (id) => $(id), esc: (x) => esc(x),
   iso: (x, y) => iso(x, y), bubble: (...a) => bubble(...a), label: (...a) => label(...a), dname: (d) => DISTRICTS[d].name, allLandmarks: () => LANDMARK_LIST, refreshLook: () => { refreshGear(); hud(); if (net && net.flair) net.flair(myTokens()); } });
+let POLMOOD = null, DLGMOOD = null, COVER = null;
+const POL = installPolish({ S, NPCS, CHAPTERS, LANDMARKS, esc: (x) => esc(x), $: (id) => $(id), fe: () => fe(), openModal: (h) => openModal(h), closeModal: () => closeModal(), stat: (...a) => stat(...a), saveS: () => saveS(), award: (...a) => award(...a), banner: (...a) => banner(...a), toast: (m) => toast(m), beep: (...a) => beep(...a),
+  sting: (k) => { if (S.sound) music.sting(k); }, setMood: (m) => { POLMOOD = m; }, get W() { return W; }, get P() { return P; }, get regs() { return regs; }, get peds() { return peds; }, get inside() { return inside; }, get LORE() { return LORE; },
+  cine: () => document.body.classList.contains('cine'), paused: () => paused || !!scene, pause: (on) => { paused = on; }, hour: () => hourNow(), homeOf: (n) => NPC_AT[n.id] || n.home, moveReg: (r, lot) => moveReg(r, lot), faceTo: (r) => { r.face = P.x < r.x ? -1 : 1; },
+  iso: (x, y) => iso(x, y), duck: (on) => { if (S.sound) music.volume(S.cfg.music * (on ? .35 : 1)); }, move: (dx, dy) => goTo(P.x + dx * 1.6, P.y + dy * 1.6), use: () => { if (!paused && !scene) tapAtWorld(P.x, P.y); }, journal: () => journal(),
+  dname: (d) => DISTRICTS[d].name, activeQ: () => activeQ(), loreDist: (n) => LORE_DIST[n], sideQ: (id) => sideQ(id), placeIcon: (n) => { for (const D of DISTRICTS) { const f = (x) => Array.isArray(x) && x[1] === n ? x : x && x.strip ? x.strip.map(f).find(Boolean) : null; const hit = D.lots.map(f).find(Boolean); if (hit) return (LANDMARKS[hit[0]] || {}).icon || '📍'; } return '📍'; },
+  loreHint: (w) => loreHint(w), ready: () => !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !document.querySelector('.lorePop'), hud: () => hud(), refreshLook: () => { refreshGear(); hud(); } });
+const loreHint = (w) => w === 'start' ? '' : /^d\d$/.test(w) ? 'Opens with ' + DISTRICTS[+w[1]].name + '.' : w.slice(0, 2) === 'ch' ? 'Keep going with the main story.' : w.slice(0, 5) === 'side:' ? 'Close a side case in ' + ((sideQ(w.slice(5)) && DISTRICTS[sideQ(w.slice(5)).d].name) || 'the city') + '.' : w.slice(0, 6) === 'visit:' ? 'Explore ' + (LORE_DIST[w.slice(6)] || 'the city') + '.' : w.slice(0, 7) === 'friend:' ? (() => { const n = NPCS.find((x) => x.id === w.slice(7)); return n ? 'Become friends with ' + (S.npc && S.npc[n.id] ? n.name : 'someone') + ' in ' + DISTRICTS[n.d].name + '.' : ''; })() : '';
+function moveReg(r, lot) { W.blocked.delete(Math.floor(r.y) * N + Math.floor(r.x)); regs = regs.filter((x) => x !== r); putOutside(r.n, lot); }
+function tapAtWorld(x, y) { const [ix, iy] = iso(x, y), rc = cv.getBoundingClientRect(); tap(rc.left + rc.width / 2 + (ix - cam.x) * cam.z, rc.top + rc.height / 2 + (iy - 20 - cam.y) * cam.z); }
 // the Rec Room: multiplayer mini games (see minigames.js)
 const MG = createMiniGames({ get net() { return net; }, now: () => N0(), esc: (x) => esc(x), S, L, PHON: PHONETIC, beep: (...a) => { if (S.sound) beep(...a); }, toast: (m) => toast(m), saveS: () => saveS(),
   award: (n, why) => award(n, why), stat: (k) => stat(k), cs: () => S.cs, icon: () => U().icon, did: () => W.did, dname: () => W.D.name, lessons: () => W.D.lessons,
@@ -489,7 +500,7 @@ function bird(sx, sy, b, now) { const fl = b.fly ? Math.sin(now / 50 + b.ph) * 3
 function sailboat(sx, sy, now) { const b = Math.sin(now / 500) * 1.5; ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(sx, sy + 2, 16, 5, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#f2f2f2'; ctx.beginPath(); ctx.moveTo(sx - 14, sy - 4 + b); ctx.lineTo(sx + 14, sy - 4 + b); ctx.lineTo(sx + 9, sy + 2 + b); ctx.lineTo(sx - 10, sy + 2 + b); ctx.fill(); ctx.fillStyle = '#7a4a2a'; ctx.fillRect(sx - 1, sy - 34 + b, 2, 30); ctx.fillStyle = '#fff7e6'; ctx.beginPath(); ctx.moveTo(sx + 1, sy - 34 + b); ctx.lineTo(sx + 15, sy - 8 + b); ctx.lineTo(sx + 1, sy - 8 + b); ctx.fill(); ctx.fillStyle = '#e84a5f'; ctx.beginPath(); ctx.moveTo(sx - 1, sy - 30 + b); ctx.lineTo(sx - 12, sy - 9 + b); ctx.lineTo(sx - 1, sy - 9 + b); ctx.fill(); }
 function sparkle(sx, sy, now, col) { const k = (Math.sin(now / 220) + 1) / 2, r = 5 + k * 5; ctx.save(); ctx.translate(sx, sy); ctx.rotate(now / 1200); ctx.fillStyle = col; ctx.globalAlpha = .55 + k * .45; ctx.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, rr = i % 2 ? r * .3 : r; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); ctx.restore(); ctx.globalAlpha = 1; }
 const outfitLook = (o) => (OUTFITS[o] && OUTFITS[o].look) || {};
-const myLooks = () => Object.assign({}, outfitLook(S.outfit), looks(Object.values(S.gear || {})), (!S.offDuty && EVT.gearLook()) || {});
+const myLooks = () => Object.assign({}, outfitLook(S.outfit), looks(Object.values(S.gear || {})), (!S.offDuty && EVT.gearLook()) || {}, (!S.offDuty && POL.seasonLook()) || {});
 const kitOf = (outfit, unitId) => { const o = OUTFITS[outfit || 'std']; return o && o.kit ? o.kit : unitOf(unitId).kit; };
 const myKit = () => (S.offDuty ? { shirt: S.civShirt || '#2563eb', pants: '#334155', hat: 'none', plain: true } : kitOf(S.outfit, S.unit));
 const myTokens = () => ['o' + (S.outfit || 'std')].concat(Object.values(S.gear || {})).join(',');
@@ -822,7 +833,7 @@ function dialogue(lines, done, opts) {
   const showEmote = (e) => { emo.textContent = e; emo.classList.remove('pop'); if (e) { void emo.offsetWidth; emo.classList.add('pop'); } };
   const remember = (txt) => { mem.textContent = txt; mem.hidden = false; mem.classList.remove('in'); void mem.offsetWidth; mem.classList.add('in'); beep(880, .1, 'sine', .025); beep(1320, .14, 'sine', .02, .09); clearTimeout(mem._t); mem._t = setTimeout(() => { mem.hidden = true; }, 2600); };
   const log = (name, text, col) => { DLG_LOG.push({ name, text, col }); if (DLG_LOG.length > 120) DLG_LOG.shift(); };
-  const next = () => { clearTimeout(autoT); do { i++; } while (i < seq.length && !condOk(seq[i])); if (i < seq.length) show(); else end(); };
+  const next = () => { clearTimeout(autoT); POL.hush(); do { i++; } while (i < seq.length && !condOk(seq[i])); if (i < seq.length) show(); else end(); };
   const setChoiceMode = (on) => { panel.classList.toggle('dlgChoice', on); box.onclick = on ? null : click; };
   const show = () => {
     const ln = seq[i]; panel.classList.remove('dlgNarr', 'dlgQuiz'); showEmote('');
@@ -850,7 +861,7 @@ function dialogue(lines, done, opts) {
         if (tries === 0 && !L.isRight(q, ans)) { tries = 1; bad(); COMBO = 0; comboHud(); showEmote('🤔'); port.classList.add('no'); setTimeout(() => port.classList.remove('no'), 700);
           body.querySelectorAll('[data-k]').forEach((b) => { const k = +b.dataset.k; if (!q.multi && k === ans) { b.disabled = true; b.classList.add('no'); } b.classList.remove('sel'); }); picked = [];
           const tx = body.querySelector('.dlgQs'); if (tx) tx.innerHTML = '<b class="dlgRetry">Not quite. One more try.</b>'; if (q.multi && $('dlgOk')) $('dlgOk').disabled = true; return; }
-        const ok = scoreAnswer(q, ans, tries > 0); res.n++; if (ok) res.right++; if (tries && ok) res.retry = (res.retry || 0) + 1; showEmote(ok ? '✨' : '📘');
+        const ok = scoreAnswer(q, ans, tries > 0); res.qs = res.qs || []; res.qs.push({ stem: q.stem, ok, fact: (q.fact || q.ex || '').trim() }); res.n++; if (ok) res.right++; if (tries && ok) res.retry = (res.retry || 0) + 1; showEmote(ok ? '✨' : '📘');
         body.querySelectorAll('[data-k]').forEach((b) => { const k = +b.dataset.k, isC = q.multi ? q.c.indexOf(k) >= 0 : k === q.c; b.disabled = true; b.classList.add(isC ? 'ok' : picked.indexOf(k) >= 0 ? 'no' : 'dim'); });
         const fact = (q.fact || q.ex || '').trim(); setTimeout(() => { const V = VOICES[sp] || VOICES[String(sp).replace(/^reg_/, '')] || ANYONE, nx = seq[i + 1], more = !nx || nx[0] !== 'q', add = [[sp, ok ? rnd(tries ? V.r : V.p) : rnd(CORRECT) + (fact ? ' ' + fact : ''), { quiz: ok ? 'ok' : 'no' }]];
           if (more && !opts.noFollow) { add.push([sp, rnd(V.a)]); if (ok && sp !== 'exhibita' && Math.random() < .4) add.push([sp, (V === ANYONE ? 'Oh, and officer? ' : 'Oh, and one more thing. ') + hintLine()]); }
@@ -872,7 +883,7 @@ function dialogue(lines, done, opts) {
     const spans = body.querySelectorAll('#dlgP span'), base = 30 / ({ slow: .6, normal: 1, fast: 2, instant: 999 }[S.cfg.text] || 1);
     let k = 0; clearTimeout(typing); pTalk = narr ? 0 : 1;
     const step = () => {
-      if (!alive) return; if (k >= spans.length) { typing = null; pTalk = 0; if (auto) autoT = setTimeout(() => { if (alive && box.onclick) next(); }, Math.max(1300, full.length * 42)); return; }
+      if (!alive) return; if (k >= spans.length) { typing = null; pTalk = 0; if (auto) { const go = () => { if (!alive || !box.onclick) return; if (POL.speaking) { autoT = setTimeout(go, 300); return; } next(); }; autoT = setTimeout(go, Math.max(1300, full.length * 42)); } return; }
       const sp = spans[k], ch = chars[k].ch; sp.classList.remove('h'); k++;
       if (!narr && S.sound && /[a-z0-9]/i.test(ch) && k % 2 === 1 && !/dir/.test(chars[k - 1].cls)) beep(st.f * (radio ? 1.6 : 1) * (.92 + ((k * 7) % 5) * .04), radio ? .03 : .045, radio ? 'square' : st.wave, radio ? .012 : .016);
       if (ch === '!' && !narr) pNod = 1;
@@ -883,10 +894,11 @@ function dialogue(lines, done, opts) {
     if (base > 100) { spans.forEach((s) => s.classList.remove('h')); k = spans.length; }
     const e = emoteFor(full, mood); if (e && !narr) setTimeout(() => alive && showEmote(e), 220);
     if (radio) chirp();
+    if (!narr && POL.voiceOn(opts)) POL.speak(id, c.name, full, radio);
   };
   document.body.classList.add('cine'); if (opts.focus) cineFocus(opts.focus[0], opts.focus[1], opts.zoom);
-  const end = () => { alive = false; cancelAnimationFrame(pRaf); clearTimeout(typing); clearTimeout(autoT); document.body.classList.remove('cine'); box.classList.remove('on'); if (opts.focus) cineRelease(); setTimeout(() => { if (!box.classList.contains('on')) { box.hidden = true; box.innerHTML = ''; } }, 250); box.onclick = null; removeEventListener('keydown', keys); saveS(); done && done(res); };
-  const finishTyping = () => { clearTimeout(typing); typing = null; pTalk = 0; body.querySelectorAll('#dlgP span.h').forEach((s) => s.classList.remove('h')); if (auto) autoT = setTimeout(() => alive && box.onclick && next(), Math.max(1300, full.length * 42)); };
+  const end = () => { alive = false; POL.hush(); DLGMOOD = null; cancelAnimationFrame(pRaf); clearTimeout(typing); clearTimeout(autoT); document.body.classList.remove('cine'); box.classList.remove('on'); if (opts.focus) cineRelease(); setTimeout(() => { if (!box.classList.contains('on')) { box.hidden = true; box.innerHTML = ''; } }, 250); box.onclick = null; removeEventListener('keydown', keys); saveS(); done && done(res); };
+  const finishTyping = () => { clearTimeout(typing); typing = null; pTalk = 0; body.querySelectorAll('#dlgP span.h').forEach((s) => s.classList.remove('h')); if (auto) { const go = () => { if (!alive || !box.onclick) return; if (POL.speaking) { autoT = setTimeout(go, 300); return; } next(); }; autoT = setTimeout(go, Math.max(1300, full.length * 42)); } };
   const click = () => { if (!logBox.hidden) return; if (typing) { finishTyping(); return; } next(); };
   const openLog = () => { logBox.innerHTML = '<div class="dlgLogHead"><b>Conversation log</b><button type="button" data-c="close">Close</button></div><div class="dlgLogList">' + DLG_LOG.slice(-60).map((l) => '<div class="dlgLogRow' + (l.name ? '' : ' narr') + '" style="--acc:' + l.col + '">' + (l.name ? '<b>' + esc(l.name) + '</b>' : '') + '<p>' + esc(l.text.replace(/[*~]/g, '')) + '</p></div>').join('') + '</div>'; logBox.hidden = false; const ls = logBox.querySelector('.dlgLogList'); ls.scrollTop = ls.scrollHeight; logBox.querySelector('[data-c="close"]').onclick = (e) => { e.stopPropagation(); logBox.hidden = true; }; };
   ctl('log').onclick = (e) => { e.stopPropagation(); openLog(); };
@@ -901,7 +913,7 @@ function dialogue(lines, done, opts) {
     const b = box.querySelector('[data-k="' + (parseInt(e.key, 10) - 1) + '"]') || (/^[a-f]$/i.test(e.key) ? box.querySelector('.dlgOpts.q [data-k="' + ('abcdef'.indexOf(e.key.toLowerCase())) + '"]') : null);
     if (b && !b.disabled) { b.click(); e.preventDefault(); return; }
     if (e.key === 'Enter' && opt.indexOf(document.activeElement) >= 0) { document.activeElement.click(); e.preventDefault(); return; }
-    if (e.key === 'l' || e.key === 'L') { openLog(); e.preventDefault(); return; }
+    if ((e.key || '').toLowerCase() === ((S.cfg.keys || {}).log || 'l')) { openLog(); e.preventDefault(); return; }
     if ((e.key === ' ' || e.key === 'Enter') && box.onclick) { e.preventDefault(); click(); }
   };
   addEventListener('keydown', keys);
@@ -925,7 +937,7 @@ function playStep(st) {
       if (r.right < Math.ceil(qs.length / 2)) { dialogue([[st.who || 'castillo', r.right ? 'Close, but not by the book yet. Think it through and try me again.' : 'Not quite. Review it, then come back and we will run it again.']], () => { storyBusy = false; paused = false; storyCool = 4; }); return; }
       afterQuiz();
     });
-  }, { focus: tg ? [tg.x, tg.y] : [P.x, P.y], kicker: (A.side ? 'SIDE CASE · ' : '') + c.title.toUpperCase() });
+  }, { focus: tg ? [tg.x, tg.y] : [P.x, P.y], kicker: (A.side ? 'SIDE CASE · ' : '') + c.title.toUpperCase(), voiced: !A.side });
 }
 function chapterDone(c) {
   const rw = c.steps[c.steps.length - 1].reward || {}; S.lore['ch' + c.d] = 1; saveS();
@@ -978,7 +990,7 @@ function journal() {
     }).join('') + '</details>'; }).join('');
   }
   if (jTab === 'cast') { const met = (id) => Object.keys(CAST).indexOf(id) >= 0 ? CHAPTERS.some((c) => c.steps.slice(0, S.story[c.d] || 0).some((st) => st.who === id || (st.say || []).some((l) => l[0] === id))) : false; body = Object.keys(CAST).map((id) => { const c = CAST[id], m = met(id); return '<div class="jP' + (m ? '' : ' unk') + '"><span>' + (m ? c.icon : '❔') + '</span><div><b>' + (m ? esc(c.name) : 'Not met yet') + '</b><small>' + (m ? esc(c.role) : '') + '</small>' + (m ? '<p>' + esc(c.bio) + '</p>' : '') + '</div></div>'; }).join('') + (() => { const known = NPCS.filter((n) => (S.npc || {})[n.id] > 0).length, tierOf = (f) => f >= 6 ? 'Best friends' : f >= 3 ? 'Friends' : f >= 1 ? 'Knows your name' : '', hearts = (f) => '💛'.repeat(Math.min(6, f)) + '<span style="opacity:.25">' + '🤍'.repeat(Math.max(0, 6 - f)) + '</span>'; return '<div class="jSec"><b>People you know · ' + known + '/' + NPCS.length + '</b></div>' + DISTRICTS.map((D) => { const ns = NPCS.filter((n) => n.d === D.id); return '<div class="jSec"><b>' + esc(D.name) + ' · ' + ns.filter((n) => (S.npc || {})[n.id] > 0).length + '/' + ns.length + '</b></div>' + ns.map((n) => { const f = (S.npc || {})[n.id] || 0, at0 = NPC_AT[n.id] || n.home, at = Object.keys(LORE_DIST).find((k) => LORE_DIST[k] === D.name && k.indexOf(at0) >= 0) || at0, arc = (S.arcs || {})[n.id] || 0; return f > 0 ? '<div class="jP"><span>' + n.icon + '</span><div><b>' + esc(n.name) + '</b><small>' + esc(n.role) + ' · ' + tierOf(f) + '</small><p>' + hearts(f) + (arc ? ' · story ' + arc + '/5' : '') + '<br>Usually near ' + esc(at) + '.</p></div></div>' : '<div class="jP unk"><span>❔</span><div><b>Not met yet</b><small>Someone ' + (/^[A-Z]/.test(at) ? 'hangs around ' + esc(at) : 'in ' + esc(D.name)) + '</small></div></div>'; }).join(''); }).join(''); })(); }
-  if (jTab === 'lore') { const hint = (w) => w === 'start' ? '' : /^d\d$/.test(w) ? 'Opens with ' + DISTRICTS[+w[1]].name + '.' : w.slice(0, 2) === 'ch' ? 'Keep going with the main story.' : w.slice(0, 5) === 'side:' ? 'Close a side case in ' + ((sideQ(w.slice(5)) && DISTRICTS[sideQ(w.slice(5)).d].name) || 'the city') + '.' : w.slice(0, 6) === 'visit:' ? 'Explore ' + (LORE_DIST[w.slice(6)] || 'the city') + '.' : w.slice(0, 7) === 'friend:' ? (() => { const n = NPCS.find((x) => x.id === w.slice(7)); return n ? 'Become friends with ' + (S.npc && S.npc[n.id] ? n.name : 'someone') + ' in ' + DISTRICTS[n.d].name + '.' : ''; })() : '';
+  if (jTab === 'lore') { const hint = loreHint;
     const grp = [['The city', (e) => e.when === 'start' || /^d\d$/.test(e.when)], ['The story', (e) => e.when.slice(0, 2) === 'ch'], ['Places', (e) => e.when.slice(0, 6) === 'visit:'], ['Side cases', (e) => e.when.slice(0, 5) === 'side:'], ['People', (e) => e.when.slice(0, 7) === 'friend:']];
     body = '<p class="lkSum">' + LORE.filter((e) => S.lore[e.id]).length + ' of ' + LORE.length + ' entries discovered</p>' + grp.map(([nm, f]) => { const es = LORE.filter(f); return '<div class="jSec"><b>' + nm + ' · ' + es.filter((e) => S.lore[e.id]).length + '/' + es.length + '</b></div>' + es.map((e) => S.lore[e.id] ? '<details class="jLore"' + (JLORE === e.id ? ' open' : '') + '><summary>' + esc(e.title) + '</summary><p>' + esc(e.text) + '</p></details>' : '<div class="jLore unk">??? <small>' + esc(hint(e.when) || 'Keep patrolling to uncover this.') + '</small></div>').join(''); }).join(''); JLORE = null; }
   openModal('<div class="sceneHead"><b>FIELD JOURNAL · ' + esc(WORLD.city.toUpperCase()) + '</b><h2>' + ({ story: 'Quests', cast: 'The people you know', lore: 'Port Meridian' })[jTab] + '</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + '</p></div>' + tabs + '<div class="jBody">' + body + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
@@ -1204,7 +1216,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden || !S.
 let musT = 0;
 function moodNow() {
   if (ATTRACT) return 'title';
-  if (document.body.classList.contains('cine')) { const A = activeQ(); return A && A.side ? 'side' : 'story'; }
+  if (POLMOOD) return POLMOOD;
+  if (document.body.classList.contains('cine')) { if (DLGMOOD) return DLGMOOD; const A = activeQ(); return A && A.side ? 'side' : 'story'; }
   if (scene) return 'scene';
   if (call && call.accepted && (call.prio === 1 || BUFF.speedTo > clock)) return 'urgent';
   if (call) return 'call';
@@ -1270,7 +1283,7 @@ function tap(px, py) {
   if (P.boat) { const [wx, wy] = unIso(ix, iy); if (W.at(Math.floor(wx), Math.floor(wy)) !== T.WATER) { toast('Docking. Tap the water to keep patrolling.'); return exitBoat(); } }
   const [wx, wy] = unIso(ix, iy); goTo(wx, wy);
 }
-addEventListener('keydown', (e) => { if (scene || paused || e.target.closest('input,textarea')) return; const k = { ArrowUp: [-1, -1], w: [-1, -1], ArrowDown: [1, 1], s: [1, 1], ArrowLeft: [-1, 1], a: [-1, 1], ArrowRight: [1, -1], d: [1, -1] }[e.key]; if (!k) return; e.preventDefault(); goTo(P.x + k[0] * 1.6, P.y + k[1] * 1.6); });
+addEventListener('keydown', (e) => { if (scene || paused || ATTRACT || e.target.closest('input,textarea')) return; POL.onKey(e); });
 function enterCar() { P.inCar = true; P.x = pcar.x; P.y = pcar.y; const ok = ridePass(), r = nearest(Math.floor(P.x), Math.floor(P.y), (x, y) => ok(x, y)); if (r) { P.x = r[0] + .5; P.y = r[1] + .5; } toast(RIDE() === 'car' ? 'In your ' + U().ride.label.toLowerCase() + '. Tap the road to drive; lights and siren come on when you respond to a call.' : RIDE() === 'moto' ? 'On the police motorcycle. Fast and nimble, roads only.' : RIDE() === 'bike' ? 'On the patrol bike. Sidewalks, parks and plazas are all yours.' : 'Mounted up on Judge II. People love the horse. Parks and sidewalks are fine.'); hud(); }
 function enterBoat() { if (!pboat) return; stat('boat'); P.boat = true; P.x = pboat.x; P.y = pboat.y; P.path = []; toast('Patrol boat launched. Tap the water to move; tap the shore to dock.'); hud(); }
 function exitBoat() { if (!P.boat) return; P.boat = false; P.path = []; pboat.x = P.x; pboat.y = P.y; const r = nearest(Math.floor(P.x), Math.floor(P.y), (x, y) => W.at(x, y) === T.SAND); if (r) { P.x = r[0] + .5; P.y = r[1] + .5; pboat.dock = [P.x, P.y]; } hud(); }
@@ -1304,7 +1317,7 @@ const FLOATS = [];
 let COMBO = 0, bestCombo = 0;
 const comboMult = () => 1 + Math.min(COMBO, 10) * .03;
 function award(xp, why) {
-  const before = L.rankOf(S.xp).name; const sqm = squadMult(); if (sqm > 1) { stat('sqRP', Math.round(xp * (sqm - 1))); } xp = Math.round(xp * comboMult() * sqm * LIFE.rpMult() * OFF.rpMult() * (P.inCar && RIDE() === 'horse' ? 1.03 : 1)); S.cash = (S.cash || 0) + Math.round(xp * .4); S.xp += xp; SS.rp += xp; ACAD.weekAdd('rp', xp); const after = L.rankOf(S.xp).name; saveS(); hud();
+  const before = L.rankOf(S.xp).name; const sqm = squadMult(); if (sqm > 1) { stat('sqRP', Math.round(xp * (sqm - 1))); } xp = Math.round(xp * comboMult() * sqm * LIFE.rpMult() * OFF.rpMult() * (P.inCar && RIDE() === 'horse' ? 1.03 : 1)); S.cash = (S.cash || 0) + Math.round(xp * .4); S.xp += xp; SS.rp += xp; POL.seasonXP(xp); ACAD.weekAdd('rp', xp); const after = L.rankOf(S.xp).name; saveS(); hud();
   FLOATS.push({ x: P.x, y: P.y, t: performance.now(), text: '+' + xp + ' RP', sub: why + (COMBO >= 3 ? ' · 🔥x' + comboMult().toFixed(2).replace(/0$/, '') : '') });
   if (after !== before) setTimeout(() => promotion(after), 700);
   if (net) net.status('patrol');
@@ -1441,6 +1454,11 @@ function openCallSceneQ(c) {
   if (net) net.status('call'); paused = true;
   const n = c.prio === 1 ? 4 : 3, qs = L.pickFacts(S, [c.les], n), fast = clock - c.t0 < 40, a = approachFor(c.les), cl = callerFor(c), cid = sayAs('caller', { name: cl[0], icon: cl[1], role: c.where });
   const lines = [['narr', c.title + '. ' + c.where + '.'], ['velvet', '(over the radio) ' + S.cs + ', you\'re on scene. ' + c.text]];
+  const cover = c.cover || (COVER && Date.now() - COVER.t < 180000 ? COVER.c : null); c.coop = cover;
+  if (cover) lines.push(['castillo', '(over the radio) ' + cover + ' is on scene as your cover. Contact and cover, like we drilled it: you make contact and do the talking, they watch hands, exits and the crowd.'], ['choice', [
+    { t: 'Signal your cover, then make contact', ok: 1, reply: [['narr', 'A nod. ' + cover + ' takes a position with a clear view of the caller\'s hands and the street.'], ['castillo', '(over the radio) Textbook.']] },
+    { t: 'Both of you talk to the caller at once', reply: [['narr', 'Two officers talking over each other. Nobody is watching the street.'], ['castillo', '(over the radio) One talks, one watches. Reset.']] },
+    { t: 'Send your cover to search the area alone', reply: [['narr', cover + ' heads off. Now nobody is covering you.'], ['castillo', '(over the radio) Cover stays with contact. Pull them back.']] }].sort(() => Math.random() - .5), 'Your cover officer is waiting for a signal.']);
   if (a) lines.push(['choice', a.opts, a.q]);
   lines.push([cid, rnd(['Officer! Over here. Thank goodness.', 'You got here fast. Okay, here\'s what happened.', 'I\'m the one who called. It\'s been a whole thing.', 'Finally. Let me tell you what I saw.'])]);
   qs.forEach((q, k) => { lines.push(['q', q, k % 2 ? 'castillo' : cid]); if (k === 0 && qs.length > 2) lines.push(['choice', [
@@ -1455,8 +1473,8 @@ function openCallSceneQ(c) {
     paused = false; const eff = (res.choices.find((o) => o.eff) || {}).eff; c.eff = eff; if (eff) consequence(eff, c);
     const r = { right: res.right, n: res.n };
     S.calls++; SS.calls++; stat('p' + c.prio); if (inside) stat('inCall'); if (NIGHT) stat('nightCalls'); const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 && hasSk('tac2') ? 1.15 : 1) * (c.prio === 1 && hasSk('tac4') ? 1.25 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM, xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0) + (c.wrap === 'case' || c.wrap === 'resources' ? 10 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
-    openModal('<div class="sceneHead done"><b>CALL CLEARED</b><h2>' + r.right + ' of ' + r.n + ' handled by the book</h2><p>' + (fast ? 'Quick response bonus. ' : '') + (mult > 1.01 ? U().icon + ' ' + esc(U().perk) + ' bonus. ' : '') + (c.wrap === 'case' ? 'You left them a case number. ' : c.wrap === 'resources' ? 'You connected them with resources. ' : '') + (r.right === r.n ? 'Clean call. ' : 'Review what you missed in the hub.') + '</p></div>' + masteryLine() + '<div class="qAct"><button type="button" id="mDone">Back in service</button></div>');
-    $('mDone').onclick = () => { closeModal(); radio(S.cs, 'Clear, back in service.'); award(xp, 'call cleared'); queueLoot('Found on scene: ' + c.title, r.right === r.n ? .6 : .3); nextCall = (25 + Math.random() * 25) * (S.unit === 'patrol' ? .75 : 1); if (net) net.backup(null); };
+    const coopOk = c.coop && res.choices.some((o) => o.ok), xpT = Math.round(xp * (coopOk ? 1.25 : 1)); if (c.coop) { stat('coop'); if (coopOk) stat('coopGood'); }
+    POL.debrief({ title: c.title, where: c.where, prio: c.prio, right: r.right, n: r.n, fast, resp: (clock - c.t0), approach: !a ? undefined : !c.eff ? null : (APPROACH_BONUS[c.eff] || 1) > 1 ? 'good' : 'ok', wrap: c.wrap, calm: res.choices.some((o) => o.eff2 === 'calm'), qs: res.qs || [], coop: coopOk ? c.coop : null, xp: xpT, role: c.coop ? 'Contact officer' : '' }, () => { closeModal(); radio(S.cs, 'Clear, back in service.'); award(xpT, c.coop ? 'co-op call cleared' : 'call cleared'); queueLoot('Found on scene: ' + c.title, r.right === r.n ? .6 : .3); nextCall = (25 + Math.random() * 25) * (S.unit === 'patrol' ? .75 : 1); if (net) net.backup(null); COVER = null; });
   }, { focus: [c.x, c.y], kicker: (c.prio === 1 ? 'PRIORITY 1' : c.prio === 2 ? 'PRIORITY 2' : 'ROUTINE') + ' · ' + c.where.toUpperCase() });
 }
 function streetLife(e) {
@@ -1502,10 +1520,13 @@ function backupScene(uid, o) {
   const ls = W.D.lessons.indexOf(6) >= 0 ? [6] : W.D.lessons, qs = L.pickFacts(S, ls, 2), id = sayAs('mate', { name: o.c, icon: (unitOf(o.u) || {}).icon || '🚓', role: 'Cadet requesting backup' });
   if (net) net.assist(uid); stat('assists'); if (S.squad && others[uid] && others[uid].g === S.squad.code) stat('sqAssist');
   dialogue([[id, '(over the radio) ' + S.cs + ', glad you\'re here. ' + (o.b.l || 'Need a second set of eyes.')], ['choice', [
-    { t: 'Take cover position and watch the hands', reply: [[id, 'Copy, you\'re cover. I\'ll make contact.']] },
-    { t: 'Watch the exits and the crowd', reply: [[id, 'Good call. Eyes out, I\'ve got the subject.']] },
-    { t: 'Ask what they need from you', reply: [[id, 'Just be here. And maybe check this with me:']] }], 'You\'re the cover officer.'],
-    ['q', qs[0], id], ['q', qs[1], 'castillo']], (r) => { award(20 + r.right * 15, 'backup'); if (net) net.assist(null); }, { focus: [o.b.x, o.b.y], kicker: 'BACKUP · COVER OFFICER' });
+    { t: 'Take a cover position with a clear view of the hands', ok: 1, reply: [[id, 'Copy, you\'re cover. I\'ll make contact.']] },
+    { t: 'Walk up and start asking the caller questions too', reply: [[id, 'Hey, I\'ve got the talking. I need your eyes out.'], ['castillo', '(over the radio) Cover doesn\'t talk over contact. Watch the scene.']] },
+    { t: 'Stand right behind your partner', reply: [[id, 'Give me some space. If you\'re behind me you can\'t see what I can\'t.'], ['castillo', '(over the radio) Cover takes an angle, not a shadow.']] }].sort(() => Math.random() - .5), 'You\'re the cover officer. Where do you set up?'],
+    ['narr', 'Contact and cover: one officer makes contact and does the talking, the other watches hands, exits and the crowd. Training call, sim rules.'],
+    ['q', qs[0], id], ['q', qs[1], 'castillo']], (r) => { if (net) net.assist(null); stat('coop'); const ok = r.choices.some((x) => x.ok); if (ok) stat('coopGood');
+      POL.debrief({ title: 'Backup: ' + (o.b.l || 'cover officer'), where: W.D.name, prio: 2, right: r.right, n: r.n, fast: true, resp: 0, approach: ok ? 'good' : null, wrap: 'case', calm: ok, qs: r.qs || [], coop: ok ? o.c : null, xp: Math.round((20 + r.right * 15) * (ok ? 1.25 : 1)), role: 'Cover officer' }, () => { closeModal(); award(Math.round((20 + r.right * 15) * (ok ? 1.25 : 1)), 'co-op backup'); });
+    }, { focus: [o.b.x, o.b.y], kicker: 'CO-OP TRAINING · COVER OFFICER' });
 }
 
 function masteryLine() {
@@ -1600,7 +1621,7 @@ const ico = (k) => '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICON[k] + '<
 function setIcons() { [['bRadio', 'comms', 'Comms'], ['bMe', 'target', 'Center'], ['bLock', 'locker', 'Locker'], ['bMap', 'map', 'City'], ['bPause', 'menu', 'Menu']].forEach(([id, k, t]) => { const b = $(id); if (!b) return; const badge = b.querySelector('.bBadge'); b.innerHTML = '<i>' + ico(k) + '</i><span>' + t + '</span>'; if (badge) b.appendChild(badge); }); }
 function hud() {
   const r = L.rankOf(S.xp), m = L.districtMastery(S, W.did);
-  $('hCs').textContent = U().icon + ' ' + S.cs; $('hUnit').textContent = unitName(U()); $('hUnit').style.setProperty('--uc', U().color); $('hRank').textContent = r.name + ' · ' + S.xp + ' RP · $' + (S.cash || 0);
+  $('hCs').textContent = U().icon + ' ' + S.cs; $('hUnit').textContent = unitName(U()); $('hUnit').style.setProperty('--uc', U().color); $('hRank').textContent = (S.title ? '🏷️ ' + S.title + ' · ' : '') + r.name + ' · ' + S.xp + ' RP · $' + (S.cash || 0);
   $('hDist').textContent = inside ? W.name : W.D.name; $('hDist').style.setProperty('--dc', W.D.color);
   $('hMast').style.setProperty('--p', Math.round(m.pct * 100)); $('hMastN').textContent = Math.floor(m.pct * 100) + '%'; $('hMast').title = m.facts.done + ' of ' + m.facts.total + ' facts in ' + W.D.name;
   { const k = U().ride.kind, lab = P.boat ? 'Dock' : P.inCar ? 'Exit' : RIDE() === 'moto' ? 'Moto' : RIDE() === 'bike' ? 'Bike' : RIDE() === 'horse' ? 'Horse' : k === 'van' ? 'Van' : k === 'armored' || k === 'truck' ? 'Truck' : k === 'suv' ? 'SUV' : 'Car'; $('bCar').innerHTML = '<i>' + ico(P.boat ? 'anchor' : P.inCar ? 'walk' : 'car') + '</i><span>' + lab + '</span>'; } $('bCar').classList.toggle('on', P.inCar || P.boat);
@@ -1836,7 +1857,7 @@ function onPlayers(all, uid) {
     const close = (S.squad && v.g === S.squad.code) || Math.hypot((v.x || 0) - P.x, (v.y || 0) - P.y) < 40 || Object.keys(all).length < 16;
     if (v.q && (!o.q || o.q.t !== v.q.t) && now - v.q.t < 8000) { o.qAt = performance.now(); if (close) radio(v.c, QUICK[v.q.k] || ''); }
     if (v.b && v.b.t && (!o.b || o.b.t !== v.b.t) && now - v.b.t < 60000 && close) { radio(v.c, 'Requesting backup: ' + (v.b.l || '')); chirp(); toast(v.c + ' requests backup. Tap the blue marker to respond.'); }
-    if (v.a === uid && o.a !== uid) { toast(v.c + ' arrived to back you up.'); good(); }
+    if (v.a === uid && o.a !== uid) { toast('🛡️ ' + v.c + ' is on scene as your cover officer.'); good(); COVER = { c: v.c, t: Date.now() }; if (call) call.cover = v.c; }
     Object.assign(o, { n: v.n, f: v.f, u: v.u, sh: v.s, tx: v.x, ty: v.y, c: v.c, v: v.v, d: v.d, st: v.st, q: v.q, b: v.b, a: v.a, g: v.g || null, k: v.k || null, r: v.r }); if (S.squad && v.g === S.squad.code && !o.sqHello) { o.sqHello = 1; toast('🛡️ Squadmate ' + v.c + ' is on shift nearby.'); }
   });
   Object.keys(others).forEach((k) => { if (!seen[k]) delete others[k]; });
@@ -1926,7 +1947,7 @@ function bootSequence(done) {
   };
 }
 // ---- settings ----
-function applyCfg() { music.volume(S.sound ? S.cfg.music : 0); resize(); }
+function applyCfg() { music.volume(S.sound ? S.cfg.music : 0); resize(); if (typeof POL !== 'undefined') POL.applyA11y(); }
 function settingsPanel(back) {
   const c = S.cfg, seg = (k, opts) => '<div class="seg" data-k="' + k + '">' + opts.map(([v, t]) => '<button type="button" data-v="' + v + '" class="' + (String(c[k]) === String(v) ? 'on' : '') + '">' + t + '</button>').join('') + '</div>';
   const el = fe(); el.hidden = false; el.onclick = null; el.className = 'fe menuBg';
@@ -1938,6 +1959,10 @@ function settingsPanel(back) {
     '<label>Text speed' + seg('text', [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast'], ['instant', 'Instant']]) + '</label>' +
     '<label>Camera shake' + seg('shake', [[true, 'On'], [false, 'Off']]) + '</label>' +
     '<label>Motion effects' + seg('motion', [[true, 'Full'], [false, 'Reduced']]) + '</label>' +
+    '<label>Voice acting' + seg('voice', [['story', 'Story scenes'], ['all', 'Everyone'], ['off', 'Off']]) + '</label>' +
+    '<label>Text size' + seg('tsize', [['normal', 'Normal'], ['large', 'Large'], ['xl', 'Extra large']]) + '</label>' +
+    '<label>Colour mode' + seg('cmode', [['none', 'Standard'], ['deut', 'Deuteranopia'], ['prot', 'Protanopia'], ['trit', 'Tritanopia'], ['hc', 'High contrast']]) + '</label>' +
+    '<label>Font' + seg('font', [['default', 'Default'], ['readable', 'Atkinson Hyperlegible']]) + '</label>' +
     '</div><div class="feBtns"><button type="button" class="feBtn" id="setBack">Back</button></div></div>';
   el.querySelectorAll('.seg button').forEach((b) => b.onclick = () => { const k = b.closest('.seg').dataset.k; let v = b.dataset.v; if (v === 'true') v = true; else if (v === 'false') v = false;
     if (k === 'sound') { S.sound = v; if (v) { audio(); music.start(ATTRACT ? 'title' : moodNow()); } else music.stop(); hud && !ATTRACT && hud(); } else c[k] = v; saveS(); applyCfg(); feSound('move'); settingsPanel(back); });
@@ -2037,6 +2062,7 @@ TROPHIES.push(
   ['squadchat', 'Squad Chatter', 'Send 25 squad messages.', 's', () => st('sqMsg') >= 25]
 );
 TROPHIES.push(['fact1', 'Know This', 'Complete your first fact.', 'b', () => Object.keys(S.facts || {}).length >= 1], ['fact100', 'Fact Finder', 'Complete 100 facts.', 's', () => Object.keys(S.facts || {}).length >= 100], ['factall', 'Every Fact in the Chapter', 'Complete all 558 facts.', 'g', () => Object.keys(S.facts || {}).length >= 558], ['final1', 'Transfer Orders', 'Pass a District Final Call.', 's', () => st('finals') >= 1], ['exam', 'Chapter 5: Passed', 'Pass the Chapter 5 Final Exam.', 'g', () => !!S.graduated]);
+TROPHIES.push(['callS1', 'Textbook', 'Earn an S rank on a call debrief.', 'b', () => st('callS') >= 1], ['callS10', 'By the Book, Every Time', 'Earn 10 S ranks on calls.', 'g', () => st('callS') >= 10], ['coop1', 'Contact and Cover', 'Handle a co-op training call the right way with another cadet.', 's', () => st('coopGood') >= 1], ['caseSet', 'Case Closed', 'Complete a district\'s case file set.', 'g', () => st('caseSet') >= 1], ['season10', 'Halfway There', 'Reach tier 10 on the Academy Season.', 's', () => S.season && S.season.xp >= 4000], ['friends10', 'Everybody Knows Your Name', 'Become friends with 10 regulars.', 's', () => Object.keys(S.npc || {}).filter((k) => S.npc[k] >= 3).length >= 10]);
 TROPHIES.push(['lore1', 'Local History', 'Discover a piece of lore out in the city.', 'b', () => LORE.some((e) => e.when.slice(0, 6) === 'visit:' && S.lore[e.id])], ['lore20', 'Town Historian', 'Discover 20 lore entries.', 's', () => LORE.filter((e) => S.lore[e.id]).length >= 20], ['loreall', 'Keeper of Port Meridian', 'Discover every lore entry.', 'g', () => LORE.every((e) => S.lore[e.id])], ['side10d', 'Neighborhood Fixture', 'Close all ten side cases in one district.', 's', () => DISTRICTS.some((D) => SIDE.filter((q) => q.d === D.id).every(sideClosed))], ['side25', 'Busy Beat', 'Close 25 side cases.', 's', () => SIDE.filter(sideClosed).length >= 25]);
 TROPHIES.push(['mg1', 'Rec Room Regular', 'Play a mini game.', 'b', () => st('mg') >= 1], ['mgwin', 'Class Champion', 'Win a multiplayer mini game against other cadets.', 's', () => st('mgwin') >= 1], ['mgall', 'Well-Rounded', 'Play every Rec Room game.', 's', () => ['bowl', 'relay', 'bolo', 'run', 'gauntlet', 'spot', 'dispatch', 'squad'].every((g) => st('mg_' + g) >= 1)], ['mgace', 'Fact Bowl Ace', 'Score 5,600 or more in Fact Bowl.', 'g', () => st('mgbowlace') >= 1], ['mg10', 'Reigning Champ', 'Win 10 multiplayer mini games.', 'g', () => st('mgwin') >= 10]);
 TROPHIES.push(['self1', 'Proactive', 'Do your first self-initiated activity.', 'b', () => st('self') >= 1], ['self25', 'Nobody Had to Call', 'Complete 25 self-initiated activities.', 's', () => st('self') >= 25], ['stop1', 'Lights On', 'Make a traffic stop.', 'b', () => st('stops') >= 1], ['stopA', 'Textbook Stop', 'Earn an A on a traffic stop.', 's', () => st('stopA') >= 1], ['stop10', 'Traffic Unit Material', 'Make 10 traffic stops.', 'g', () => st('stops') >= 10], ['decal', 'Custom Cruiser', 'Put a decal on your patrol car.', 'b', () => st('decal') >= 1], ['kidfound', 'Right Where You Left Him', 'Reunite a lost child with family.', 's', () => st('self_kid') >= 1]);
@@ -2085,7 +2111,7 @@ function pauseMenu() {
   if (ATTRACT || PHOTO || !$('start').hidden) return; const el = fe(); if (!el.hidden) return;
   const was = paused; paused = true; PAUSED_BY_MENU = true; el.hidden = false; el.className = 'fe pauseBg';
   const close = () => { el.hidden = true; el.innerHTML = ''; el.className = 'fe'; paused = was; PAUSED_BY_MENU = false; };
-  const items = [['Resume', close], ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], [S.offDuty ? 'Go back on duty' : 'Go off duty', () => { close(); OFF.toggle(); }], ['PT', () => { close(); ACAD.ptMenu(); }], ['Uniform Inspection', () => { close(); ACAD.inspMenu(); }], ['Class Standing', () => { close(); ACAD.standing(); }], ['Daily Challenges', () => { close(); EVT.dailyCard(); }], ['This Week in the City', () => { close(); EVT.eventCard(); }], ['Collections', () => { close(); EVT.collections(); }], ['Community Trust Map', () => { close(); trustMap(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
+  const items = [['Resume', close], ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], [S.offDuty ? 'Go back on duty' : 'Go off duty', () => { close(); OFF.toggle(); }], ['PT', () => { close(); ACAD.ptMenu(); }], ['Uniform Inspection', () => { close(); ACAD.inspMenu(); }], ['Class Standing', () => { close(); ACAD.standing(); }], ['Daily Challenges', () => { close(); EVT.dailyCard(); }], ['This Week in the City', () => { close(); EVT.eventCard(); }], ['Academy Season', () => { close(); POL.seasonPanel(); }], ['Case Files', () => { close(); POL.caseFiles(); }], ['Collections', () => { close(); EVT.collections(); }], ['Community Trust Map', () => { close(); trustMap(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Controls', () => POL.controlsPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
   function pauseMenuAgain() { el.hidden = true; paused = was; PAUSED_BY_MENU = false; pauseMenu(); }
   const h = hourNow(), hh = String(Math.floor(h)).padStart(2, '0') + String(Math.floor((h % 1) * 60)).padStart(2, '0');
   el.innerHTML = '<div class="pmBox"><div class="pmHead"><small>' + esc(W.D.name) + ' · ' + hh + ' hrs</small><h2>Paused</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + ' · ' + esc(L.rankOf(S.xp).name) + '</p></div><div class="tiMenu pm">' + items.map((x, i) => '<button type="button" data-i="' + i + '"' + (i === 0 ? ' class="pri"' : '') + '><b>' + x[0] + '</b></button>').join('') + '</div><div class="pmFoot">' + (activeQ() ? '<b>' + esc(activeQ().title) + '</b> · ' + esc(activeQ().step.goal) : 'Patrol your district') + '</div></div>';
@@ -2096,7 +2122,7 @@ function pauseMenu() {
 }
 addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { if (PHOTO) { photoExit(); return; } const el = fe(); if (!el.hidden && PAUSED_BY_MENU && pauseMenu.close) { pauseMenu.close(); return; } if (!$('modal').hidden || !$('dlg').hidden) return; pauseMenu(); }
-  if ((e.key === 'p' || e.key === 'P') && !e.target.closest('input,textarea') && !ATTRACT && $('modal').hidden && fe().hidden) { if (PHOTO) photoExit(); else photoMode(); }
+  if ((e.key || '').toLowerCase() === ((S.cfg.keys || {}).photo || 'p') && !e.target.closest('input,textarea') && !ATTRACT && $('modal').hidden && fe().hidden) { if (PHOTO) photoExit(); else photoMode(); }
 });
 // ---- loading screen between districts ----
 const TIPS = ['Plan first, every time. Where do you park, where do you stand?', 'Regulars remember how you treat them. So does the city.', 'Side cases change the main story in ways you won\'t see coming.', 'Code 3 gets you there faster, but it costs you later.', 'Press P (or Menu › Photo Mode) for photo mode. Port Meridian is photogenic at 1900 hrs.', 'Equip gear in the Locker. The right boots matter more than you think.', 'Answer streaks multiply your RP. Keep the fire going.', 'Midshift sees both Day and Night units on the street.', 'Exhibit A does not come when called. Exhibit A comes when ready.'];
@@ -2171,7 +2197,7 @@ function drsTick(now, ms) {
   let k = DRS.k; if (med > DRS.refresh * 1.3 && k > .6) k = Math.max(.6, k - .1); else if (med < DRS.refresh * 1.08 && k < 1) k = Math.min(1, k + .05);
   if (k !== DRS.k) { DRS.k = k; DRS.ts = []; resize(true); }
 }
-function frame(now) { const dt = Math.min(.05, (now - last) / 1000); drsTick(now, now - last); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); } render(now); } requestAnimationFrame(frame); }
+function frame(now) { const dt = Math.min(.05, (now - last) / 1000); drsTick(now, now - last); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); POL.tick(dt); } render(now); } requestAnimationFrame(frame); }
 // ---------- the unlock from the study hub ----------
 // The hub opens this page with a pass code once the cadet passes a 100-question test at 85% or better.
 function hubCheck(s) { let h = 2166136261; const t = s + '|patrol-city'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }
@@ -2202,4 +2228,4 @@ function lockedScreen() {
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); MG.watch(W.did); EVT.watch(); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { POL, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, districtBoard, goTo, load, get others() { return others; } };

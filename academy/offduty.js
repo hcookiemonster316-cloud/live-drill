@@ -137,7 +137,7 @@ export function installOffDuty(H) {
   // ---------- friendship stories ----------
   function arcOption(n) {
     const A = ARCS[n.id]; if (!A) return null; const done = S.arcs[n.id] || 0; if (done >= 5) return null; const f = S.npc[n.id] || 0; if (f < done + 1) return null;
-    return { t: '💛 ' + A.title + (done ? ' (part ' + (done + 1) + ')' : ''), reply: A.parts[done].concat([['fx', () => { S.arcs[n.id] = done + 1; H.saveS(); H.stat('arcParts'); if (done + 1 >= 5) { H.stat('arcs'); H.award(200, A.title + ' complete'); H.queueLoot('From ' + n.name, 1, 'e'); H.banner('💛', A.title, 'Story complete. ' + n.name + ' won\'t forget it.'); } else H.award(40, A.title); }]]) };
+    return { t: '💛 ' + A.title + (done ? ' (part ' + (done + 1) + ')' : ''), reply: [['fx', () => { if (H.mood) H.mood('friend'); }]].concat(A.parts[done]).concat([['fx', () => { S.arcs[n.id] = done + 1; H.saveS(); H.stat('arcParts'); if (done + 1 >= 5) { H.stat('arcs'); H.award(200, A.title + ' complete'); H.queueLoot('From ' + n.name, 1, 'e'); H.banner('💛', A.title, 'Story complete. ' + n.name + ' won\'t forget it.'); } else H.award(40, A.title); }]]) };
   }
   const arcReady = (id) => { const A = ARCS[id]; if (!A) return false; const done = S.arcs[id] || 0; return done < 5 && (S.npc[id] || 0) >= done + 1; };
 

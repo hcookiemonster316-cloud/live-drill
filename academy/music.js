@@ -31,6 +31,10 @@ export const MOODS = {
     pad: { v: .025 }, keys: { voice: 'stac', pat: 'arp16', v: .03 }, keys2: { voice: 'brass', pat: 'stab', v: .035 }, bass: { pat: 'drive', v: .085 }, drums: { pat: 'drive', v: .8 }, lead: { voice: 'brass', v: .035, oct: 12, from: 8 } },
   scene: { name: 'On Scene', bpm: 84, root: 62, scale: 'min', prog: [0, 0, 5, 5, 3, 3, 4, 4],
     pad: { v: .04 }, strings: { v: .022 }, keys: { voice: 'piano', pat: 'sparse', v: .035 }, bass: { pat: 'whole', v: .07 }, drone: { v: .03 } },
+  debrief: { name: 'Debrief', bpm: 76, root: 60, scale: 'maj', prog: [0, 4, 5, 3, 0, 4, 3, 4],
+    pad: { v: .035 }, strings: { v: .028 }, keys: { voice: 'piano', pat: 'arp8', v: .04 }, bass: { pat: 'half', v: .07 }, drums: { pat: 'brush', v: .4 }, lead: { voice: 'bell', v: .025, oct: 12, from: 4 } },
+  friend: { name: 'Neighbors', bpm: 80, root: 65, scale: 'maj', prog: [0, 5, 3, 4, 0, 5, 1, 4],
+    pad: { v: .03 }, strings: { v: .03 }, keys: { voice: 'epiano', pat: 'comp', v: .045 }, bass: { pat: 'whole', v: .065 }, drums: { pat: 'brush', v: .35 }, lead: { voice: 'bell', v: .03, oct: 12, from: 2 } },
   water: { name: 'Marine Patrol', bpm: 84, root: 55, scale: 'maj', prog: [0, 3, 5, 4, 0, 3, 1, 4],
     pad: { v: .03 }, keys: { voice: 'marimba', pat: 'arp8', v: .04 }, bass: { pat: 'half', v: .075 }, drums: { pat: 'soft', v: .45 }, lead: { voice: 'bell', v: .03, oct: 12, from: 0 } }
 };
@@ -148,7 +152,7 @@ export function createMusic(getCtx) {
     // short fanfares over the score, voiced on brass and bells
     sting(kind) {
       if (!on) return; const a = ctx(), t = a.currentTime + .05, L = { bus: master };
-      const seq = { accept: [[67, 0], [71, .12], [74, .24], [79, .36]], done: [[60, 0], [64, .14], [67, .28], [72, .42], [76, .42], [79, .42]], promo: [[55, 0], [60, .2], [64, .4], [67, .6], [72, .9], [76, .9], [79, .9]], fail: [[64, 0], [60, .2]] }[kind] || [];
+      const seq = { accept: [[67, 0], [71, .12], [74, .24], [79, .36]], done: [[60, 0], [64, .14], [67, .28], [72, .42], [76, .42], [79, .42]], promo: [[55, 0], [60, .2], [64, .4], [67, .6], [72, .9], [76, .9], [79, .9]], fail: [[64, 0], [60, .2]], p1: [[76, 0], [75, .1], [76, .2], [75, .3], [69, .45]], grade: [[60, 0], [64, .12], [67, .24], [72, .4]], gradeS: [[60, 0], [64, .1], [67, .2], [72, .3], [76, .45], [79, .45], [84, .45]], card: [[48, 0], [55, 0], [60, .3], [64, .3], [67, .6], [72, .6]], set: [[72, 0], [76, .08], [79, .16], [84, .26]] }[kind] || [];
       seq.forEach(([n, d]) => { voice(L, 'brass', n, t + d, kind === 'promo' ? 1.4 : .8, .045, 0); voice(L, 'bell', n + 12, t + d, .6, .02, 0); });
     },
     stop() { if (!on) return; on = false; const a = ctx(), g0 = master; try { g0.gain.cancelScheduledValues(a.currentTime); g0.gain.setValueAtTime(g0.gain.value, a.currentTime); g0.gain.linearRampToValueAtTime(0, a.currentTime + 1.2); } catch (e) {} setTimeout(() => { clearInterval(timer); try { g0.disconnect(); } catch (e) {} }, 1300); layers = []; cur = null; }

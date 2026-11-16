@@ -20,11 +20,16 @@ const EVENTS = [
   { id: 'rigshow', d: 3, name: 'Big Rig Show', icon: '🚛', at: 'Big Rig Truck Stop', blurb: 'Chrome, horns and a lot of trucks at the truck stop. Traffic posts needed.' },
   { id: 'lawday', d: 4, name: 'Law Day Open House', icon: '⚖️', at: 'Justice Plaza', blurb: 'The courthouse opens its doors. School groups, tours and a mock trial.' },
   { id: 'hurricane', d: -1, name: 'Hurricane Prep Week', icon: '🌀', at: null, season: 'hurricane', blurb: 'A storm is in the Gulf. Sandbags, wellness checks on older residents and evacuation routes, in every district.' },
+  { id: 'halloween', d: 1, name: 'Trunk-or-Treat Safety Night', icon: '🎃', at: 'Eastside Community Center', win: [[10, 20], [10, 31]], blurb: 'Costumes, candy and a lot of small pedestrians after dark. Reflective bags, crosswalks and lost-kid stations.' },
+  { id: 'turkeytrot', d: 0, name: 'Turkey Trot & Food Drive', icon: '🦃', at: 'Founders Park', win: [[11, 14], [11, 30]], blurb: 'A 5K through downtown and a food drive at the finish line. Road closures, runners and a lot of canned goods.' },
+  { id: 'toydrive', d: 4, name: 'Blue Holiday Toy Drive', icon: '🎁', at: 'Justice Plaza', win: [[12, 1], [12, 24]], blurb: 'Officers collect and deliver toys for families across the county. Wrapping tables on Justice Plaza.' },
+  { id: 'newyear', d: 0, name: 'New Year on the Bayfront', icon: '🎆', at: 'Bayfront Tower', win: [[12, 26], [1, 2]], blurb: 'Fireworks off the bay at midnight. Big crowds, safe rides home and a sober-driver tent.' },
   { id: 'july4', d: 2, name: 'Fourth of July on the River', icon: '🎆', at: 'Riverside Park', date: [7, 4], blurb: 'Fireworks over the river. The busiest night of the year.' }
 ];
 export function eventOfWeek(d) {
   d = d || new Date(); const s = season(d), y = d.getFullYear(), j4 = new Date(y, 6, 4); if (Math.abs(d - j4) < 4 * 864e5) return EVENTS.find((e) => e.id === 'july4');
-  const pool = EVENTS.filter((e) => !e.date && (!e.season || e.season === s.id)), k = hash(weekKey()) % pool.length; return pool[k];
+  const md = (d.getMonth() + 1) * 100 + d.getDate(), inWin = (w) => { const a = w[0][0] * 100 + w[0][1], b = w[1][0] * 100 + w[1][1]; return a <= b ? md >= a && md <= b : md >= a || md <= b; }; const hol = EVENTS.find((e) => e.win && inWin(e.win)); if (hol) return hol;
+  const pool = EVENTS.filter((e) => !e.date && !e.win && (!e.season || e.season === s.id)), k = hash(weekKey()) % pool.length; return pool[k];
 }
 // what each event gives volunteers at 5 tasks: an outfit touch and a car skin
 export const EV_GEAR = {
@@ -35,6 +40,10 @@ export const EV_GEAR = {
   rigshow: { outfit: 'Big Rig Show safety vest', look: { vest: true, hat: 'cap', hatCol: '#d4ff3a' }, skin: { stripe: '#f97316', text: 'BIG RIG SHOW' } },
   lawday: { outfit: 'Law Day clipboard and brass', look: { clipboard: true, brass: true }, skin: { stripe: '#9333ea', text: 'LAW DAY' } },
   hurricane: { outfit: 'Storm poncho and boonie', look: { poncho: true, hat: 'boonie', hatCol: '#4d5e3a' }, skin: { stripe: '#0ea5e9', text: 'STORM READY' } },
+  halloween: { outfit: 'Reflective safety sash and orange cap', look: { vest: true, hat: 'cap', hatCol: '#f97316' }, skin: { stripe: '#f97316', text: 'TRUNK OR TREAT' } },
+  turkeytrot: { outfit: 'Turkey Trot race bib and cap', look: { hat: 'cap', hatCol: '#b45309', cord: '#b45309' }, skin: { stripe: '#b45309', text: 'TURKEY TROT' } },
+  toydrive: { outfit: 'Toy drive holiday cord', look: { cord: '#dc2626', brass: true, hat: 'cap', hatCol: '#166534' }, skin: { stripe: '#16a34a', text: 'TOY DRIVE' } },
+  newyear: { outfit: 'New Year gold cord and shine', look: { cord: '#f5b800', brass: true, shine: 1 }, skin: { stripe: '#facc15', text: 'HAPPY NEW YEAR' } },
   july4: { outfit: 'Fourth of July cord and shine', look: { cord: '#dc2626', brass: true, shine: 1 }, skin: { stripe: '#dc2626', text: 'JULY 4TH' } }
 };
 // daily challenges: three a day, picked from the date, measured by the same counters as trophies
@@ -45,6 +54,18 @@ const TASKS = {
     ['👥', 'Crowd control', 'People are pushing toward the front to see.', [['Calmly redirect people and open a second viewing area', 1], ['Shout at everyone to back up', 0], ['Let it sort itself out', 0]]],
     ['💧', 'Hydration station', 'An older man looks pale and dizzy in the heat.', [['Get him water and shade, and call EMS to check him', 1], ['Tell him to go home', 0], ['Keep walking', 0]]],
     ['❓', 'Visitor questions', 'A family from out of town is totally lost.', [['Give clear directions and point out the first aid tent', 1], ['Shrug', 0], ['Tell them to use their phone', 0]]]],
+  halloween: [['🎃', 'Lost trick-or-treater', 'A small pirate has lost his group. He is holding a very full bag.', [['Stay with him, get his name and his group\'s description, and radio it out', 1], ['Point him toward the houses with lights on', 0], ['Tell him to wait on the curb', 0]]],
+    ['🚸', 'Dark crosswalk', 'A crowd of costumed kids is crossing mid-block between parked cars.', [['Guide them to the lit crosswalk and hand out glow sticks', 1], ['Let them cross; it\'s only one night', 0], ['Honk to scare them back', 0]]],
+    ['🍬', 'Candy check', 'A parent asks if the candy from one house is safe.', [['Suggest checking for opened or homemade wrappers and tossing anything unsealed', 1], ['Tell her all candy is fine', 0], ['Take the whole bag', 0]]]],
+  turkeytrot: [['🏃', 'Runner down', 'A runner is sitting on the curb, pale and dizzy at mile 2.', [['Get him water and shade and call EMS to check him', 1], ['Tell him to walk it off', 0], ['Keep the race moving', 0]]],
+    ['🥫', 'Food drive', 'The donation table is overflowing and the boxes are falling.', [['Sort and stack the cans and help load the pantry van', 1], ['Guard the table and do nothing', 0], ['Tell people to stop donating', 0]]],
+    ['🚧', 'Course closure', 'A driver wants through the closed race course.', [['Calmly point out the detour and keep the runners safe', 1], ['Let one car through quickly', 0], ['Argue with the driver', 0]]]],
+  toydrive: [['🎁', 'Toy delivery', 'A family on the list is home. The kids are peeking through the blinds.', [['Knock, introduce yourselves and deliver the toys with the parent', 1], ['Leave the toys on the porch', 0], ['Hand them to the kids through the window', 0]]],
+    ['📦', 'Package thief', 'A neighbor says boxes keep vanishing from porches.', [['Take a report, note times and cameras, and share delivery tips', 1], ['Tell her it\'s the holidays', 0], ['Search every porch', 0]]],
+    ['🧣', 'Cold night', 'A man is sleeping on a bench and the temperature is dropping.', [['Check on him and offer a ride to the cold-night shelter', 1], ['Wake him and tell him to move along', 0], ['Leave him be', 0]]]],
+  newyear: [['🎆', 'Fireworks crowd', 'People are pressing toward the seawall for a better view.', [['Calmly open a second viewing area and keep the seawall clear', 1], ['Shout at everyone to move', 0], ['Let them climb the wall', 0]]],
+    ['🚕', 'Safe ride', 'A man fumbles his car keys and can barely stand.', [['Keep him out of the car and help him get a safe ride home', 1], ['Tell him to drive slowly', 0], ['Ignore it', 0]]],
+    ['👂', 'Noise complaint', 'A neighbor says the party next door is shaking her windows.', [['Talk to the host, ask them to turn it down, and check on the neighbor', 1], ['Shut the party down immediately', 0], ['Tell her it\'s New Year\'s', 0]]]],
   hurricane: [['🧱', 'Sandbags', 'Residents are filling sandbags at the fire station.', [['Help and show them how to stack them like bricks', 1], ['Supervise from the car', 0], ['Tell them it won\'t flood', 0]]],
     ['👵', 'Wellness check', 'An older resident lives alone and hasn\'t answered her phone.', [['Knock, check on her, and make sure she has a plan and supplies', 1], ['Leave a voicemail', 0], ['Assume she left town', 0]]],
     ['🛣️', 'Evacuation route', 'Cars are lining up toward the highway.', [['Direct traffic onto the marked evacuation route', 1], ['Let people take shortcuts through neighborhoods', 0], ['Close the road', 0]]]]
@@ -76,7 +97,7 @@ export function installEvents(H) {
     if (evActive(W.did)) spawnTasks();
   }
   function spawnTasks() {
-    const W = H.W, lot = ev.at ? W.lots.find((l) => (l.name || '').indexOf(ev.at) >= 0) : null, list = ev.id === 'hurricane' ? TASKS.hurricane.concat(TASKS.any.slice(1, 3)) : TASKS.any;
+    const W = H.W, lot = ev.at ? W.lots.find((l) => (l.name || '').indexOf(ev.at) >= 0) : null, list = TASKS[ev.id] && ev.id !== 'any' ? TASKS[ev.id].concat(TASKS.any.slice(1, 3)) : TASKS.any;
     const near = lot ? (() => { const [dx, dy] = H.doorSpot(lot); return W.walk.filter((t) => Math.hypot(t[0] - dx, t[1] - dy) < 12); })() : W.walk.filter(() => Math.random() < .02);
     const pool = near.length ? near : W.walk; while (tasks.length < 6) { const t = pool[Math.floor(Math.random() * pool.length)], k = list[Math.floor(Math.random() * list.length)]; tasks.push({ x: t[0] + .5, y: t[1] + .5, k }); }
     if (lot && !W._evDeco) { W._evDeco = 1; const [dx, dy] = H.doorSpot(lot); const cols = ['#d22d3d', '#1f7a5a', '#2c5aa0', '#d98a1c', '#8e44ad']; near.slice(0, 40).filter((_, i) => i % 6 === 0).forEach((t, i) => W.props.push({ t: i % 2 ? 'stall' : 'flag', x: t[0] + .5, y: t[1] + .5, color: cols[i % cols.length] })); }
