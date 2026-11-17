@@ -1,6 +1,8 @@
 // Patrol City polish layer: call debriefs, daily routines, street greetings, voiced scenes, chapter title cards and
 // recaps, accessibility and controls (text size, colour modes, readable font, key remapping, gamepad), collectible
 // case files and the Academy Season track. Everything here is cosmetic or presentational; no live fire anywhere.
+import { ROUTINE4 } from './act2.js';
+const slotOf = (h) => h < 6 ? 3 : h < 12 ? 0 : h < 18 ? 1 : 2;
 export function installPolish(H) {
   const S = H.S, esc = H.esc;
   S.cfg = S.cfg || {}; if (S.cfg.voice == null) S.cfg.voice = 'story'; if (!S.cfg.tsize) S.cfg.tsize = 'normal'; if (!S.cfg.cmode) S.cfg.cmode = 'none'; if (!S.cfg.font) S.cfg.font = 'default';
@@ -42,15 +44,15 @@ export function installPolish(H) {
   };
   let rT = 1;
   function routines(dt) {
-    rT -= dt; if (rT > 0 || H.inside || H.cine()) return; rT = 2.5; const W = H.W, P = H.P; if (!W || !W.lots) return; const day = H.hour() >= 6 && H.hour() < 18;
+    rT -= dt; if (rT > 0 || H.inside || H.cine()) return; rT = 2.5; const W = H.W, P = H.P; if (!W || !W.lots) return; const day = H.hour() >= 6 && H.hour() < 18, slot = slotOf(H.hour());
     H.regs.slice().forEach((r) => {
-      const R = ROUTINE[r.n.id]; if (!R) return; const want = (day ? R[0] : R[1]) || H.homeOf(r.n); if (!want) return;
+      const R4 = ROUTINE4[r.n.id], R = ROUTINE[r.n.id]; if ((!R && !R4) || (H.storyNpc && H.storyNpc() === r.n.id)) return; const want = (R4 ? R4[slot] : (day ? R[0] : R[1])) || H.homeOf(r.n); if (!want) return;
       const lot = W.lots.find((l) => (l.name || '').indexOf(want) >= 0) || W.lots.find((l) => l.kind === want); if (!lot || lot === r.lot) return;
       if (Math.hypot(r.x - P.x, r.y - P.y) < 16) return; const [dx, dy] = lot.door; if (Math.hypot(dx - P.x, dy - P.y) < 12) return; // never pop in or out in front of you
       H.moveReg(r, lot);
     });
   }
-  const whereNow = (n) => { const R = ROUTINE[n.id]; if (!R) return null; const day = H.hour() >= 6 && H.hour() < 18; return (day ? R[0] : R[1]) || null; };
+  const whereNow = (n) => { const R4 = ROUTINE4[n.id]; if (R4) return R4[slotOf(H.hour())] || null; const R = ROUTINE[n.id]; if (!R) return null; const day = H.hour() >= 6 && H.hour() < 18; return (day ? R[0] : R[1]) || null; };
 
   // ================= 3. STREET GREETINGS =================
   const BARKS = []; let bT = 3; const barkCool = new Map();

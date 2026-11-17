@@ -4,12 +4,25 @@
 // moves to it on the next bar line. Instruments: pads, string section, piano, electric piano, plucks,
 // marimba, bells, brass, lead and bass, with a soft drum kit, stereo placement, reverb and delay.
 
+import { TRACKS } from './scoredata.js';
 const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
 const SCALES = { maj: [0, 2, 4, 5, 7, 9, 11], min: [0, 2, 3, 5, 7, 8, 10], dor: [0, 2, 3, 5, 7, 9, 10], mix: [0, 2, 4, 5, 7, 9, 10] };
 // the theme: scale degree and length in beats ('r' is a rest). Two four-bar phrases.
 const THEME = [[2, 1], [4, 1], [5, 2], [4, 1], [2, 1], [1, 2], [0, 1], [1, 1], [2, 2], ['r', 4],
   [2, 1], [4, 1], [7, 2], [6, 1], [5, 1], [4, 2], [5, 1], [4, 1], [2, 2], [1, 2], [0, 2]];
 const THEME_EV = (() => { let b = 0; return THEME.map(([d, l]) => { const e = { b, d, l }; b += l; return e; }).filter((e) => e.d !== 'r'); })();
+
+// themes written as "degree:beats" pairs ('r' rests), eight bars long; parsed once
+export function parseTheme(str) { let b = 0; const out = []; str.trim().split(/\s+/).forEach((tok) => { const [d, l] = tok.split(':'), len = +l; if (d !== 'r' && b < 32) out.push({ b, d: +d, l: Math.min(len, 32 - b) }); b += len; }); return out; }
+// a composed track runs intro (4 bars) · A (8) · B (8) · A again, fuller (8) · outro (4) = 32 bars, then the next track plays
+function sectionOf(bar) { const k = bar % 32; return k < 4 ? 'intro' : k < 12 ? 'A' : k < 20 ? 'B' : k < 28 ? 'A2' : 'outro'; }
+const VIEW = new WeakMap();
+function sectionView(m, sec) { let c = VIEW.get(m); if (!c) { c = {}; VIEW.set(m, c); } if (c[sec]) return c[sec];
+  const v = Object.assign({}, m); v.ev = m._evA || (m._evA = parseTheme(m.theme)); v.counter = null;
+  if (sec === 'intro' || sec === 'outro') { v.drums = null; v.lead = null; v.keys2 = null; v.bass = m.bass && { pat: 'whole', v: m.bass.v * .8 }; }
+  if (sec === 'B') { v.prog = m.progB || m.prog; v.ev = m.themeB ? (m._evB || (m._evB = parseTheme(m.themeB))) : v.ev; if (m.leadB) v.lead = m.leadB; if (m.drumsB !== undefined) v.drums = m.drumsB; if (m.keysB) v.keys = m.keysB; }
+  if (sec === 'A2') { v.counter = m.counter || null; if (m.strings2) v.strings = m.strings2; }
+  return (c[sec] = v); }
 
 // moods. prog: chord roots as scale degrees, one per bar. parts: which instruments play and how.
 export const MOODS = {
@@ -39,6 +52,7 @@ export const MOODS = {
     pad: { v: .03 }, keys: { voice: 'marimba', pat: 'arp8', v: .04 }, bass: { pat: 'half', v: .075 }, drums: { pat: 'soft', v: .45 }, lead: { voice: 'bell', v: .03, oct: 12, from: 0 } }
 };
 
+Object.assign(MOODS, TRACKS);
 export function createMusic(getCtx) {
   let on = false, vol = .85, master = null, out = null, wet = null, dly = null, timer = 0, cur = null, rain = false, noise = null, lowpass = null;
   const ctx = () => getCtx();
@@ -74,6 +88,10 @@ export function createMusic(getCtx) {
     else if (kind === 'brass') { const b = lp(800, 1.2); b.frequency.setValueAtTime(500, t); b.frequency.linearRampToValueAtTime(2400, t + .12); b.frequency.setTargetAtTime(1300, t + .14, .2); [-6, 6].forEach((d) => { const o = osc('sawtooth', f, d); o.connect(b); oscs.push(o); }); env(.05, v, .35, .7); send(.4); }
     else if (kind === 'lead') { const b = lp(2400); const o = osc('square', f), vib = osc('sine', 5.5), vg = a.createGain(); vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(9, t + .4); vib.connect(vg); vg.connect(o.detune); o.connect(b); oscs = [o, vib]; env(.02, v, .5, .75); send(.35); send(.45, true); }
     else if (kind === 'bass') { const b = lp(520, 1.1); b.frequency.setValueAtTime(900, t); b.frequency.exponentialRampToValueAtTime(380, t + .25); const o = osc('sine', f), o2 = osc('sawtooth', f), g2 = a.createGain(); g2.gain.value = .35; o.connect(b); o2.connect(g2); g2.connect(b); oscs = [o, o2]; env(.012, v, .25, .7); }
+    else if (kind === 'flute') { const b = lp(3000); const o = osc('sine', f), o2 = osc('triangle', f * 2), g2 = a.createGain(); g2.gain.value = .12; const vib = osc('sine', 4.8), vg = a.createGain(); vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(7, t + .35); vib.connect(vg); vg.connect(o.detune); o.connect(b); o2.connect(g2); g2.connect(b); oscs = [o, o2, vib]; env(.06, v, .35, .85); send(.4); send(.3, true); }
+    else if (kind === 'organ') { const b = lp(3800); [[1, .55], [2, .3], [3, .14], [4, .1]].forEach(([h, gv]) => { const o = osc('sine', f * h), og = a.createGain(); og.gain.value = gv; o.connect(og); og.connect(b); oscs.push(o); }); const trem = osc('sine', 6.2), tg = a.createGain(); tg.gain.value = v * .18; trem.connect(tg); tg.connect(g.gain); oscs.push(trem); env(.02, v, .12, .95); send(.3); }
+    else if (kind === 'vibes') { const o = osc('sine', f), o2 = osc('sine', f * 4.01), g2 = a.createGain(); g2.gain.setValueAtTime(.25, t); g2.gain.exponentialRampToValueAtTime(.001, t + .2); o.connect(g); o2.connect(g2); g2.connect(g); const trem = osc('sine', 5), tg = a.createGain(); tg.gain.value = v * .3; trem.connect(tg); tg.connect(g.gain); oscs = [o, o2, trem]; env(.004, v, 1.6); send(.45); send(.25, true); }
+    else if (kind === 'nylon') { const b = lp(2600, 1.4); b.frequency.setValueAtTime(3400, t); b.frequency.exponentialRampToValueAtTime(700, t + .5); const o = osc('triangle', f), o2 = osc('sawtooth', f, 3), g2 = a.createGain(); g2.gain.value = .18; o.connect(b); o2.connect(g2); g2.connect(b); oscs = [o, o2]; env(.003, v, .9); send(.3); }
     else if (kind === 'drone') { const b = lp(500); [0, 7].forEach((d) => { const o = osc('sawtooth', f, d); o.connect(b); oscs.push(o); }); env(1.5, v, 2, .9); send(.7); }
     oscs.forEach((o) => { o.start(t); o.stop(endT + .1); });
   }
@@ -93,19 +111,26 @@ export function createMusic(getCtx) {
     pop: ['k', 'h', '', 'h', 's', 'h', '', 'h', '', 'h', 'k', 'h', 's', 'h', '', 'o'],
     brush: ['k', '', 'h', '', 'b', '', 'h', 'h', '', 'k', 'h', '', 'b', '', 'h', ''],
     pulse: ['k', 'h', 'h', 'h', 'k', 'h', 'h', 'h', 'k', 'h', 'h', 'h', 'k', 'h', 'r', 'h'],
-    drive: ['k', 'h', 'h', 'h', 's', 'h', 'h', 'k', 'k', 'h', 'h', 'h', 's', 'h', 'h', 'h']
+    drive: ['k', 'h', 'h', 'h', 's', 'h', 'h', 'k', 'k', 'h', 'h', 'h', 's', 'h', 'h', 'h'],
+    half: ['k', '', 'h', '', '', '', 'h', '', 's', '', 'h', '', '', 'k', 'h', ''],
+    shuffle: ['k', '', '', 'h', 's', '', '', 'h', 'k', '', 'k', 'h', 's', '', '', 'h'],
+    bossa: ['k', 'x', 'r', 'x', 'k', 'x', 'r', 'k', 'k', 'r', 'x', 'k', 'r', 'x', 'k', 'x'],
+    march: ['k', '', 's', 's', 'k', '', 's', '', 'k', '', 's', 's', 'k', 's', 's', 's'],
+    train: ['k', 'x', 'x', 'x', 'b', 'x', 'x', 'x', 'k', 'x', 'x', 'x', 'b', 'x', 'x', 'r']
   };
   // ---- the sequencer ----
   function chordOf(m, deg, sev) { const sc = SCALES[m.scale], n = (d) => m.root + sc[((d % 7) + 7) % 7] + 12 * Math.floor(d / 7); const c = [n(deg), n(deg + 2), n(deg + 4)]; if (sev) c.push(n(deg + 6)); return c; }
   const noteOf = (m, d, oct) => { const sc = SCALES[m.scale]; return m.root + (oct || 0) + sc[((d % 7) + 7) % 7] + 12 * Math.floor(d / 7); };
   function playStep(L, t, spb) {
-    const m = L.m, bar = Math.floor(L.step / 16), s = L.step % 16, deg = m.prog[bar % m.prog.length], ch = chordOf(m, deg, m.keys && m.keys.sev), beat = s / 4;
+    const m0 = L.m, bar = Math.floor(L.step / 16), s = L.step % 16, beat = s / 4, sec = m0.form ? sectionOf(bar) : 'A';
+    const m = m0.form ? sectionView(m0, sec) : m0, rb = m0.form ? (bar - (sec === 'B' ? 12 : sec === 'A2' ? 20 : 4) + 64) : bar;
+    const deg = m.prog[rb % m.prog.length], ch = chordOf(m, deg, m.keys && m.keys.sev);
     // pad and strings: held chords
     if (s === 0 && m.pad) ch.slice(0, 3).forEach((n, i) => voice(L, 'pad', n, t, spb * 16, m.pad.v, i === 0 ? -.4 : i === 1 ? .4 : 0));
     if (s === 0 && m.strings) { voice(L, 'strings', ch[2] + 12, t, spb * 16, m.strings.v, .3); voice(L, 'strings', ch[0], t, spb * 16, m.strings.v * .8, -.3); }
     if (s === 0 && m.drone && bar % 2 === 0) voice(L, 'drone', m.root - 24, t, spb * 32, m.drone.v, 0);
     // bass lines
-    if (m.bass) { const r = ch[0] - 24, b = m.bass, P = { whole: { 0: 0 }, half: { 0: 0, 8: 7 }, walk: { 0: 0, 4: 7, 8: 12, 12: 10 }, syncop: { 0: 0, 6: 0, 10: 7, 14: 12 }, eighths: { 0: 0, 2: 0, 4: 0, 6: 0, 8: 0, 10: 0, 12: 7, 14: 0 }, drive: { 0: 0, 1: 0, 2: 12, 3: 0, 4: 0, 5: 0, 6: 12, 7: 0, 8: 0, 9: 0, 10: 12, 11: 0, 12: 7, 13: 7, 14: 12, 15: 7 } }[b.pat] || {}; if (P[s] != null) { const len = b.pat === 'whole' ? 15 : b.pat === 'half' ? 7 : b.pat === 'drive' ? .9 : b.pat === 'eighths' ? 1.6 : 3; voice(L, 'bass', r + P[s], t, spb * len, b.v, 0); } }
+    if (m.bass) { const r = ch[0] - 24, b = m.bass, P = { whole: { 0: 0 }, half: { 0: 0, 8: 7 }, walk: { 0: 0, 4: 7, 8: 12, 12: 10 }, syncop: { 0: 0, 6: 0, 10: 7, 14: 12 }, eighths: { 0: 0, 2: 0, 4: 0, 6: 0, 8: 0, 10: 0, 12: 7, 14: 0 }, bounce: { 0: 0, 3: 0, 8: 7, 11: 7 }, march: { 0: 0, 4: 7, 8: 0, 12: 7 }, root5: { 0: 0, 6: 7, 8: 12, 14: 7 }, drive: { 0: 0, 1: 0, 2: 12, 3: 0, 4: 0, 5: 0, 6: 12, 7: 0, 8: 0, 9: 0, 10: 12, 11: 0, 12: 7, 13: 7, 14: 12, 15: 7 } }[b.pat] || {}; if (P[s] != null) { const len = b.pat === 'whole' ? 15 : b.pat === 'half' ? 7 : b.pat === 'drive' ? .9 : b.pat === 'eighths' ? 1.6 : 3; voice(L, 'bass', r + P[s], t, spb * len, b.v, 0); } }
     // keys parts
     [m.keys, m.keys2].forEach((k, ki) => { if (!k) return; const pan = ki ? .35 : -.25, v = k.v;
       if (k.pat === 'arp8' && s % 2 === 0) { const seq = [0, 1, 2, 3, 2, 1, 2, 1], n = ch[seq[(s / 2) % 8] % ch.length] + (seq[(s / 2) % 8] === 3 ? 12 : 0) + 12; voice(L, k.voice, n, t, spb * 2.5, v, pan); }
@@ -113,13 +138,16 @@ export function createMusic(getCtx) {
       if (k.pat === 'offbeat' && (s === 2 || s === 6 || s === 10 || s === 14)) ch.forEach((n, i) => voice(L, k.voice, n + 12, t + i * .008, spb * 1.4, v * .7, pan));
       if (k.pat === 'comp' && (s === 0 || s === 6 || s === 12)) ch.forEach((n, i) => voice(L, k.voice, n + 12, t + i * .012, spb * (s === 6 ? 3 : 5), v * (s === 0 ? 1 : .75), pan));
       if (k.pat === 'stab' && (s === 0 || s === 3 || s === 6 || (s === 10 && bar % 2))) ch.forEach((n) => voice(L, k.voice, n + 12, t, spb * 1.2, v, pan));
+      if (k.pat === 'pulse8' && s % 2 === 0) ch.forEach((n, i) => voice(L, k.voice, n + 12, t + i * .006, spb * 1.5, v * (s % 8 === 0 ? 1 : .7), pan));
+      if (k.pat === 'alberti' && s % 2 === 0) { const seq = [0, 2, 1, 2], n = ch[seq[(s / 2) % 4]] + 12; voice(L, k.voice, n, t, spb * 2.2, v * (s % 8 === 0 ? 1.1 : .85), pan); }
+      if (k.pat === 'strum' && (s === 0 || s === 6 || s === 8 || s === 14)) ch.concat([ch[0] + 12]).forEach((n, i) => voice(L, k.voice, n + 12, t + i * .022, spb * 3, v * (s === 0 ? 1 : .7), pan));
       if (k.pat === 'sparse' && (s === 0 || (s === 8 && bar % 2))) ch.forEach((n, i) => voice(L, k.voice, n + 12, t + i * .02, spb * 8, v, pan));
     });
     // the theme, on the lead instrument
-    if (m.lead && (bar % 16) >= m.lead.from) { const b8 = (bar % 8) * 4 + beat; THEME_EV.forEach((e) => { if (Math.abs(e.b - b8) < .01 && (!m.lead.sparse || e.l >= 2 || Math.random() < .5)) voice(L, m.lead.voice, noteOf(m, e.d, m.lead.oct), t, spb * 4 * e.l * .95, m.lead.v, .1); }); }
+    if (m.lead && (m0.form || (bar % 16) >= m.lead.from)) { const b8 = (rb % 8) * 4 + beat, ev = m.ev || THEME_EV; ev.forEach((e) => { if (Math.abs(e.b - b8) < .01 && (!m.lead.sparse || e.l >= 2 || ((bar * 7 + e.b * 13) % 3) > 0)) { voice(L, m.lead.voice, noteOf(m, e.d, m.lead.oct), t, spb * 4 * e.l * .95, m.lead.v, .1); if (m.counter) voice(L, m.counter.voice, noteOf(m, e.d - 2, m.counter.oct || 0), t, spb * 4 * e.l * .95, m.counter.v, -.3); } }); }
     // drums, with a fill on the last bar of every eight
-    if (m.drums) { const pat = DRUMS[m.drums.pat], hit = pat[s], dv = m.drums.v, swing = m.drums.pat === 'brush' && s % 2 ? spb * .28 : 0;
-      if (bar % 8 === 7 && s >= 12 && (m.drums.pat === 'drive' || m.drums.pat === 'pop' || m.drums.pat === 'pulse')) drum(L, s % 2 ? 'snare' : 'tom', t, dv * .8);
+    if (m.drums) { const pat = DRUMS[m.drums.pat], hit = pat[s], dv = m.drums.v, swing = (m.drums.pat === 'brush' || m.drums.pat === 'shuffle') && s % 2 ? spb * .28 : 0;
+      if (bar % 8 === 7 && s >= 12 && (m.drums.pat === 'drive' || m.drums.pat === 'pop' || m.drums.pat === 'pulse' || m.drums.pat === 'march' || m.drums.pat === 'half')) drum(L, s % 2 ? 'snare' : 'tom', t, dv * .8);
       else if (hit) drum(L, { k: 'kick', s: 'snare', b: 'brush', h: 'hat', o: 'open', x: 'shaker', r: 'rim' }[hit], t + swing, dv * (s % 4 === 0 ? 1 : .8)); }
   }
   function layer(id, at) {

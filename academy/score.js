@@ -1,34 +1,46 @@
 // The Patrol City score: the recorded MP3 plays as the game's music. It is one track with a section per mood
 // (11 seconds each, in this order), so when the situation changes the music crossfades to that mood's section
 // and carries on from there. Until the file has loaded (or if it can't load), the built-in synth score plays instead.
+import { TRACKS, ROTATION, trackLen } from './scoredata.js';
 const FILE = 'music/patrol-city-score.mp3';
 const ORDER = ['title', 'day', 'night', 'inside', 'story', 'side', 'call', 'urgent', 'scene', 'water'], SEG = 11;
 const NAMES = { title: 'Port Meridian', day: 'Day Watch', night: 'Night Watch', inside: 'Indoors', story: 'The Gray Sedan', side: 'Side Case', call: 'En Route', urgent: 'Priority One', scene: 'On Scene', water: 'Marine Patrol' };
 const PRIORITY = { call: 1, urgent: 1, scene: 1, story: 1 }; // these cut in right away; calmer moods wait a little so the music doesn't jump around
 
 export function createScore(getCtx, synth) {
-  let on = false, cur = null, vol = .7, rainy = false, master = null, lp = null, decks = [], live = -1, ready = false, failed = false, lastJump = 0, pending = null;
-  const ctx = () => getCtx();
+  let on = false, cur = null, vol = .7, rainy = false, master = null, lp = null, decks = [], live = -1, ready = false, failed = false, lastJump = 0, pending = null, playing = null, watch = 0;
+  const ctx = () => getCtx(), idx = {}, bad = {};
+  // one rotation entry: a section of the first recording (played three times round) or a composed track (played once)
+  function entry(mood) { const list = (ROTATION[mood] || ['orig']).filter((id) => !bad[id] && (id !== 'orig' || ORDER.indexOf(mood) >= 0)); if (!list.length) return { id: 'orig', src: FILE, start: 0, len: SEG, mood };
+    const k = idx[mood] == null ? Math.floor(Math.random() * list.length) : (idx[mood] + 1) % list.length; idx[mood] = k; const id = list[k];
+    if (id === 'orig') return { id, src: FILE, start: ORDER.indexOf(mood) * SEG, len: SEG * 3, loopSeg: SEG, mood, name: NAMES[mood] };
+    return { id, src: 'music/' + id + '.mp3', start: 0, len: trackLen(TRACKS[id]) + 1.2, mood, name: TRACKS[id].name }; }
   function graph() {
     const a = ctx(); if (!a || master) return !!master;
     master = a.createGain(); master.gain.value = vol; lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = rainy ? 5200 : 16000; lp.connect(master); master.connect(a.destination);
-    decks = [0, 1].map((i) => { const el = new Audio(); el.preload = i ? 'none' : 'auto'; el.src = FILE; el.loop = true; el.crossOrigin = 'anonymous'; el.setAttribute('playsinline', ''); const g = a.createGain(); g.gain.value = 0; let src = null; try { src = a.createMediaElementSource(el); src.connect(g); } catch (e) {} g.connect(lp); return { el, g, src }; });
+    decks = [0, 1].map((i) => { const el = new Audio(); el.preload = i ? 'none' : 'auto'; el.crossOrigin = 'anonymous'; el.setAttribute('playsinline', ''); if (!i) el.src = FILE; const g = a.createGain(); g.gain.value = 0; let src = null; try { src = a.createMediaElementSource(el); src.connect(g); } catch (e) {} g.connect(lp); return { el, g, src }; });
     const d0 = decks[0].el, ok = () => { if (ready) return; ready = true; if (on && cur) { synth.stop(); jump(cur, true); } };
     d0.addEventListener('canplaythrough', ok, { once: true }); d0.addEventListener('loadeddata', ok, { once: true });
     d0.addEventListener('error', () => { failed = true; if (on && cur) synth.start(cur); }, { once: true });
-    d0.load(); d0.addEventListener('canplaythrough', () => { decks[1].el.load(); }, { once: true }); return true;
+    d0.load(); watch = setInterval(tick, 400); return true;
   }
-  function jump(mood, now) {
-    const a = ctx(); if (!a || !ready) return; const k = ORDER.indexOf(mood), at = (k < 0 ? 0 : k) * SEG, t = a.currentTime, nxt = live < 0 ? 0 : 1 - live, D = decks[nxt], O = live < 0 ? null : decks[live];
-    // land on the same beat: the new section starts at the same position within its bar as the old one was
-    let off = 0; if (O && !now) { const t0 = O.el.currentTime % SEG; off = t0 < SEG - 2.5 ? t0 : 0; }
-    try { D.el.currentTime = at + off; } catch (e) {} const p = D.el.play(); if (p && p.catch) p.catch(() => {});
-    D.g.gain.cancelScheduledValues(t); D.g.gain.setValueAtTime(D.g.gain.value, t); D.g.gain.linearRampToValueAtTime(1, t + (now ? .6 : 1.8));
-    if (O) { O.g.gain.cancelScheduledValues(t); O.g.gain.setValueAtTime(O.g.gain.value, t); O.g.gain.linearRampToValueAtTime(0, t + 1.8); const old = O.el; setTimeout(() => { if (decks[live] && decks[live].el !== old) old.pause(); }, 2000); }
-    live = nxt; lastJump = performance.now();
+  // warm the cache with the next track of this mood so the change is instant
+  const warmed = {}; function warm(mood) { const list = ROTATION[mood] || []; const k = ((idx[mood] || 0) + 1) % (list.length || 1), id = list[k]; if (!id || id === 'orig' || warmed[id]) return; warmed[id] = 1; const c = navigator.connection; if (c && c.saveData) return; try { fetch('music/' + id + '.mp3').catch(() => {}); } catch (e) {} }
+  function jump(mood, now, e) {
+    const a = ctx(); if (!a || !ready) return; e = e || entry(mood); const t = a.currentTime, nxt = live < 0 ? 0 : 1 - live, D = decks[nxt], O = live < 0 ? null : decks[live];
+    const src = new URL(e.src, location.href).href, go = () => { try { D.el.currentTime = e.start; } catch (x) {} const p = D.el.play(); if (p && p.catch) p.catch(() => {}); };
+    if (D.el.src !== src) { D.el.src = src; D.el.preload = 'auto'; D.el.addEventListener('error', () => { if (e.id !== 'orig') { bad[e.id] = 1; if (on && cur === mood) jump(mood, true); } }, { once: true }); D.el.addEventListener('loadedmetadata', go, { once: true }); D.el.load(); } else go();
+    D.g.gain.cancelScheduledValues(t); D.g.gain.setValueAtTime(D.g.gain.value, t); D.g.gain.linearRampToValueAtTime(1, t + (now ? .6 : 2.2));
+    if (O) { O.g.gain.cancelScheduledValues(t); O.g.gain.setValueAtTime(O.g.gain.value, t); O.g.gain.linearRampToValueAtTime(0, t + 2.2); const old = O.el; setTimeout(() => { if (decks[live] && decks[live].el !== old) old.pause(); }, 2600); }
+    live = nxt; lastJump = performance.now(); playing = e; warm(mood);
+    if (e.name && api.onTrack) try { api.onTrack(e.name, e.id); } catch (x) {}
   }
+  // keep the rotation moving: when a track (or three rounds of a recorded section) is nearly over, cross-fade to the next
+  function tick() { if (!on || !ready || failed || live < 0 || !playing) return; const el = decks[live].el; if (el.paused || el.readyState < 2) return; const pos = el.currentTime - playing.start;
+    if (playing.loopSeg && pos >= playing.loopSeg - 1.6 && pos < playing.len - 2.3) { playing.done = (playing.done || 0) + playing.loopSeg; const e2 = Object.assign({}, playing, { len: playing.len - playing.loopSeg }); jump(playing.mood, false, e2); return; }
+    if (pos >= playing.len - 2.3 || el.ended) jump(cur || playing.mood); }
   const api = {
-    get mood() { return cur; }, get title() { return cur ? NAMES[cur] || '' : ''; }, get usingFile() { return ready && !failed; },
+    get mood() { return cur; }, get title() { return playing && playing.name ? playing.name : cur ? NAMES[cur] || '' : ''; }, get usingFile() { return ready && !failed; },
     start(mood) {
       const a = ctx(); if (!a) return; if (a.state === 'suspended' && a.resume) { try { const r = a.resume(); if (r && r.catch) r.catch(() => {}); } catch (e) {} }
       graph(); if (!on) { on = true; cur = null; }
@@ -44,6 +56,7 @@ export function createScore(getCtx, synth) {
       if (!wait) jump(mood); else pending = setTimeout(() => { if (on && cur === mood) jump(mood); }, wait);
     },
     pump() {},
+    __seekEnd() { if (live < 0 || !playing) return; try { decks[live].el.currentTime = playing.start + playing.len - 3; } catch (e) {} }, // test hook
     rain(v) { rainy = !!v; synth.rain(v); if (lp) { const a = ctx(); lp.frequency.setTargetAtTime(rainy ? 5200 : 16000, a.currentTime, .8); } },
     volume(v) { vol = Math.max(0, Math.min(1, v)) * .85 + .0001; synth.volume(v); if (master) { const a = ctx(); master.gain.setTargetAtTime(vol, a.currentTime, .1); } },
     sting(kind) { synth.sting && synth.sting(kind); if (!on || !ready || failed || !master) return; // a short bell figure over the recording
