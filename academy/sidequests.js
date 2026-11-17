@@ -4,7 +4,7 @@
 export const SIDE_CAST = {
   // Central District
   kid: { name: 'Mateo, age 9', icon: '🧒', role: 'Founders Elementary, third grade' },
-  barista: { name: 'Priya', icon: '☕', role: 'Grind & Badge Coffee' },
+  barista: { name: 'Noor', icon: '☕', role: 'Grind & Badge Coffee' },
   rtech: { name: 'Ana Ruiz', icon: '📡', role: 'County radio technician' },
   hank: { name: 'Hank', icon: '🚌', role: 'Night bus driver' },
   super: { name: 'Mr. Odum', icon: '🔑', role: 'Super, Harbor View Apartments' },
@@ -56,7 +56,7 @@ export const SIDE_CAST = {
   // Industrial Park
   manager: { name: 'Night Manager Doyle', icon: '📦', role: 'Palmetto Paper Co.' },
   vacant: { name: 'Mr. Ames', icon: '🧹', role: 'Sleeps rough behind Lock-It Storage' },
-  hiker: { name: 'Eli, age 17', icon: '🎒', role: 'Hitchhiker' },
+  hiker: { name: 'Jonah, age 17', icon: '🎒', role: 'Hitchhiker' },
   railneighbor: { name: 'Mrs. Kowal', icon: '🪟', role: 'Railside Apartments, second floor' },
   copperman: { name: 'Pickup driver', icon: '🛻', role: 'Has a lot of copper wire' },
   packer: { name: 'Big Mo', icon: '🏷️', role: 'Gulf Packaging, 31 years' },
@@ -89,12 +89,12 @@ export const SIDE2 = [
   { id: 'pigeons', d: 0, title: 'The Pigeon Situation', giver: 'pruitt', req: [0, 0], blurb: 'Pigeons are raiding the pastry case at Grind & Badge, and Sgt. Pruitt (Ret.) suspects an inside job.',
     offer: [['pruitt', 'Cadet. The pigeons at Grind & Badge are organized. Somebody is training them. I would know. I have been training pigeons for forty years.']],
     steps: [
-      { at: 'Grind & Badge Coffee', who: 'barista', goal: 'Ask Priya at Grind & Badge about the pastry heists', say: [['barista', 'Every day at three. Swoop, grab, gone. Only the croissants. They have taste, I\'ll give them that.'], ['barista', 'It started when the elementary school let out early on Wednesdays. A little kid sits on our bench with a bag of bread.']], quiz: { les: 0, n: 1 } },
+      { at: 'Grind & Badge Coffee', who: 'barista', goal: 'Ask Noor at Grind & Badge about the pastry heists', say: [['barista', 'Every day at three. Swoop, grab, gone. Only the croissants. They have taste, I\'ll give them that.'], ['barista', 'It started when the elementary school let out early on Wednesdays. A little kid sits on our bench with a bag of bread.']], quiz: { les: 0, n: 1 } },
       { at: 'Founders Elementary', who: 'kid', goal: 'Find the kid at Founders Elementary', say: [['kid', 'I\'m not training them! I\'m just… teaching them. Teaching is different.'],
         ['choice', [
-          { t: 'Ask him to feed them birdseed in the park instead', set: 'pigeonSeed', trust: 1, reply: [['kid', 'Birdseed? Is that better for them? Okay. Okay, I\'ll do that.']] },
-          { t: 'Tell him feeding pigeons by the café has to stop', set: 'pigeonStop', reply: [['kid', '…Fine. Sorry, pigeons.']] },
-          { t: 'Introduce him to Sgt. Pruitt', set: 'pigeonPruitt', npc: { pruitt: 1 }, reply: [['pruitt', '(over the radio) A young pigeon man! Bring him to Founders Park on Sunday. I have forty years of things to tell him.']] }]]] }
+          { t: 'Ask him to use birdseed in the park', set: 'pigeonSeed', trust: 1, reply: [['kid', 'Birdseed? Is that better for them? Okay. Okay, I\'ll do that.']] },
+          { t: 'Tell him the café feeding has to stop', set: 'pigeonStop', reply: [['kid', '…Fine. Sorry, pigeons.']] },
+          { t: 'Introduce him to Sgt. Pruitt instead', set: 'pigeonPruitt', npc: { pruitt: 1 }, reply: [['pruitt', '(over the radio) A young pigeon man! Bring him to Founders Park on Sunday. I have forty years of things to tell him.']] }]]] }
     ], reward: { rp: 110, loot: 'u' } },
   { id: 'deadair', d: 0, title: 'Dead Air', giver: 'kevin', req: [0, 1], blurb: 'Kevin from IT found a radio dead spot downtown.',
     offer: [['kevin', 'So, uh, your radios. Near Bayfront Tower they just… stop. I tested with my scanner. It\'s a hobby. Please don\'t arrest me.'], ['kevin', 'The county radio tech is up at the Radio Tower today. She\'d want to see my graph. Everybody wants to see my graph.']],
@@ -111,8 +111,8 @@ export const SIDE2 = [
       { at: 'Harbor View Apartments', who: 'super', goal: 'Check on Mr. Abernathy at Harbor View Apartments', say: [['super', 'Abernathy, 4B? His mail\'s piling up. But I saw him get in a cab a week ago, holding his chest. Said he was going to urgent care.']], quiz: { les: 9, n: 1 } },
       { at: 'Downtown Urgent Care', who: 'nurse', goal: 'Ask about him at Downtown Urgent Care', say: [['nurse', 'He\'s here. He\'s okay, but he\'s been admitted for observation. No visitors in a week. He asked if anyone had noticed.'],
         ['choice', [
-          { t: 'Bring him a slice of cherry pie from the Night Owl', set: 'pieDelivered', npc: { dot: 2 }, reply: [['nurse', 'Pie is against three hospital policies. I\'ll allow it. He\'s going to cry.']] },
-          { t: 'Let Hank know he\'s okay', reply: [['hank', '(over the radio) Oh, thank goodness. I\'ll save his seat. Third row, left side.']] }]]] }
+          { t: 'Bring him cherry pie from the Night Owl', set: 'pieDelivered', npc: { dot: 2 }, reply: [['nurse', 'Pie is against three hospital policies. I\'ll allow it. He\'s going to cry.']] },
+          { t: 'Radio Hank that his rider is okay', reply: [['hank', '(over the radio) Oh, thank goodness. I\'ll save his seat. Third row, left side.']] }]]] }
     ], reward: { rp: 130, loot: 'u' } },
   { id: 'spokes', d: 0, title: 'Spokes and Suspects', giver: 'marcus', req: [0, 1], blurb: 'Bikes are vanishing from the racks at Bayfront Tower.',
     offer: [['marcus', 'Three bikes this week from the Bayfront racks. Mine\'s next, I can feel it. My bike is my whole job, officer.'], ['marcus', 'Wren at Spokes & Spares keeps a list of every serial number she\'s ever sold. Start there.']],
@@ -122,7 +122,7 @@ export const SIDE2 = [
       { at: 'Palmetto Row', who: 'pike', goal: 'Meet Pike at Palmetto Row', say: [['pike', 'Hoodie guy, three bikes in the carport, looks nervous. Let\'s grab him.'],
         ['choice', [
           { t: 'Plan it: you make contact, Pike covers', set: 'spokesPlan', reply: [['pike', 'Contact and cover. Fine. …He\'s handing them over. Says he "found them." Sure, buddy.'], ['marcus', '(over the radio) MY BIKE\'S FRIENDS ARE SAFE.']] },
-          { t: 'Let Pike rush in', set: 'spokesRush', trust: -1, reply: [['pike', 'He\'s running! He dropped the bikes! …I still count that as a win.']] }]]] }
+          { t: 'Let Pike move in while he\'s surprised', set: 'spokesRush', trust: -1, reply: [['pike', 'He\'s running! He dropped the bikes! …I still count that as a win.']] }]]] }
     ], reward: { rp: 150, loot: 'r' } },
   { id: 'overdue', d: 0, title: 'Overdue Since 1987', giver: 'shopowner', giverAt: 'Dog-Eared Books', req: [0, 3], blurb: 'A library book due in 1987 turned up in a used bookstore\'s donation bin.',
     offer: [['shopowner', 'Officer! Someone left this in my donation bin. "Pigeons of the American South." Central Library copy. Due back March 4th, 1987.'], ['shopowner', 'Inside the cover, a church bulletin from First Light Chapel. From 1987. I have to know.']],
@@ -147,8 +147,8 @@ export const SIDE2 = [
       { at: 'First Coast Bank', who: 'teller', goal: 'Talk to the teller at First Coast Bank', say: [['teller', 'He was withdrawing two thousand in cash and kept checking his phone. When I asked, he said "tech support told me not to tell you." That\'s the tell, every time.']], quiz: { les: 3, n: 1 } },
       { at: 'Sharp Edges Barbershop', who: 'barber', goal: 'Plan something with Otis at Sharp Edges', say: [['barber', 'So what do we do? They trust me. They don\'t trust flyers.'],
         ['choice', [
-          { t: 'Teach a scam-awareness talk in the barbershop on Saturday', set: 'scamClass', trust: 2, npc: { kevin: 1 }, reply: [['barber', 'In the shop? With free trims? They\'ll come for the trims and stay for the talk.'], ['kevin', '(over the radio) I made slides. Forty slides. Okay, ten.']] },
-          { t: 'Leave flyers on the counter', set: 'scamFlyers', reply: [['barber', 'Flyers are good. People do read them. Sometimes.']] }]]] }
+          { t: 'Hold a scam talk in the shop Saturday', set: 'scamClass', trust: 2, npc: { kevin: 1 }, reply: [['barber', 'In the shop? With free trims? They\'ll come for the trims and stay for the talk.'], ['kevin', '(over the radio) I made slides. Forty slides. Okay, ten.']] },
+          { t: 'Leave scam flyers on every counter', set: 'scamFlyers', reply: [['barber', 'Flyers are good. People do read them. Sometimes.']] }]]] }
     ], reward: { rp: 130, loot: 'r' } },
   { id: 'fakepage', d: 0, title: 'Not Our Page', giver: 'diaz', giverAt: 'Bayfront Dog Run', req: [0, 4], blurb: 'A fake police page is asking for donations by gift card.',
     offer: [['diaz', 'Officer! My friends keep sharing a "Port Meridian Police Charity" page. It wants donations in gift cards. It has your badge on it. It\'s not you, is it? Pepito, sit.']],
@@ -156,8 +156,8 @@ export const SIDE2 = [
       { at: 'Patrol HQ', inside: true, who: 'pio', goal: 'Take it to the public information officer at Patrol HQ', say: [['pio', 'Not ours. Screenshots, account name, payment details, timestamps. Before it gets deleted.']], quiz: { les: 3, n: 1 } },
       { at: 'Bayfront Dog Run', who: 'diaz', goal: 'Get back to Mrs. Diaz at the Dog Run', say: [['diaz', 'So what do I tell my friends?'],
         ['choice', [
-          { t: 'Ask the PIO to post a warning on the real page, and tell her friends to report the fake', set: 'fakeWarned', trust: 2, reply: [['pio', '(over the radio) Posted. Real page, real warning. The fake one\'s down by tonight.'], ['diaz', 'I\'m telling everyone. Pepito is telling everyone.']] },
-          { t: 'Tell her to just ignore it', reply: [['diaz', 'Ignore it? Mrs. Rosen already sent fifty dollars!']] }]]] }
+          { t: 'Have the PIO warn people on the real page', set: 'fakeWarned', trust: 2, reply: [['pio', '(over the radio) Posted. Real page, real warning. The fake one\'s down by tonight.'], ['diaz', 'I\'m telling everyone. Pepito is telling everyone.']] },
+          { t: 'Tell her friends to ignore the fake page', reply: [['diaz', 'Ignore it? Mrs. Rosen already sent fifty dollars!']] }]]] }
     ], reward: { rp: 140, loot: 'r' } },
 
   // ================= Eastside =================
@@ -167,8 +167,8 @@ export const SIDE2 = [
       { at: 'Eastgate Apartments', who: 'mia', goal: 'Talk to Mia at Eastgate Apartments', say: [['mia', 'He went running. When he\'s mad he runs the trails in Eastgate Pines until he\'s too tired to be mad. Please don\'t make it worse.']], quiz: { les: 4, n: 1 } },
       { at: 'Eastgate Pines', who: 'boxer', goal: 'Find Tre on the trail in Eastgate Pines', say: [['boxer', 'He hit me after the bell! Everybody saw it!'],
         ['choice', [
-          { t: 'Keep your distance, keep your voice low, let him vent', set: 'glovesCalm', trust: 1, npc: { reyes: 1 }, reply: [['boxer', '…Yeah. Okay. I\'m just tired, man. I train every day.'], ['reyes', '(over the radio) Saturday. Three rounds, headgear, me as referee, handshake after. That\'s how my gym settles things.']] },
-          { t: 'Tell him to calm down right now', set: 'glovesOrder', reply: [['boxer', 'Don\'t tell me to calm down! …Fine. Fine.']] }]]], quiz: { les: 5, n: 1 } }
+          { t: 'Keep your distance and let him vent', set: 'glovesCalm', trust: 1, npc: { reyes: 1 }, reply: [['boxer', '…Yeah. Okay. I\'m just tired, man. I train every day.'], ['reyes', '(over the radio) Saturday. Three rounds, headgear, me as referee, handshake after. That\'s how my gym settles things.']] },
+          { t: 'Tell him firmly to calm down now', set: 'glovesOrder', reply: [['boxer', 'Don\'t tell me to calm down! …Fine. Fine.']] }]]], quiz: { les: 5, n: 1 } }
     ], reward: { rp: 120, loot: 'u' } },
   { id: 'sockbandit', d: 1, title: 'The Sock Bandit', giver: 'kim', req: [1, 0], blurb: 'Single socks keep vanishing from the dryers at Spin City.',
     offer: [['kim', 'Officer. Socks. One sock from every pair. Every day. My customers think I am the thief. I do not want socks. I have enough socks.'], ['kim', 'Small paw prints behind dryer four. They go toward the dog park.']],
@@ -185,13 +185,13 @@ export const SIDE2 = [
       { at: 'Eastside Pharmacy', who: 'pharmacist', goal: 'Talk to Dr. Whitfield at Eastside Pharmacy', say: [['pharmacist', 'Same doctor\'s name, wrong license number, three times this month. He comes back tonight to pick up.']], quiz: { les: 4, n: 1 } },
       { at: 'Fuel Depot', who: 'castillo', goal: 'Plan it with Sgt. Castillo at the Fuel Depot', say: [['castillo', 'Filling up. Talk to me. Pharmacy, staff, customers inside. Who\'s contact, who\'s cover, where does he go if he runs?'],
         ['choice', [
-          { t: 'Wait outside and contact him after he leaves the counter', set: 'rxPlan', npc: { rosa: 1 }, reply: [['castillo', 'Away from the staff and the public. Good. That\'s how it\'s done.'], ['rosa', '(over the radio) Dr. Whitfield says you were so calm. She sent flan. I ate half. Sorry.']] },
-          { t: 'Contact him at the counter', set: 'rxCounter', reply: [['castillo', 'Hm. Lot of people in a small space. Be ready.']] }]]], quiz: { les: 6, n: 1 } }
+          { t: 'Contact him outside, after he leaves', set: 'rxPlan', npc: { rosa: 1 }, reply: [['castillo', 'Away from the staff and the public. Good. That\'s how it\'s done.'], ['rosa', '(over the radio) Dr. Whitfield says you were so calm. She sent flan. I ate half. Sorry.']] },
+          { t: 'Contact him at the pharmacy counter', set: 'rxCounter', reply: [['castillo', 'Hm. Lot of people in a small space. Be ready.']] }]]], quiz: { les: 6, n: 1 } }
     ], reward: { rp: 140, loot: 'r' } },
   { id: 'kickflip', d: 1, title: 'Kickflip Court', giver: 'dez', req: [1, 1], blurb: 'The skaters need somewhere to skate that isn\'t under somebody\'s bedroom window.',
     offer: [['dez', 'Officer. The church neighbors want us gone from their lot. Where are we supposed to skate? The street? That\'s worse, right?']],
     steps: [
-      { at: 'Eastside Baptist Church', who: 'pastorj', goal: 'Hear Pastor James out at Eastside Baptist', say: [['pastorj', 'I like those kids. But it\'s eleven at night, clack, clack, clack, and Mrs. Hollis is eighty-one. She needs her sleep.']], quiz: { les: 8, n: 1 } },
+      { at: 'Eastside Baptist Church', who: 'pastorj', goal: 'Hear Pastor James out at Eastside Baptist', say: [['pastorj', 'I like those kids. But it\'s eleven at night, clack, clack, clack, and Mrs. Albury is eighty-one. She needs her sleep.']], quiz: { les: 8, n: 1 } },
       { at: 'Eastside Middle School', who: 'principal', goal: 'Ask about the lot at Eastside Middle School', say: [['principal', 'Our back lot is empty every evening. If the kids follow the rules, I\'d rather have them here than in the street.'],
         ['choice', [
           { t: 'Propose skate hours, 4 to 9 p.m., and a sign-in sheet', set: 'skateHours', trust: 2, npc: { dez: 1 }, reply: [['principal', 'Done. And I\'m making Dez the monitor. Don\'t tell him it\'s a job.'], ['dez', '(over the radio) A WHOLE LOT? Bro.']] },
@@ -203,8 +203,8 @@ export const SIDE2 = [
       { at: 'Gas & Go', who: 'clerk', goal: 'Ask the clerk at Gas & Go about the man', say: [['clerk', 'White van, parks here every morning, buys two energy drinks. Talked about "his car wash kids." Gross. He had a fresh fade, said Jules does it.']], quiz: { les: 5, n: 1 } },
       { at: 'Fade Factory', who: 'jules', goal: 'Ask Jules at Fade Factory', say: [['jules', 'Him? He books online. I\'ve got his name and number right here. I don\'t like people who use kids.'],
         ['choice', [
-          { t: 'Take a statement and bring the kids\' parents in too', set: 'sudsStatements', trust: 1, reply: [['castillo', '(over the radio) Statements, a name and a number. That\'s a case. Good work.']] },
-          { t: 'Just shut the car wash down', reply: [['castillo', '(over the radio) The kids go home. He finds new kids. Think bigger next time.']] }]]] }
+          { t: 'Take statements, with the kids\' parents', set: 'sudsStatements', trust: 1, reply: [['castillo', '(over the radio) Statements, a name and a number. That\'s a case. Good work.']] },
+          { t: 'Shut the car wash fundraiser down', reply: [['castillo', '(over the radio) The kids go home. He finds new kids. Think bigger next time.']] }]]] }
     ], reward: { rp: 130, loot: 'u' } },
   { id: 'wallwords', d: 1, title: 'Words on the Wall', giver: 'tran', giverAt: 'Corner Cell Repair', req: [1, 3], blurb: 'Threatening graffiti targets a shop owner. Again.',
     offer: [['tran', 'Third time. Not just graffiti. My name, and a threat. An ex-employee keeps posting about me online too. My daughter works the counter. I\'m worried.']],
@@ -212,8 +212,8 @@ export const SIDE2 = [
       { at: 'Eastside Plaza', who: 'mallsec', goal: 'Check the cameras with plaza security', say: [['mallsec', 'Our camera covers the walkway behind his shop. Same hoodie, three nights. And the same guy walks through the plaza every day at noon, staring at the store.']], quiz: { les: 7, n: 1 } },
       { at: 'Substation', inside: true, who: 'castillo', goal: 'Talk threat assessment with Castillo at the Substation', say: [['castillo', 'This isn\'t one incident. It\'s a pattern of behavior. That\'s exactly what threat assessment is for.'],
         ['choice', [
-          { t: 'Document everything and refer it for a threat assessment', set: 'btamReferral', trust: 1, reply: [['castillo', 'Right call. The team looks at the whole picture, not just the paint.']] },
-          { t: 'Just write a vandalism report', set: 'btamVandal', reply: [['castillo', 'And the posts? The staring? A report alone misses the point.']] }]]], quiz: { les: 7, n: 1 } }
+          { t: 'Refer the pattern for threat assessment', set: 'btamReferral', trust: 1, reply: [['castillo', 'Right call. The team looks at the whole picture, not just the paint.']] },
+          { t: 'Write it up as vandalism, case closed', set: 'btamVandal', reply: [['castillo', 'And the posts? The staring? A report alone misses the point.']] }]]], quiz: { les: 7, n: 1 } }
     ], reward: { rp: 150, loot: 'r' } },
   { id: 'ring', d: 1, title: 'The Ring Thing', giver: 'groom', giverAt: 'Glam Nails', req: [1, 1], blurb: 'An engagement ring went missing on the big day.',
     offer: [['groom', 'Officer. I took my grandmother\'s ring off for a manicure, set it on the tray, stepped out for air, and it\'s gone. I propose at seven. It\'s four.']],
@@ -221,8 +221,8 @@ export const SIDE2 = [
       { at: 'Eastside Jewelers', who: 'jeweler', goal: 'Check with the jeweler at Eastside Jewelers', say: [['jeweler', 'A teenager came in an hour ago asking what a ring like that is worth. I didn\'t buy it. He seemed scared, not crooked. He went toward the Sunrise Café.']], quiz: { les: 13, n: 1 } },
       { at: 'Sunrise Café', who: 'finder', goal: 'Find the teenager at the Sunrise Café', say: [['finder', 'I found it on the sidewalk! I swear! I didn\'t know whose it was and I panicked.'],
         ['choice', [
-          { t: 'Thank him, log it as found property and return it with a receipt', set: 'ringLogged', trust: 1, reply: [['groom', '(over the radio) You found it?! And the kid who found it? He\'s invited to the wedding. That\'s not a joke.']] },
-          { t: 'Scold him for not turning it in', reply: [['finder', 'I was going to. I just… didn\'t know how.']] }]]] }
+          { t: 'Log it as found property and return it', set: 'ringLogged', trust: 1, reply: [['groom', '(over the radio) You found it?! And the kid who found it? He\'s invited to the wedding. That\'s not a joke.']] },
+          { t: 'Warn him about keeping found property', reply: [['finder', 'I was going to. I just… didn\'t know how.']] }]]] }
     ], reward: { rp: 120, loot: 'r' } },
   { id: 'donutstake', d: 1, title: 'The Donut Stop Stakeout', giver: 'tony', giverAt: 'Tony\'s Pizza', req: [1, 3], blurb: 'Someone keeps trying Tony\'s back door at night.',
     offer: [['tony', 'Pry marks on my back door, two nights running. Your buddy Pike says he\'s "on it." He\'s been at The Donut Stop for three hours.']],
@@ -230,8 +230,8 @@ export const SIDE2 = [
       { at: 'The Donut Stop', who: 'pike', goal: 'Find Pike at The Donut Stop', say: [['pike', 'Before you say anything: the donuts are cover. Also they are very good. The guy comes around midnight. He walks in from the motel side.']], quiz: { les: 17, n: 1 } },
       { at: 'Eastgate Motel', who: 'nightclerk', goal: 'Ask the night clerk at the Eastgate Motel', say: [['nightclerk', 'Room 9. Pays cash. Carries a pry bar in his backpack like it\'s a water bottle. He\'s out right now.'],
         ['choice', [
-          { t: 'Pass the description to Castillo and recommend lights for Tony', set: 'tonyLights', trust: 1, reply: [['castillo', '(over the radio) A unit picked him up two blocks over with the pry bar. Same tool marks as three other doors. Good work.']] },
-          { t: 'Sit on the alley all night with Pike', set: 'tonySit', reply: [['pike', '(over the radio) A real stakeout! I\'ll get more donuts.']] }]]] }
+          { t: 'Pass on the description, suggest lights', set: 'tonyLights', trust: 1, reply: [['castillo', '(over the radio) A unit picked him up two blocks over with the pry bar. Same tool marks as three other doors. Good work.']] },
+          { t: 'Sit on the alley with Pike all night', set: 'tonySit', reply: [['pike', '(over the radio) A real stakeout! I\'ll get more donuts.']] }]]] }
     ], reward: { rp: 140, loot: 'u' } },
 
   // ================= Riverside =================
@@ -241,8 +241,8 @@ export const SIDE2 = [
       { at: 'Riverwalk', who: 'jogger', goal: 'Ask the morning jogger on the Riverwalk', say: [['jogger', 'Blue hull, white sail cover? It was tied up near Heron Point yesterday. The owner eats breakfast at the Rowboat Café every single day. Tall guy. Lectures people about knots.']], quiz: { les: 13, n: 1 } },
       { at: 'The Rowboat Café', who: 'boatowner', goal: 'Find the owner at the Rowboat Café', say: [['boatowner', 'My boat?! My knots are excellent. The rope was old. The rope is to blame.'],
         ['choice', [
-          { t: 'Document the recovery and get his signature', set: 'boatLogged', reply: [['boatowner', 'Signed. Thank you. I\'m buying new rope today. And maybe a book about knots.']] },
-          { t: 'Just tell him where it is', reply: [['hal', '(over the radio) No paperwork? Your sergeant won\'t love that.']] }]]] }
+          { t: 'Document the recovery and get a signature', set: 'boatLogged', reply: [['boatowner', 'Signed. Thank you. I\'m buying new rope today. And maybe a book about knots.']] },
+          { t: 'Tell him where the boat is and move on', reply: [['hal', '(over the radio) No paperwork? Your sergeant won\'t love that.']] }]]] }
     ], reward: { rp: 120, loot: 'u' } },
   { id: 'fenceline', d: 2, title: 'A Fence Too Far', giver: 'gus', req: [2, 0], blurb: 'Two neighbors out past the creek are feuding over a fence line.',
     offer: [['gus', 'My cousin Pruett out at Willow Creek Farm put up a fence. His neighbor Ms. Okoro says it\'s six inches over the line. They both have surveys. They both have tempers.']],
@@ -250,8 +250,8 @@ export const SIDE2 = [
       { at: 'Willow Creek Farm', who: 'farmer', goal: 'Hear Mr. Pruett\'s side at Willow Creek Farm', say: [['farmer', 'My survey says it\'s my land. I want you to make her move her chicken coop. Today.']], quiz: { les: 14, n: 1 } },
       { at: 'River Pawn', who: 'okoro', goal: 'Hear Ms. Okoro\'s side at River Pawn, where she works', say: [['okoro', 'My survey says it\'s mine. And he cut my roses.'],
         ['choice', [
-          { t: 'Explain it\'s a civil matter and point them both to the right resources', set: 'fenceCivil', trust: 1, reply: [['okoro', 'So a judge decides, not you. Okay. That\'s fair.'], ['gus', '(over the radio) Pruett says he\'ll call a lawyer. And he\'s sorry about the roses.']] },
-          { t: 'Tell her to move the coop', set: 'fenceSide', trust: -2, reply: [['okoro', 'You can\'t order me to do that. I\'m filing a complaint.']] }]]] }
+          { t: 'Explain it is a civil matter for a court', set: 'fenceCivil', trust: 1, reply: [['okoro', 'So a judge decides, not you. Okay. That\'s fair.'], ['gus', '(over the radio) Pruett says he\'ll call a lawyer. And he\'s sorry about the roses.']] },
+          { t: 'Tell her the coop has to be moved', set: 'fenceSide', trust: -2, reply: [['okoro', 'You can\'t order me to do that. I\'m filing a complaint.']] }]]] }
     ], reward: { rp: 120, loot: 'u' } },
   { id: 'smoke', d: 2, title: 'Where There\'s Smoke', giver: 'bell', giverAt: 'Fire Station 3', req: [2, 1], blurb: 'Smoke is pouring off a back deck on Cypress Lane.',
     offer: [['bell', 'Smoke call on Cypress Lane, back deck. Our engine\'s on another run. Can you put eyes on it while we roll?']],
@@ -285,8 +285,8 @@ export const SIDE2 = [
       { at: 'Pelican Diner', who: 'organizer', goal: 'Meet the organizer at the Pelican Diner', say: [['organizer', 'We have a right to be there and to be heard. We\'re not going anywhere.']], quiz: { les: 15, n: 1 } },
       { at: 'Riverside School', npc: 'johnson', who: 'johnson', goal: 'Work it out at the Riverside School crosswalk', say: [['johnson', 'Three minutes until the bell.'], ['organizer', '(arriving with forty parents and their signs) So, officer?'],
         ['choice', [
-          { t: 'Help them set up on the sidewalk so the crosswalk stays clear', set: 'signsMoved', trust: 2, npc: { johnson: 1 }, reply: [['organizer', 'We keep our signs, the kids cross safely. Deal.']] },
-          { t: 'Order them to disperse', set: 'signsDisperse', trust: -2, reply: [['organizer', 'Disperse? For holding a sign? We\'ll be back tomorrow with twice as many.']] }]]], quiz: { les: 16, n: 1 } }
+          { t: 'Help them protest from the sidewalk', set: 'signsMoved', trust: 2, npc: { johnson: 1 }, reply: [['organizer', 'We keep our signs, the kids cross safely. Deal.']] },
+          { t: 'Order the crowd to disperse now', set: 'signsDisperse', trust: -2, reply: [['organizer', 'Disperse? For holding a sign? We\'ll be back tomorrow with twice as many.']] }]]], quiz: { les: 16, n: 1 } }
     ], reward: { rp: 140, loot: 'u' } },
   { id: 'biscuit', d: 2, title: 'Biscuit', giver: 'junie', giverAt: 'Riverside Marina', req: [2, 3], blurb: 'A lost dog showed up on the marina docks.',
     offer: [['junie', 'This little guy\'s been sitting on dock three all morning. Nice collar, no tag. I\'m calling him Biscuit until somebody says different. Mr. Boone at the Feed & Seed knows every dog in Riverside.']],
@@ -321,8 +321,8 @@ export const SIDE2 = [
       { at: 'Lock-It Storage', who: 'vacant', goal: 'Ask Mr. Ames behind Lock-It Storage', say: [['vacant', 'Skinny kid, no bag, asked me which way to the highway. I told him not through the pines. He went through the pines.']], quiz: { les: 18, n: 1 } },
       { at: 'North Spur Pines', who: 'pike', goal: 'Set up the search in the North Spur Pines', say: [['pike', 'Big woods. Where do we start?'],
         ['choice', [
-          { t: 'Perimeter first, then search in a grid with more units', set: 'yardGrid', reply: [['narr', 'Forty minutes in, a unit finds him asleep under a pine, sunburned and dehydrated, but okay.'], ['hiker', 'I just… wanted to go see my dad. I got lost.'], ['dee', '(over the radio) His mom\'s on the way. I bought him a burger. Diesel is guarding him.']] },
-          { t: 'Split up and wander', set: 'yardWander', trust: -1, reply: [['castillo', '(over the radio) Stop. Grid it. You\'ll miss half the woods wandering.']] }]]], quiz: { les: 18, n: 1 } }
+          { t: 'Set a perimeter, then grid it with units', set: 'yardGrid', reply: [['narr', 'Forty minutes in, a unit finds him asleep under a pine, sunburned and dehydrated, but okay.'], ['hiker', 'I just… wanted to go see my dad. I got lost.'], ['dee', '(over the radio) His mom\'s on the way. I bought him a burger. Diesel is guarding him.']] },
+          { t: 'Split up and cover more ground fast', set: 'yardWander', trust: -1, reply: [['castillo', '(over the radio) Stop. Grid it. You\'ll miss half the woods wandering.']] }]]], quiz: { les: 18, n: 1 } }
     ], reward: { rp: 150, loot: 'r' } },
   { id: 'copper', d: 3, title: 'Copper Run', giver: 'shonda', req: [3, 1], blurb: 'Stolen copper wire is showing up at the recycling yards.',
     offer: [['shonda', 'A guy tried to sell me two hundred pounds of brand-new copper wire. Still had the utility tags. I buy with ID and a thumbprint, so I have his address: Railside Apartments. He says he\'ll be back tomorrow.']],
@@ -340,8 +340,8 @@ export const SIDE2 = [
         ['narr', 'You search the break room anyway, section by section. Nothing. But there\'s an orange thread on the time clock.']], quiz: { les: 18, n: 1 } },
       { at: 'Millworker Row', who: 'packer', goal: 'Visit Big Mo on Millworker Row', say: [['packer', 'My hat? I looked everywhere. Even the porch.'], ['narr', 'It\'s on the porch. On the dog. The dog is wearing it.'],
         ['choice', [
-          { t: 'Get him to The Lunch Pail without spoiling the surprise', set: 'hatParty', npc: { lupe: 1 }, reply: [['packer', 'Lunch? With you? Sure… wait, why is my whole crew here? Oh. Oh no. Thirty-one years. Thank you.']] },
-          { t: 'Just hand him the hat', reply: [['packer', 'My hat! Okay, now I can… wait, why is Lupe texting me fifty times?']] }]]] }
+          { t: 'Get him to The Lunch Pail unawares', set: 'hatParty', npc: { lupe: 1 }, reply: [['packer', 'Lunch? With you? Sure… wait, why is my whole crew here? Oh. Oh no. Thirty-one years. Thank you.']] },
+          { t: 'Hand him the hat and wish him well', reply: [['packer', 'My hat! Okay, now I can… wait, why is Lupe texting me fifty times?']] }]]] }
     ], reward: { rp: 120, loot: 'r' } },
   { id: 'keys', d: 3, title: 'The Gate Keys', giver: 'foreman', giverAt: 'Sawdust Lumber Yard', req: [3, 0], blurb: 'The lumber yard gate keys vanished before a big delivery.',
     offer: [['foreman', 'Gate keys. Gone. Forty trucks of lumber due at noon and the gate is locked. Last place I had them was the sod farm, dropping off fence posts.']],
@@ -364,16 +364,16 @@ export const SIDE2 = [
     steps: [
       { at: 'Vacant Lot', who: 'teens', goal: 'Find the teens at the Vacant Lot', say: [['teens', 'We weren\'t doing anything! …We were doing something.'],
         ['choice', [
-          { t: 'Give them a real safety talk and call their parents', set: 'trainParents', trust: 1, reply: [['teens', 'Our parents? Oh no. Oh no no no. …Okay. Fair.'], ['railcop', '(over the radio) A hundred tons can\'t stop for anybody. Thanks for getting through to them.']] },
-          { t: 'Issue a trespass warning', set: 'trainTrespass', reply: [['railcop', '(over the radio) Paper\'s done. Next time it\'s an arrest. Hopefully they believe it.']] }]]], quiz: { les: 18, n: 1 } }
+          { t: 'Give a safety talk and call their parents', set: 'trainParents', trust: 1, reply: [['teens', 'Our parents? Oh no. Oh no no no. …Okay. Fair.'], ['railcop', '(over the radio) A hundred tons can\'t stop for anybody. Thanks for getting through to them.']] },
+          { t: 'Issue each of them a trespass warning', set: 'trainTrespass', reply: [['railcop', '(over the radio) Paper\'s done. Next time it\'s an arrest. Hopefully they believe it.']] }]]], quiz: { les: 18, n: 1 } }
     ], reward: { rp: 130, loot: 'u' } },
   { id: 'fizz', d: 3, title: 'Sunrise Fizz', giver: 'bottler', giverAt: 'Sunrise Bottling', req: [3, 3], blurb: 'An open door and an alarm at Sunrise Bottling.',
     offer: [['bottler', 'I didn\'t go in. The side door was open when I got here and the alarm\'s been screaming for ten minutes. I called you instead of 911 because Lupe says you\'re nicer.']],
     steps: [
       { at: 'Sunrise Bottling', inside: true, who: 'castillo', goal: 'Search the bottling plant with Castillo', say: [['castillo', 'Announce. Search. Cover each other. Slow.'],
         ['choice', [
-          { t: 'Announce loudly and search room by room', set: 'fizzAnnounce', reply: [['narr', 'Behind the syrup tanks: a raccoon, very sticky, very guilty. And a door latch that was never fixed.'], ['castillo', 'Raccoon. Logged. Latch, logged. Still the right way to do it.']] },
-          { t: 'Go in quiet and fast', reply: [['castillo', 'Announcing protects you and anyone inside who belongs there. Think about it.']] }]]], quiz: { les: 17, n: 2 } }
+          { t: 'Announce loudly, then search room by room', set: 'fizzAnnounce', reply: [['narr', 'Behind the syrup tanks: a raccoon, very sticky, very guilty. And a door latch that was never fixed.'], ['castillo', 'Raccoon. Logged. Latch, logged. Still the right way to do it.']] },
+          { t: 'Go in quietly to catch anyone inside', reply: [['castillo', 'Announcing protects you and anyone inside who belongs there. Think about it.']] }]]], quiz: { les: 17, n: 2 } }
     ], reward: { rp: 130, loot: 'u' } },
 
   // ================= Justice Row =================
@@ -383,8 +383,8 @@ export const SIDE2 = [
       { at: 'Courtside Lofts', who: 'walkin', goal: 'Meet Darnell at Courtside Lofts', say: [['walkin', 'I\'ve been scared for a month. I just want to fix it.'], ['hattie', '(over the radio) Active warrant, failure to appear. Spelled correctly, thank goodness.']], quiz: { les: 19, n: 1 } },
       { at: 'Sally Port', npc: 'ramos', who: 'ramos', goal: 'Bring him to Officer Ramos at the Sally Port', say: [['ramos', 'Search, property, paperwork. He\'ll see a judge in the morning.'],
         ['choice', [
-          { t: 'Note in your report that he came in voluntarily', set: 'walkinNoted', trust: 1, reply: [['ramos', 'That\'ll matter to the judge. Good on you for writing it.']] },
-          { t: 'Keep the report bare-bones', reply: [['ramos', 'Fine. But details like that help people. Remember it.']] }]]], quiz: { les: 19, n: 1 } }
+          { t: 'Note that he turned himself in', set: 'walkinNoted', trust: 1, reply: [['ramos', 'That\'ll matter to the judge. Good on you for writing it.']] },
+          { t: 'Keep the report short and factual', reply: [['ramos', 'Fine. But details like that help people. Remember it.']] }]]], quiz: { les: 19, n: 1 } }
     ], reward: { rp: 130, loot: 'u' } },
   { id: 'propbag', d: 4, title: 'The Property Bag', giver: 'pd', giverAt: 'Public Defender', req: [4, 1], blurb: 'A defendant says money is missing from his property bag.',
     offer: [['pd', 'My client says he came in with three hundred dollars. The property sheet says two hundred. Somebody\'s wrong, and I\'d like to know who. Sgt. Ibarra keeps the property records at the County Records Annex.']],
@@ -408,8 +408,8 @@ export const SIDE2 = [
     steps: [
       { at: 'State Attorney\'s Office', who: 'asa', goal: 'Check in with the prosecutor at the State Attorney\'s Office', say: [['asa', 'Tell him the truth. Exactly what\'s in your report and nothing else. That\'s your whole job here.'],
         ['choice', [
-          { t: 'Answer exactly as it happened, even the parts that help him', set: 'truthBoth', trust: 2, npc: { barnes: 1 }, reply: [['barnes', '(over the radio) Thank you. That\'s rare, and it\'s how the system is supposed to work.']] },
-          { t: 'Keep it vague to protect the case', set: 'truthVague', trust: -2, reply: [['asa', 'Vague hurts us more than the truth does. Never shade it.']] }]]], quiz: { les: 19, n: 2 } }
+          { t: 'Answer exactly as it happened, all of it', set: 'truthBoth', trust: 2, npc: { barnes: 1 }, reply: [['barnes', '(over the radio) Thank you. That\'s rare, and it\'s how the system is supposed to work.']] },
+          { t: 'Keep it general to protect the case', set: 'truthVague', trust: -2, reply: [['asa', 'Vague hurts us more than the truth does. Never shade it.']] }]]], quiz: { les: 19, n: 2 } }
     ], reward: { rp: 150, loot: 'r' } },
   { id: 'orderup', d: 4, title: 'Order Up', giver: 'cook', giverAt: 'The Gavel Grill', req: [4, 1], blurb: 'Two lawyers are in a standoff over the last booth at The Gavel Grill.',
     offer: [['cook', 'Two attorneys sat in the same booth at the same time. Neither will move. Twenty minutes. One of them filed a motion. On a napkin.']],

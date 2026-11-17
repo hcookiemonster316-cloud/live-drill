@@ -5,7 +5,7 @@ const P = (id, d, name, role, home, icon, look, help, lines, v) => ({ id, d, nam
 export const NPCS2 = [
   // ---------- Central District ----------
   P('walt', 0, 'Walt', 'City bus driver, Route 9', 'Downtown Transit Center', '🚌', { shirt: '#1d4ed8', pants: '#1f2937', hair: '#9ca3af', skin: '#8d5524', cap: '#1d4ed8' }, 0,
-    [`Route 9, twenty-six years. I know who's late for work by how hard they run for the door.`, `You want to know a neighborhood? Ride the bus end to end. Twice.`, `Lady on the 7:15 brings me a muffin every Friday. Never says a word. Just the muffin.`],
+    [`Route 9, twelve years. Rode it every day as a kid, too. I know who's late for work by how hard they run for the door.`, `You want to know a neighborhood? Ride the bus end to end. Twice.`, `Lady on the 7:15 brings me a muffin every Friday. Never says a word. Just the muffin.`],
     { p: [`That's right. Next stop, correct answer.`, `Yep. Smooth as a green-light run.`], r: [`Missed the first stop, caught the second. Counts.`], a: [`Gotta go. Route 9 waits for nobody, not even me.`, `Hop on sometime. I'll show you the whole city for a dollar seventy-five.`] }),
   P('tasha', 0, 'Tasha', 'Retired ER nurse', 'Palmetto Row', '🩺', { shirt: '#0d9488', pants: '#374151', hair: '#1a1a1a', skin: '#5a3620' }, 1,
     [`Thirty years in the emergency room. Now I sit on this porch and judge everybody's posture.`, `Officers came through my ER at 3 a.m. with coffee and bad jokes. Best people I knew.`, `Wear your seatbelt. I'm not asking.`],
@@ -58,7 +58,7 @@ export const NPCS2 = [
     [`Every canoe gets a life jacket, every time, or it doesn't leave the dock.`, `I pulled a teenager out of the current last spring. No jacket. He wears one now.`, `The river looks calm. That's what makes it dangerous.`],
     { p: [`Correct. Paddle on.`, `Yep. Smooth water.`], r: [`Tipped once, climbed back in. That's how you learn.`], a: [`Group of eight just showed up. Life jackets for all of them.`, `Take a canoe out sometime. On the house, if you wear the jacket.`] }),
   P('toby', 2, 'Toby', 'Mail carrier on Willow Street', 'Willow Street', '✉️', { shirt: '#1e40af', pants: '#1e3a8a', hair: '#1a1a1a', skin: '#8d5524', cap: '#1e40af' }, 13,
-    [`Mr. Lewis on the Eastside trained me. He told me to notice everything. I do.`, `Mrs. Ortega didn't pick up her mail three days. I called it in. She'd fallen. She's okay now.`, `Dogs? I carry biscuits. Every dog on Willow Street loves me except one. His name is Pickles.`],
+    [`Mr. Lewis on the Eastside trained me. He told me to notice everything. I do.`, `Mrs. Benoit didn't pick up her mail three days. I called it in. She'd fallen. She's okay now.`, `Dogs? I carry biscuits. Every dog on Willow Street loves me except one. His name is Pickles.`],
     { p: [`Delivered! Correct.`, `Signed, sealed, correct.`], r: [`Wrong address, then right one. Good.`], a: [`Pickles is watching me. I have to go.`, `If you see a full mailbox on my route, knock on the door. Please.`] }),
   // ---------- Industrial Park ----------
   P('tess', 3, 'Tess', 'Switch operator at North Spur Yard', 'North Spur Yard', '🚦', { shirt: '#f59e0b', pants: '#1f2937', hair: '#b07b3c', skin: '#e0b48f', cap: '#1f2937' }, 17,
@@ -134,7 +134,7 @@ export const LORE_PEOPLE = [
   F('ramos', 'Ramos and the Pen Cap', 'Ramos found a pen cap in a patrol car back seat in 2001, left by a suspect who had used it to slip his cuffs. Every search he has done since starts with that seat.'),
   F('exhibita', 'Exhibit A', 'The courthouse cat was found as a kitten inside an evidence box in 2014. She was never logged out. Technically, she is still evidence.'),
   F('walt', 'Route 9', 'Walt drove the bus that evacuated Bayou Senior Apartments during the 2017 flood. Seven trips through rising water. Every resident remembers his name.'),
-  F('tasha', 'Nurse Tasha', 'Tasha worked the night of the 1998 tower fire and treated nineteen people, including two officers. One of them is Lt. Okonkwo, who still sends her flowers every year.'),
+  F('tasha', 'Nurse Tasha', 'Tasha worked the night of the 1998 depot fire and treated nineteen people, including two officers. One of them is Lt. Okonkwo, who still sends her flowers every year.'),
   F('leon', 'The Hallway Gallery', 'Mr. Leon keeps every drawing kids have left him in nineteen years. There are over two thousand. The school framed the best ones for his anniversary.'),
   F('carmen', 'Doña Carmen\'s Rice', 'Carmen came from Puerto Rico after Hurricane Maria with one suitcase. She has fed every family who moved into Harbor View since. They call her floor "the fourth-floor kitchen."'),
   F('priya', 'Masala Wheels', 'Anjali was an engineer before she bought the truck. She designed its kitchen herself. The health inspector called it the cleanest truck in the state.'),

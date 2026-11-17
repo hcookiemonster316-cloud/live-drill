@@ -71,9 +71,9 @@ export const VOICES = {
 };
 // one-off people (callers, witnesses, residents): natural reactions, then the talk moves on
 export const ANYONE = {
-  p: ['Huh. Okay, that makes sense.', 'Oh, that\'s good to know.', 'Okay. That actually makes me feel better.', 'I had no idea. Thank you, officer.'],
-  r: ['Okay, I think I follow now.', 'Got it. Thanks for explaining it twice.'],
-  a: ['So what happens now?', 'I\'m glad somebody came out. Really.', 'I\'ll tell my neighbors that one.', 'Okay. I feel a lot calmer about all this.', 'You\'ve got a good way of explaining things.', 'Thanks for taking the time. Most people don\'t.']
+  p: ['Huh. Okay. That actually makes sense.', 'Oh. Nobody ever explained it like that.', 'Okay, I feel better now. Weirdly.', 'Wait, really? Huh. Thank you.', 'See, I didn\'t know that. I\'m telling my sister.', 'Okay. Okay. That I can work with.'],
+  r: ['Okay, I think I follow now. Mostly.', 'Got it. Sorry, it\'s been a long day.', 'Right, right. Second time\'s the charm.'],
+  a: ['So... what happens now?', 'Honestly? I\'m just glad somebody came.', 'I\'m going to tell my neighbors about this. They won\'t believe me.', 'Okay. I can breathe again.', 'You explain things like a person. That\'s rare.', 'Thanks for not rushing me. Everybody rushes me.', 'Sorry I was short with you earlier. It\'s not you.']
 };
 
 import { NPCS2 } from './people2.js';

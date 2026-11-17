@@ -61,6 +61,7 @@ export function installPolish(H) {
     if (n.cat) return rnd(['Mrrp.', '(slow blink)', '(tail flick)']);
     if (f < 5 && Math.random() < .3 && H.wxBark) { const w = H.wxBark(); if (w) return w; }
     const tod = h < 11 ? 'Morning' : h < 17 ? 'Afternoon' : 'Evening';
+    if (f >= 3 && S.title && Math.random() < .25) return rnd([tod + ', ' + S.title + '!', 'Well, if it isn\'t ' + S.title + '.', S.title + '! Heard about that.']);
     if (f >= 5) return rnd(['There\'s my favorite cadet!', 'Hey you! Come say hi!', tod + ', partner!', 'Don\'t be a stranger now!', 'You\'re a sight for sore eyes.']);
     if (f >= 3) return rnd([tod + ', cadet!', 'Hey! How\'s the watch?', 'Stay safe out there!', 'Good to see you around.', 'Cadet! Got a minute later?']);
     if (f >= 1) return rnd([tod + ', officer.', 'Oh, hey. Hi.', 'Back on patrol?', 'Hi there.']);
@@ -68,21 +69,23 @@ export function installPolish(H) {
     if (tr > 70) return rnd(['Thanks for looking out for us.', tod + ', officer!', 'Glad you\'re around.', 'Appreciate you.']);
     return rnd([tod + '.', 'Officer.', 'Hey.', '(nods)']);
   }
-  const PED = { lo: ['…', '(crosses the street)', 'Not today.', '(avoids eye contact)'], mid: ['(nods)', 'Hey.', 'Officer.', 'Busy day?'], hi: ['Thanks for being out here!', 'Hey officer!', 'Stay safe!', '(waves)', 'Love seeing you all around.'] };
+  const PED = { lo: ['…', '(crosses the street)', 'Not today, man.', '(avoids eye contact)', 'Didn\'t do anything.', '(phone suddenly very interesting)'], mid: ['(nods)', 'Hey.', 'Officer.', 'Busy day?', 'Hot one, huh?', 'Morning. Or whatever it is.', '(half a wave)'], hi: ['Thanks for being out here!', 'Hey! Stay safe, okay?', '(waves big)', 'My kid wants to be a cop. Say hi!', 'You all doing okay? Need water?', 'Saw you last week. You were nice to my mom.'] };
   function barks(dt) {
     for (let i = BARKS.length - 1; i >= 0; i--) { BARKS[i].t -= dt; if (BARKS[i].t <= 0) BARKS.splice(i, 1); }
     bT -= dt; if (bT > 0 || H.cine() || H.paused()) return; bT = .5; const P = H.P, now = performance.now(); if (P.inCar && P.moving) return;
     if (BARKS.length >= 2) return;
     for (const r of H.regs) { const d = Math.hypot(r.x - P.x, r.y - P.y); if (d > 3.2 || d < .6) continue; const id = r.n.id; if ((barkCool.get(id) || 0) > now) continue; barkCool.set(id, now + 90000); BARKS.push({ e: r, text: barkLine(r.n), t: 3.4, t0: 3.4 }); H.faceTo(r); if (((S.npc || {})[id] || 0) >= 1 || Math.random() < .3) r.waveT = now + 1600; return; }
-    if (Math.random() < .25) { const tr = (S.trust || {})[H.W.did] == null ? 50 : S.trust[H.W.did]; for (const p of H.peds) { const d = Math.hypot(p.x - P.x, p.y - P.y); if (d > 2.4) continue; if ((p.barkT || 0) > now) continue; p.barkT = now + 120000; BARKS.push({ e: p, text: rnd(tr < 35 ? PED.lo : tr > 70 ? PED.hi : PED.mid), t: 2.8, t0: 2.8 }); return; } }
+    if (Math.random() < .25) { const tr = (S.trust || {})[H.W.did] == null ? 50 : S.trust[H.W.did]; for (const p of H.peds) { const d = Math.hypot(p.x - P.x, p.y - P.y); if (d > 2.4) continue; if ((p.barkT || 0) > now) continue; p.barkT = now + 120000; const gs = tr >= 35 && Math.random() < .45 && H.gossip ? H.gossip() : null; BARKS.push({ e: p, text: gs || rnd(tr < 35 ? PED.lo : tr > 70 ? PED.hi : PED.mid), t: gs ? 4.6 : 2.8, t0: gs ? 4.6 : 2.8 }); return; } }
   }
   function drawBarks(g) {
     BARKS.forEach((b) => {
       const [sx, sy] = H.iso(b.e.x, b.e.y), a = Math.min(1, b.t / .3, (b.t0 - b.t) / .2 + .2), y = sy - 62 - Math.min(1, (b.t0 - b.t) * 4) * 4;
-      g.save(); g.globalAlpha = Math.max(0, a); g.font = '600 10px Inter, system-ui, sans-serif'; const w = Math.min(180, g.measureText(b.text).width) + 14;
-      g.fillStyle = 'rgba(255,255,255,.95)'; g.strokeStyle = 'rgba(15,23,42,.35)'; g.lineWidth = 1; g.beginPath(); g.roundRect(sx - w / 2, y - 18, w, 18, 9); g.fill(); g.stroke();
+      g.save(); g.globalAlpha = Math.max(0, a); g.font = '600 10px Inter, system-ui, sans-serif';
+      if (!b.lines) { const words = b.text.split(' '), out = []; let cur = ''; for (const wd of words) { const t = cur ? cur + ' ' + wd : wd; if (g.measureText(t).width > 168 && cur) { out.push(cur); cur = wd; } else cur = t; } out.push(cur); b.lines = out; b.w = Math.min(182, Math.max(...out.map((l) => g.measureText(l).width))) + 14; } // wrapped once per bark
+      const w = b.w, hh = 6 + b.lines.length * 12;
+      g.fillStyle = 'rgba(255,255,255,.95)'; g.strokeStyle = 'rgba(15,23,42,.35)'; g.lineWidth = 1; g.beginPath(); g.roundRect(sx - w / 2, y - hh, w, hh, 9); g.fill(); g.stroke();
       g.beginPath(); g.moveTo(sx - 4, y); g.lineTo(sx, y + 5); g.lineTo(sx + 4, y); g.closePath(); g.fill();
-      g.fillStyle = '#0f172a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(b.text, sx, y - 9, 172); g.restore();
+      g.fillStyle = '#0f172a'; g.textAlign = 'center'; g.textBaseline = 'middle'; b.lines.forEach((l, i) => g.fillText(l, sx, y - hh + 9 + i * 12, 172)); g.restore();
     });
   }
 
