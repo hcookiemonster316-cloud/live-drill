@@ -17,7 +17,7 @@ const TIERS = [[5, 'Seasoned'], [10, 'Veteran'], [20, 'Legend of']];
 const need = (l) => 60 * l + 20 * l * l; // RP needed to go from level l to l+1
 export function installRewards(H) {
   const S = H.S, esc = H.esc;
-  S.svc = S.svc || {}; S.overlooks = S.overlooks || {}; S.rumors = S.rumors || {};
+  S.svc = S.svc || {}; S.overlooks = S.overlooks || {}; S.rumors = S.rumors || {}; S.notes = S.notes || {};
   const today = () => new Date().toDateString();
 
   // ================= service record =================
@@ -53,7 +53,7 @@ export function installRewards(H) {
   let OV = null;
   function overlooks() {
     const W = H.W(); if (!W || H.inside()) return []; if (OV && OV.w === W) return OV.list; const N = H.N, named = W.lots.filter((l) => l.name && l.door);
-    const list = [[.25, .25], [.75, .25], [.25, .75], [.75, .75]].map(([fx, fy], q) => { const cx = fx * N, cy = fy * N; let best = null, bd = 1e9; named.forEach((l) => { const d = Math.hypot(l.door[0] - cx, l.door[1] - cy); if (d < bd) { bd = d; best = l; } }); return best ? { id: W.did + ':ov' + q, x: best.door[0] + .5, y: best.door[1] + 1.6, name: best.name } : null; }).filter(Boolean);
+    const list = [[.25, .25], [.75, .25], [.25, .75], [.75, .75]].map(([fx, fy], q) => { const cx = fx * N, cy = fy * N; let best = null, bd = 1e9; named.forEach((l) => { const d = Math.hypot(l.door[0] - cx, l.door[1] - cy); if (d < bd) { bd = d; best = l; } }); if (!best) return null; const x = best.door[0] + .5, y = best.door[1] + 1.6, [sx, sy] = H.iso(x, y); return { id: W.did + ':ov' + q, x, y, sx, sy, name: best.name }; }).filter(Boolean);
     OV = { w: W, list }; return list;
   }
   let busyOv = false;
@@ -68,7 +68,7 @@ export function installRewards(H) {
   }
 
   // ================= rumors and the shimmer of undiscovered history =================
-  function loreSpots() { const W = H.W(); if (!W) return []; return H.LORE.filter((e) => !S.lore[e.id] && /^visit:/.test(e.when || '')).map((e) => { const nm = e.when.slice(6), l = W.lots.find((x) => x.name === nm); return l ? { e, l } : null; }).filter(Boolean); }
+  function loreSpots() { const W = H.W(); if (!W) return []; return H.LORE.filter((e) => !S.lore[e.id] && /^visit:/.test(e.when || '')).map((e) => { const nm = e.when.slice(6), l = W.lots.find((x) => x.name === nm); if (!l) return null; const dx = l.door[0] + .5, dy = l.door[1] + .5, [sx, sy] = H.iso(dx, dy); return { e, l, dx, dy, sx, sy }; }).filter(Boolean); }
   let LS = null, lsT = 0;
   function spots() { const now = performance.now(); if (!LS || now - lsT > 4000 || LS.w !== H.W()) { LS = { w: H.W(), list: loreSpots() }; lsT = now; } return LS.list; }
   function rumor() {
@@ -79,14 +79,40 @@ export function installRewards(H) {
   function rumorPins() { const W = H.W(); if (!W) return []; const mine = S.rumors[W.did] || {}; return spots().filter((s) => mine[s.e.id]); }
   function draw(list, vis, ctx, now) {
     if (H.inside()) return; const P = H.P;
-    for (const o of overlooks()) { if (S.overlooks[o.id] || Math.hypot(o.x - P.x, o.y - P.y) > 24) continue; const [sx, sy] = H.iso(o.x, o.y); if (!vis(sx, sy)) continue; list.push({ d: o.x + o.y + .5, f: () => { H.ring(sx, sy, '#38bdf8', now); H.bubble(sx, sy - 34, '🔭', '#7dd3fc', now); } }); }
-    for (const s of spots()) { const dx = s.l.door[0] + .5, dy = s.l.door[1] + .5, d = Math.hypot(dx - P.x, dy - P.y), pinned = (S.rumors[H.W().did] || {})[s.e.id]; if (d > (pinned ? 30 : 7)) continue; const [sx, sy] = H.iso(dx, dy); if (!vis(sx, sy)) continue;
+    for (const o of overlooks()) { if (S.overlooks[o.id] || Math.abs(o.x - P.x) + Math.abs(o.y - P.y) > 30) continue; const sx = o.sx, sy = o.sy; if (!vis(sx, sy)) continue; list.push({ d: o.x + o.y + .5, f: () => { H.ring(sx, sy, '#38bdf8', now); H.bubble(sx, sy - 34, '🔭', '#7dd3fc', now); } }); }
+    for (const o of notes()) { const d = Math.abs(o.x - P.x) + Math.abs(o.y - P.y); if (d > 26) continue; const sx = o.sx, sy = o.sy; if (!vis(sx, sy)) continue; const read = !!S.notes[o.n.id];
+      list.push({ d: o.x + o.y + .4, f: () => { const sp = noteSprite(read); ctx.drawImage(sp, sx - 10, sy - 30, sp.lw, sp.lh); if (!read && d < 9) H.sparkle(sx, sy - 34, now + o.x * 53, '#fef3c7'); } }); }
+    const pins = S.rumors[H.W().did] || {}; for (const s of spots()) { const dx = s.dx, dy = s.dy, d = Math.abs(dx - P.x) + Math.abs(dy - P.y), pinned = pins[s.e.id]; if (d > (pinned ? 40 : 9)) continue; const sx = s.sx, sy = s.sy; if (!vis(sx, sy)) continue;
       list.push({ d: dx + dy + .7, f: () => { H.sparkle(sx, sy - 40, now + dx * 97, '#fde68a'); if (pinned) H.bubble(sx, sy - 58, '?', '#fde68a', now); } }); }
   }
-  function miniDots(dot) { for (const o of overlooks()) if (!S.overlooks[o.id]) dot(o.x, o.y, '#38bdf8', 2.6); for (const s of rumorPins()) dot(s.l.door[0], s.l.door[1], '#fde68a', 2.8); }
+  function miniDots(dot) { for (const o of notes()) if (S.notes[o.n.id]) dot(o.x, o.y, '#e7d8b8', 1.8); for (const o of overlooks()) if (!S.overlooks[o.id]) dot(o.x, o.y, '#38bdf8', 2.6); for (const s of rumorPins()) dot(s.l.door[0], s.l.door[1], '#fde68a', 2.8); }
+  // ================= notes: letters, plaques and flyers left around the city =================
+  // positions are worked out once per district; the sprite is painted once and reused, so the cost is one drawImage per
+  // note on screen. Walking up to one opens it; some point you at a story someone in the district is waiting to tell.
+  let NT = null;
+  function notes() { const W = H.W(); if (!W || H.inside()) return []; if (NT && NT.w === W) return NT.list;
+    const list = (H.NOTES || []).filter((n) => n.d === W.did).map((n) => { const l = W.lots.find((x) => x.name && x.door && x.name.indexOf(n.at) >= 0); if (!l) return null; const x = l.door[0] + 1.5, y = l.door[1] + .7, [sx, sy] = H.iso(x, y); return { n, x, y, sx, sy }; }).filter(Boolean);
+    NT = { w: W, list }; return list; }
+  let NSP = null, NSP2 = null;
+  function noteSprite(read) { if (read ? NSP2 : NSP) return read ? NSP2 : NSP; const [c, g] = H.hiCanvas(20, 30, 3);
+    g.fillStyle = '#5b4636'; g.fillRect(9, 12, 2.4, 17); // post
+    g.save(); g.translate(10, 9); g.rotate(-.08); g.fillStyle = read ? '#d6cfc2' : '#fdf6e3'; g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 2; g.fillRect(-7, -7, 14, 12); g.shadowBlur = 0;
+    g.fillStyle = read ? '#9ca3af' : '#7c5a3a'; for (let i = 0; i < 4; i++) g.fillRect(-5, -4 + i * 2.6, i === 3 ? 6 : 10, .9); g.fillStyle = '#dc2626'; g.beginPath(); g.arc(0, -6, 1.4, 0, 7); g.fill(); g.restore();
+    if (read) NSP2 = c; else NSP = c; return c; }
+  let noteOpen = false;
+  function noteTick() { if (noteOpen || H.busy() || H.dialogueOpen() || H.P.inCar) return; const P = H.P;
+    for (const o of notes()) { if (Math.hypot(o.x - P.x, o.y - P.y) > 1.15) continue; const seen = S.notes[o.n.id]; if (seen && seen.near) continue; if (seen) { seen.near = 1; continue; } readNote(o.n); break; }
+    for (const o of notes()) { const s = S.notes[o.n.id]; if (s && s.near && Math.hypot(o.x - P.x, o.y - P.y) > 2.5) s.near = 0; } }
+  function readNote(n, again) { noteOpen = true; H.setPaused(true); H.buzz('tap'); H.sting('card'); const first = !S.notes[n.id];
+    if (first) { S.notes[n.id] = { t: Date.now(), near: 1 }; H.S.lore[n.id] = 1; H.saveS(); }
+    const q = n.lead && H.sideQ(n.lead), lead = q && !H.sideClosed(q) && S.side[q.id] == null ? (H.sideOpen(q) ? H.nm(q.giver) + ' might know more about this. Look for the blue mark.' : 'Someone around here has a story about this. It isn\'t ready to be told yet.') : '';
+    const cnt = (H.NOTES || []).filter((x) => x.d === n.d && S.notes[x.id]).length, tot = (H.NOTES || []).filter((x) => x.d === n.d).length;
+    H.openModal('<div class="noteCard"><span class="noteKind">' + n.icon + ' ' + esc(n.kind) + ' · ' + esc(n.at) + '</span><h2>' + esc(n.title) + '</h2><p>' + esc(n.text) + '</p>' + (lead ? '<div class="noteLead">📍 ' + esc(lead) + '</div>' : '') + '<small>' + cnt + ' of ' + tot + ' notes found in ' + esc(H.dname()) + ' · saved to your journal</small></div><div class="qAct"><button type="button" id="mClose">Keep walking</button></div>');
+    const x = document.getElementById('mClose'); if (x) x.onclick = () => { H.closeModal(); H.setPaused(false); noteOpen = false; if (first) { H.award(20 + (cnt === tot ? 60 : 0), 'lore note'); if (cnt === tot) H.queueLoot('Every note in ' + H.dname(), 1, 'r'); } };
+    if (first) H.stat('notes'); }
   let t = 0;
-  function tick(dt) { t -= dt; if (t > 0) return; t = .25; overlookTick(); }
+  function tick(dt) { t -= dt; if (t > 0) return; t = .25; overlookTick(); noteTick(); }
 
   const trackName = (k) => (TRACKS.find((t) => t[0] === k) || [0, 0, k])[2];
-  return { onAward, add, panel, rumor, draw, miniDots, tick, trackOf, trackName, trackIds: () => TRACKS.map((t) => t[0]) };
+  return { onAward, add, panel, rumor, draw, miniDots, tick, readNote, notes, trackOf, trackName, trackIds: () => TRACKS.map((t) => t[0]) };
 }
