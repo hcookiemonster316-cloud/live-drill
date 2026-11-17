@@ -108,7 +108,7 @@ export function createMiniGames(dep) {
   function hub() {
     shell(); stopRoom(); const d = dep.did(), open = Object.keys(lobbies).filter((c) => lobbies[c] && now() - lobbies[c].t < 6e5);
     el.innerHTML = '<div class="mgCard wide"><div class="mgHead"><span>Academy Rec Room · ' + esc(dep.dname()) + '</span><h2>Mini games</h2><p>Play with whoever is on shift. Sim training only: brains, radio, eyes and legs.</p></div>' +
-      (open.length ? '<div class="mgSec">Open rooms nearby</div><div class="mgRooms">' + open.map((c) => { const l = lobbies[c]; return '<button type="button" class="mgRoom" data-join="' + c + '"><span>' + GAMES[l.g].icon + '</span><b>' + esc(GAMES[l.g].name) + '</b><small>' + esc(l.c) + ' · ' + (l.n || 1) + ' in room · ' + c + '</small><em>Join</em></button>'; }).join('') + '</div>' : '') +
+      (open.length ? '<div class="mgSec">Open rooms nearby</div><div class="mgRooms">' + open.map((c) => { const l = lobbies[c], live = l.n === -1; return '<button type="button" class="mgRoom' + (live ? ' live' : '') + '" data-' + (live ? 'watch' : 'join') + '="' + c + '"><span>' + GAMES[l.g].icon + '</span><b>' + esc(GAMES[l.g].name) + '</b><small>' + esc(l.c) + ' · ' + (live ? 'in progress' : (l.n || 1) + ' in room') + ' · ' + c + '</small><em>' + (live ? '👀 Watch live' : 'Join') + '</em></button>'; }).join('') + '</div>' : '') +
       '<div class="mgSec">Pick a game</div><div class="mgGames">' + Object.keys(GAMES).map((g) => { const G = GAMES[g]; return '<div class="mgGame"><div class="mgGI">' + G.icon + '</div><div class="mgGT"><b>' + G.name + '</b><small>' + G.tag + '</small><p>' + G.blurb + '</p><div class="mgGB">' + (dep.net ? '<button type="button" data-host="' + g + '">Host a room</button>' : '') + '<button type="button" class="ghost" data-solo="' + g + '">Practice vs. classmates</button></div></div></div>'; }).join('') + '</div>' +
       (dep.net ? '<div class="mgJoin"><input id="mgCode" maxlength="5" placeholder="Room code" autocomplete="off" autocapitalize="characters"><button type="button" id="mgJoinGo">Join</button></div>' : '<p class="mgNote">Multiplayer needs a connection. Practice mode works offline.</p>') +
       '<div class="mgAct"><button type="button" class="ghost" id="mgX">Back to patrol</button></div></div>';
@@ -116,6 +116,7 @@ export function createMiniGames(dep) {
     el.querySelectorAll('[data-host]').forEach((b) => b.onclick = () => host(b.dataset.host));
     el.querySelectorAll('[data-solo]').forEach((b) => b.onclick = () => practice(b.dataset.solo));
     el.querySelectorAll('[data-join]').forEach((b) => b.onclick = () => join(b.dataset.join));
+    el.querySelectorAll('[data-watch]').forEach((b) => b.onclick = () => spectate(b.dataset.watch));
     const go = el.querySelector('#mgJoinGo'); if (go) go.onclick = () => { const c = (el.querySelector('#mgCode').value || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (c.length === 5) join(c); else dep.toast('Room codes are 5 characters.'); };
   }
   const myEntry = () => ({ c: dep.cs(), u: dep.icon(), t: dep.net ? dep.net.TS : Date.now() });
@@ -132,11 +133,13 @@ export function createMiniGames(dep) {
   async function join(code) {
     let v = null; try { v = await dep.net.gget('mmo/gm/' + code); } catch (e) {}
     if (!v || !v.m) { dep.toast('No room with code ' + code + '.'); return; }
-    if (v.m.st === 'play') { dep.toast('That game already started. Catch the next one.'); return; }
+    if (v.m.st === 'play') { spectate(code, v); return; }
     if (Object.keys(v.p || {}).length >= 24) { dep.toast('That room is full.'); return; }
     try { await dep.net.gset('mmo/gm/' + code + '/p/' + me(), myEntry()); dep.net.gbye('mmo/gm/' + code + '/p/' + me()); } catch (e) { dep.toast('Could not join that room.'); return; }
     enter({ code, d: v.m.d, local: false });
   }
+  // spectators watch a game in progress (with the same slow-motion replays) without joining it
+  async function spectate(code, v) { if (!v) { try { v = await dep.net.gget('mmo/gm/' + code); } catch (e) {} } if (!v || !v.m) { dep.toast('That room has closed.'); return; } dep.toast('👀 Watching ' + GAMES[v.m.g].name + ' live.'); dep.stat('mgWatch'); enter({ code, d: v.m.d, local: false, spect: true }); }
   function practice(g) {
     const players = { me: { c: dep.cs(), u: dep.icon(), t: Date.now() } }; BOTS.forEach((b) => { players[b.id] = { c: b.c, u: b.u, t: Date.now() }; });
     room = { code: 'PRACTICE', local: true, meta: { g, h: 'me', st: 'lobby', n: dep.cs() }, players, uid: 'me' }; shell(); loop();
@@ -154,7 +157,7 @@ export function createMiniGames(dep) {
     room.mine = {}; room.awarded = false; room.bot = {};
     if (room.local) { Object.assign(room.meta, m); return; }
     const up = { m: Object.assign({}, room.meta, m) }; Object.keys(room.players).forEach((id) => { up['p/' + id + '/a'] = null; up['p/' + id + '/x'] = null; up['p/' + id + '/f'] = null; });
-    try { await dep.net.gupd('mmo/gm/' + room.code, up); dep.net.grm('mmo/gl/' + room.d + '/' + room.code); } catch (e) { dep.toast('Could not start. Try again.'); }
+    try { await dep.net.gupd('mmo/gm/' + room.code, up); dep.net.gupd('mmo/gl/' + room.d + '/' + room.code, { n: -1, t: dep.net.TS }); } catch (e) { dep.toast('Could not start. Try again.'); }
   }
   async function again() {
     if (room.local) { room.meta.st = 'lobby'; room.awarded = false; Object.values(room.players).forEach((p) => { delete p.a; delete p.x; delete p.f; }); lastRender = ''; return; }
@@ -247,16 +250,16 @@ export function createMiniGames(dep) {
       if (m.g === 'spot') body = P.memo ? '<p class="mgQ">Study the street…</p><div class="mgGrid">' + c.grid.map((e) => '<span>' + e + '</span>').join('') + '</div>' : '<p class="mgQ">What changed?</p><div class="mgGrid">' + c.after.map((e, i) => '<button type="button" data-o="' + i + '" class="' + cls(i, mine, c.c, P) + '"' + (mine || !P.open ? ' disabled' : '') + '>' + e + '</button>').join('') + '</div>' + (P.reveal ? '<p class="mgEx">It was a ' + c.grid[c.c] + ' before. Now: ' + c.after[c.c] + '</p>' : '');
       if (m.g === 'dispatch') body = '<div class="mgCall"><small>INCOMING CALL</small><b>' + esc(c.call) + '</b></div><p class="mgQ">Who do you send?</p>' + opts(c.opts, mine, c.c, P, false);
       if (m.g === 'arena') { const role = arenaRole(room.players, room.uid), tm = TEAMS[teamOf(room.players, room.uid)], mo = myOpts(c);
-        body = '<div class="mgScen"><small>' + esc(c.scen.replace(/ \(sim round\)/i, '')) + ' · SIM ROUND ' + (k + 1) + ' OF ' + G.rounds + '</small><p>' + esc(c.n) + '</p></div><div class="mgRole"><i class="arTeam" style="--tc:' + tm[1] + '">' + tm[0] + '</i> ' + role[2] + ' Your role: <b>' + role[1] + '</b></div>' + opts(mo.opts, mine, mo.c, P, false) +
+        body = '<div class="mgScen"><small>' + esc(c.scen.replace(/ \(sim round\)/i, '')) + ' · SIM ROUND ' + (k + 1) + ' OF ' + G.rounds + '</small><p>' + esc(c.n) + '</p></div>' + (room.spect ? '<div class="mgRole">👀 Spectating live · Blue vs Gold</div>' : '<div class="mgRole"><i class="arTeam" style="--tc:' + tm[1] + '">' + tm[0] + '</i> ' + role[2] + ' Your role: <b>' + role[1] + '</b></div>' + opts(mo.opts, mine, mo.c, P, false)) +
           (P.reveal ? '<div class="arReplay"><small>⏪ SLOW-MOTION REPLAY</small>' + [0, 1].map((t) => '<div class="arTeamRow" style="--tc:' + TEAMS[t][1] + '"><b>' + TEAMS[t][0] + '</b>' + roleIds(room.players).filter((id) => teamOf(room.players, id) === t).map((id, j) => { const p = room.players[id], r2 = arenaRole(room.players, id), a = (p.a || {})[k], o = c.o[r2[0]], okk = a && a.k === o.c; return '<span class="' + (okk ? 'ok' : 'no') + '" style="--j:' + j + '">' + r2[2] + ' ' + esc((p.c || '').replace(/^Cadet /, '')) + ': ' + (a ? esc(o.opts[a.k] || '') : 'no call') + '</span>'; }).join('') + '</div>').join('') + '</div>' : ''); }
-      if (m.g === 'squad') { const role = roleOf(room.players, room.uid), mo = myOpts(c); body = '<div class="mgScen"><small>' + esc(c.scen) + '</small><p>' + esc(c.n) + '</p></div><div class="mgRole">' + role[2] + ' Your role: <b>' + role[1] + '</b></div>' + opts(mo.opts, mine, mo.c, P, false) +
+      if (m.g === 'squad') { const role = roleOf(room.players, room.uid), mo = myOpts(c); body = '<div class="mgScen"><small>' + esc(c.scen) + '</small><p>' + esc(c.n) + '</p></div>' + (room.spect ? '<div class="mgRole">👀 Spectating live</div>' : '<div class="mgRole">' + role[2] + ' Your role: <b>' + role[1] + '</b></div>' + opts(mo.opts, mine, mo.c, P, false)) +
         (P.reveal ? '<div class="mgTeam">' + roleIds(room.players).map((id) => { const p = room.players[id], r2 = roleOf(room.players, id), a = (p.a || {})[k], okk = a && a.k === answerOf(k, id); return '<span class="' + (okk ? 'ok' : 'no') + '">' + r2[2] + ' ' + esc(r2[1]) + ': ' + esc((p.c || '').replace(/^Cadet /, '')) + (okk ? ' ✓' : a ? ' ✗' : ' (no call)') + '</span>'; }).join('') + '</div>' : ''); }
       if (P.reveal && m.g === 'bowl') body += '<p class="mgEx">' + esc(c.q.fact || c.q.ex || '') + '</p>';
       if (P.reveal && m.g === 'relay') body += '<p class="mgEx">Plate ' + c.plate + ': ' + esc(c.opts[c.c]) + '</p>';
       const rows = standings(m, room.players, answerOf).slice(0, 5);
       el.innerHTML = '<div class="mgCard mgPlay">' + head + body + (second ? '<p class="mgRetry">Not quite. One more try for partial points.</p>' : '') + '<div class="mgMini">' + rows.map((r, i) => '<span class="' + (r.id === room.uid ? 'me' : '') + '">' + (i + 1) + '. ' + esc(r.c.replace(/^Cadet /, '')) + ' <b>' + r.s + '</b></span>').join('') + '</div></div>';
       el.querySelectorAll('[data-o]').forEach((b) => b.onclick = () => {
-        const P2 = phase(); if (!P2.open || P2.k !== k) return; const o = +b.dataset.o, ms = Math.round(P2.rt - (G.show || 0)), cur = (room.mine || {})[k];
+        if (room.spect) return; const P2 = phase(); if (!P2.open || P2.k !== k) return; const o = +b.dataset.o, ms = Math.round(P2.rt - (G.show || 0)), cur = (room.mine || {})[k];
         if (cur && !(m.g === 'bowl' && cur.k !== c.c && cur.k2 == null)) return;
         const sec = !!cur; if (m.g === 'gauntlet' && k > 0 && !outAlive(room.players[room.uid] || {}, k, room.uid)) return; answer(k, o, ms, sec); const ok = o === answerOf(k); dep.beep(ok ? 880 : 220, .12, ok ? 'triangle' : 'sawtooth', .04);
         if ((m.g === 'bowl' && (ok || sec)) || m.g === 'gauntlet') { dep.L.record(dep.S, c.q, ok); dep.saveS(); }
@@ -274,12 +277,12 @@ export function createMiniGames(dep) {
     if (lastRender.slice(0, 3) !== 'run') {
       lastRender = 'run'; runX = 0; runSent = 0; lastBeat = -1;
       el.innerHTML = '<div class="mgCard mgPlay"><div class="mgBar"><span>🏃 PT Cadence Run</span><b id="mgCall">' + CALLS[0] + '</b><i id="mgT"></i></div><div class="mgTrack" id="mgTrack"></div><div class="mgBeat"><i id="mgPulse"></i></div><button type="button" class="mgTap" id="mgTap">TAP ON THE BEAT</button><p class="mgNote">Space bar works too.</p></div>';
-      const tap = (e) => { if (e) e.preventDefault(); const P2 = phase(); if (!P2.run) return; const t = P2.t, ph = t % G.beat, d = Math.min(ph, G.beat - ph), gain = d < 90 ? 3 : d < 180 ? 1.5 : .3; runX = Math.min(G.dist, runX + gain); const b = el.querySelector('#mgTap'); if (b) { b.classList.remove('good', 'ok', 'bad'); void b.offsetWidth; b.classList.add(d < 90 ? 'good' : d < 180 ? 'ok' : 'bad'); }
+      const tap = (e) => { if (e) e.preventDefault(); if (room.spect) return; const P2 = phase(); if (!P2.run) return; const t = P2.t, ph = t % G.beat, d = Math.min(ph, G.beat - ph), gain = d < 90 ? 3 : d < 180 ? 1.5 : .3; runX = Math.min(G.dist, runX + gain); const b = el.querySelector('#mgTap'); if (b) { b.classList.remove('good', 'ok', 'bad'); void b.offsetWidth; b.classList.add(d < 90 ? 'good' : d < 180 ? 'ok' : 'bad'); }
         const p = room.players[room.uid] || {}; p.x = runX; if (runX >= G.dist && !p.f) { p.f = t; push(true); dep.beep(1319, .3, 'triangle', .05); } };
       el.querySelector('#mgTap').addEventListener('pointerdown', tap);
       el._key = (e) => { if (e.code === 'Space' && room && room.meta && room.meta.g === 'run') tap(e); }; addEventListener('keydown', el._key);
     }
-    const push = (force) => { const t = performance.now(); if (!force && t - runSent < 300) return; runSent = t; const p = room.players[room.uid] || {}; if (room.local) return; try { dep.net.gupd('mmo/gm/' + room.code + '/p/' + me(), p.f ? { x: runX, f: p.f } : { x: runX }); } catch (e) {} };
+    const push = (force) => { const t = performance.now(); if (!force && t - runSent < 300) return; runSent = t; const p = room.players[room.uid] || {}; if (room.local || room.spect) return; try { dep.net.gupd('mmo/gm/' + room.code + '/p/' + me(), p.f ? { x: runX, f: p.f } : { x: runX }); } catch (e) {} };
     if (P.run) push(false);
     const bt = P.run ? Math.floor(P.t / G.beat) : -1; if (bt !== lastBeat && P.run) { lastBeat = bt; dep.beep(bt % 4 === 0 ? 660 : 440, .05, 'square', .03); const pl = el.querySelector('#mgPulse'); if (pl) { pl.classList.remove('on'); void pl.offsetWidth; pl.classList.add('on'); } if (bt % 8 === 0) { const c = el.querySelector('#mgCall'); if (c) c.textContent = CALLS[(bt / 8) % CALLS.length]; } }
     const tr = el.querySelector('#mgTrack'); if (tr) { const rows = ids.map((id) => { const p = room.players[id]; return { id, c: p.c, u: p.u, x: id === room.uid ? runX : (p.x || 0), f: p.f }; }).sort((a, b) => (a.id === room.uid ? -1 : b.id === room.uid ? 1 : b.x - a.x)).slice(0, 10);
@@ -290,6 +293,7 @@ export function createMiniGames(dep) {
     const m = room.meta, G = GAMES[m.g]; if (el._key) { removeEventListener('keydown', el._key); el._key = null; }
     if (m.g === 'run' && !room.local) { const p = room.players[room.uid]; if (p && runX > (p.x || 0)) p.x = runX; }
     const rows = standings(m, room.players, answerOf), humans = rows.filter((r) => !r.bot).length, myRank = rows.findIndex((r) => r.id === room.uid), key = 'res' + rows.map((r) => r.id + r.s).join(',');
+    if (room.spect) room.awarded = true;
     let arena = null; if (m.g === 'arena') { arena = [0, 0]; rows.forEach((r) => { arena[teamOf(room.players, r.id)] += r.s; }); const mine = teamOf(room.players, room.uid), won = arena[mine] >= arena[1 - mine];
       if (!room.awarded) { room.awarded = true; dep.award(won ? 140 : 70, 'sim arena'); dep.stat('mg'); dep.stat('mg_arena'); if (won && humans >= 2) dep.stat('mgwin'); dep.beep(won ? 1047 : 659, .4, 'triangle', .05); } }
     let team = null; if (m.g === 'squad') { let ok = 0, tot = 0; Object.keys(room.players).forEach((id) => { for (let k = 0; k < G.rounds; k++) { tot++; const a = (room.players[id].a || {})[k]; if (a && a.k === answerOf(k, id)) ok++; } }); team = tot ? ok / tot : 0; }

@@ -25,6 +25,7 @@
 <link rel="modulepreload" href="net.js">
 <link rel="modulepreload" href="ngplus.js">
 <link rel="modulepreload" href="premium.js">
+<link rel="modulepreload" href="coop.js">
 <link rel="modulepreload" href="npcgen.js">
 <link rel="modulepreload" href="offduty.js">
 <link rel="modulepreload" href="onboard.js">
@@ -918,6 +919,22 @@ body.oneHand .bkCard{animation:none}
 .arTeamRow span{font-size:.74rem;padding:3px 7px;border-radius:8px;background:rgba(255,255,255,.06);opacity:0;transform:translateY(4px);animation:arSlow 1.1s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--j) * 520ms + 250ms)}
 .arTeamRow span.ok{box-shadow:inset 0 0 0 1px rgba(34,197,94,.55)}.arTeamRow span.no{box-shadow:inset 0 0 0 1px rgba(239,68,68,.5)}
 @keyframes arSlow{0%{opacity:0;transform:translateY(6px) scale(.97);filter:blur(2px)}60%{opacity:1;filter:blur(0)}100%{opacity:1;transform:none}}
+.coCard{position:fixed;left:50%;bottom:calc(168px + var(--safe-b, 0px));transform:translateX(-50%);width:min(420px,calc(100% - 20px));z-index:32;padding:11px 13px 12px;border-radius:16px;background:linear-gradient(180deg,rgba(14,26,58,.97),rgba(7,12,28,.97));border:1px solid rgba(245,184,0,.45);box-shadow:0 18px 44px -14px #000;color:#e8eef8}
+.coCard.in{animation:bkIn .35s cubic-bezier(.2,.9,.3,1.2) both}.coCard p{margin:6px 0 0;font-size:.9rem;color:#cbd5e1}.coCard p b{color:#fff}
+.coTop{display:flex;justify-content:space-between;align-items:center;font:800 .72rem 'Barlow Condensed',system-ui;letter-spacing:.16em;color:#fde68a}.coX{background:none;border:0;color:#94a3b8;font-size:1rem;cursor:pointer}
+.coChips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.coChips button{padding:8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#f1f5f9;font:700 .8rem system-ui;cursor:pointer}.coChips button:hover{background:#f5b800;color:#111}
+.coBtns{display:flex;gap:8px;margin-top:10px}.coBtns button{flex:1;padding:10px;border-radius:11px;border:0;font-weight:800;background:#f5b800;color:#111;cursor:pointer}.coBtns button.ghost{flex:.6;background:rgba(255,255,255,.08);color:#cbd5e1;border:1px solid rgba(255,255,255,.12)}
+#aidCard{border-color:rgba(239,68,68,.6)}#aidCard .coTop{color:#fca5a5}
+.rideChip{position:fixed;left:50%;top:calc(8px + var(--safe-t, 0px));transform:translateX(-50%);z-index:33;padding:7px 14px;border-radius:999px;background:rgba(9,16,34,.94);border:1px solid rgba(96,165,250,.6);color:#dbeafe;font:600 .82rem system-ui;cursor:pointer;width:auto;bottom:auto}
+.bkPt{font-style:normal;color:#fde68a}
+.ptt{position:fixed;left:calc(12px + var(--safe-x, 0px));bottom:calc(150px + var(--safe-b, 0px));z-index:9;width:46px;height:46px;border-radius:50%;border:1px solid rgba(245,184,0,.5);background:rgba(9,16,34,.9);font-size:1.25rem;box-shadow:0 8px 20px -8px #000;cursor:pointer}
+.pttW{position:fixed;left:calc(12px + var(--safe-x, 0px));bottom:calc(204px + var(--safe-b, 0px));z-index:9;display:grid;gap:6px}
+.pttW button{padding:9px 14px;border-radius:12px;border:1px solid rgba(245,184,0,.45);background:rgba(9,16,34,.95);color:#f8fafc;font:700 .84rem system-ui;text-align:left;cursor:pointer;opacity:0;transform:translateY(8px)}
+.pttW.on button{animation:pttIn .25s cubic-bezier(.2,.9,.3,1.2) forwards;animation-delay:calc(var(--i) * 40ms)}@keyframes pttIn{to{opacity:1;transform:none}}.pttW button:hover{background:#f5b800;color:#111}
+body.attract .ptt,body.cine .ptt,body.attract .pttW,body.cine .pttW{display:none}
+.coLive{position:absolute;right:12px;bottom:calc(100% + 8px);max-width:min(320px,80vw);padding:7px 10px;border-radius:12px;background:rgba(9,16,34,.95);border:1px solid rgba(96,165,250,.55);color:#e2e8f0;font-size:.8rem;box-shadow:0 10px 24px -10px #000}
+.coLive small{display:block;font:800 .64rem 'Barlow Condensed',system-ui;letter-spacing:.16em;color:#93c5fd}.coLive.in{animation:bkIn .3s ease-out both}
+.sdCalls,.sdMem{display:grid;gap:6px;margin:10px 0}.sdCalls button,.sdMem button{text-align:left;padding:10px 12px;border-radius:11px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#e2e8f0;cursor:pointer}.sdCalls button.on{border-color:#f5b800;background:rgba(245,184,0,.15)}.sdMem small{display:block;color:#94a3b8;font-size:.74rem}
 </style>
 </head>
 <body>

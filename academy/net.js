@@ -41,6 +41,10 @@ export async function startNet(onPlayers) {
     inside(n) { if (base) db.update(base + '/' + db.uid, { n: n == null ? -1 : n }); },
     flair(f) { if (base) db.update(base + '/' + db.uid, { f: f || null }); },
     assist(uid) { if (base) db.update(base + '/' + db.uid, { a: uid || null }); },
+    // co-op: who I'm riding with, my ride-along answers, and my latest choice in a shared scene
+    ride(uid) { if (base) db.update(base + '/' + db.uid, { ra: uid || null }); },
+    rq(ok) { if (base) db.update(base + '/' + db.uid, { rq: { ok: !!ok, t: db.TS } }); },
+    cc(x, r) { if (base) db.update(base + '/' + db.uid, { cc: { x, r: r || '', t: db.TS } }); },
     // district chat: one list per district per day, each message written once by its sender
     chatOn(did, cb) { if (N._chatStop) N._chatStop(); const day = new Date().toISOString().slice(0, 10).replace(/-/g, ''); N._chatPath = 'mmo/chat/' + did + '/' + day; const f = db.onLast ? db.onLast(N._chatPath, 60, (v) => cb(v || {})) : db.on(N._chatPath, (v) => cb(v || {})); N._chatStop = typeof f === 'function' ? f : null; },
     chatSend(m, cs, sh) { if (!N._chatPath) return; const k = Date.now().toString(36) + db.uid.slice(0, 6).replace(/[^a-zA-Z0-9]/g, ''); return db.set(N._chatPath + '/' + k, { u: db.uid, c: cs, m: m, s: sh, t: db.TS }); },

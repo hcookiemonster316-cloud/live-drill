@@ -140,7 +140,7 @@
               "q": {
                 ".validate": "newData.hasChildren(['k','t'])",
                 "k": {
-                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 8"
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 12"
                 },
                 "t": {
                   ".validate": "newData.val() === now"
@@ -168,6 +168,9 @@
                 },
                 "p": {
                   ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
+                },
+                "n": {
+                  ".validate": "newData.isString() && newData.val().matches(/^(any|k9|swat|marine|det|neg|sup)$/)"
                 }
               },
               "a": {
@@ -187,6 +190,36 @@
               },
               "k": {
                 ".validate": "newData.isString() && newData.val().matches(/^[A-Z0-9]{2,4}$/)"
+              },
+              "cc": {
+                ".validate": "newData.hasChildren(['x','t'])",
+                "x": {
+                  ".validate": "newData.isString() && newData.val().length <= 90"
+                },
+                "r": {
+                  ".validate": "newData.isString() && newData.val().length <= 12"
+                },
+                "t": {
+                  ".validate": "newData.val() === now"
+                },
+                "$o": {
+                  ".validate": false
+                }
+              },
+              "ra": {
+                ".validate": "newData.isString() && newData.val().length <= 128"
+              },
+              "rq": {
+                ".validate": "newData.hasChildren(['ok','t'])",
+                "ok": {
+                  ".validate": "newData.isBoolean()"
+                },
+                "t": {
+                  ".validate": "newData.val() === now"
+                },
+                "$o": {
+                  ".validate": false
+                }
               }
             }
           }
@@ -303,6 +336,36 @@
                 "$o": {
                   ".validate": false
                 }
+              }
+            }
+          },
+          "as": {
+            "$uid": {
+              ".write": "auth != null && (auth.uid === $uid || root.child('mmo/sq/' + $sid + '/i/l').val() === auth.uid)",
+              ".validate": "newData.hasChildren(['x','y','l','t'])",
+              "x": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 150"
+              },
+              "y": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 150"
+              },
+              "l": {
+                ".validate": "newData.isString() && newData.val().length <= 48"
+              },
+              "d": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 4"
+              },
+              "p": {
+                ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
+              },
+              "ok": {
+                ".validate": "newData.isBoolean()"
+              },
+              "t": {
+                ".validate": "newData.val() === now"
+              },
+              "$o": {
+                ".validate": false
               }
             }
           }
@@ -583,6 +646,87 @@
           },
           "$o": {
             ".validate": false
+          }
+        }
+      },
+      "cm": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          "$from": {
+            ".write": "auth != null && (auth.uid === $from || auth.uid === $uid)",
+            ".validate": "newData.hasChildren(['k','c','t'])",
+            "k": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5"
+            },
+            "c": {
+              ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 20"
+            },
+            "t": {
+              ".validate": "newData.val() === now"
+            },
+            "$o": {
+              ".validate": false
+            }
+          }
+        }
+      },
+      "pt": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          "$from": {
+            ".write": "auth != null && (auth.uid === $from || auth.uid === $uid)",
+            ".validate": "newData.hasChildren(['c','w','t'])",
+            "c": {
+              ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 20"
+            },
+            "w": {
+              ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}W[0-9]{1,2}$/)"
+            },
+            "a": {
+              ".validate": "newData.isBoolean()"
+            },
+            "ra": {
+              ".validate": "newData.isBoolean()"
+            },
+            "t": {
+              ".validate": "newData.val() === now"
+            },
+            "$o": {
+              ".validate": false
+            }
+          }
+        }
+      },
+      "aid": {
+        "$d": {
+          ".read": "auth != null && $d.matches(/^[0-4]$/)",
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['x','y','c','f','t'])",
+            "x": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 150"
+            },
+            "y": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 150"
+            },
+            "c": {
+              ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 20"
+            },
+            "f": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 4"
+            },
+            "l": {
+              ".validate": "newData.isString() && newData.val().length <= 48"
+            },
+            "s": {
+              ".validate": "newData.isString() && newData.val().matches(/^(day|mid|night)$/)"
+            },
+            "t": {
+              ".validate": "newData.val() === now"
+            },
+            "$o": {
+              ".validate": false
+            }
           }
         }
       }
