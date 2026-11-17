@@ -6,6 +6,7 @@ Standing rules from the owner:
 - PvP and co-op are training scenarios with sim rounds only, never live fire. Don't reward bad habits or illegal activity; pursuits, arrests and use of force follow policy (reward terminating risky pursuits, safe distance, radio discipline, de-escalation).
 - At most 3 quiz questions per interaction; longer runs are split into saved stages, and the player can walk away from any interaction.
 - Quiz options must be similar in length and content; the right answer must not be obvious.
+- **Everything is made from scratch.** No third-party fonts, icon sets, emoji art, images, sounds or music. Text uses the game's own fonts (Meridian / Meridian Text, built by `tools/makefont.py`); emoji in strings are drawn as the game's own icons (`academy/icons.js`, add a design or a MAP entry for any new emoji); music is composed in `scoredata.js` and rendered with `tools/render-score.js`.
 - Push live after each feature (GitHub Pages); `database.rules.json` deploys automatically via `.github/workflows/deploy-rules.yml` when it changes.
 
 Architecture notes:

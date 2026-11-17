@@ -80,7 +80,7 @@ export function installPolish(H) {
   function drawBarks(g) {
     BARKS.forEach((b) => {
       const [sx, sy] = H.iso(b.e.x, b.e.y), a = Math.min(1, b.t / .3, (b.t0 - b.t) / .2 + .2), y = sy - 62 - Math.min(1, (b.t0 - b.t) * 4) * 4;
-      g.save(); g.globalAlpha = Math.max(0, a); g.font = '600 10px Inter, system-ui, sans-serif';
+      g.save(); g.globalAlpha = Math.max(0, a); g.font = '600 10px Meridian Text, system-ui, sans-serif';
       if (!b.lines) { const words = b.text.split(' '), out = []; let cur = ''; for (const wd of words) { const t = cur ? cur + ' ' + wd : wd; if (g.measureText(t).width > 168 && cur) { out.push(cur); cur = wd; } else cur = t; } out.push(cur); b.lines = out; b.w = Math.min(182, Math.max(...out.map((l) => g.measureText(l).width))) + 14; } // wrapped once per bark
       const w = b.w, hh = 6 + b.lines.length * 12;
       g.fillStyle = 'rgba(255,255,255,.95)'; g.strokeStyle = 'rgba(15,23,42,.35)'; g.lineWidth = 1; g.beginPath(); g.roundRect(sx - w / 2, y - hh, w, hh, 9); g.fill(); g.stroke();
@@ -146,7 +146,7 @@ export function installPolish(H) {
     const b = document.body; b.classList.remove('ts-l', 'ts-xl', 'cm-deut', 'cm-prot', 'cm-trit', 'cm-hc', 'fontA');
     if (S.cfg.tsize === 'large') b.classList.add('ts-l'); if (S.cfg.tsize === 'xl') b.classList.add('ts-xl');
     if (S.cfg.cmode && S.cfg.cmode !== 'none') b.classList.add('cm-' + S.cfg.cmode);
-    if (S.cfg.font === 'readable') { b.classList.add('fontA'); if (!document.getElementById('fontA')) { const l = document.createElement('link'); l.id = 'fontA'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap'; document.head.appendChild(l); } }
+    if (S.cfg.font === 'readable') { b.classList.add('fontA');  }
     if (!document.getElementById('cbSvg')) { const d = document.createElement('div'); d.id = 'cbSvg'; d.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden'; d.innerHTML = '<svg><filter id="cb-deut"><feColorMatrix type="matrix" values="1 0 0 0 0  -0.438 1.438 0 0 0  0.262 -0.562 1.3 0 0  0 0 0 1 0"/></filter><filter id="cb-prot"><feColorMatrix type="matrix" values="1 0 0 0 0  -0.255 1.255 0 0 0  0.303 -0.545 1.242 0 0  0 0 0 1 0"/></filter><filter id="cb-trit"><feColorMatrix type="matrix" values="1.05 -0.382 0.332 0 0  0 1.234 -0.234 0 0  0 0 1 0 0  0 0 0 1 0"/></filter></svg>'; document.body.appendChild(d); }
   }
   // the colour modes daltonize the world view: colours a player can't tell apart are shifted into ones they can

@@ -1,20 +1,18 @@
-// The Patrol City score: the recorded MP3 plays as the game's music. It is one track with a section per mood
-// (11 seconds each, in this order), so when the situation changes the music crossfades to that mood's section
-// and carries on from there. Until the file has loaded (or if it can't load), the built-in synth score plays instead.
-import { TRACKS, ROTATION, trackLen } from './scoredata.js';
-const FILE = 'music/patrol-city-score.mp3';
-const ORDER = ['title', 'day', 'night', 'inside', 'story', 'side', 'call', 'urgent', 'scene', 'water'], SEG = 11;
-const NAMES = { title: 'Port Meridian', day: 'Day Watch', night: 'Night Watch', inside: 'Indoors', story: 'The Gray Sedan', side: 'Side Case', call: 'En Route', urgent: 'Priority One', scene: 'On Scene', water: 'Marine Patrol' };
+// The Patrol City score: every track was composed for this game and rendered from its own synth engine (music.js)
+// to small MP3s. Each mood rotates through its tracks with crossfades. Until the first file has loaded (or if files
+// can't load), the same synth plays the score live instead.
+import { META, ROTATION, trackLen } from './scoredata.js';
+const FILE = 'music/title_a.mp3'; // loaded first; once it can play, the file score takes over from the live synth
+const NAMES = {}; for (const k in META) if (META[k].base) NAMES[META[k].base] = META[k].name;
 const PRIORITY = { call: 1, urgent: 1, scene: 1, story: 1 }; // these cut in right away; calmer moods wait a little so the music doesn't jump around
 
 export function createScore(getCtx, synth) {
   let on = false, cur = null, vol = .7, rainy = false, master = null, lp = null, decks = [], live = -1, ready = false, failed = false, lastJump = 0, pending = null, playing = null, watch = 0;
   const ctx = () => getCtx(), idx = {}, bad = {};
-  // one rotation entry: a section of the first recording (played three times round) or a composed track (played once)
-  function entry(mood) { const list = (ROTATION[mood] || ['orig']).filter((id) => !bad[id] && (id !== 'orig' || ORDER.indexOf(mood) >= 0)); if (!list.length) return { id: 'orig', src: FILE, start: 0, len: SEG, mood };
-    const k = idx[mood] == null ? Math.floor(Math.random() * list.length) : (idx[mood] + 1) % list.length; idx[mood] = k; const id = list[k];
-    if (id === 'orig') return { id, src: FILE, start: ORDER.indexOf(mood) * SEG, len: SEG * 3, loopSeg: SEG, mood, name: NAMES[mood] };
-    return { id, src: 'music/' + id + '.mp3', start: 0, len: trackLen(TRACKS[id]) + 1.2, mood, name: TRACKS[id].name }; }
+  // the next track in this mood's rotation (each plays once, then the next one fades in)
+  function entry(mood) { const list = (ROTATION[mood] || ROTATION.day).filter((id) => !bad[id]); if (!list.length) { failed = true; if (on && cur) synth.start(cur); return null; }
+    const k = idx[mood] == null ? 0 : (idx[mood] + 1) % list.length; idx[mood] = k; const id = list[k];
+    return { id, src: 'music/' + id + '.mp3', start: 0, len: trackLen(META[id]) + 1.2, mood, name: META[id].name }; }
   function graph() {
     const a = ctx(); if (!a || master) return !!master;
     master = a.createGain(); master.gain.value = vol; lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = rainy ? 5200 : 16000; lp.connect(master); master.connect(a.destination);
@@ -25,11 +23,11 @@ export function createScore(getCtx, synth) {
     d0.load(); watch = setInterval(tick, 400); return true;
   }
   // warm the cache with the next track of this mood so the change is instant
-  const warmed = {}; function warm(mood) { const list = ROTATION[mood] || []; const k = ((idx[mood] || 0) + 1) % (list.length || 1), id = list[k]; if (!id || id === 'orig' || warmed[id]) return; warmed[id] = 1; const c = navigator.connection; if (c && c.saveData) return; try { fetch('music/' + id + '.mp3').catch(() => {}); } catch (e) {} }
+  const warmed = {}; function warm(mood) { const list = ROTATION[mood] || []; const k = ((idx[mood] || 0) + 1) % (list.length || 1), id = list[k]; if (!id || warmed[id]) return; warmed[id] = 1; const c = navigator.connection; if (c && c.saveData) return; try { fetch('music/' + id + '.mp3').catch(() => {}); } catch (e) {} }
   function jump(mood, now, e) {
-    const a = ctx(); if (!a || !ready) return; e = e || entry(mood); const t = a.currentTime, nxt = live < 0 ? 0 : 1 - live, D = decks[nxt], O = live < 0 ? null : decks[live];
+    const a = ctx(); if (!a || !ready) return; e = e || entry(mood); if (!e) return; const t = a.currentTime, nxt = live < 0 ? 0 : 1 - live, D = decks[nxt], O = live < 0 ? null : decks[live];
     const src = new URL(e.src, location.href).href, go = () => { try { D.el.currentTime = e.start; } catch (x) {} const p = D.el.play(); if (p && p.catch) p.catch(() => {}); };
-    if (D.el.src !== src) { D.el.src = src; D.el.preload = 'auto'; D.el.addEventListener('error', () => { if (e.id !== 'orig') { bad[e.id] = 1; if (on && cur === mood) jump(mood, true); } }, { once: true }); D.el.addEventListener('loadedmetadata', go, { once: true }); D.el.load(); } else go();
+    if (D.el.src !== src) { D.el.src = src; D.el.preload = 'auto'; D.el.addEventListener('error', () => { bad[e.id] = 1; if (on && cur === mood) jump(mood, true); }, { once: true }); D.el.addEventListener('loadedmetadata', go, { once: true }); D.el.load(); } else go();
     D.g.gain.cancelScheduledValues(t); D.g.gain.setValueAtTime(D.g.gain.value, t); D.g.gain.linearRampToValueAtTime(1, t + (now ? .6 : 2.2));
     if (O) { O.g.gain.cancelScheduledValues(t); O.g.gain.setValueAtTime(O.g.gain.value, t); O.g.gain.linearRampToValueAtTime(0, t + 2.2); const old = O.el; setTimeout(() => { if (decks[live] && decks[live].el !== old) old.pause(); }, 2600); }
     live = nxt; lastJump = performance.now(); playing = e; warm(mood);
@@ -37,7 +35,6 @@ export function createScore(getCtx, synth) {
   }
   // keep the rotation moving: when a track (or three rounds of a recorded section) is nearly over, cross-fade to the next
   function tick() { if (!on || !ready || failed || live < 0 || !playing) return; const el = decks[live].el; if (el.paused || el.readyState < 2) return; const pos = el.currentTime - playing.start;
-    if (playing.loopSeg && pos >= playing.loopSeg - 1.6 && pos < playing.len - 2.3) { playing.done = (playing.done || 0) + playing.loopSeg; const e2 = Object.assign({}, playing, { len: playing.len - playing.loopSeg }); jump(playing.mood, false, e2); return; }
     if (pos >= playing.len - 2.3 || el.ended) jump(cur || playing.mood); }
   const api = {
     get mood() { return cur; }, get title() { return playing && playing.name ? playing.name : cur ? NAMES[cur] || '' : ''; }, get usingFile() { return ready && !failed; },

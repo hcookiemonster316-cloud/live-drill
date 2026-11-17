@@ -1,4 +1,6 @@
 // Patrol City: game loop, camera, input, people and traffic, lighting, dispatch, learning scenes and HUD.
+import { installIcons } from './icons.js'; // first, so every canvas draws the game's own icons instead of system emoji
+installIcons();
 import { N, TW, TH, T, CH, iso, unIso, buildDistrict, drawGround, setRes, setGroundRes, frameStart, setSun, RES, GRES, drawBuilding, drawProp, car, person, personFast, dog, dogFast, vehicle, rideArt, CAR_COLORS, shade, drawPropFast, hiCanvas } from './world.js';
 import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
 import * as L from './learn.js';
@@ -1471,7 +1473,7 @@ function moodNow() {
 function musicUpdate(dt) { musT -= dt; if (musT > 0) return; musT = .8; if (!S.sound) return; music.rain(FX.rain); music.start(moodNow()); }
 function titleScreen() {
   const t = $('title'); t.hidden = false;
-  t.innerHTML = '<div class="tiBadge"><svg viewBox="0 0 64 72"><defs><linearGradient id="tiG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset=".5" stop-color="#f5b800"/><stop offset="1" stop-color="#a86f00"/></linearGradient></defs><path d="M32 3l25 9v19c0 18-11 31-25 38C18 62 7 49 7 31V12z" fill="url(#tiG)" stroke="#5c3d00" stroke-width="1.6"/><path d="M32 10l19 7v14c0 14-8 24-19 30-11-6-19-16-19-30V17z" fill="#0b1630" stroke="#ffe27a" stroke-width="1.2"/><path d="M32 17l3 6.2 6.8 1-4.9 4.8 1.2 6.8-6.1-3.2-6.1 3.2 1.2-6.8-4.9-4.8 6.8-1z" fill="#ffe27a"/><text x="32" y="52" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-weight="800" font-size="8" fill="#ffe27a" letter-spacing="1">PMPD</text></svg></div>' +
+  t.innerHTML = '<div class="tiBadge"><svg viewBox="0 0 64 72"><defs><linearGradient id="tiG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset=".5" stop-color="#f5b800"/><stop offset="1" stop-color="#a86f00"/></linearGradient></defs><path d="M32 3l25 9v19c0 18-11 31-25 38C18 62 7 49 7 31V12z" fill="url(#tiG)" stroke="#5c3d00" stroke-width="1.6"/><path d="M32 10l19 7v14c0 14-8 24-19 30-11-6-19-16-19-30V17z" fill="#0b1630" stroke="#ffe27a" stroke-width="1.2"/><path d="M32 17l3 6.2 6.8 1-4.9 4.8 1.2 6.8-6.1-3.2-6.1 3.2 1.2-6.8-4.9-4.8 6.8-1z" fill="#ffe27a"/><text x="32" y="52" text-anchor="middle" font-family="Meridian,sans-serif" font-weight="800" font-size="8" fill="#ffe27a" letter-spacing="1">PMPD</text></svg></div>' +
     '<h1 class="tiLogo"><span>PATROL</span><span>CITY</span><i class="tiShine"></i></h1><div class="tiSub">' + esc(WORLD.city.toUpperCase()) + ' · FIELD IMMERSION PROGRAM</div><div class="tiClass">' + esc(WORLD.tagline.split('·')[1] || '') + ' · Chapter 5</div>' +
     '<div class="tiMenu"></div><div class="tiVer">' + STUDIO.ver + ' · A ' + STUDIO.name.replace(/\b(\w)(\w*)/g, (m, a, b) => a + b.toLowerCase()) + ' production</div><div class="tiFoot"><button type="button" id="tiSnd">' + (S.sound ? '🔊 Sound on' : '🔇 Sound off') + '</button><span>A training simulation. Every scenario is a sim round.</span></div>';
   requestAnimationFrame(() => t.classList.add('in'));
@@ -1568,7 +1570,7 @@ function award(xp, why) {
 }
 function floatsDraw(now) {
   for (let k = FLOATS.length - 1; k >= 0; k--) { const f = FLOATS[k], a = (now - f.t) / 1600; if (a > 1) { FLOATS.splice(k, 1); continue; } const [sx, sy] = iso(f.x, f.y), y = sy - 70 - a * 46 - k * 4;
-    ctx.globalAlpha = a < .15 ? a / .15 : 1 - Math.max(0, (a - .6) / .4); ctx.textAlign = 'center'; ctx.font = '900 17px "Barlow Condensed",system-ui'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(8,14,28,.85)'; ctx.strokeText(f.text, sx, y); ctx.fillStyle = '#f5b800'; ctx.fillText(f.text, sx, y);
+    ctx.globalAlpha = a < .15 ? a / .15 : 1 - Math.max(0, (a - .6) / .4); ctx.textAlign = 'center'; ctx.font = '900 17px "Meridian",system-ui'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(8,14,28,.85)'; ctx.strokeText(f.text, sx, y); ctx.fillStyle = '#f5b800'; ctx.fillText(f.text, sx, y);
     ctx.font = '700 10px system-ui'; ctx.lineWidth = 3; ctx.strokeText(f.sub, sx, y + 13); ctx.fillStyle = '#e5e7eb'; ctx.fillText(f.sub, sx, y + 13); ctx.globalAlpha = 1; }
 }
 // the promotion ceremony
@@ -1576,7 +1578,7 @@ function promotion(rank) {
   music.sting('promo'); shake(8, .6);
   const lvl = [0, 200, 600, 1200, 2000, 3000, 4200, 5600, 7200, 9000].filter((t) => S.xp >= t).length, opened = SLOTS.filter((sl) => sl.need && S.xp >= sl.need && S.xp - sl.need < 400);
   const el = document.createElement('div'); el.className = 'promo';
-  el.innerHTML = '<canvas class="rvFx"></canvas><div class="promoRays"></div><div class="promoBox"><div class="promoBadge"><svg viewBox="0 0 64 72"><defs><linearGradient id="pbG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#d49b00"/></linearGradient></defs><path d="M32 3l25 9v19c0 18-11 31-25 38C18 62 7 49 7 31V12z" fill="url(#pbG)" stroke="#7a5600" stroke-width="2"/><path d="M32 10l19 7v14c0 14-8 24-19 30-11-6-19-16-19-30V17z" fill="#13234a" stroke="#ffe27a" stroke-width="1.5"/><path d="M32 15l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4.1 5.8-.8z" fill="#ffe27a"/><text x="32" y="51" text-anchor="middle" font-family="Barlow Condensed,sans-serif" font-weight="800" font-size="17" fill="#fff">' + lvl + '</text></svg></div>' +
+  el.innerHTML = '<canvas class="rvFx"></canvas><div class="promoRays"></div><div class="promoBox"><div class="promoBadge"><svg viewBox="0 0 64 72"><defs><linearGradient id="pbG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#d49b00"/></linearGradient></defs><path d="M32 3l25 9v19c0 18-11 31-25 38C18 62 7 49 7 31V12z" fill="url(#pbG)" stroke="#7a5600" stroke-width="2"/><path d="M32 10l19 7v14c0 14-8 24-19 30-11-6-19-16-19-30V17z" fill="#13234a" stroke="#ffe27a" stroke-width="1.5"/><path d="M32 15l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4.1 5.8-.8z" fill="#ffe27a"/><text x="32" y="51" text-anchor="middle" font-family="Meridian,sans-serif" font-weight="800" font-size="17" fill="#fff">' + lvl + '</text></svg></div>' +
     '<span class="promoKick">Promoted</span><h2>' + esc(rank) + '</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + '</p>' + '<p class="promoNew">+1 skill point · spend it in your Locker</p>' + (opened.length ? '<p class="promoNew">New equipment slot: ' + opened.map((x) => x.icon + ' ' + x.name).join(', ') + '</p>' : '') + '<p class="promoQ">"' + esc(['Stand where it counts.', 'Train like it matters. Because it will.', 'Slow is smooth. Smooth is fast.', 'Write it down while it is fresh.', 'Watch the hands.'][lvl % 5]) + '" · Sgt. Castillo</p><button type="button">Carry on</button></div>';
   document.body.appendChild(el); paused = true;
   if (S.sound) [392, 523, 659, 784, 1047].forEach((f, i) => beep(f, .35, 'triangle', .05, i * .12));
@@ -1929,8 +1931,8 @@ function radio(who, msg) { feed.push([who, msg]); while (feed.length > 30) feed.
 function placeOrders() { const r = $('radio'), o = $('orders'); if (!r || !o) return; const b = r.getBoundingClientRect(); o.style.top = Math.max(b.bottom + 6, 0) + 'px'; }
 addEventListener('resize', placeOrders);
 const toastQ = []; let toastOn = false;
-function toast(t) { if (toastOn && $('toast').textContent === t) return; if (toastQ.indexOf(t) >= 0) return; if (toastQ.length >= 3) toastQ.shift(); toastQ.push(t); pumpToast(); }
-function pumpToast() { if (toastOn || !toastQ.length) return; const el = $('toast'); el.textContent = toastQ.shift(); el.hidden = false; toastOn = true; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; toastOn = false; setTimeout(pumpToast, 250); }, toastQ.length ? 2600 : 3800); }
+function toast(t) { if (toastOn && $('toast').dataset.t === t) return; if (toastQ.indexOf(t) >= 0) return; if (toastQ.length >= 3) toastQ.shift(); toastQ.push(t); pumpToast(); }
+function pumpToast() { if (toastOn || !toastQ.length) return; const el = $('toast'); el.textContent = el.dataset.t = toastQ.shift(); el.hidden = false; toastOn = true; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; toastOn = false; setTimeout(pumpToast, 250); }, toastQ.length ? 2600 : 3800); }
 $('bCar').onclick = () => { if (inside) { toast('Head outside first. The door is the glowing spot by the exit.'); return; } if (P.boat) exitBoat(); else if (P.inCar) exitCar(); else if (pcar) { if (Math.hypot(pcar.x - P.x, pcar.y - P.y) < 2.2) enterCar(); else { toast('Walking back to your ' + U().ride.label.toLowerCase() + '.'); goTo(pcar.x, pcar.y, enterCar); } } };
 $('bMap').onclick = () => { jTab = chStep() ? 'story' : 'map'; journal(); }; $('bLock').onclick = locker;
 $('bPause').onclick = () => pauseMenu();
@@ -2375,7 +2377,7 @@ function settingsPanel(back) {
     '<label>Voice acting' + seg('voice', [['story', 'Story scenes'], ['all', 'Everyone'], ['off', 'Off']]) + '</label>' +
     '<label>Text size' + seg('tsize', [['normal', 'Normal'], ['large', 'Large'], ['xl', 'Extra large']]) + '</label>' +
     '<label>Colour mode' + seg('cmode', [['none', 'Standard'], ['deut', 'Deuteranopia'], ['prot', 'Protanopia'], ['trit', 'Tritanopia'], ['hc', 'High contrast']]) + '</label>' +
-    '<label>Font' + seg('font', [['default', 'Default'], ['readable', 'Atkinson Hyperlegible']]) + '</label>' +
+    '<label>Font' + seg('font', [['default', 'Default'], ['readable', 'Device font']]) + '</label>' +
     '</div><div class="feBtns"><button type="button" class="feBtn" id="setBack">Back</button></div></div>';
   el.querySelectorAll('.seg button').forEach((b) => b.onclick = () => { const k = b.closest('.seg').dataset.k; let v = b.dataset.v; if (v === 'true') v = true; else if (v === 'false') v = false;
     if (k === 'sound') { S.sound = v; if (v) { audio(); music.start(ATTRACT ? 'title' : moodNow()); } else music.stop(); hud && !ATTRACT && hud(); } else { c[k] = v; if (k === 'quality') c.qMax = v; } saveS(); applyCfg(); feSound('move'); settingsPanel(back); });
@@ -2597,7 +2599,7 @@ function capture() { try { const [cx, cy] = unIso(cam.x, cam.y); EVT.photo(cx, c
   const c = document.createElement('canvas'); c.width = cv.width; c.height = cv.height; const g = c.getContext('2d');
   g.filter = FILTERS[PHOTO.f][1]; g.drawImage(cv, 0, 0); g.filter = 'none';
   if (PHOTO.vig) { const v = g.createRadialGradient(c.width / 2, c.height / 2, Math.min(c.width, c.height) * .35, c.width / 2, c.height / 2, Math.max(c.width, c.height) * .75); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = v; g.fillRect(0, 0, c.width, c.height); }
-  if (PHOTO.mark) { const s = c.width / 1400; g.font = '900 ' + Math.round(54 * s) + 'px "Barlow Condensed", sans-serif'; g.fillStyle = 'rgba(255,255,255,.92)'; g.textBaseline = 'bottom'; g.fillText('PATROL', 36 * s, c.height - 62 * s); g.fillStyle = '#f5b800'; g.fillText('CITY', 36 * s + g.measureText('PATROL ').width, c.height - 62 * s); g.font = '700 ' + Math.round(18 * s) + 'px system-ui'; g.fillStyle = 'rgba(255,255,255,.75)'; g.fillText(WORLD.city + ' · ' + W.D.name + ' · ' + S.cs, 38 * s, c.height - 36 * s); }
+  if (PHOTO.mark) { const s = c.width / 1400; g.font = '900 ' + Math.round(54 * s) + 'px "Meridian", sans-serif'; g.fillStyle = 'rgba(255,255,255,.92)'; g.textBaseline = 'bottom'; g.fillText('PATROL', 36 * s, c.height - 62 * s); g.fillStyle = '#f5b800'; g.fillText('CITY', 36 * s + g.measureText('PATROL ').width, c.height - 62 * s); g.font = '700 ' + Math.round(18 * s) + 'px system-ui'; g.fillStyle = 'rgba(255,255,255,.75)'; g.fillText(WORLD.city + ' · ' + W.D.name + ' · ' + S.cs, 38 * s, c.height - 36 * s); }
   const fl = document.createElement('div'); fl.className = 'phFlash'; document.body.appendChild(fl); setTimeout(() => fl.remove(), 600);
   if (S.sound) { beep(2400, .03, 'square', .03); beep(1200, .06, 'square', .02, .05); }
   try { const a = document.createElement('a'); a.download = 'patrol-city-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.png'; a.href = c.toDataURL('image/png'); a.click(); } catch (e) { toast('Could not save the photo on this device.'); }

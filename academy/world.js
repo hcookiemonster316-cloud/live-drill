@@ -553,7 +553,7 @@ export function drawBuilding(b, night, sun) {
   if (b.sign) {
     const [px, py] = tx(up([Dp[0] + (C[0] - Dp[0]) * .5, Dp[1] + (C[1] - Dp[1]) * .5], Math.min(h - 8, st === 'shop' || st === 'diner' ? 28 : h * .78)));
     g.save(); g.translate(px, py); g.transform(1, .5, 0, 1, 0, 0);
-    g.font = '800 ' + (b.sign.length > 6 ? 10 : 12) + 'px "Barlow Condensed",system-ui,sans-serif'; const tw = g.measureText(b.sign).width + 10;
+    g.font = '800 ' + (b.sign.length > 6 ? 10 : 12) + 'px "Meridian",system-ui,sans-serif'; const tw = g.measureText(b.sign).width + 10;
     g.fillStyle = night ? 'rgba(10,16,30,.92)' : 'rgba(10,16,30,.85)'; g.fillRect(-tw / 2, -9, tw, 15);
     g.fillStyle = b.sign === 'POLICE' ? '#f5b800' : night ? '#ffe9a8' : '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(b.sign, 0, -1.5); g.restore();
     if (night) winLit.push([px + minX, py + minY]);

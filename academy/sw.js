@@ -8,7 +8,7 @@ self.addEventListener('activate', (e) => e.waitUntil((async () => { for (const k
 self.addEventListener('fetch', (e) => {
   const r = e.request, u = new URL(r.url);
   if (r.method !== 'GET' || r.headers.has('range')) return; // audio range requests go straight to the network
-  if (u.origin !== location.origin && !/fonts\.(googleapis|gstatic)\.com$/.test(u.hostname)) return; // never Firebase or other live data
+  if (u.origin !== location.origin) return; // never Firebase or other live data
   if (u.pathname.endsWith('/sw.js')) return;
   e.respondWith(BIG.test(u.pathname) || /fonts\./.test(u.hostname) ? stale(r) : fresh(r));
 });

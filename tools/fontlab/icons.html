@@ -1,0 +1,7 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#1e293b}</style></head><body><canvas id="c"></canvas>
+<script type="module">
+import { ICONS, paint } from '../academy/icons.js';
+const keys = Object.keys(ICONS), cols = 20, cell = 60, c = document.getElementById('c'); c.width = cols * cell; c.height = Math.ceil(keys.length / cols) * cell; const g = c.getContext('2d');
+keys.forEach((k, i) => { const x = (i % cols) * cell, y = Math.floor(i / cols) * cell; g.fillStyle = (i + Math.floor(i / cols)) % 2 ? '#334155' : '#2b3a4f'; g.fillRect(x, y, cell, cell); paint(g, k, x + 12, y + 4, 36); g.fillStyle = '#cbd5e1'; g.font = '9px sans-serif'; g.textAlign = 'center'; g.fillText(k.slice(0, 11), x + cell / 2, y + 54); });
+document.title = 'done';
+</script></body></html>

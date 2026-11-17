@@ -67,16 +67,16 @@ export function installCity(H) {
 
   // ================= 3. shareable service card =================
   async function shareCard() {
-    try { await Promise.all([document.fonts.load("800 40px 'Barlow Condensed'"), document.fonts.load("600 40px 'IBM Plex Sans'"), document.fonts.load("700 40px 'IBM Plex Sans'")]); } catch (e) {}
+    try { await Promise.all([document.fonts.load("800 40px 'Meridian'"), document.fonts.load("600 40px Meridian Text"), document.fonts.load("700 40px Meridian Text")]); } catch (e) {}
     const c = document.createElement('canvas'); c.width = 1080; c.height = 1350; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 1350); gr.addColorStop(0, '#13244a'); gr.addColorStop(1, '#060b18'); g.fillStyle = gr; g.fillRect(0, 0, 1080, 1350);
-    g.strokeStyle = '#f5b800'; g.lineWidth = 6; g.strokeRect(36, 36, 1008, 1278); g.fillStyle = '#f5b800'; g.font = "800 40px 'Barlow Condensed', sans-serif"; g.fillText('PATROL CITY · SERVICE RECORD', 80, 120);
-    g.fillStyle = '#fff'; g.font = "800 110px 'Barlow Condensed', sans-serif"; g.fillText(S.cs, 80, 250); g.fillStyle = '#94a3b8'; g.font = "600 38px 'IBM Plex Sans', sans-serif"; g.fillText(H.rankName() + ' · ' + (S.calls || 0) + ' calls cleared', 80, 310);
-    const tr = H.trackIds().map((k) => [k, (S.svc || {})[k] || { l: 1 }]).sort((a, b) => b[1].l - a[1].l); let y = 400; g.font = "700 34px 'IBM Plex Sans', sans-serif";
+    g.strokeStyle = '#f5b800'; g.lineWidth = 6; g.strokeRect(36, 36, 1008, 1278); g.fillStyle = '#f5b800'; g.font = "800 40px 'Meridian', sans-serif"; g.fillText('PATROL CITY · SERVICE RECORD', 80, 120);
+    g.fillStyle = '#fff'; g.font = "800 110px 'Meridian', sans-serif"; g.fillText(S.cs, 80, 250); g.fillStyle = '#94a3b8'; g.font = "600 38px Meridian Text, sans-serif"; g.fillText(H.rankName() + ' · ' + (S.calls || 0) + ' calls cleared', 80, 310);
+    const tr = H.trackIds().map((k) => [k, (S.svc || {})[k] || { l: 1 }]).sort((a, b) => b[1].l - a[1].l); let y = 400; g.font = "700 34px Meridian Text, sans-serif";
     tr.forEach(([k, r]) => { g.fillStyle = '#e8eef8'; g.fillText(H.trackName(k), 80, y); g.fillStyle = '#f5b800'; g.textAlign = 'right'; g.fillText('Level ' + r.l, 1000, y); g.textAlign = 'left'; g.fillStyle = 'rgba(255,255,255,.1)'; g.fillRect(80, y + 14, 920, 8); g.fillStyle = '#f5b800'; g.fillRect(80, y + 14, Math.min(920, r.l / 20 * 920), 8); y += 68; });
     y += 10;
-    const cm = Object.values(S.comms2 || {}).reduce((a, b) => a + b, 0); g.fillStyle = '#cbd5e1'; g.font = "600 40px 'IBM Plex Sans', sans-serif";
+    const cm = Object.values(S.comms2 || {}).reduce((a, b) => a + b, 0); g.fillStyle = '#cbd5e1'; g.font = "600 40px Meridian Text, sans-serif";
     g.fillText('🎖️ ' + cm + ' commendations' + (S.partner && S.partner.rank ? '  ·  🤝 ' + S.partner.rank : ''), 80, y + 30); g.fillText('🗺️ ' + Object.keys(S.lore || {}).length + ' pages of city history', 80, y + 100);
-    g.fillStyle = '#64748b'; g.font = "600 30px 'IBM Plex Sans', sans-serif"; g.fillText('Sim training · FBRTP Chapter 5', 80, 1270);
+    g.fillStyle = '#64748b'; g.font = "600 30px Meridian Text, sans-serif"; g.fillText('Sim training · FBRTP Chapter 5', 80, 1270);
     c.toBlob(async (blob) => { const file = new File([blob], 'patrol-city-record.png', { type: 'image/png' });
       try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'My Patrol City service record' }); H.stat('shared'); return; } } catch (e) {}
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'patrol-city-record.png'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); H.toast('🖼️ Saved your service record card.'); H.stat('shared'); }, 'image/png');

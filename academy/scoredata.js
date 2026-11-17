@@ -103,11 +103,13 @@ export const TRACKS = {
     pad: { v: .03 }, keys: { voice: 'marimba', pat: 'arp8', v: .035 }, bass: { pat: 'half', v: .07 }, drums: { pat: 'soft', v: .4 }, lead: { voice: 'nylon', v: .04, oct: 12 } }
 };
 
-// which tracks play for each situation, in rotation. 'orig' is the section of the first recorded score.
-export const ROTATION = {
-  title: ['orig', 'title_b', 'title_c'], day: ['orig', 'day_b', 'day_c', 'day_d'], night: ['orig', 'night_b', 'night_c', 'night_d'], inside: ['orig', 'inside_b', 'inside_c', 'inside_d'],
-  story: ['orig', 'story_b', 'story_c'], side: ['orig', 'side_b', 'side_c', 'side_d'], call: ['orig', 'call_b', 'call_c', 'call_d'], urgent: ['orig', 'urgent_b', 'urgent_c'],
-  scene: ['orig', 'scene_b', 'scene_c'], debrief: ['debrief_b', 'debrief_c'], friend: ['friend_b', 'friend_c', 'friend_d'], water: ['orig', 'water_b', 'water_c', 'water_d']
-};
+// the original Patrol City themes (the live synth score), rendered to files as the first track of each mood
+const BASE = { title: ['Port Meridian', 72], day: ['Day Watch', 100], night: ['Night Watch', 78], inside: ['Indoors', 70], story: ['The Gray Sedan', 64], side: ['Side Case', 104],
+  call: ['En Route', 112], urgent: ['Priority One', 136], scene: ['On Scene', 84], debrief: ['Debrief', 76], friend: ['Neighbors', 80], water: ['Marine Patrol', 84] };
+export const META = {}; for (const k in TRACKS) META[k] = { name: TRACKS[k].name, bpm: TRACKS[k].bpm };
+for (const k in BASE) META[k + '_a'] = { name: BASE[k][0], bpm: BASE[k][1], base: k };
+// which tracks play for each situation, in rotation
+export const ROTATION = {};
+for (const k in BASE) ROTATION[k] = [k + '_a'].concat(Object.keys(TRACKS).filter((t) => t.indexOf(k + '_') === 0));
 // how long each composed track runs before the next one: 32 bars, plus a short reverb tail
 export const trackLen = (m) => 32 * 4 * 60 / m.bpm;
