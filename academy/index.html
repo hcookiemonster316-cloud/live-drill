@@ -30,7 +30,7 @@
 <link rel="modulepreload" href="city.js">
 <link rel="modulepreload" href="sagas.js">
 <link rel="modulepreload" href="tales.js">
-<link rel="modulepreload" href="icons.js">
+<link rel="modulepreload" href="icons.js"><link rel="modulepreload" href="phonehud.js">
 <link rel="modulepreload" href="npcgen.js">
 <link rel="modulepreload" href="offduty.js">
 <link rel="modulepreload" href="onboard.js">
@@ -1027,6 +1027,41 @@ body.flashback canvas{filter:sepia(.7) contrast(1.06) brightness(.92) saturate(.
 .gzBox{background:#f4efe3;color:#1c1917;border-radius:8px;padding:18px 20px;font-family:'Meridian Text',sans-serif;box-shadow:inset 0 0 60px rgba(120,90,40,.15)}.gzMast{text-align:center;border-bottom:3px double #1c1917;padding-bottom:8px;margin-bottom:12px}.gzMast h1{margin:4px 0;font:800 2.1rem/1 'Meridian',sans-serif;letter-spacing:.04em;text-transform:uppercase}.gzMast small{font-size:.66rem;letter-spacing:.14em;color:#57534e}
 .gzLead h2{font:800 1.5rem/1.1 'Meridian',sans-serif;margin:0 0 4px}.gzDek{font-weight:600;color:#44403c;margin:0 0 8px}.gzLead p{font-size:.92rem;line-height:1.5}.gzCols{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;border-top:1px solid #a8a29e;margin-top:10px;padding-top:10px}.gzCols h3{font:700 1rem/1.15 'Meridian',sans-serif;margin:0 0 4px}.gzCols p{font-size:.8rem;margin:0;color:#44403c}
 .gzBlot{margin-top:12px;border-top:2px solid #1c1917;padding-top:8px;display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.8rem}.gzBlot b{width:100%;letter-spacing:.14em;font-size:.7rem}.gzBlot em{font-style:normal;font-weight:800}
+/* ---- phone HUD (portrait phones; body.phHud set by phonehud.js) ---- */
+body.phHud .hTop{top:calc(6px + var(--safe-t));left:6px;right:6px;gap:6px}
+body.phHud .hMe{padding:3px 10px 3px 3px;gap:7px}
+body.phHud .hRing{width:34px;height:34px}body.phHud .hRing span{width:27px;height:27px;font-size:.62rem}
+body.phHud .hId b{font-size:.9rem}body.phHud #hUnit{display:none}body.phHud #hRank{font-size:.62rem}
+body.phHud .hShift{padding:4px 12px 4px 10px;cursor:pointer;min-width:0}body.phHud #hClock{font-size:.84rem}body.phHud #hDist{font-size:.62rem}body.phHud #hOn{display:none}
+body.phHud #radio{top:calc(54px + var(--safe-t));left:6px;max-width:calc(100% - 104px);font-size:.72rem;line-height:1.3;padding:4px 9px;pointer-events:auto;cursor:pointer;opacity:0;transform:translateY(-4px);transition:opacity .5s,transform .5s}
+body.phHud #radio.fresh{opacity:1;transform:none}
+body.phHud #radio div{display:none}body.phHud #radio div:last-child{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+body.phHud .mini{top:calc(54px + var(--safe-t));right:8px;width:84px;height:84px}
+body.phHud .hExp{display:none}
+.hChips{display:none}
+body.phHud .hChips{position:fixed;left:6px;right:100px;top:calc(98px + var(--safe-t));z-index:5;display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;pointer-events:none}
+body.phHud .hChips>*{position:static!important;pointer-events:auto;transform:none}
+body.phHud .hChips .orders{width:auto}body.phHud .hChips .orders.open{width:min(250px,calc(100vw - 112px))}
+body.phHud .ordHead,body.phHud .qtHead{padding:5px 9px;gap:8px;min-height:30px}body.phHud .ordHead b{font-size:.6rem}body.phHud .ordHead span,body.phHud .qtHead b{font-size:.72rem}
+body.phHud .hChips .qTrack{width:auto;font-size:.7rem}body.phHud .hChips .qTrack:not(.min){width:min(250px,calc(100vw - 112px))}
+body.phHud .hChips .hCombo{align-self:center}
+body.phHud .hBot{left:6px;right:6px;bottom:calc(6px + var(--safe-b));gap:5px}
+body.phHud .hBot button{min-height:50px}
+body.phHud #bLock,body.phHud #bSnd,body.phHud #bMe{display:none!important}
+body.phHud .hBot button.bX{flex:1.25}
+body.phHud .objBar{left:6px;right:6px;transform:none;max-width:none;top:auto;bottom:calc(64px + var(--safe-b))}
+body.phHud .carHud{left:6px;bottom:calc(118px + var(--safe-b))}body.phHud .offHud{left:6px;bottom:calc(118px + var(--safe-b))!important}body.phHud .offHud.car{bottom:calc(196px + var(--safe-b))!important}
+body.phHud .ordHead b{font-size:0}body.phHud .ordHead b::after{content:'Orders';font-size:.6rem}body.phHud .qtHead span .pcIco,body.phHud .qtHead span i{display:none}
+body.phHud .ptt{right:8px;bottom:calc(116px + var(--safe-b));width:48px;height:48px}
+body.phHud .pttW{right:8px;bottom:calc(172px + var(--safe-b))}
+body.phHud .abil{left:auto;right:64px;bottom:calc(116px + var(--safe-b));grid-auto-flow:column}
+body.phHud .sqChip{top:auto;bottom:calc(172px + var(--safe-b))}
+body.phHud #callCard{bottom:calc(64px + var(--safe-b))}
+@media (pointer:coarse){body.phHud .zoom{display:none}}
+body.phClean #radio,body.phClean .hChips,body.phClean .mini,body.phClean .offHud,body.phClean .hMe{opacity:0!important;pointer-events:none!important;transition:opacity .3s}
+body.phClean .hShift::after{content:'Clean view';display:block;font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:#38bdf8}
+/* a lore card that arrived mid-conversation waits behind the open dialog instead of covering its buttons */
+body:has(#modal:not([hidden])) .lorePop{visibility:hidden;pointer-events:none}
 </style>
 </head>
 <body>

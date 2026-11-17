@@ -22,6 +22,7 @@ import { installOffDuty } from './offduty.js';
 import { installAcademy } from './academy.js';
 import { installEvents } from './events.js';
 import { installPolish } from './polish.js';
+import { installPhoneHud } from './phonehud.js';
 import { installEpic } from './epic.js';
 import { installOnboard } from './onboard.js';
 import { installFeel } from './feel.js';
@@ -558,6 +559,7 @@ function squadCall(a, done) { const parts = a.l.split(' · '); call = { les: L.w
 const condOK = (w) => w.slice(0, 5) === 'side:' ? sideClosed(sideQ(w.slice(5)) || {}) : w.slice(0, 5) === 'main:' ? (S.story[+w.slice(5)] || 0) >= CHAPTERS[+w.slice(5)].steps.length : !!S.flags[w.slice(5)];
 function gossipLine() { if (!W || inside) return null; const hooks = SIDE.filter((q) => HOOKS[q.id] && sideAvail(q)).map((q) => HOOKS[q.id]), deeds = DEEDS.filter(([w, d]) => (d < 0 || d === W.did) && condOK(w)).map((x) => x[2]);
   if (hooks.length && (!deeds.length || Math.random() < .6)) return rnd(hooks); return deeds.length ? rnd(deeds) : null; }
+const PH = installPhoneHud({ toast: (m) => toast(m) });
 const POL = installPolish({ S, gossip: () => gossipLine(), storyNpc: () => { const st = chStep(); return st && st.npc; }, sessLines: () => PREM.sessLines(), NPCS, CHAPTERS, LANDMARKS, esc: (x) => esc(x), $: (id) => $(id), fe: () => fe(), openModal: (h) => openModal(h), closeModal: () => closeModal(), stat: (...a) => stat(...a), saveS: () => saveS(), award: (...a) => award(...a), banner: (...a) => banner(...a), toast: (m) => toast(m), beep: (...a) => beep(...a),
   sting: (k) => { if (S.sound) music.sting(k); }, setMood: (m) => { POLMOOD = m; }, get W() { return W; }, get P() { return P; }, get regs() { return regs; }, get peds() { return peds; }, get inside() { return inside; }, get LORE() { return LORE; },
   cine: () => document.body.classList.contains('cine'), paused: () => paused || !!scene, pause: (on) => { paused = on; }, hour: () => hourNow(), homeOf: (n) => NPC_AT[n.id] || n.home, moveReg: (r, lot) => moveReg(r, lot), faceTo: (r) => { r.face = P.x < r.x ? -1 : 1; },
@@ -1293,7 +1295,7 @@ function trackerHud(dt) {
     el.querySelectorAll('[data-qt]').forEach((rw) => rw.onclick = (e) => { if (e.target.closest('.qtGo')) return; S.track = rw.dataset.qt; saveS(); beep(660, .06, 'triangle', .04); objectiveFlash(); TRAIL.t = 0; trkT = 0; });
     const go = el.querySelector('.qtGo'); if (go) go.onclick = (e) => { e.stopPropagation(); const tg = stepTarget(); if (!tg) return; if (tg.exit && inside) { exitBuilding(); return; } goTo(tg.x, tg.y); beep(880, .06, 'triangle', .04); };
   }
-  el.hidden = false; { let top = 0; ['hExp', 'hCombo'].forEach((id) => { const e = $(id); if (e && !e.hidden && e.offsetParent !== null) { const r = e.getBoundingClientRect(); if (r.height) top = Math.max(top, r.bottom); } }); if (top) el.style.top = (top + 8) + 'px'; }
+  el.hidden = false; if (!PH.on()) { let top = 0; ['hExp', 'hCombo'].forEach((id) => { const e = $(id); if (e && !e.hidden && e.offsetParent !== null) { const r = e.getBoundingClientRect(); if (r.height) top = Math.max(top, r.bottom); } }); if (top) el.style.top = (top + 8) + 'px'; }
   const dd = $('qtD'); if (dd) dd.textContent = !t ? '' : t.exit ? 'exit' : dist < 2.5 ? 'here' : Math.round(dist * 4) * 5 + ' ft';
 }
 
@@ -1945,7 +1947,7 @@ function hud() {
 function hudClock() { const t = (shiftOf().start * 60 + Math.floor(clock)) % 1440; const s = String(Math.floor(t / 60)).padStart(2, '0') + String(t % 60).padStart(2, '0') + ' hrs'; const el = $('hClock'); if (el.dataset.s !== s + EVT.WX.label) (el.dataset.s = s + EVT.WX.label, el.textContent = shiftOf().name + ' · ' + s + (EVT.WX.label ? ' ' + EVT.WX.label.split(' ')[0] : '')); }
 const feed = [];
 function radio(who, msg) { feed.push([who, msg]); while (feed.length > 30) feed.shift(); const el = $('radio'); el.innerHTML = feed.slice(-3).map((f) => '<div><b>' + esc(f[0]) + ':</b> ' + esc(f[1]) + '</div>').join(''); placeOrders(); }
-function placeOrders() { const r = $('radio'), o = $('orders'); if (!r || !o) return; const b = r.getBoundingClientRect(); o.style.top = Math.max(b.bottom + 6, 0) + 'px'; }
+function placeOrders() { const r = $('radio'), o = $('orders'); if (!r || !o || PH.on()) return; /* phone HUD lays these out in CSS: no forced layout per radio line */ const b = r.getBoundingClientRect(); o.style.top = Math.max(b.bottom + 6, 0) + 'px'; }
 addEventListener('resize', placeOrders);
 const toastQ = []; let toastOn = false;
 function toast(t) { if (toastOn && $('toast').dataset.t === t) return; if (toastQ.indexOf(t) >= 0) return; if (toastQ.length >= 3) toastQ.shift(); toastQ.push(t); pumpToast(); }

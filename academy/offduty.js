@@ -46,7 +46,7 @@ export function installOffDuty(H) {
     else { H.radio(H.S.cs, 'Back in service.'); H.banner('🚓', 'Back on duty', 'Dispatch knows you\'re available.'); }
     hud();
   }
-  function hud() { const el = H.$('offHud'); if (!el) return; const car = H.P.inCar && !H.inside; el.style.bottom = 'calc(' + (car ? 236 : 150) + 'px + var(--safe-b))'; el.hidden = H.inside && !S.offDuty;
+  function hud() { const el = H.$('offHud'); if (!el) return; const car = H.P.inCar && !H.inside; el.style.bottom = 'calc(' + (car ? 236 : 150) + 'px + var(--safe-b))'; el.classList.toggle('car', !!car); el.hidden = H.inside && !S.offDuty;
     el.innerHTML = (S.offDuty ? '<b>🧢 Off duty</b>' : '') + (H.daily ? '<span class="dChip">' + H.daily() + '</span>' : '') + '<span title="Morale">' + (S.morale >= 70 ? '😄' : S.morale >= 40 ? '🙂' : '😮‍💨') + ' Morale ' + Math.round(S.morale) + '</span>'; el.classList.toggle('low', S.morale < 30); el.onclick = () => { if (H.dailyCard) H.dailyCard(); }; }
   function tick(dt) {
     if (!S.offDuty && !H.paused()) S.morale = Math.max(0, S.morale - dt / 90);
