@@ -5,13 +5,13 @@ const TRACKS = [
   ['calls', '🚓', 'Calls for Service', /call|s-rank|final call|district cleared|stalled|disturbance|report/i],
   ['patrol', '🧭', 'Patrol', /patrol|sharp eyes|shift order|daily challenge|order/i],
   ['pursuit', '🚨', 'Pursuits', /pursuit/i],
-  ['arrest', '🔗', 'Arrests & Procedure', /arrest|procedure|warrant|booking/i],
-  ['community', '🤝', 'Community', /citizen|small talk|community|friend|morale|integrity|hometown|thank/i],
+  ['arrest', '🔗', 'Arrests & Procedure', /arrest|procedure|warrant|booking|investigation/i],
+  ['community', '🤝', 'Community', /citizen|small talk|community|friend|morale|integrity|hometown|thank|beat issue|meeting/i],
   ['fitness', '💪', 'Fitness', /\bpt\b|workout|run|inspection|cadence|fitness|gym/i],
-  ['team', '🛡️', 'Teamwork', /co-op|squad|ride-along|mutual aid|arena|backup|bowl|relay|bolo|gauntlet|spot the change|dispatch desk|commend/i],
+  ['team', '🛡️', 'Teamwork', /co-op|squad|ride-along|mutual aid|arena|backup|bowl|relay|bolo|gauntlet|spot the change|dispatch desk|commend|district incident/i],
   ['explore', '🗺️', 'Exploration', /explor|new place|patch|lore|overlook|rumor|photo|pigeon|cache|ledger|secret|landmark|census/i],
   ['study', '📘', 'Study', /fact|study|story|chapter|exam|side case|notes|case file|tutorial/i],
-  ['life', '☕', 'Off-Duty Life', /off.duty|life|hobby|fish|cook|coffee|lunch|garden|game night|volunteer|pet/i]
+  ['life', '☕', 'Off-Duty Life', /off.duty|life|hobby|fish|cook|coffee|lunch|garden|game night|volunteer|pet|partner care/i]
 ];
 const TIERS = [[5, 'Seasoned'], [10, 'Veteran'], [20, 'Legend of']];
 const need = (l) => 60 * l + 20 * l * l; // RP needed to go from level l to l+1
@@ -44,8 +44,8 @@ export function installRewards(H) {
     const v = S.vary && S.vary.d === today() ? Object.keys(S.vary.k) : [];
     H.openModal('<div class="sceneHead"><b>SERVICE RECORD</b><h2>Everything counts</h2><p>Every kind of work levels up its own track. Titles at levels 5, 10 and 20; a car skin at 10. Do three different kinds of work in a day for a variety bonus.</p></div><div class="svcList">' +
       TRACKS.map(([k, ic, name]) => { const r = S.svc[k] || { l: 1, x: 0 }, pct = Math.round(r.x / need(r.l) * 100), nx = TIERS.find(([n]) => n > r.l); return '<div class="svcRow' + (v.indexOf(k) >= 0 ? ' today' : '') + '"><i>' + ic + '</i><div><b>' + name + '</b><small>Level ' + r.l + (nx ? ' · ' + nx[1] + ' title at ' + nx[0] : ' · max title') + '</small><span><em style="width:' + pct + '%"></em></span></div></div>'; }).join('') +
-      '</div><p class="lkSum">Today: ' + (v.length ? v.length + ' kind' + (v.length > 1 ? 's' : '') + ' of work (' + v.map((k) => TRACKS.find((t) => t[0] === k)[1]).join(' ') + ')' : 'nothing yet') + '</p><div class="qAct"><button type="button" id="mClose">Back</button></div>');
-    const x = document.getElementById('mClose'); if (x) x.onclick = H.closeModal;
+      '</div><div class="qAct" style="margin-top:0"><button type="button" class="ghost" id="svcShare">🖼️ Share my record card</button></div><p class="lkSum">Today: ' + (v.length ? v.length + ' kind' + (v.length > 1 ? 's' : '') + ' of work (' + v.map((k) => TRACKS.find((t) => t[0] === k)[1]).join(' ') + ')' : 'nothing yet') + '</p><div class="qAct"><button type="button" id="mClose">Back</button></div>');
+    const x = document.getElementById('mClose'); if (x) x.onclick = H.closeModal; const sh = document.getElementById('svcShare'); if (sh) sh.onclick = () => H.share();
   }
 
   // ================= overlooks =================
@@ -87,5 +87,6 @@ export function installRewards(H) {
   let t = 0;
   function tick(dt) { t -= dt; if (t > 0) return; t = .25; overlookTick(); }
 
-  return { onAward, add, panel, rumor, draw, miniDots, tick, trackOf };
+  const trackName = (k) => (TRACKS.find((t) => t[0] === k) || [0, 0, k])[2];
+  return { onAward, add, panel, rumor, draw, miniDots, tick, trackOf, trackName, trackIds: () => TRACKS.map((t) => t[0]) };
 }
