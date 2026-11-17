@@ -6,6 +6,7 @@ import { startNet } from './net.js';
 import { peopleFor } from './npcgen.js';
 import { WORLD, LORE, CAST, CHAPTERS, SIDE, MAIN_TITLE } from './story.js';
 import { SIDE2, SIDE_CAST, LORE2 } from './sidequests.js';
+import { SAGAS, SAGA_CAST, SAGA_LORE, QITEMS, MAIN_ADDS } from './sagas.js';
 import { LORE_PEOPLE, LORE_PLACES } from './people2.js';
 import { VOICES, ANYONE } from './voices.js';
 import { createMiniGames } from './minigames.js';
@@ -24,7 +25,8 @@ import { installCoop, QUICK_EXTRA } from './coop.js';
 import { installRewards } from './rewards.js';
 import { installCity } from './city.js';
 if (QUICK.length < 10) QUICK.push(QUICK_EXTRA);
-SIDE2.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); LORE2.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); }); LORE_PLACES.concat(LORE_PEOPLE).forEach((e) => { if (!LORE.some((o) => o.id === e.id || o.when === e.when)) LORE.push(e); });
+SIDE2.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); SAGAS.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); SAGA_LORE.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); });
+MAIN_ADDS.forEach((m) => { for (const ch of CHAPTERS) { const st = ch.steps.find((x) => x.goal === m.goal); if (!st) continue; if (m.add) st.say = m.pre ? m.add.concat(st.say || []) : (st.say || []).concat(m.add); if (m.give) st.give = m.give; if (m.take) st.take = m.take; if (m.twist) st.twist = m.twist; break; } }); LORE2.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); }); LORE_PLACES.concat(LORE_PEOPLE).forEach((e) => { if (!LORE.some((o) => o.id === e.id || o.when === e.when)) LORE.push(e); });
 import { createMusic } from './music.js';
 import { createScore } from './score.js';
 import { BRANCHES, SKILLS, skillById, skillPoints, canLearn } from './skills.js';
@@ -876,7 +878,8 @@ function offerSide(q) {
 function sideDone(q) {
   const rw = q.reward || {}; if (S.track === q.id) S.track = 'main'; saveS(); music.sting('done');
   const n = SIDE.filter(sideClosed).length;
-  openModal('<div class="chEnd side"><span class="chKick">Side case closed</span><h2>' + esc(q.title) + '</h2><p>' + esc(DISTRICTS[q.d].name) + '</p><div class="chStamp">CASE CLOSED</div><p class="chNext">' + n + ' of ' + SIDE.length + ' side cases closed. People remember how you handled this one.</p></div><div class="qAct"><button type="button" id="mDone">Back to patrol</button></div>');
+  if (rw.title) { S.titles = S.titles || {}; S.titles[rw.title] = 1; }
+  openModal('<div class="chEnd side' + (q.saga ? ' saga' : '') + '"><span class="chKick">' + (q.saga ? 'Story arc complete' : 'Side case closed') + (rw.title ? ' · title: ' + esc(rw.title) : '') + '</span><h2>' + esc(q.title) + '</h2><p>' + esc(DISTRICTS[q.d].name) + '</p><div class="chStamp">CASE CLOSED</div><p class="chNext">' + n + ' of ' + SIDE.length + ' side cases closed. People remember how you handled this one.</p></div><div class="qAct"><button type="button" id="mDone">Back to patrol</button></div>');
   good(); $('mDone').onclick = () => { closeModal(); award(rw.rp || 100, 'side case'); if (rw.loot) queueLoot('Side case: ' + q.title, 1, rw.loot); };
 }
 function storyUpdate(dt) {
@@ -907,7 +910,7 @@ function applyChoice(o) {
 //   ['q', question, speakerId]    a chapter question asked inside the scene; the speaker reacts to the answer
 //   ['fx', fn]                    run something mid-scene
 // opts: { focus: [x, y], zoom, kicker } frames the camera on the scene and labels it.
-const TEMP = Object.assign({}, SIDE_CAST);
+const TEMP = Object.assign({}, SIDE_CAST, SAGA_CAST);
 // after a right answer: praise, then a tip about something else worth doing nearby
 function hintLine() {
   const opts = [], nm = (id) => giverName(id);
@@ -1037,7 +1040,7 @@ function dialogue(lines, done, opts) {
       body.innerHTML = '<div class="dlgTxt"><div class="dlgOpts">' + opts2.map((o, k) => { const [ti, tl, cut] = toneOf(o), seen = S.seenCh[ctxKey + ':' + hashStr(o.t)]; return '<button type="button" data-k="' + k + '" class="' + (seen ? 'seen' : '') + '" style="--d:' + (k * 60) + 'ms"><span class="kk">' + (k + 1) + '</span><span class="tone" title="' + tl + '">' + ti + '</span><span class="ot">' + esc(cut ? o.t.slice(cut) : o.t) + (o.trust > 0 ? '<i class="chip">Trust ▲</i>' : '') + '</span></button>'; }).join('') + '</div></div>';
       setChoiceMode(true); const bs = [...body.querySelectorAll('[data-k]')]; bs.forEach((b, k) => b.onmouseenter = () => b.focus());
       bs.forEach((b) => b.onclick = (e) => { e.stopPropagation(); const o = opts2[+b.dataset.k]; S.seenCh[ctxKey + ':' + hashStr(o.t)] = 1; const ks = Object.keys(S.seenCh); if (ks.length > 800) delete S.seenCh[ks[0]];
-        res.choices.push(o); COOP.onChoice(o); applyChoice(o); beep(660, .08, 'triangle', .04); log('You', o.t, '#f5b800');
+        res.choices.push(o); COOP.onChoice(o); if (o.take) qTake(o.take); if (o.give) qGive(o.give); applyChoice(o); beep(660, .08, 'triangle', .04); log('You', o.t, '#f5b800');
         if ((o.set || o.npc || o.trust > 0) && lastName && !o.accept && !o.bye) remember('🧠  ' + lastName + ' will remember that.');
         if (o.fx) { try { o.fx(res); } catch (er) {} } seq.splice(i + 1, 0, ...(o.reply || [])); setChoiceMode(false); next(); });
       return;
@@ -1117,16 +1120,34 @@ function dialogue(lines, done, opts) {
   box.onclick = click;
   next();
 }
+// ---------- quest items: things you carry for a story, which you can inspect in the menu ----------
+S.qitems = S.qitems || {}; S.qkept = S.qkept || {};
+function qGive(id) { const it = QITEMS[id]; if (!it || S.qitems[id]) return; S.qitems[id] = Date.now(); saveS(); setTimeout(() => banner(it.icon, 'Quest item: ' + it.name, it.text.length > 90 ? it.text.slice(0, 88) + '…' : it.text), 600); stat('qitems'); }
+function qTake(id) { if (!S.qitems[id]) return; delete S.qitems[id]; S.qkept[id] = Date.now(); saveS(); }
+function qItemsPanel(sel) {
+  const have = Object.keys(S.qitems).filter((k) => QITEMS[k]), kept = Object.keys(S.qkept).filter((k) => QITEMS[k] && !S.qitems[k]), cur = sel || have[0] || kept[0], it = QITEMS[cur];
+  const tile = (k, past) => '<button type="button" class="qiT' + (k === cur ? ' on' : '') + (past ? ' past' : '') + '" data-q="' + k + '"><span>' + QITEMS[k].icon + '</span><b>' + esc(QITEMS[k].name) + '</b></button>';
+  openModal('<div class="sceneHead"><b>QUEST ITEMS</b><h2>What you\'re carrying</h2><p>Story items you pick up along the way. Look closely: some of them tell you where to go next.</p></div>' + (have.length || kept.length ? '<div class="qiWrap"><div class="qiList">' + have.map((k) => tile(k)).join('') + (kept.length ? '<small>Given away or returned</small>' + kept.map((k) => tile(k, 1)).join('') : '') + '</div>' + (it ? '<div class="qiView"><div class="qiBig">' + it.icon + '</div><h3>' + esc(it.name) + '</h3><p>' + esc(it.text) + '</p><button type="button" class="ghost" id="qiRead">🔍 Look closer</button><p class="qiRead" hidden>' + esc(it.read || '') + '</p></div>' : '') + '</div>' : '<p class="lkSum">Nothing yet. People will hand you things: photos, letters, keys. Keep them.</p>') + '<div class="qAct"><button type="button" id="mClose">Back</button></div>');
+  document.querySelectorAll('.qiT').forEach((b) => b.onclick = () => qItemsPanel(b.dataset.q)); const r = $('qiRead'); if (r) r.onclick = () => { r.hidden = true; document.querySelector('.qiRead').hidden = false; beep(880, .06, 'triangle', .03); stat('qread'); }; $('mClose').onclick = closeModal;
+}
+// a turn in the story gets its own title card, after the scene that reveals it
+function twistCard(t) { const el = document.createElement('div'); el.className = 'twist'; el.innerHTML = '<i class="tcBar t"></i><i class="tcBar b"></i><div class="twIn"><small>THE STORY TURNS</small><h2>' + esc(t.title) + '</h2><p>' + esc(t.text) + '</p><em>Tap to continue</em></div>'; document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on')); if (S.sound) music.sting('p1'); PREM.buzz('p1'); paused = true; const close = () => { el.classList.remove('on'); setTimeout(() => el.remove(), 450); paused = false; }; el.onclick = close; setTimeout(() => { if (el.isConnected) close(); }, 9000); stat('twists'); }
+// a step can be skipped or required by an earlier choice, so the story branches
+const stepOn = (st) => !(st.onlyIf && !S.flags[st.onlyIf]) && !(st.skipIf && S.flags[st.skipIf]);
 function playStep(st) {
+  if (st.need && !S.qitems[st.need]) { const it = QITEMS[st.need]; toast('You need ' + (it ? it.icon + ' ' + it.name : 'something') + ' for this. Check Quest Items.'); storyCool = 4; return; }
   storyBusy = true; paused = true; P.path = [];
-  const A = activeQ(), c = A.q, idx = A.i, last = idx === c.steps.length - 1;
+  const A = activeQ(), c = A.q, idx = A.i;
+  let nextI = idx + 1; while (nextI < c.steps.length && !stepOn(c.steps[nextI])) nextI++; const last = nextI >= c.steps.length;
   const finish = () => {
-    if (A.side) S.side[c.id] = idx + 1; else S.story[c.d] = idx + 1; if (st.set) S.flags[st.set] = Date.now(); saveS(); ord('story'); storyBusy = false; paused = false; storyCool = 2;
-    if (last) (A.side ? sideDone(c) : chapterDone(c)); else { const nx = chStep(); if (nx) objectiveFlash(nx.goal); }
+    if (st.give) qGive(st.give); if (st.take) qTake(st.take);
+    if (A.side) S.side[c.id] = nextI; else S.story[c.d] = nextI; if (st.set) S.flags[st.set] = Date.now(); saveS(); ord('story'); storyBusy = false; paused = false; storyCool = 2;
+    const go = () => { if (last) (A.side ? sideDone(c) : chapterDone(c)); else { const nx = chStep(); if (nx) objectiveFlash(nx.goal); } };
+    if (st.twist) { twistCard(st.twist); setTimeout(go, 1200); } else go();
   };
   const afterQuiz = () => { if (st.after) dialogue(st.after, finish); else finish(); };
-  const tg = stepTarget();
-  dialogue(st.say || [], () => {
+  const tg = stepTarget(), say = c.saga ? (st.say || []).map((l) => (l[0] === 'choice' ? ['choice', l[1].slice().sort(() => Math.random() - .5), l[2]] : l)) : st.say || [];
+  dialogue(say, () => {
     if (!st.quiz) return afterQuiz();
     const les = W.D.lessons.indexOf(st.quiz.les) >= 0 ? [st.quiz.les] : W.D.lessons; const qs = L.pickFacts(S, les, st.quiz.n || 2); const sp = st.who || 'castillo';
     dialogue(qs.map((q, k) => ['q', q, k % 2 && st.who !== 'castillo' ? 'castillo' : sp]), (r) => {
@@ -1134,7 +1155,7 @@ function playStep(st) {
       if (r.right < Math.ceil(qs.length / 2)) { dialogue([[st.who || 'castillo', r.right ? 'Close, but not by the book yet. Think it through and try me again.' : 'Not quite. Review it, then come back and we will run it again.']], () => { storyBusy = false; paused = false; storyCool = 4; }); return; }
       afterQuiz();
     });
-  }, { focus: tg ? [tg.x, tg.y] : [P.x, P.y], kicker: (A.side ? 'SIDE CASE · ' : '') + c.title.toUpperCase(), voiced: !A.side });
+  }, { focus: tg ? [tg.x, tg.y] : [P.x, P.y], kicker: (A.side ? (c.saga ? 'STORY ARC · ' : 'SIDE CASE · ') : '') + c.title.toUpperCase(), voiced: !A.side });
 }
 function chapterDone(c) { EP.ending(c, () => chapterDone2(c)); }
 function chapterDone2(c) {
@@ -1849,6 +1870,7 @@ function endOfWatch() {
 // ---------- HUD ----------
 // crisp line icons for the bottom bar (drawn, not emoji)
 const ICON = {
+  key: '<circle cx="8" cy="14" r="4"/><path d="M11 11.5l8.5-8.5M16 6l2.5 2.5M14 8l2 2"/>',
   play: '<path d="M8 5.5v13l10.5-6.5z"/>', star: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/>', book: '<path d="M4.5 5.5A2 2 0 0 1 6.5 3.5H19v15H6.5a2 2 0 0 0-2 2z"/><path d="M4.5 20.5V5.5M8.5 7.5h6"/>',
   pad: '<rect x="2.5" y="7" width="19" height="10.5" rx="5"/><path d="M7.5 10.5v4M5.5 12.5h4M15 11.5h.01M17.5 13.5h.01"/>', coffee: '<path d="M5 9h11v5.5a4.5 4.5 0 0 1-4.5 4.5h-2A4.5 4.5 0 0 1 5 14.5z"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16M8 3.5v2.5M11 3.5v2.5"/>',
   dumbbell: '<path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/>', shirt: '<path d="M8.5 4l-5 3 2 4 2-1v10h9V10l2 1 2-4-5-3a3.5 3.5 0 0 1-7 0z"/>', bars: '<path d="M5 20V12M12 20V5M19 20v-5"/>',
@@ -2453,7 +2475,7 @@ const TIER = { b: ['Bronze', '#cd7f32'], s: ['Silver', '#c9d2dd'], g: ['Gold', '
 let trT = 3, trQ = [], trBusy = false;
 function trophyCheck(dt) { trT -= dt; if (trT > 0 || ATTRACT) return; trT = 2; S.trophies = S.trophies || {}; let got = false; TROPHIES.forEach((t) => { if (S.trophies[t[0]]) return; let ok = false; try { ok = !!t[4](); } catch (e) {} if (ok) { S.trophies[t[0]] = Date.now(); trQ.push(t); got = true; } }); if (got) { saveS(); trophyToast(); } }
 function trophyToast() {
-  if (trBusy || !trQ.length) return; if (bannerOn) { setTimeout(trophyToast, 700); return; } trBusy = true; const t = trQ.shift(), [tn, col] = TIER[t[3]], el = $('trToast');
+  if (trBusy || !trQ.length) return; if (bannerOn || !$('modal').hidden || !$('dlg').hidden) { setTimeout(trophyToast, 900); return; } trBusy = true; const t = trQ.shift(), [tn, col] = TIER[t[3]], el = $('trToast');
   el.innerHTML = '<span class="trCup" style="--c:' + col + '">🏆</span><div><small>Trophy unlocked · ' + tn + '</small><b>' + esc(t[1]) + '</b><em>' + esc(t[2]) + '</em></div>'; el.hidden = false; el.classList.remove('in'); void el.offsetWidth; el.classList.add('in');
   if (S.sound) [784, 988, 1175, 1568].forEach((f, i) => beep(f, .4, 'sine', .03, i * .07));
   setTimeout(() => { el.classList.remove('in'); setTimeout(() => { el.hidden = true; trBusy = false; trophyToast(); }, 450); }, 4200);
@@ -2487,15 +2509,15 @@ function mainMenu(go) {
 let PAUSED_BY_MENU = false;
 // the pause menu is grouped by what you want to do; every entry has an icon from the same set as the action bar
 const PM_GROUPS = [['On duty', ['District Incident', 'My Beat', 'Investigations', 'Partner Care', 'Weekend PT Meet', 'Go off duty', 'Go back on duty', 'Squad Dispatch Board', 'Rec Room · Mini Games', 'PT', 'Uniform Inspection', 'Daily Challenges', 'This Week in the City', 'Photo Mode']],
-  ['Progress', ['Service Record', 'Field Journal', 'Case Files', 'Mystery Board', 'Collections', 'Trophies', 'Academy Season', 'Class Standing', 'Leaderboards', 'Rival: Cadet Vance', 'Community Trust Map', 'Locker']],
+  ['Progress', ['Service Record', 'Field Journal', 'Case Files', 'Mystery Board', 'Collections', 'Trophies', 'Academy Season', 'Class Standing', 'Leaderboards', 'Rival: Cadet Vance', 'Community Trust Map', 'Locker', 'Quest Items']],
   ['Options', ['Settings', 'Controls', 'Display & Audio', 'Saves & Backups', 'New Game+ · FTO', 'Report a problem', 'Quit to Title']]];
-const PM_ICON = { 'District Incident': 'flag', 'My Beat': 'map', Investigations: 'folder', 'Partner Care': 'heart', 'Weekend PT Meet': 'dumbbell', 'Service Record': 'star', 'Squad Dispatch Board': 'map', 'Field Journal': 'book', 'Rec Room · Mini Games': 'pad', 'Go off duty': 'coffee', 'Go back on duty': 'badge', PT: 'dumbbell', 'Uniform Inspection': 'shirt', 'Class Standing': 'bars', 'Daily Challenges': 'cal', 'This Week in the City': 'city', 'Academy Season': 'trophy', 'Mystery Board': 'puzzle', 'Rival: Cadet Vance': 'rival', Leaderboards: 'podium', 'Case Files': 'folder', Collections: 'grid', 'Community Trust Map': 'heart', Locker: 'locker', 'Photo Mode': 'camera', Trophies: 'trophy', Settings: 'gear', Controls: 'keys', 'Display & Audio': 'screen', 'Saves & Backups': 'cloud', 'New Game+ · FTO': 'redo', 'Report a problem': 'flag', 'Quit to Title': 'power' };
+const PM_ICON = { 'Quest Items': 'key', 'District Incident': 'flag', 'My Beat': 'map', Investigations: 'folder', 'Partner Care': 'heart', 'Weekend PT Meet': 'dumbbell', 'Service Record': 'star', 'Squad Dispatch Board': 'map', 'Field Journal': 'book', 'Rec Room · Mini Games': 'pad', 'Go off duty': 'coffee', 'Go back on duty': 'badge', PT: 'dumbbell', 'Uniform Inspection': 'shirt', 'Class Standing': 'bars', 'Daily Challenges': 'cal', 'This Week in the City': 'city', 'Academy Season': 'trophy', 'Mystery Board': 'puzzle', 'Rival: Cadet Vance': 'rival', Leaderboards: 'podium', 'Case Files': 'folder', Collections: 'grid', 'Community Trust Map': 'heart', Locker: 'locker', 'Photo Mode': 'camera', Trophies: 'trophy', Settings: 'gear', Controls: 'keys', 'Display & Audio': 'screen', 'Saves & Backups': 'cloud', 'New Game+ · FTO': 'redo', 'Report a problem': 'flag', 'Quit to Title': 'power' };
 const ICON_FILL_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>';
 function pauseMenu() {
   if (ATTRACT || PHOTO || !$('start').hidden || looting || document.querySelector('.lorePop, .tCard, .introCine')) return; const el = fe(); if (!el.hidden) return;
   const was = paused; paused = true; PAUSED_BY_MENU = true; el.hidden = false; el.className = 'fe pauseBg';
   const close = () => { el.hidden = true; el.innerHTML = ''; el.className = 'fe'; paused = was; PAUSED_BY_MENU = false; };
-  const items = [['Resume', close], ['Service Record', () => { close(); REW.panel(); }], ['My Beat', () => { close(); CITY.beatPanel(); }], ['Investigations', () => { close(); CITY.casesPanel(); }], ['Weekend PT Meet', () => { close(); CITY.meetPanel(); }], ...(CITY.hasAnimal() ? [['Partner Care', () => { close(); CITY.animalPanel(); }]] : []), ...(CITY.live ? [['District Incident', () => { close(); CITY.pickRole(); }]] : []), ...(S.squad && S.squad.lead ? [['Squad Dispatch Board', () => { close(); COOP.board(); }]] : []), ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], [S.offDuty ? 'Go back on duty' : 'Go off duty', () => { close(); OFF.toggle(); }], ['PT', () => { close(); ACAD.ptMenu(); }], ['Uniform Inspection', () => { close(); ACAD.inspMenu(); }], ['Class Standing', () => { close(); ACAD.standing(); }], ['Daily Challenges', () => { close(); EVT.dailyCard(); }], ['This Week in the City', () => { close(); EVT.eventCard(); }], ['Academy Season', () => { close(); POL.seasonPanel(); }], ['Mystery Board', () => { close(); EP.board(); }], ['Rival: Cadet Vance', () => { close(); EP.rivalPanel(); }], ['Leaderboards', () => { close(); EP.boards(); }], ['Case Files', () => { close(); POL.caseFiles(); }], ['Collections', () => { close(); EVT.collections(); }], ['Community Trust Map', () => { close(); trustMap(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Controls', () => POL.controlsPanel(pauseMenuAgain)], ['Display & Audio', () => EP.calibrate(pauseMenuAgain)], ['Saves & Backups', () => SAFE.savesPanel(pauseMenuAgain)], ['New Game+ · FTO', () => NG.panel(pauseMenuAgain)], ['Report a problem', () => SAFE.reportPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
+  const items = [['Resume', close], ['Service Record', () => { close(); REW.panel(); }], ['Quest Items', () => { close(); qItemsPanel(); }], ['My Beat', () => { close(); CITY.beatPanel(); }], ['Investigations', () => { close(); CITY.casesPanel(); }], ['Weekend PT Meet', () => { close(); CITY.meetPanel(); }], ...(CITY.hasAnimal() ? [['Partner Care', () => { close(); CITY.animalPanel(); }]] : []), ...(CITY.live ? [['District Incident', () => { close(); CITY.pickRole(); }]] : []), ...(S.squad && S.squad.lead ? [['Squad Dispatch Board', () => { close(); COOP.board(); }]] : []), ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], [S.offDuty ? 'Go back on duty' : 'Go off duty', () => { close(); OFF.toggle(); }], ['PT', () => { close(); ACAD.ptMenu(); }], ['Uniform Inspection', () => { close(); ACAD.inspMenu(); }], ['Class Standing', () => { close(); ACAD.standing(); }], ['Daily Challenges', () => { close(); EVT.dailyCard(); }], ['This Week in the City', () => { close(); EVT.eventCard(); }], ['Academy Season', () => { close(); POL.seasonPanel(); }], ['Mystery Board', () => { close(); EP.board(); }], ['Rival: Cadet Vance', () => { close(); EP.rivalPanel(); }], ['Leaderboards', () => { close(); EP.boards(); }], ['Case Files', () => { close(); POL.caseFiles(); }], ['Collections', () => { close(); EVT.collections(); }], ['Community Trust Map', () => { close(); trustMap(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Controls', () => POL.controlsPanel(pauseMenuAgain)], ['Display & Audio', () => EP.calibrate(pauseMenuAgain)], ['Saves & Backups', () => SAFE.savesPanel(pauseMenuAgain)], ['New Game+ · FTO', () => NG.panel(pauseMenuAgain)], ['Report a problem', () => SAFE.reportPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
   ON.gateMenu(items); SAFE.cloudSave(false);
   function pauseMenuAgain() { el.hidden = true; paused = was; PAUSED_BY_MENU = false; pauseMenu(); }
   const h = hourNow(), hh = String(Math.floor(h)).padStart(2, '0') + String(Math.floor((h % 1) * 60)).padStart(2, '0');
