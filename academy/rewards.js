@@ -6,7 +6,7 @@ const TRACKS = [
   ['patrol', '🧭', 'Patrol', /patrol|sharp eyes|shift order|daily challenge|order/i],
   ['pursuit', '🚨', 'Pursuits', /pursuit/i],
   ['arrest', '🔗', 'Arrests & Procedure', /arrest|procedure|warrant|booking|investigation/i],
-  ['community', '🤝', 'Community', /citizen|small talk|community|friend|morale|integrity|hometown|thank|beat issue|meeting/i],
+  ['community', '🤝', 'Community', /de-escalat|citizen|small talk|community|friend|morale|integrity|hometown|thank|beat issue|meeting/i],
   ['fitness', '💪', 'Fitness', /\bpt\b|workout|run|inspection|cadence|fitness|gym/i],
   ['team', '🛡️', 'Teamwork', /co-op|squad|ride-along|mutual aid|arena|backup|bowl|relay|bolo|gauntlet|spot the change|dispatch desk|commend|district incident/i],
   ['explore', '🗺️', 'Exploration', /explor|new place|patch|lore|overlook|rumor|photo|pigeon|cache|ledger|secret|landmark|census/i],
