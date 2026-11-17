@@ -695,7 +695,7 @@ function stageBusy() { return !!(scene || storyBusy || looting || loreBusy || (t
 const bannerQ = []; let bannerOn = false, bannerPoll = 0;
 function banner(icon, title, sub, secret) { if (bannerQ.some((b) => b[1] === title)) return; bannerQ.push([icon, title, sub, secret]); pumpBanner(); }
 function pumpBanner() {
-  if (bannerOn || !bannerQ.length) return; if (stageBusy()) { if (!bannerPoll) bannerPoll = setTimeout(() => { bannerPoll = 0; pumpBanner(); }, 600); return; }
+  if (bannerOn || !bannerQ.length) return; if (stageBusy() || trBusy) { if (!bannerPoll) bannerPoll = setTimeout(() => { bannerPoll = 0; pumpBanner(); }, 600); return; }
   const [icon, title, sub, secret] = bannerQ.shift(), el = $('banner'); bannerOn = true;
   el.className = 'banner' + (secret ? ' secret' : ''); el.innerHTML = '<span>' + icon + '</span><div><b>' + esc(title) + '</b><small>' + esc(sub || '') + '</small></div>'; el.hidden = false;
   clearTimeout(bannerT); bannerT = setTimeout(() => { el.hidden = true; bannerOn = false; setTimeout(pumpBanner, 350); }, bannerQ.length ? 3200 : 4200);
@@ -937,9 +937,10 @@ const DLG_LOG = []; let DLG_HIDE_T = 0;
 const hashStr = (s) => [...String(s)].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
 // how a speaker looks in their portrait (null: use their icon)
 function portraitLook(id) {
+  if (PLOOK[id]) return PLOOK[id];
   if (id === '@you') return { kit: kitWith(myKit(), myLooks()), skin: S.skin || '#c68e63', hair: '#1a1a1a' };
   const c = CAST[id]; if (c && c.look) return { kit: c.look, skin: c.skin, hair: '#1a1a1a' };
-  const n = NPCS.find((x) => x.id === id); if (n) { if (n.cat) return { cat: true }; const lk = n.look || {}; return { kit: npcKit(lk), hair: lk.hair, skin: lk.skin }; }
+  const n = NPCS.find((x) => x.id === id); if (n) { if (n.cat) return { cat: true }; const lk = n.look || {}, r = regs.find((x) => x.n.id === id); return { kit: n.kit || npcKit(lk), hair: n.hair || lk.hair, skin: n.skin || lk.skin, ph: r ? r.ph : undefined }; }
   const t = TEMP[id]; if (t) { const h = hashStr(id); return { ph: h % 997, shirt: ['#c0392b', '#2e86de', '#16a085', '#8e44ad', '#e67e22', '#2c3e50', '#d35400', '#27ae60'][h % 8], skin: ['#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#ffdbac', '#a0662f'][(h >> 3) % 6], hair: ['#2b1d14', '#5a3825', '#1a1a1a', '#b07b3c', '#9a9a9a'][(h >> 5) % 5], kid: /age 9|teen|kid|child/i.test((t.name || '') + ' ' + (t.role || '')) }; }
   return null;
 }
@@ -1592,7 +1593,9 @@ function consequence(eff, c) {
 }
 const APPROACH_BONUS = { quiet: 1.25, smart: 1.2, neighbors: 1.1, observe: 1.2, loud: .9, front: .85, direct: 1, contact: .95 };
 // ---------- every interaction is a scene with choices ----------
-const sayAs = (id, o) => { TEMP[id] = { name: o.name, icon: o.icon || '💬', role: o.role || '' }; return id; };
+// a speaker can carry the exact look they have in the street, so the dialogue portrait is the same person you walked up to
+const PLOOK = {};
+const sayAs = (id, o) => { TEMP[id] = { name: o.name, icon: o.icon || '💬', role: o.role || '' }; if (o.look) PLOOK[id] = o.look; else delete PLOOK[id]; return id; };
 // who calls depends on where the call is: residents at homes, staff at businesses, workers at the yards
 // the person you meet inside a place, when they aren't a named regular
 const STAFF_WHO = { houses: ['Homeowner', '🏡'], apartments: ['Building manager', '🔧'], church: ['Church volunteer', '⛪'], school: ['Front office', '🏫'], hq: ['Desk sergeant', '🗂️'], substation: ['Duty officer', '🚓'], dispatch: ['Dispatcher', '🎧'], records: ['Records clerk', '📁'], bank: ['Teller', '💵'], diner: ['Waitress', '☕'], store: ['Store clerk', '🧾'], gas: ['Night clerk', '🧾'], pawn: ['Pawn clerk', '💍'], motel: ['Front desk', '🛎️'], autoshop: ['Mechanic', '🔧'], firestation: ['Firefighter', '🧑‍🚒'], warehouse: ['Shift supervisor', '📦'], storage: ['Rental clerk', '🔐'], courthouse: ['Court clerk', '🗂️'], jail: ['Booking deputy', '🧾'], office: ['Receptionist', '📞'] };
@@ -1624,7 +1627,8 @@ function factWatch() {
 // regulars: a conversation with real options, not a menu
 function npcTalk(r) {
   const n = r.n, f = S.npc[n.id] || 0, first = !talkedNow[n.id]; talkedNow[n.id] = talkedNow[n.id] || 1;
-  const id = NPCS.find((x) => x.id === n.id) ? n.id : sayAs('reg_' + n.id, { name: n.name, icon: n.icon, role: n.role });
+  const lk0 = n.look || {}, look = n.cat ? { cat: true } : { kit: n.kit || npcKit(lk0), hair: n.hair || lk0.hair, skin: n.skin || lk0.skin, ph: r.ph };
+  const id = NPCS.find((x) => x.id === n.id) ? n.id : sayAs('reg_' + n.id, { name: n.name, icon: n.icon, role: n.role, look }); PLOOK[id] = look;
   const tier = f >= 6 ? 'best friends' : f >= 3 ? 'friends' : f >= 1 ? 'knows your name' : 'stranger';
   const line = n.lines[(f + (S.calls || 0)) % n.lines.length], helped = talkedNow[n.id] === 2;
   if (first) award(2, 'small talk');
@@ -1698,7 +1702,7 @@ function streetLife(e) {
       { t: 'Politely decline, you\'re on a call schedule', reply: [[id, 'Next time, then. I\'m here all week.']] }]]], null, { focus: [e.x, e.y], kicker: 'STREET LIFE' }); }
 }
 function citizenTalk(c) {
-  const q = L.pickFacts(S, [c.les], 1)[0], id = sayAs('cit', { name: rnd(['Curious resident', 'Local business owner', 'Commuter', 'College student', 'Retired teacher']), icon: rnd(['🙋', '🧑‍💼', '🧑‍🎓', '👵', '🧔']), role: 'Has a question' });
+  const q = L.pickFacts(S, [c.les], 1)[0], id = sayAs('cit', { look: Object.assign({}, c, { moving: false, path: null, x: 0, y: 0 }), name: rnd(['Curious resident', 'Local business owner', 'Commuter', 'College student', 'Retired teacher']), icon: rnd(['🙋', '🧑‍💼', '🧑‍🎓', '👵', '🧔']), role: 'Has a question' });
   let rude = false;
   dialogue([[id, rnd(['Excuse me, officer? Quick question about something I read.', 'Officer, can I ask you something? My cousin says one thing, my neighbor says another.', 'Hi! Settle a bet for me?'])], ['choice', [
     { t: 'Of course. What\'s on your mind?', trust: 1, reply: [[id, 'Okay, so:']] },
@@ -1838,6 +1842,19 @@ function endOfWatch() {
 // ---------- HUD ----------
 // crisp line icons for the bottom bar (drawn, not emoji)
 const ICON = {
+  play: '<path d="M8 5.5v13l10.5-6.5z"/>', star: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/>', book: '<path d="M4.5 5.5A2 2 0 0 1 6.5 3.5H19v15H6.5a2 2 0 0 0-2 2z"/><path d="M4.5 20.5V5.5M8.5 7.5h6"/>',
+  pad: '<rect x="2.5" y="7" width="19" height="10.5" rx="5"/><path d="M7.5 10.5v4M5.5 12.5h4M15 11.5h.01M17.5 13.5h.01"/>', coffee: '<path d="M5 9h11v5.5a4.5 4.5 0 0 1-4.5 4.5h-2A4.5 4.5 0 0 1 5 14.5z"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16M8 3.5v2.5M11 3.5v2.5"/>',
+  dumbbell: '<path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/>', shirt: '<path d="M8.5 4l-5 3 2 4 2-1v10h9V10l2 1 2-4-5-3a3.5 3.5 0 0 1-7 0z"/>', bars: '<path d="M5 20V12M12 20V5M19 20v-5"/>',
+  cal: '<rect x="4" y="5.5" width="16" height="15" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4M9 15l2 2 4-4"/>', city: '<path d="M3.5 20.5h17M5.5 20.5V9l5-3v14.5M10.5 20.5V4.5l8 3.5v12.5"/><path d="M13.5 10h2M13.5 13h2M13.5 16h2M7.5 12h1M7.5 15h1"/>',
+  trophy: '<path d="M8 4.5h8v5a4 4 0 0 1-8 0z"/><path d="M8 6.5H5a3 3 0 0 0 3 4M16 6.5h3a3 3 0 0 1-3 4M12 13.5v3.5M8.5 20.5h7l-1-3.5h-5z"/>', puzzle: '<path d="M9.5 4.5h5v2.5a1.5 1.5 0 0 0 3 0V4.5h2v5h-2.5a1.5 1.5 0 0 0 0 3h2.5v7h-15v-7h2.5a1.5 1.5 0 0 0 0-3H4.5v-5h5z"/>',
+  rival: '<circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0M16 4.5v8M16 4.5l4 1.6-4 1.6"/>', podium: '<path d="M9 9.5h6v11H9zM3.5 13.5H9v7H3.5zM15 15.5h5.5v5H15zM12 3.5l.9 1.8 2 .3-1.4 1.4.3 2-1.8-1-1.8 1 .3-2-1.4-1.4 2-.3z"/>',
+  folder: '<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>', grid: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/>',
+  heart: '<path d="M12 20s-7.5-4.5-7.5-10A4.3 4.3 0 0 1 12 7.3 4.3 4.3 0 0 1 19.5 10c0 5.5-7.5 10-7.5 10z"/>', camera: '<path d="M4 8.5a2 2 0 0 1 2-2h2.5l1.5-2h4l1.5 2H18a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 3.5v2.5M12 18v2.5M3.5 12H6M18 12h2.5M6 6l1.8 1.8M16.2 16.2L18 18M6 18l1.8-1.8M16.2 7.8L18 6"/>', keys: '<rect x="3" y="7" width="18" height="10.5" rx="2"/><path d="M6.5 10.5h.01M9.5 10.5h.01M12.5 10.5h.01M15.5 10.5h.01M17.5 10.5h.01M7.5 14h9"/>',
+  screen: '<rect x="3.5" y="4.5" width="17" height="11.5" rx="2"/><path d="M9 20h6M12 16v4"/>', cloud: '<path d="M7 18.5a4.5 4.5 0 0 1-.5-9 6 6 0 0 1 11.5 1.5A3.8 3.8 0 0 1 17.5 18.5z"/><path d="M12 11v5M9.8 13.2L12 11l2.2 2.2"/>',
+  redo: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5v4h-4"/>', flag: '<path d="M5.5 21V4M5.5 4.5h11l-2 4 2 4h-11"/>', power: '<path d="M12 3.5v8"/><path d="M7 6.5a7.5 7.5 0 1 0 10 0"/>',
+  radio: '<rect x="3.5" y="8.5" width="17" height="11.5" rx="2.5"/><path d="M7 8.5l9-5M7.5 14h.01M7.5 16.5h.01M10.5 12.5h6v5h-6z"/>', eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+  idcard: '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><circle cx="8.5" cy="11" r="2"/><path d="M5.5 16a3 3 0 0 1 6 0M14 10h4M14 13.5h3"/>', chat: '<path d="M4.5 5.5h15v10h-9l-4.5 3.5v-3.5H4.5z"/><path d="M8.5 10.5h7"/>', badge: '<path d="M12 3l7 3v5.5c0 4.5-3 8-7 9.5-4-1.5-7-5-7-9.5V6z"/><path d="M9.5 12l2 2 3.5-3.5"/>',
   car: '<path d="M5 16h14M6.5 16l1.4-5.2A2 2 0 0 1 9.8 9.3h4.4a2 2 0 0 1 1.9 1.5L17.5 16"/><rect x="3.5" y="13" width="17" height="5" rx="1.6"/><circle cx="7.5" cy="18.5" r="1.6"/><circle cx="16.5" cy="18.5" r="1.6"/><path d="M10 6.5h4M12 4.5v2"/>',
   walk: '<circle cx="13" cy="4.5" r="1.8"/><path d="M12.5 8l-2.5 5 3 2.5 1 5M10 13l-2.5 7M12.5 8l3 3.5 3 .5M12.5 8L9 9.5 7.5 12.5"/>',
   anchor: '<circle cx="12" cy="5" r="2"/><path d="M12 7v13M8 10h8M4.5 13.5A7.5 7.5 0 0 0 12 20a7.5 7.5 0 0 0 7.5-6.5"/>',
@@ -1850,7 +1867,10 @@ const ICON = {
   menu: '<path d="M4.5 7h15M4.5 12h15M4.5 17h15"/>'
 };
 const ico = (k) => '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICON[k] + '</svg>';
-function setIcons() { [['bRadio', 'comms', 'Comms'], ['bMe', 'target', 'Center'], ['bLock', 'locker', 'Locker'], ['bMap', 'map', 'City'], ['bPause', 'menu', 'Menu']].forEach(([id, k, t]) => { const b = $(id); if (!b) return; const badge = b.querySelector('.bBadge'); b.innerHTML = '<i>' + ico(k) + '</i><span>' + t + '</span>'; if (badge) b.appendChild(badge); }); }
+// desktop: the action bar has keyboard shortcuts, shown as small key caps on the buttons
+const BAR_KEYS = { c: 'bCar', r: 'bRadio', f: 'bMe', k: 'bLock', m: 'bMap', x: 'bX' };
+addEventListener('keydown', (e) => { if (e.ctrlKey || e.metaKey || e.altKey || (e.target.closest && e.target.closest('input,textarea,select'))) return; const id = BAR_KEYS[(e.key || '').toLowerCase()]; if (!id || ATTRACT || !$('start').hidden || !$('modal').hidden || !$('dlg').hidden || !fe().hidden) return; const b = $(id); if (b && b.offsetParent) { b.click(); e.preventDefault(); } });
+function setIcons() { Object.entries(BAR_KEYS).forEach(([k, id]) => { const b = $(id); if (b) b.dataset.k = k.toUpperCase(); }); { const b = $('bPause'); if (b) b.dataset.k = 'Esc'; } [['bRadio', 'comms', 'Comms'], ['bMe', 'target', 'Center'], ['bLock', 'locker', 'Locker'], ['bMap', 'map', 'City'], ['bPause', 'menu', 'Menu']].forEach(([id, k, t]) => { const b = $(id); if (!b) return; const badge = b.querySelector('.bBadge'); b.innerHTML = '<i>' + ico(k) + '</i><span>' + t + '</span>'; if (badge) b.appendChild(badge); }); }
 function hud() {
   const r = L.rankOf(S.xp), m = L.districtMastery(S, W.did);
   $('hCs').textContent = U().icon + ' ' + (S.fto ? 'FTO · ' : '') + S.cs; $('hUnit').textContent = unitName(U()); $('hUnit').style.setProperty('--uc', U().color); FEEL.rankLine(S.title ? '🏷️ ' + S.title + ' · ' : '', r.name, S.xp, S.cash || 0);
@@ -2149,10 +2169,10 @@ function arrestLines(c) {
 }
 // ---------- arriving on scene: context actions appear around the address, console style; walk off and they fold away ----------
 let RING = null;
-const RING_OPTS = [['contact', '💬', 'Make contact'], ['assess', '👀', 'Assess first'], ['id', '🪪', 'ID first'], ['backup', '📻', 'Backup']];
+const RING_OPTS = [['contact', 'chat', 'Make contact'], ['assess', 'eye', 'Assess first'], ['id', 'idcard', 'ID first'], ['backup', 'radio', 'Backup']];
 function ringOpen(c) {
   RING = { c, t: performance.now() }; P.path = []; PREM.buzz('tap'); const el = $('ring');
-  el.innerHTML = '<div class="rgHub"><b>' + esc(c.title) + '</b><small>' + esc(c.where) + '</small></div>' + RING_OPTS.filter((o) => o[0] !== 'backup' || (net && !c.backup)).map((o, k) => '<button type="button" data-r="' + o[0] + '" style="--k:' + k + '"><i>' + o[1] + '</i><span>' + o[2] + '</span></button>').join('');
+  el.innerHTML = '<div class="rgHub"><b>' + esc(c.title) + '</b><small>' + esc(c.where) + '</small></div>' + RING_OPTS.filter((o) => o[0] !== 'backup' || (net && !c.backup)).map((o, k) => '<button type="button" data-r="' + o[0] + '" style="--k:' + k + '"><i>' + ico(o[1]) + '</i><span>' + o[2] + '</span></button>').join('');
   el.hidden = false; requestAnimationFrame(() => el.classList.add('on')); beep(740, .06, 'triangle', .03);
   el.querySelectorAll('[data-r]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); ringPick(b.dataset.r); });
 }
@@ -2426,7 +2446,7 @@ const TIER = { b: ['Bronze', '#cd7f32'], s: ['Silver', '#c9d2dd'], g: ['Gold', '
 let trT = 3, trQ = [], trBusy = false;
 function trophyCheck(dt) { trT -= dt; if (trT > 0 || ATTRACT) return; trT = 2; S.trophies = S.trophies || {}; let got = false; TROPHIES.forEach((t) => { if (S.trophies[t[0]]) return; let ok = false; try { ok = !!t[4](); } catch (e) {} if (ok) { S.trophies[t[0]] = Date.now(); trQ.push(t); got = true; } }); if (got) { saveS(); trophyToast(); } }
 function trophyToast() {
-  if (trBusy || !trQ.length) return; trBusy = true; const t = trQ.shift(), [tn, col] = TIER[t[3]], el = $('trToast');
+  if (trBusy || !trQ.length) return; if (bannerOn) { setTimeout(trophyToast, 700); return; } trBusy = true; const t = trQ.shift(), [tn, col] = TIER[t[3]], el = $('trToast');
   el.innerHTML = '<span class="trCup" style="--c:' + col + '">🏆</span><div><small>Trophy unlocked · ' + tn + '</small><b>' + esc(t[1]) + '</b><em>' + esc(t[2]) + '</em></div>'; el.hidden = false; el.classList.remove('in'); void el.offsetWidth; el.classList.add('in');
   if (S.sound) [784, 988, 1175, 1568].forEach((f, i) => beep(f, .4, 'sine', .03, i * .07));
   setTimeout(() => { el.classList.remove('in'); setTimeout(() => { el.hidden = true; trBusy = false; trophyToast(); }, 450); }, 4200);
@@ -2458,6 +2478,12 @@ function mainMenu(go) {
 }
 // ---- pause menu ----
 let PAUSED_BY_MENU = false;
+// the pause menu is grouped by what you want to do; every entry has an icon from the same set as the action bar
+const PM_GROUPS = [['On duty', ['Go off duty', 'Go back on duty', 'Squad Dispatch Board', 'Rec Room · Mini Games', 'PT', 'Uniform Inspection', 'Daily Challenges', 'This Week in the City', 'Photo Mode']],
+  ['Progress', ['Service Record', 'Field Journal', 'Case Files', 'Mystery Board', 'Collections', 'Trophies', 'Academy Season', 'Class Standing', 'Leaderboards', 'Rival: Cadet Vance', 'Community Trust Map', 'Locker']],
+  ['Options', ['Settings', 'Controls', 'Display & Audio', 'Saves & Backups', 'New Game+ · FTO', 'Report a problem', 'Quit to Title']]];
+const PM_ICON = { 'Service Record': 'star', 'Squad Dispatch Board': 'map', 'Field Journal': 'book', 'Rec Room · Mini Games': 'pad', 'Go off duty': 'coffee', 'Go back on duty': 'badge', PT: 'dumbbell', 'Uniform Inspection': 'shirt', 'Class Standing': 'bars', 'Daily Challenges': 'cal', 'This Week in the City': 'city', 'Academy Season': 'trophy', 'Mystery Board': 'puzzle', 'Rival: Cadet Vance': 'rival', Leaderboards: 'podium', 'Case Files': 'folder', Collections: 'grid', 'Community Trust Map': 'heart', Locker: 'locker', 'Photo Mode': 'camera', Trophies: 'trophy', Settings: 'gear', Controls: 'keys', 'Display & Audio': 'screen', 'Saves & Backups': 'cloud', 'New Game+ · FTO': 'redo', 'Report a problem': 'flag', 'Quit to Title': 'power' };
+const ICON_FILL_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>';
 function pauseMenu() {
   if (ATTRACT || PHOTO || !$('start').hidden || looting || document.querySelector('.lorePop, .tCard, .introCine')) return; const el = fe(); if (!el.hidden) return;
   const was = paused; paused = true; PAUSED_BY_MENU = true; el.hidden = false; el.className = 'fe pauseBg';
@@ -2466,10 +2492,13 @@ function pauseMenu() {
   ON.gateMenu(items); SAFE.cloudSave(false);
   function pauseMenuAgain() { el.hidden = true; paused = was; PAUSED_BY_MENU = false; pauseMenu(); }
   const h = hourNow(), hh = String(Math.floor(h)).padStart(2, '0') + String(Math.floor((h % 1) * 60)).padStart(2, '0');
-  el.innerHTML = '<div class="pmBox"><div class="pmHead"><small>' + esc(W.D.name) + ' · ' + hh + ' hrs</small><h2>Paused</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + ' · ' + esc(L.rankOf(S.xp).name) + '</p></div><div class="tiMenu pm">' + items.map((x, i) => '<button type="button" data-i="' + i + '"' + (i === 0 ? ' class="pri"' : '') + '><b>' + x[0] + '</b></button>').join('') + '</div><div class="pmFoot">' + (activeQ() ? '<b>' + esc(activeQ().title) + '</b> · ' + esc(activeQ().step.goal) : 'Patrol your district') + '</div></div>';
-  el.querySelectorAll('.tiMenu button').forEach((b) => { b.onmouseenter = () => feSound('move'); b.onclick = () => { feSound('ok'); items[+b.dataset.i][1](); }; });
+  const groups = PM_GROUPS.map(([gname, labels]) => [gname, items.map((x, i) => [x, i]).filter(([x]) => labels.indexOf(x[0].replace(/ <i.*$/, '')) >= 0)]).filter((gx) => gx[1].length), used = new Set(groups.flatMap((gx) => gx[1].map((y) => y[1])));
+  const rest = items.map((x, i) => [x, i]).filter(([x, i]) => i > 0 && !used.has(i)); if (rest.length) groups.splice(1, 0, ['More', rest]);
+  const tile = ([x, i]) => { const base = x[0].replace(/ <i.*$/, ''), tag = x[0].indexOf('newTag') >= 0 ? '<i class="newTag">NEW</i>' : ''; return '<button type="button" class="pmT' + (/Quit|Report/.test(base) ? ' danger' : '') + '" data-i="' + i + '"><span class="uiIco">' + ico(PM_ICON[base] || PM_ICON[base.replace(/^Go (off|back on) duty$/, 'Go off duty')] || 'star') + '</span>' + esc(base) + tag + '</button>'; };
+  el.innerHTML = '<div class="pmBox v2"><div class="pmTop"><div class="pmHead"><small>' + esc(W.D.name) + ' · ' + hh + ' hrs</small><h2>Paused</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + ' · ' + esc(L.rankOf(S.xp).name) + '</p></div><button type="button" class="pmResume" data-i="0">' + ICON_FILL_PLAY + 'Resume</button></div><div class="pmSecs">' + groups.map(([gname, list]) => '<div class="pmSec"><small>' + gname + '</small><div class="pmGrid">' + list.map(tile).join('') + '</div></div>').join('') + '</div><div class="pmFoot">' + (activeQ() ? '<b>' + esc(activeQ().title) + '</b> · ' + esc(activeQ().step.goal) : 'Patrol your district') + '</div></div>';
+  el.querySelectorAll('[data-i]').forEach((b) => { b.onmouseenter = () => feSound('move'); b.onclick = () => { feSound('ok'); items[+b.dataset.i][1](); }; });
   el.onclick = (e) => { if (e.target === el) close(); };
-  setTimeout(() => { const b = el.querySelector('.tiMenu button'); if (b) b.focus({ preventScroll: true }); }, 50);
+  setTimeout(() => { const b = el.querySelector('.pmResume'); if (b) b.focus({ preventScroll: true }); }, 50);
   pauseMenu.close = close;
 }
 addEventListener('keydown', (e) => {
@@ -2591,7 +2620,7 @@ function lockedScreen() {
   try { await Promise.all([L.loadBank('../ch5.json'), L.loadFacts('facts.json')]); S.facts = Object.fromEntries(Object.entries(S.facts || {}).filter(([k]) => k[0] === 'F')); } catch (e) { $('loading').textContent = 'Could not load the question bank. Check your connection and refresh.'; return; }
   $('loading').hidden = true;
   attractStart(); requestAnimationFrame(frame); applyCfg(); if (FAST) { S.seenIntro = 1; startScreen(); } else bootSequence(titleScreen);
-  COOP.pttInit();
+  COOP.pttInit(); { const b = $('ptt'); if (b) b.innerHTML = ico('radio'); }
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); MG.watch(W.did); EVT.watch(); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
