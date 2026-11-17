@@ -26,6 +26,7 @@
 <link rel="modulepreload" href="ngplus.js">
 <link rel="modulepreload" href="premium.js">
 <link rel="modulepreload" href="coop.js">
+<link rel="modulepreload" href="rewards.js">
 <link rel="modulepreload" href="npcgen.js">
 <link rel="modulepreload" href="offduty.js">
 <link rel="modulepreload" href="onboard.js">
@@ -927,14 +928,24 @@ body.oneHand .bkCard{animation:none}
 #aidCard{border-color:rgba(239,68,68,.6)}#aidCard .coTop{color:#fca5a5}
 .rideChip{position:fixed;left:50%;top:calc(8px + var(--safe-t, 0px));transform:translateX(-50%);z-index:33;padding:7px 14px;border-radius:999px;background:rgba(9,16,34,.94);border:1px solid rgba(96,165,250,.6);color:#dbeafe;font:600 .82rem system-ui;cursor:pointer;width:auto;bottom:auto}
 .bkPt{font-style:normal;color:#fde68a}
-.ptt{position:fixed;left:calc(12px + var(--safe-x, 0px));bottom:calc(150px + var(--safe-b, 0px));z-index:9;width:46px;height:46px;border-radius:50%;border:1px solid rgba(245,184,0,.5);background:rgba(9,16,34,.9);font-size:1.25rem;box-shadow:0 8px 20px -8px #000;cursor:pointer}
-.pttW{position:fixed;left:calc(12px + var(--safe-x, 0px));bottom:calc(204px + var(--safe-b, 0px));z-index:9;display:grid;gap:6px}
+.ptt{position:fixed;right:calc(12px + var(--safe-x, 0px));bottom:calc(238px + var(--safe-b, 0px));z-index:9;width:46px;height:46px;border-radius:50%;border:1px solid rgba(245,184,0,.5);background:rgba(9,16,34,.9);font-size:1.25rem;box-shadow:0 8px 20px -8px #000;cursor:pointer}
+.pttW{position:fixed;right:calc(12px + var(--safe-x, 0px));bottom:calc(292px + var(--safe-b, 0px));z-index:9;display:grid;gap:6px;justify-items:end}
 .pttW button{padding:9px 14px;border-radius:12px;border:1px solid rgba(245,184,0,.45);background:rgba(9,16,34,.95);color:#f8fafc;font:700 .84rem system-ui;text-align:left;cursor:pointer;opacity:0;transform:translateY(8px)}
 .pttW.on button{animation:pttIn .25s cubic-bezier(.2,.9,.3,1.2) forwards;animation-delay:calc(var(--i) * 40ms)}@keyframes pttIn{to{opacity:1;transform:none}}.pttW button:hover{background:#f5b800;color:#111}
 body.attract .ptt,body.cine .ptt,body.attract .pttW,body.cine .pttW{display:none}
 .coLive{position:absolute;right:12px;bottom:calc(100% + 8px);max-width:min(320px,80vw);padding:7px 10px;border-radius:12px;background:rgba(9,16,34,.95);border:1px solid rgba(96,165,250,.55);color:#e2e8f0;font-size:.8rem;box-shadow:0 10px 24px -10px #000}
 .coLive small{display:block;font:800 .64rem 'Barlow Condensed',system-ui;letter-spacing:.16em;color:#93c5fd}.coLive.in{animation:bkIn .3s ease-out both}
 .sdCalls,.sdMem{display:grid;gap:6px;margin:10px 0}.sdCalls button,.sdMem button{text-align:left;padding:10px 12px;border-radius:11px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#e2e8f0;cursor:pointer}.sdCalls button.on{border-color:#f5b800;background:rgba(245,184,0,.15)}.sdMem small{display:block;color:#94a3b8;font-size:.74rem}
+.purHud{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + var(--safe-b, 0px));width:min(400px,calc(100% - 20px));z-index:30;padding:10px 12px;border-radius:14px;background:rgba(9,16,34,.94);border:1px solid rgba(239,68,68,.6);box-shadow:0 0 24px -8px rgba(239,68,68,.7);color:#e2e8f0;animation:bkIn .3s both}
+.puTop{display:flex;justify-content:space-between;font:800 .74rem 'Barlow Condensed',system-ui;letter-spacing:.16em;color:#fca5a5}.purHud small{color:#94a3b8;font-size:.72rem}
+.puBar{position:relative;height:10px;margin:7px 0 4px;border-radius:6px;background:linear-gradient(90deg,#ef4444 0 24%,#22c55e 24% 70%,#f59e0b 70%)}.puBar #puMe{position:absolute;top:-4px;width:6px;height:18px;margin-left:-3px;border-radius:3px;background:#fff;box-shadow:0 0 8px #fff;transition:left .2s}
+.puBtns{display:flex;gap:6px;margin-top:8px}.puBtns button{flex:1;padding:9px 6px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#f1f5f9;font:700 .78rem system-ui;cursor:pointer}
+.puBtns .call.cue{background:#f5b800;color:#111;animation:lvPulse .5s ease-in-out infinite alternate}.puBtns .end{border-color:rgba(239,68,68,.6);color:#fecaca}
+.purDec{position:fixed;inset:0;z-index:57;display:grid;place-items:center;padding:16px;background:rgba(4,8,18,.5)}.pdIn{width:min(420px,100%);padding:14px;border-radius:16px;background:#0b1424;border:1px solid rgba(245,184,0,.5);color:#e2e8f0;animation:bkIn .3s both}
+.pdIn small{font:800 .7rem 'Barlow Condensed',system-ui;letter-spacing:.18em;color:#f5b800}.pdIn p{margin:6px 0 10px;font-size:1rem}.pdIn button{display:block;width:100%;text-align:left;margin-top:7px;padding:11px 12px;border-radius:11px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#f8fafc;font:600 .88rem system-ui;cursor:pointer}.pdIn button:hover{border-color:#f5b800}
+body.cine .purHud{display:none}
+.svcList{display:grid;gap:7px;margin:10px 0}.svcRow{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}.svcRow.today{border-color:rgba(245,184,0,.45)}
+.svcRow i{font-style:normal;font-size:1.3rem;width:30px;text-align:center}.svcRow div{flex:1}.svcRow b{display:block;font-size:.9rem}.svcRow small{color:#94a3b8;font-size:.72rem}.svcRow span{display:block;height:6px;margin-top:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}.svcRow em{display:block;height:100%;background:linear-gradient(90deg,#f5b800,#fde68a)}
 </style>
 </head>
 <body>
@@ -958,6 +969,8 @@ body.attract .ptt,body.cine .ptt,body.attract .pttW,body.cine .pttW{display:none
 <div id="callCard" hidden></div>
 <div id="bkCard" class="bkCard" hidden></div>
 <div id="ring" class="ring" hidden></div>
+<div id="purHud" class="purHud" hidden></div>
+<div id="purDec" class="purDec" hidden></div>
 <div class="zoom"><button type="button" id="zIn" aria-label="Zoom in">+</button><button type="button" id="zOut" aria-label="Zoom out">−</button></div>
 <div id="quick" hidden></div>
 <nav class="hBot">
