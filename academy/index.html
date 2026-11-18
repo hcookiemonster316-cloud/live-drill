@@ -30,7 +30,7 @@
 <link rel="modulepreload" href="city.js">
 <link rel="modulepreload" href="sagas.js">
 <link rel="modulepreload" href="tales.js">
-<link rel="modulepreload" href="icons.js"><link rel="modulepreload" href="phonehud.js"><link rel="modulepreload" href="heart.js">
+<link rel="modulepreload" href="icons.js"><link rel="modulepreload" href="phonehud.js"><link rel="modulepreload" href="heart.js"><link rel="modulepreload" href="patrolops.js">
 <link rel="modulepreload" href="npcgen.js">
 <link rel="modulepreload" href="offduty.js">
 <link rel="modulepreload" href="onboard.js">
@@ -1067,6 +1067,9 @@ body.phHud .ccQ{font-size:.72rem;display:-webkit-box;-webkit-line-clamp:3;-webki
 body.phHud:has(#callCard:not([hidden])) .ptt,body.phHud:has(#callCard:not([hidden])) .abil{bottom:calc(var(--ccH,150px) + 70px + var(--safe-b))}body.phHud:has(#callCard:not([hidden])) .pttW{bottom:calc(var(--ccH,150px) + 126px + var(--safe-b))}
 body.phHud:has(#callCard:not([hidden])) .offHud,body.phHud:has(#callCard:not([hidden])) .objBar{visibility:hidden}
 .stBadge svg{width:36px;height:36px;margin-top:-6px;filter:drop-shadow(0 1px 0 rgba(255,255,255,.35))}
+.stopBtn{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + var(--safe-b));z-index:7;display:grid;gap:1px;padding:9px 18px;border-radius:14px;border:1px solid rgba(239,68,68,.7);background:linear-gradient(180deg,rgba(80,16,20,.95),rgba(30,8,12,.96));color:#fecaca;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.45);animation:stopP 1.6s ease-in-out infinite}
+.stopBtn b{font:800 .9rem system-ui;color:#fff}.stopBtn small{font-size:.7rem}@keyframes stopP{50%{box-shadow:0 8px 24px rgba(0,0,0,.45),0 0 0 5px rgba(239,68,68,.25)}}
+body.phHud .stopBtn{bottom:calc(172px + var(--safe-b))}
 </style>
 </head>
 <body>
@@ -1094,6 +1097,7 @@ body.phHud:has(#callCard:not([hidden])) .offHud,body.phHud:has(#callCard:not([hi
 <div id="purDec" class="purDec" hidden></div>
 <div class="zoom"><button type="button" id="zIn" aria-label="Zoom in">+</button><button type="button" id="zOut" aria-label="Zoom out">−</button></div>
 <div id="quick" hidden></div>
+<button type="button" id="stopBtn" class="stopBtn" hidden></button>
 <nav class="hBot">
   <button type="button" id="bCar"><i>🚓</i><span>Car</span></button>
   <button type="button" id="bRadio"><i>📻</i>Radio</button>
