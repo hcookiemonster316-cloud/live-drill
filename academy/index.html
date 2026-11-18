@@ -1070,6 +1070,14 @@ body.phHud:has(#callCard:not([hidden])) .offHud,body.phHud:has(#callCard:not([hi
 .stopBtn{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + var(--safe-b));z-index:7;display:grid;gap:1px;padding:9px 18px;border-radius:14px;border:1px solid rgba(239,68,68,.7);background:linear-gradient(180deg,rgba(80,16,20,.95),rgba(30,8,12,.96));color:#fecaca;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.45);animation:stopP 1.6s ease-in-out infinite}
 .stopBtn b{font:800 .9rem system-ui;color:#fff}.stopBtn small{font-size:.7rem}@keyframes stopP{50%{box-shadow:0 8px 24px rgba(0,0,0,.45),0 0 0 5px rgba(239,68,68,.25)}}
 body.phHud .stopBtn{bottom:calc(172px + var(--safe-b))}
+.dlgRadio{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + var(--safe-t));z-index:60;display:grid;gap:6px;width:min(560px,calc(100% - 20px));pointer-events:none}
+.drRow{display:flex;gap:9px;align-items:flex-start;padding:8px 12px;border-radius:12px;background:rgba(7,12,26,.94);border:1px solid rgba(255,255,255,.12);border-left:3px solid var(--acc);box-shadow:0 8px 22px rgba(0,0,0,.45);animation:drIn .3s cubic-bezier(.2,.9,.3,1.1)}
+.drRow i{font-style:normal}.drRow b{display:block;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--acc)}.drRow span{font-size:.86rem;line-height:1.35;color:#e8edf6}
+.drRow.out{opacity:0;transform:translateY(-6px);transition:.4s}@keyframes drIn{from{opacity:0;transform:translateY(-10px)}}
+.sceneCap{position:fixed;left:50%;top:22%;transform:translate(-50%,8px);z-index:58;width:min(620px,calc(100% - 32px));text-align:center;font:italic 500 1.05rem/1.45 'Meridian Text',system-ui;color:#f8fafc;text-shadow:0 2px 12px rgba(0,0,0,.9),0 0 2px #000;opacity:0;pointer-events:none;transition:opacity .7s,transform .7s}
+.sceneCap.on{opacity:1;transform:translate(-50%,0)}
+.dlgSaid{margin:0 0 6px;padding:5px 10px;border-radius:10px;background:rgba(245,184,0,.1);border-left:2px solid rgba(245,184,0,.7);font-size:.8rem;color:#fde68a;animation:drIn .25s ease-out}.dlgSaid b{font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;margin-right:6px;color:#f5b800}
+@media (prefers-reduced-motion:reduce){.sceneCap{transition:none}.drRow{animation:none}}
 </style>
 </head>
 <body>

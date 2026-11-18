@@ -11,10 +11,10 @@ export const OPS = {
   traffic: {
     title: 'Traffic stop', icon: '🚗', prio: 3, les: [0, 1, 2, 3], kicker: 'TRAFFIC STOP',
     variants: {
-      clean: { what: 'A gray sedan doing 52 in a 35, school zone just ended.', who: 'Teresa Baptiste', tag: 'Florida tag GKL-4471' },
-      suspended: { what: 'A white pickup with a taillight out.', who: 'Marcus Dell', tag: 'Florida tag 7HW-220' },
-      dui: { what: 'A blue hatchback drifting over the center line twice.', who: 'Kyle Ames', tag: 'Florida tag PRT-918' },
-      nervous: { what: 'A minivan rolling through a stop sign.', who: 'Ana Ruiz', tag: 'Florida tag MVN-332' }
+      clean: { what: 'A gray sedan doing 52 in a 35, school zone just ended.', why: 'going 52 in a 35', who: 'Teresa Baptiste', tag: 'Florida tag GKL-4471' },
+      suspended: { what: 'A white pickup with a taillight out.', why: 'a taillight that\'s out', who: 'Marcus Dell', tag: 'Florida tag 7HW-220' },
+      dui: { what: 'A blue hatchback drifting over the center line twice.', why: 'drifting over the center line', who: 'Kyle Ames', tag: 'Florida tag PRT-918' },
+      nervous: { what: 'A minivan rolling through a stop sign.', why: 'rolling through that stop sign', who: 'Ana Ruiz', tag: 'Florida tag MVN-332' }
     },
     steps: (v) => [
       ['narr', v.what + ' You hit the lights.'],
@@ -31,9 +31,9 @@ export const OPS = {
         S1('Walk up on the passenger side instead', [['narr', 'Passenger side approach. It\'s safer from traffic. You knock on the window and they roll it down, surprised.']]),
         S0('Walk right up and lean in the window', [[C, '(over the radio) Don\'t put your head in a car. You can\'t see what\'s by their feet.']])]],
       ['What do you say first?', [
-        S2('Say who you are and why you stopped them', [[v.who, 'Oh. Okay. Sorry, officer. Here\'s my license.']]),
-        S1('Ask if they know why you pulled them over', [[v.who, '...I don\'t know. Was I speeding? Is that it?'], [C, '(over the radio) That question makes people guess and get defensive. Just tell them.']]),
-        S0('Ask for license and say nothing else', [[v.who, 'For what? What did I do?'], [C, '(over the radio) People calm down when they know why they\'re stopped. Tell them.']])]]
+        S2('"Evening. I stopped you for ' + (v.why || 'a traffic violation') + '."', [[v.who, 'Oh. Okay. Sorry, officer. Here\'s my license.']]),
+        S1('"Do you know why I pulled you over tonight?"', [[v.who, '...I don\'t know. Was I speeding? Is that it?'], [C, '(over the radio) That question makes people guess and get defensive. Just tell them.']]),
+        S0('"License, registration and insurance. Now."', [[v.who, 'For what? What did I do?'], [C, '(over the radio) People calm down when they know why they\'re stopped. Tell them.']])]]
     ],
     // what the records check turns up, and the decision that follows
     result: (v, id) => id === 'clean' ? [
@@ -55,9 +55,9 @@ export const OPS = {
       ['velvet', '(over the radio) Clear. Valid license, no warrants.'],
       [v.who, 'I\'m sorry, I\'m sorry. I\'ve never been pulled over before. Am I going to jail?'],
       ['What do you tell her?', [
-        S2('Tell her calmly it\'s just a stop sign warning', [[v.who, 'Oh, thank God. Okay. Okay. I\'ll stop all the way. Kids, say thank you to the officer.']]),
-        S1('Tell her to calm down and hand her a ticket', [[v.who, '(crying) Okay. Okay.'], [C, '(over the radio) A ticket\'s fine. "Calm down" never works. Tell her what\'s happening instead.']]),
-        S0('Search the van since she seems so nervous', [[C, '(over the radio) Nervous isn\'t probable cause. Most people are nervous with a cop at their window.']])]]] : [
+        S2('"It\'s okay, ma\'am. This is just a warning."', [[v.who, 'Oh, thank God. Okay. Okay. I\'ll stop all the way. Kids, say thank you to the officer.']]),
+        S1('"Calm down, ma\'am. Here\'s your ticket."', [[v.who, '(crying) Okay. Okay.'], [C, '(over the radio) A ticket\'s fine. "Calm down" never works. Tell her what\'s happening instead.']]),
+        S0('"Ma\'am, step out. I\'m searching the van."', [[C, '(over the radio) Nervous isn\'t probable cause. Most people are nervous with a cop at their window.']])]]] : [
       ['narr', 'His eyes are glassy, and you can smell alcohol from the car. There\'s an open can in the cup holder.'],
       [v.who, 'I had like two beers. Two. I\'m fine, I swear. I live right down the road.'],
       ['What\'s your next step?', [
@@ -140,9 +140,9 @@ export const OPS = {
       id === 'family' ? [
       ['narr', 'His mother answers. Behind her, a little girl in pajamas is holding onto his leg.'],
       ['How do you handle it?', [
-        S2('Ask him to step outside to talk away from his kid', [[v.who, '...Okay. Mija, go sit with Abuela. I\'ll be right back.'], ['narr', 'He walks out on his own. You do the rest out of her sight.']]),
-        S1('Explain the warrant to the whole family', [['narr', 'The little girl starts crying. His mother yells. It takes a while, but he goes peacefully.']]),
-        S0('Cuff him right there in the doorway', [[C, '(over the radio) Legal, but that little girl just watched her dad get cuffed. If you can, do it out of the kids\' sight.']])]]] : [
+        S2('"Luis, can you step outside with me a minute?"', [[v.who, '...Okay. Mija, go sit with Abuela. I\'ll be right back.'], ['narr', 'He walks out on his own. You do the rest out of her sight.']]),
+        S1('"Folks, I have a warrant for Luis\'s arrest."', [['narr', 'The little girl starts crying. His mother yells. It takes a while, but he goes peacefully.']]),
+        S0('"Hands behind your back, Luis. Right now."', [[C, '(over the radio) Legal, but that little girl just watched her dad get cuffed. If you can, do it out of the kids\' sight.']])]]] : [
       ['narr', 'The back door bangs open. ' + v.who + ' goes over the fence and runs straight into 2-Baker-14, who was right where you put him.'],
       ['2-Baker-14', '(over the radio) Got him. He\'s on the ground, not fighting. Come on back.']],
     arrest: () => true
@@ -227,9 +227,9 @@ export function installOps(H) {
   // arrest steps, reused for every arrest an activity ends in
   const arrestSteps = (who) => [
     ['How do you take him into custody?', [
-      S2('Tell him he\'s under arrest and give clear steps', [['narr', 'He turns around and puts his hands behind his back.']]),
-      S1('Grab his arm and start cuffing right away', [[C, '(over the radio) Tell him what\'s happening first. Surprised people pull away.']]),
-      S0('Wait for him to turn around on his own', [[C, '(over the radio) He doesn\'t know what you want. Give him one clear instruction at a time.']])]],
+      S2('"You\'re under arrest. Turn around for me, please."', [['narr', 'He turns around and puts his hands behind his back.']]),
+      S1('(Grab his arm) "Hands behind your back!"', [[C, '(over the radio) Tell him what\'s happening first. Surprised people pull away.']]),
+      S0('"Okay. So... whenever you\'re ready."', [[C, '(over the radio) He doesn\'t know what you want. Give him one clear instruction at a time.']])]],
     ['Handcuffs?', [
       S2('Check the fit, then double-lock both cuffs', [['narr', 'Snug, not tight. Double-locked.']]),
       S1('Cuff him in front since he\'s cooperating', [[C, '(over the radio) Behind the back unless there\'s a medical reason. Cooperative people still change their minds.']]),
@@ -248,14 +248,17 @@ export function installOps(H) {
     const op = OPS[c.ops]; if (!op || busy) return done && done('skip'); busy = true;
     const vid = c.opsV || rnd(Object.keys(op.variants)), v = op.variants[vid], sc = { pts: 0, max: 0, log: [] }, B = build(op, v, sc);
     const who = v.who || 'the suspect';
-    let lines = B(op.steps(v)).concat(B(op.result(v, vid) || []));
+    // the fact check happens inside the scene, in the moment there's a natural wait, and the scene picks back up after it
+    const q = H.pickFact(op.les), lead = { traffic: 'While Velvet runs the tag, quick question for you.', welfare: 'While we wait on a way in, think about this one.', warrant: 'While Baker gets in position, answer me this.', transport: 'Long red light. While we sit here, tell me this.', business: 'While you walk it, something to chew on.' }[c.ops];
+    const qBeat = q ? [[C, '(over the radio) ' + lead], ['q', q, C]] : [];
+    const st = B(op.steps(v)), at = Math.min(st.length, { welfare: 3, transport: 2 }[c.ops] || st.length);
+    let lines = st.slice(0, at).concat(qBeat, st.slice(at), B(op.result(v, vid) || []));
     const arrest = op.arrest(vid);
     if (arrest) lines = lines.concat(B(arrestSteps(who)));
     // one-off speakers (the driver, the suspect, the cover unit) get registered with the dialogue engine
     const spk = { [who]: H.sayAs('op_' + c.ops + '_' + vid, { name: who, icon: op.icon, role: op.title }), '2-Baker-14': H.sayAs('unitb14', { name: '2-Baker-14', icon: '🚓', role: 'Cover unit' }) };
     const fix = (ls) => ls.forEach((l) => { if (!Array.isArray(l)) return; if (l[0] === 'choice') l[1].forEach((o) => fix(o.reply || [])); else if (spk[l[0]]) l[0] = spk[l[0]]; });
     fix(lines);
-    const q = H.pickFact(op.les); if (q) lines.push(['q', q, C]);
     H.dialogue(lines, (res) => {
       const proc = sc.max ? Math.round(sc.pts / sc.max * 20) : 10, safety = sc.log.filter((l) => l[1] === 0).length, rows = [
         ['🛡️', 'Safety', Math.max(0, 10 - safety * 4), 10, safety ? safety + ' unsafe choice' + (safety > 1 ? 's' : '') : 'No unsafe choices'],

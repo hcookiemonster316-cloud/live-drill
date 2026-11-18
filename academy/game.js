@@ -565,6 +565,7 @@ function gossipLine() { if (!W || inside) return null; const hooks = SIDE.filter
 // patrol activities: traffic stops, welfare checks, warrants, transport and business checks, played step by step
 const OPSM = installOps({ dialogue: (...a) => dialogue(...a), debrief: (...a) => POL.debrief(...a), closeModal: () => closeModal(), award: (...a) => award(...a), stat: (...a) => stat(...a), radio: (...a) => radio(...a), cs: () => S.cs, sayAs: (...a) => sayAs(...a), leave: () => leaveDefault(),
   pickFact: (les) => { const ok = les.filter((l) => W.D.lessons.indexOf(l) >= 0); return L.pickFacts(S, [ok.length ? rnd(ok) : L.weakest(S, W.did)], 1)[0]; } });
+if (S.cfg && S.cfg.dlgAuto == null) S.cfg.dlgAuto = 'short'; if (S.cfg && S.cfg.dlgFlow == null) S.cfg.dlgFlow = true;
 const PH = installPhoneHud({ toast: (m) => toast(m) });
 const POL = installPolish({ S, gossip: () => gossipLine(), storyNpc: () => { const st = chStep(); return st && st.npc; }, sessLines: () => PREM.sessLines(), NPCS, CHAPTERS, LANDMARKS, esc: (x) => esc(x), $: (id) => $(id), fe: () => fe(), openModal: (h) => openModal(h), closeModal: () => closeModal(), stat: (...a) => stat(...a), saveS: () => saveS(), award: (...a) => award(...a), banner: (...a) => banner(...a), toast: (m) => toast(m), beep: (...a) => beep(...a),
   sting: (k) => { if (S.sound) music.sting(k); }, setMood: (m) => { POLMOOD = m; }, get W() { return W; }, get P() { return P; }, get regs() { return regs; }, get peds() { return peds; }, get inside() { return inside; }, get LORE() { return LORE; },
@@ -1023,12 +1024,8 @@ function emoteFor(text, mood) {
 }
 function toneOf(o) {
   const t = o.t || '', em = t.match(/^(\p{Extended_Pictographic})\uFE0F?\s*/u); if (em) return [em[1], '', em[0].length]; if (o.accept) return ['📁', 'Accept']; if (o.bye) return ['👋', 'Leave'];
-  if (/^(not right now|decline|back away|walk away|leave)/i.test(t)) return ['✋', 'Decline'];
-  if (/^(laugh|joke|trash talk|tease)/i.test(t)) return ['😄', 'Playful'];
-  if (/^(offer|help|volunteer|promise|sign up|bring|connect|introduce|suggest|encourage|invite|give|sit|stay)/i.test(t)) return ['🤝', 'Support'];
-  if (/^(report|call|check|search|look|follow|search)/i.test(t)) return ['📋', 'Investigate'];
-  if (/^(ask|what|how|why|who|where)|\?$/i.test(t)) return ['❓', 'Ask'];
-  if (/^(tell|say|explain|remind|praise)/i.test(t)) return ['💬', 'Talk'];
+  if (/^["“]/.test(t)) return ['💬', 'Say'];
+  // no icons picked from the first word of a judgment call: an icon on some options and not others gives the answer away
   return ['▸', ''];
 }
 // after walking away, the same person or call does not grab you again until you have moved off (or a little while passes)
@@ -1036,9 +1033,22 @@ let LEFT = null;
 function leaveHere() { LEFT = { x: P.x, y: P.y, t: performance.now() }; }
 function heldByLeave() { if (!LEFT) return false; if (Math.hypot(P.x - LEFT.x, P.y - LEFT.y) > 2.6 || performance.now() - LEFT.t > 25000) { LEFT = null; return false; } return true; }
 function leaveDefault() { storyBusy = false; if (!PAUSED_BY_MENU) paused = false; scene = null; storyCool = 2; if (net) net.status('patrol'); if (S.sound) music.start(moodNow()); }
+// radio traffic during a scene plays in a strip at the top of the screen instead of stopping the conversation
+function radioStrip(name, text, col) {
+  let el = $('dlgRadio'); if (!el) { el = document.createElement('div'); el.id = 'dlgRadio'; el.className = 'dlgRadio'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite'); document.body.appendChild(el); }
+  const row = document.createElement('div'); row.className = 'drRow'; row.style.setProperty('--acc', col || '#f5b800'); row.innerHTML = '<i>📻</i><div><b>' + esc(name) + '</b><span>' + esc(text) + '</span></div>';
+  el.appendChild(row); while (el.children.length > 3) el.firstChild.remove();
+  setTimeout(() => { row.classList.add('out'); setTimeout(() => row.remove(), 400); }, Math.max(4200, text.length * 70));
+}
+// an opening line of narration fades over the map like a film caption
+function sceneCaption(text) {
+  let el = $('sceneCap'); if (!el) { el = document.createElement('div'); el.id = 'sceneCap'; el.className = 'sceneCap'; document.body.appendChild(el); }
+  el.textContent = text; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), Math.max(3600, text.length * 55));
+}
 function dialogue(lines, done, opts) {
   opts = opts || {}; const box = $('dlg'); let seq = lines.slice(), i = -1, typing = null, full = '', auto = !!(S.cfg && S.cfg.autoDlg), skipping = false, autoT = 0, alive = true, lastSp = null, lastName = '';
-  const res = { right: 0, n: 0, choices: [] };
+  const res = { right: 0, n: 0, choices: [] }; let said = '', lastC = null;
+  const flow = !S.cfg || S.cfg.dlgFlow !== false; // smart flow: merge short lines, radio in a strip, captions, beats
   const who = (id) => TEMP[id] || CAST[id] || NPCS.find((n) => n.id === id) || { name: id, icon: '💬', role: '' };
   const kick = opts.kicker ? '<div class="dlgKick">' + esc(opts.kicker) + '</div>' : '';
   // the frame is built once; each line swaps the body so the portrait and controls can animate between speakers
@@ -1074,14 +1084,18 @@ function dialogue(lines, done, opts) {
   const show = () => {
     const ln = seq[i]; panel.classList.remove('dlgNarr', 'dlgQuiz'); showEmote('');
     if (ln[0] === 'fx') { try { ln[1](res); } catch (e) {} return next(); }
+    // ['gate', need, haltLines]: missed the fact check? the conversation stops here and picks back up next time
+    if (ln[0] === 'gate') { if (res.right < ln[1]) { seq = seq.slice(0, i + 1).concat(ln[2] || []); res.halted = true; } return next(); }
     if (ln[0] === 'choice') {
       skipping = false; const opts2 = ln[1], ctxKey = hashStr((seq[0] && seq[0][1]) || '') % 99991;
-      S.seenCh = S.seenCh || {}; setSpeaker('@you', null, false, '');
-      plate.querySelector('b').textContent = 'You'; plate.querySelector('small').textContent = ln[2] || 'What do you do?';
+      S.seenCh = S.seenCh || {};
+      // the person you're talking to stays on screen while you decide; the prompt is the situation, not a "You" label
+      if (lastC && lastSp && lastSp !== '@you') { setSpeaker(lastSp, lastC, false, ''); plate.querySelector('b').textContent = lastC.name; } else { setSpeaker('@you', null, false, ''); plate.querySelector('b').textContent = 'Your call'; }
+      plate.querySelector('small').textContent = ln[2] || 'What do you do?';
       body.innerHTML = '<div class="dlgTxt"><div class="dlgOpts">' + opts2.map((o, k) => { const [ti, tl, cut] = toneOf(o), seen = S.seenCh[ctxKey + ':' + hashStr(o.t)]; return '<button type="button" data-k="' + k + '" class="' + (seen ? 'seen' : '') + '" style="--d:' + (k * 60) + 'ms"><span class="kk">' + (k + 1) + '</span><span class="tone" title="' + tl + '">' + ti + '</span><span class="ot">' + esc(cut ? o.t.slice(cut) : o.t) + '</span></button>'; }).join('') + '</div></div>';
       setChoiceMode(true); const bs = [...body.querySelectorAll('[data-k]')]; bs.forEach((b, k) => b.onmouseenter = () => b.focus());
       bs.forEach((b) => b.onclick = (e) => { e.stopPropagation(); const o = opts2[+b.dataset.k]; S.seenCh[ctxKey + ':' + hashStr(o.t)] = 1; const ks = Object.keys(S.seenCh); if (ks.length > 800) delete S.seenCh[ks[0]];
-        res.choices.push(o); COOP.onChoice(o); if (o.take) qTake(o.take); if (o.give) qGive(o.give); applyChoice(o); beep(660, .08, 'triangle', .04); log('You', o.t, '#f5b800');
+        said = o.t; res.choices.push(o); COOP.onChoice(o); if (o.take) qTake(o.take); if (o.give) qGive(o.give); applyChoice(o); beep(660, .08, 'triangle', .04); log('You', o.t, '#f5b800');
         if ((o.set || o.npc || o.trust > 0) && lastName && !o.accept && !o.bye) remember('🧠  ' + lastName + ' will remember that.');
         if (o.fx) { try { o.fx(res); } catch (er) {} } seq.splice(i + 1, 0, ...(o.reply || [])); setChoiceMode(false); next(); });
       return;
@@ -1100,33 +1114,47 @@ function dialogue(lines, done, opts) {
         const ok = scoreAnswer(q, ans, tries > 0); if (ok && COMBO >= 3 && COMBO % 3 === 0) EP.slowMo(.7); res.qs = res.qs || []; res.qs.push({ stem: q.stem, ok, fact: (q.fact || q.ex || '').trim() }); res.n++; if (ok) res.right++; if (tries && ok) res.retry = (res.retry || 0) + 1; showEmote(ok ? '✨' : '📘');
         body.querySelectorAll('[data-k]').forEach((b) => { const k = +b.dataset.k, isC = q.multi ? q.c.indexOf(k) >= 0 : k === q.c; b.disabled = true; b.classList.add(isC ? 'ok' : picked.indexOf(k) >= 0 ? 'no' : 'dim'); });
         const fact = (q.fact || q.ex || '').trim(); setTimeout(() => { const V = VOICES[sp] || VOICES[String(sp).replace(/^reg_/, '')] || ANYONE, nx = seq[i + 1], more = !nx || nx[0] !== 'q', add = [[sp, ok ? rnd(tries ? V.r : V.p) : rnd(CORRECT) + (fact ? ' ' + fact : ''), { quiz: ok ? 'ok' : 'no' }]];
-          if (more && !opts.noFollow) { add.push([sp, rnd(V.a)]); if (ok && sp !== 'exhibita' && Math.random() < .4) add.push([sp, (V === ANYONE ? 'Oh, and officer? ' : 'Oh, and one more thing. ') + hintLine()]); }
+          // a question is part of the conversation, not the end of it: when the scene goes on, the reaction leads straight
+          // back into it; only when the question was the last thing does the person wrap up with a closing line
+          const goesOn = seq.slice(i + 1).some((x) => x && x[0] !== 'fx');
+          if (more && !opts.noFollow && !goesOn) { add.push([sp, rnd(V.a)]); if (ok && sp !== 'exhibita' && Math.random() < .4) add.push([sp, (V === ANYONE ? 'Oh, and officer? ' : 'Oh, and one more thing. ') + hintLine()]); }
           seq.splice(i + 1, 0, ...add); setChoiceMode(false); next(); }, 750); };
       body.querySelectorAll('[data-k]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const k = +b.dataset.k; if (q.multi) { const at = picked.indexOf(k); if (at >= 0) picked.splice(at, 1); else picked.push(k); b.classList.toggle('sel'); $('dlgOk').disabled = !picked.length; } else { picked = [k]; finish(); } });
       if (q.multi) $('dlgOk').onclick = (e) => { e.stopPropagation(); if (picked.length) finish(); };
       return;
     }
-    const narr = ln[0] === 'narr', id = narr ? '' : ln[0], text = ln[1], c = narr ? null : who(id), radio = !narr && /^\(over the radio\)/.test(text), mood = ln[2] && ln[2].quiz;
+    let text = ln[1];
+    const narr = ln[0] === 'narr', id = narr ? '' : ln[0], c = narr ? null : who(id), radio = !narr && /^\(over the radio\)/.test(text), mood = ln[2] && ln[2].quiz;
+    if (flow && !skipping) {
+      // radio traffic doesn't stop the scene: it plays in a strip at the top while the conversation keeps going
+      if (radio && !mood && seq.slice(i + 1).some((x) => x && x[0] !== 'fx')) { radioStrip(c.name, text.replace(/^\(over the radio\)\s*/, ''), speakerStyle(id, portraitLook(id)).col); log(c.name, text.replace(/^\(over the radio\)\s*/, ''), speakerStyle(id, portraitLook(id)).col); chirp(); clearTimeout(autoT); const at = i; autoT = setTimeout(() => alive && i === at && next(), 120); return; }
+      // an opening line of narration sets the scene as a caption over the map instead of a box you have to tap
+      if (narr && i === 0 && text.length < 170 && seq.length > 2 && !opts.noCaption) { sceneCaption(text); log('', text, '#94a3b8'); return next(); }
+      // short lines in a row from the same person read as one breath
+      while (!mood && seq[i + 1] && seq[i + 1][0] === ln[0] && typeof seq[i + 1][1] === 'string' && seq[i + 1].length === 2 && !/^\(over the radio\)/.test(seq[i + 1][1]) === !radio && (text + seq[i + 1][1]).length < 200 && !narr === !(seq[i + 1][0] === 'narr')) { i++; text = text + ' ' + seq[i][1].replace(/^\(over the radio\)\s*/, ''); }
+    }
     full = text.replace(/^\(over the radio\)\s*/, '');
     const st = setSpeaker(narr ? null : id, c, radio, mood || '');
+    if (!narr) lastC = c;
     if (!narr) lastName = (c.name || '').replace(/\s*\(.*\)$/, '').split(' ').filter((w) => !/^(Mr|Mrs|Ms|Dr|Sgt|Lt|Det|Judge|Father|Pastor|Coach|Captain|Tía|Doña|Miss)\.?$/.test(w))[0] || c.name;
     log(narr ? '' : c.name, full, st.col);
     if (skipping) return next();
     if (narr) panel.classList.add('dlgNarr');
     plate.querySelector('b').innerHTML = narr ? '' : esc(c.name) + (radio ? ' <em>📻 on the radio</em>' : ''); plate.querySelector('small').textContent = narr ? '' : c.role || '';
     const chars = richChars(full);
-    body.innerHTML = '<div class="dlgTxt' + (narr ? ' narr' : '') + '"><p id="dlgP">' + chars.map((x, k) => '<span class="h ' + x.cls + '" style="--i:' + k + '">' + esc(x.ch) + '</span>').join('') + '</p></div>';
+    const saidHtml = said ? '<div class="dlgSaid"><b>You</b> ' + esc(said.replace(/^(\p{Extended_Pictographic})\uFE0F?\s*/u, '')) + '</div>' : ''; said = '';
+    body.innerHTML = saidHtml + '<div class="dlgTxt' + (narr ? ' narr' : '') + '"><p id="dlgP">' + chars.map((x, k) => '<span class="h ' + x.cls + '" style="--i:' + k + '">' + esc(x.ch) + '</span>').join('') + '</p></div>';
     const spans = body.querySelectorAll('#dlgP span'), base = 30 / ({ slow: .6, normal: 1, fast: 2, instant: 999 }[S.cfg.text] || 1);
     let k = 0; clearTimeout(typing); pTalk = narr ? 0 : 1;
     const step = () => {
-      if (!alive) return; if (k >= spans.length) { typing = null; pTalk = 0; if (auto) { const go = () => { if (!alive || !box.onclick) return; if (POL.speaking) { autoT = setTimeout(go, 300); return; } next(); }; autoT = setTimeout(go, Math.max(1300, full.length * 42)); } return; }
+      if (!alive) return; if (k >= spans.length) { typing = null; pTalk = 0; if (flowAfter()) return; if (auto) { const go = () => { if (!alive || !box.onclick) return; if (POL.speaking) { autoT = setTimeout(go, 300); return; } next(); }; autoT = setTimeout(go, Math.max(1300, full.length * 42)); } return; }
       const sp = spans[k], ch = chars[k].ch; sp.classList.remove('h'); k++;
       if (!narr && S.sound && /[a-z0-9]/i.test(ch) && k % 2 === 1 && !/dir/.test(chars[k - 1].cls)) beep(st.f * (radio ? 1.6 : 1) * (.92 + ((k * 7) % 5) * .04), radio ? .03 : .045, radio ? 'square' : st.wave, radio ? .012 : .016);
       if (ch === '!' && !narr) pNod = 1;
       const nx = chars[k] ? chars[k].ch : ' ', pause = /[.!?]/.test(ch) && /[\s"')]/.test(nx) ? 9 : /[,;:]/.test(ch) ? 4 : ch === '—' ? 5 : 0;
       typing = setTimeout(step, base * (1 + pause));
     };
-    typing = setTimeout(step, base > 100 ? 0 : 60);
+    typing = setTimeout(step, base > 100 ? 0 : flow && /^\s*(\.\.\.|…)/.test(full) ? 520 : 60);
     if (base > 100) { spans.forEach((s) => s.classList.remove('h')); k = spans.length; }
     const e = emoteFor(full, mood); if (e && !narr) setTimeout(() => alive && showEmote(e), 220);
     if (radio) chirp();
@@ -1134,6 +1162,15 @@ function dialogue(lines, done, opts) {
   };
   document.body.classList.add('cine'); if (opts.focus) cineFocus(opts.focus[0], opts.focus[1], opts.zoom);
   const end = () => { alive = false; POL.hush(); DLGMOOD = null; cancelAnimationFrame(pRaf); clearTimeout(typing); clearTimeout(autoT); document.body.classList.remove('cine'); box.classList.remove('on'); if (opts.focus) cineRelease(); clearTimeout(DLG_HIDE_T); DLG_HIDE_T = setTimeout(() => { if (!box.classList.contains('on')) { box.hidden = true; box.innerHTML = ''; } }, 250); box.onclick = null; removeEventListener('keydown', keys); saveS(); done && done(res); };
+  // after a line finishes: a cut-off line ("I just...") gets interrupted by whoever speaks next, and short lines
+  // carry on by themselves (Settings: Dialogue flow) so a scene isn't a wall of taps
+  function flowAfter() {
+    if (!flow || auto) return false; const nx = seq[i + 1];
+    const plain = (x) => x && typeof x[1] === 'string' && x[0] !== 'choice' && x[0] !== 'q' && x[0] !== 'fx';
+    if (plain(nx) && nx[0] !== seq[i][0] && /(\.\.\.|…|—)\s*["']?$/.test(full.trim()) && !/^\s*(\.\.\.|…)\s*$/.test(full)) { autoT = setTimeout(() => alive && box.onclick && next(), 380); return true; }
+    if (S.cfg && S.cfg.dlgAuto === 'short' && full.length <= 70 && plain(nx)) { autoT = setTimeout(() => alive && box.onclick && next(), 1100 + full.length * 30); return true; }
+    return false;
+  }
   const finishTyping = () => { clearTimeout(typing); typing = null; pTalk = 0; body.querySelectorAll('#dlgP span.h').forEach((s) => s.classList.remove('h')); if (auto) { const go = () => { if (!alive || !box.onclick) return; if (POL.speaking) { autoT = setTimeout(go, 300); return; } next(); }; autoT = setTimeout(go, Math.max(1300, full.length * 42)); } };
   const click = () => { if (!logBox.hidden) return; if (typing) { finishTyping(); return; } next(); };
   const openLog = () => { logBox.innerHTML = '<div class="dlgLogHead"><b>Conversation log</b><button type="button" data-c="close">Close</button></div><div class="dlgLogList">' + DLG_LOG.slice(-60).map((l) => '<div class="dlgLogRow' + (l.name ? '' : ' narr') + '" style="--acc:' + l.col + '">' + (l.name ? '<b>' + esc(l.name) + '</b>' : '') + '<p>' + esc(l.text.replace(/[*~]/g, '')) + '</p></div>').join('') + '</div>'; logBox.hidden = false; const ls = logBox.querySelector('.dlgLogList'); ls.scrollTop = ls.scrollHeight; logBox.querySelector('[data-c="close"]').onclick = (e) => { e.stopPropagation(); logBox.hidden = true; }; };
@@ -1186,17 +1223,29 @@ function playStep(st) {
     const go = () => { if (last) (A.side ? sideDone(c) : chapterDone(c)); else { const nx = chStep(); if (nx) objectiveFlash(nx.goal); } };
     if (st.twist) { twistCard(st.twist); setTimeout(go, 1200); } else go();
   };
-  const afterQuiz = () => { if (st.after) dialogue(st.after, finish); else finish(); };
   const tg = stepTarget(), say = c.saga ? (st.say || []).map((l) => (l[0] === 'choice' ? ['choice', l[1].slice().sort(() => Math.random() - .5), l[2]] : l)) : st.say || [];
-  dialogue(say, () => {
-    if (!st.quiz) return afterQuiz();
-    const les = W.D.lessons.indexOf(st.quiz.les) >= 0 ? [st.quiz.les] : W.D.lessons; const qs = L.pickFacts(S, les, st.quiz.n || 2); const sp = st.who || 'castillo', v2 = A.side ? DISTRICT_VOICE[c.d] || 'castillo' : 'castillo';
-    dialogue(qs.map((q, k) => ['q', q, k % 2 && st.who !== v2 ? v2 : sp]), (r) => {
-      paused = true; award(r.right * 20, 'story');
-      if (r.right < Math.ceil(qs.length / 2)) { dialogue([[st.who || 'castillo', r.right ? 'Close, but not by the book yet. Think it through and try me again.' : 'Not quite. Review it, then come back and we will run it again.']], () => { storyBusy = false; paused = false; storyCool = 4; }); return; }
-      afterQuiz();
-    });
-  }, { focus: tg ? [tg.x, tg.y] : [P.x, P.y], kicker: (A.side ? (c.saga ? 'STORY ARC · ' : 'SIDE CASE · ') : '') + c.title.toUpperCase(), voiced: !A.side });
+  // one continuous scene: the fact check happens inside the conversation, before the payoff, and the story always goes on.
+  // A wrong answer gets corrected in character (it still counts toward mastery) instead of stopping the story cold.
+  let seq = say.slice();
+  if (st.quiz) {
+    const les = W.D.lessons.indexOf(st.quiz.les) >= 0 ? [st.quiz.les] : W.D.lessons, qs = L.pickFacts(S, les, Math.min(3, st.quiz.n || 2)), sp = st.who || 'castillo', v2 = A.side ? DISTRICT_VOICE[c.d] || 'castillo' : 'castillo';
+    const here = !!st.who || say.some((l) => l[0] === 'castillo' && !/^\(over the radio\)/.test(l[1] || ''));
+    const lead = [sp, (here ? '' : '(over the radio) ') + rnd(['Hang on. Before we go any further, help me with something.', 'Wait, let me ask you something first.', 'Quick question, then we keep going.', 'Hold that thought. Tell me this first.'])];
+    const qLines = [lead].concat(qs.map((q, k) => ['q', q, k % 2 && st.who !== v2 ? v2 : sp]));
+    // where the question goes: before the first decision; else before the payoff; a scene with its payoff in "after" keeps its order
+    let at = say.findIndex((l) => l[0] === 'choice');
+    if (at < 0) at = st.after && st.after.length ? say.length : Math.max(1, Math.ceil(say.length / 2));
+    const need = Math.ceil(qs.length / 2), halt = [[sp, (here ? '' : '(over the radio) ') + rnd(['Hmm. That\'s not quite it. Go look that up, and come find me. We\'ll pick this up right where we left off.', 'No, that\'s not right. Brush up on it and come back. I\'ll still be here.', 'Not quite. Go over that one again, then come see me and we\'ll keep going.'])]];
+    seq = say.slice(0, at).concat(qLines, [['gate', need, halt]], say.slice(at));
+  }
+  seq = seq.concat(st.after || []);
+  // a scene that ends without saying where to go next gets a closing line that points the way
+  const nx = !last ? c.steps[nextI] : null, endsQuiz = seq.length && (seq[seq.length - 1][0] === 'q' || seq[seq.length - 1][0] === 'gate');
+  if (nx && (endsQuiz || !(st.after || []).length) && nx.goal && (st.who || 'castillo') !== nx.who) {
+    const g = nx.goal.replace(/\.$/, ''), sp2 = st.who || 'castillo', radio = !(st.who) ? '(over the radio) ' : '';
+    seq.push([sp2, radio + rnd(['Okay. If I were you, I\'d ', 'So here\'s what I\'d do next. I\'d ', 'Alright. Next thing I\'d do is ']) + g.charAt(0).toLowerCase() + g.slice(1) + '.']);
+  }
+  dialogue(seq, (r) => { if (r && r.n) award(r.right * 20, 'story'); if (r && r.halted) { storyBusy = false; paused = false; storyCool = 4; return; } finish(); }, { focus: tg ? [tg.x, tg.y] : [P.x, P.y], kicker: (A.side ? (c.saga ? 'STORY ARC · ' : 'SIDE CASE · ') : '') + c.title.toUpperCase(), voiced: !A.side });
 }
 function chapterDone(c) { EP.ending(c, () => chapterDone2(c)); }
 function chapterDone2(c) {
@@ -1720,8 +1769,11 @@ function npcTalk(r) {
   if (!n.cat) topics.push({ k: 'tip', t: 'Seen anything unusual around here?', reply: tip() });
   if (!n.cat) topics.push({ k: 'more', t: rnd(['So what\'s your story?', 'How long have you been around here?', 'What\'s the neighborhood really like?']), reply: [[id, rnd(V.a)], [id, H4 && htier > 0 && Math.random() < .6 ? H4[Math.floor(Math.random() * htier)] : n.lines[(f + 1 + (S.calls || 0)) % n.lines.length]]] });
   // after each topic the talk keeps going: the menu comes back with what's left, until you say goodbye
-  const menu = (left) => left.map((o) => Object.assign({}, o, { reply: o.reply.concat(left.length > 1 ? [['choice', menu(left.filter((x) => x !== o)).concat([bye]), rnd(['What else?', 'Anything else on your mind?', 'Keep talking, or head out?'])]] : [[id, rnd(['Well, I\'ll let you get back to it.', 'Anyway. Don\'t let me keep you.', 'Good talking with you.'])]]) }));
-  const opts = menu(topics).concat([bye]);
+  // people wrap a conversation up on their own, the way people do: strangers after a topic or two, friends talk longer
+  const maxT = n.cat ? 2 : f >= 6 ? 4 : f >= 3 ? 3 : 2;
+  const wrapUp = () => [[id, n.cat ? '(The cat stands, stretches, and walks off. That\'s the end of that.)' : rnd(f >= 3 ? ['Anyway, I\'ve kept you long enough. Come back soon, okay?', 'Look at the time. Go on, they\'ll be looking for you.', 'Okay, get out of here. Be safe tonight.'] : ['Well, I\'ll let you get back to it.', 'Anyway, I gotta get back to work.', 'Okay. Don\'t let me keep you.'])]];
+  const menu = (left, dep) => left.map((o) => Object.assign({}, o, { reply: o.reply.concat(left.length > 1 && dep < maxT ? [['choice', menu(left.filter((x) => x !== o), dep + 1).concat([bye]), rnd(f >= 3 ? ['What else?', 'Anything else on your mind?'] : ['Something else?', 'Was there something else?'])]] : wrapUp()) }));
+  const opts = menu(topics, 1).concat([bye]);
   dialogue([[id, n.cat ? '(Exhibit A regards you from a sunny spot.)' : f >= 3 ? rnd(['There\'s my favorite cadet!', 'Hey, you! Come here, come here.', 'Look who it is.']) : f >= 1 ? rnd(['Oh, hey. Back again?', 'Cadet! Good to see you.']) : rnd(['Can I help you, officer?', 'Oh! Hello there.', 'Afternoon, officer.'])], ['choice', opts, (f > 0 ? '💛'.repeat(Math.min(6, f)) + '  ' : '') + n.name + ' · ' + tier.charAt(0).toUpperCase() + tier.slice(1)]], () => sceneEnd('npc'), { focus: [r.x || P.x, r.y || P.y], kicker: n.name.toUpperCase() + ' · ' + (n.role || '').toUpperCase() });
 }
 function nearestLotTo(x, y) { let best = null, bd = 1e9; (inside ? inside.O.W : W).lots.forEach((l) => { if (!l.name) return; const d = Math.hypot(l.door[0] - x, l.door[1] - y); if (d < bd) { bd = d; best = l.name; } }); return best; }
@@ -2428,6 +2480,8 @@ function settingsPanel(back) {
     '<label>Colour mode' + seg('cmode', [['none', 'Standard'], ['deut', 'Deuteranopia'], ['prot', 'Protanopia'], ['trit', 'Tritanopia'], ['hc', 'High contrast']]) + '</label>' +
     '<label>Font' + seg('font', [['default', 'Default'], ['readable', 'Device font']]) + '</label>' +
     '<label>Conversation timers' + seg('timers', [['on', 'Timed'], ['off', 'No time limit']]) + '</label>' +
+    '<label>Dialogue flow' + seg('dlgFlow', [[true, 'Smart'], [false, 'Classic']]) + '</label>' +
+    '<label>Short lines' + seg('dlgAuto', [['short', 'Continue on their own'], ['tap', 'Wait for a tap']]) + '</label>' +
     '</div><div class="feBtns"><button type="button" class="feBtn" id="setBack">Back</button></div></div>';
   el.querySelectorAll('.seg button').forEach((b) => b.onclick = () => { const k = b.closest('.seg').dataset.k; let v = b.dataset.v; if (v === 'true') v = true; else if (v === 'false') v = false;
     if (k === 'sound') { S.sound = v; if (v) { audio(); music.start(ATTRACT ? 'title' : moodNow()); } else music.stop(); hud && !ATTRACT && hud(); } else { c[k] = v; if (k === 'quality') c.qMax = v; } saveS(); applyCfg(); feSound('move'); settingsPanel(back); });
