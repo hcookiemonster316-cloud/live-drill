@@ -25,6 +25,8 @@ import { installPolish } from './polish.js';
 import { installPhoneHud } from './phonehud.js';
 import { installOps } from './patrolops.js';
 import { appearOpts } from './appearance.js';
+import { installLearnFlow } from './learnflow.js';
+import { NPCS2 } from './people2.js';
 import { HEART, HEART_TIER, CALLER as CALLER_SAYS } from './heart.js';
 import { installEpic } from './epic.js';
 import { installOnboard } from './onboard.js';
@@ -810,7 +812,7 @@ let regs = [], talkedNow = {};
 function placeRegulars() {
   regs.forEach((r) => W.blocked.delete(Math.floor(r.y) * N + Math.floor(r.x))); regs = []; talkedNow = {}; S.npc = S.npc || {};
   const used = new Set(NPCS.map((n) => n.name)), byLot = new Map(), lotOf = (n) => { const at = NPC_AT[n.id] || n.home; return W.lots.find((l) => (l.name || '').indexOf(at) >= 0) || W.lots.find((l) => l.kind === at) || W.lots.find((l) => l.kind === n.home); };
-  NPCS.filter((n) => n.d === W.did).forEach((n) => { const l = lotOf(n); if (l) { if (!byLot.has(l)) byLot.set(l, []); byLot.get(l).push(n); } });
+  learnFlowInit(); NPCS.filter((n) => n.d === W.did && LF.npcVisible(n)).forEach((n) => { const l = lotOf(n); if (l) { if (!byLot.has(l)) byLot.set(l, []); byLot.get(l).push(n); } });
   // every named place gets at least two named people; one of them may work inside
   W.lots.forEach((l) => {
     const hand = byLot.get(l) || [], need = Math.max(0, 2 - hand.length), info = (LANDMARKS[l.kind] || {}).info;
@@ -879,10 +881,16 @@ const chap = () => CHAPTERS.find((c) => c.d === W.did);
 // side cases: S.side[id] is the step reached (absent = not taken yet); S.track is the case shown on the HUD
 S.side = S.side || {}; S.track = S.track || 'main';
 const sideQ = (id) => SIDE.find((q) => q.id === id);
-const sideOpen = (q) => S.unlocked.includes(q.d) && (S.story[q.req[0]] || 0) >= q.req[1] && (!q.need || q.need(S));
+const sideOpenNoFacts = (q) => S.unlocked.includes(q.d) && (S.story[q.req[0]] || 0) >= q.req[1] && (!q.need || q.need(S));
+// side cases also wait for you to learn the district's facts (learnflow.js)
+const sideOpen = (q) => sideOpenNoFacts(q) && (!LF || LF.sideFactsOK(q) || S.side[q.id] != null);
 const sideAvail = (q) => q.d === W.did && sideOpen(q) && S.side[q.id] == null;
 const sideLive = (q) => S.side[q.id] != null && S.side[q.id] < q.steps.length;
 const sideClosed = (q) => S.side[q.id] != null && S.side[q.id] >= q.steps.length;
+let LF = null;
+function learnFlowInit() { if (LF) return; LF = installLearnFlow({ S, L, DISTRICTS, SIDE, CHAPTERS, NPCS2, sideClosed, sideOpenNoFacts, banner: (...a) => banner(...a), placeRegulars: () => placeRegulars(), W: () => W, P: () => P, dialogue: (...a) => dialogue(...a), sayAs: (...a) => sayAs(...a), award: (...a) => award(...a), stat: (...a) => stat(...a),
+  free: () => !!W && !inside && !scene && !call && !PUR && !storyBusy && !paused && $('dlg').hidden && $('modal').hidden && !ATTRACT && !OPSM.busy && !(DE && DE.isOpen && DE.isOpen()),
+  moving: () => !!(P.path && P.path.length) || !!(P.inCar && Math.abs(P.speed || 0) > .2) || !!P.moving }); }
 function activeQ() {
   const t = S.track !== 'main' ? sideQ(S.track) : null, mk = (q) => ({ side: true, q, i: S.side[q.id], step: q.steps[S.side[q.id]], title: q.title });
   if (t && t.d === W.did && sideLive(t)) return mk(t);
@@ -980,7 +988,7 @@ function cineCam(dt) {
 }
 function zoomTarget() { return CINE.on ? CINE.z : cam.zUser; }
 function scoreAnswer(q, ans, retry) {
-  const ok = L.isRight(q, ans); L.record(S, q, ok); SS.answered++;
+  const ok = L.isRight(q, ans); L.record(S, q, ok); SS.answered++; if (LF) LF.answered();
   if (ok && retry) { SS.right++; stat('right'); stat('retryRight'); COMBO = 0; good(); }
   else if (ok) { SS.right++; stat('right'); S.bestCombo = Math.max(S.bestCombo || 0, COMBO + 1); COMBO++; bestCombo = Math.max(bestCombo, COMBO); ord('right'); if (COMBO === 5) ord('streak'); good(); } else { COMBO = 0; bad(); }
   comboHud(); return ok;
@@ -1217,6 +1225,7 @@ function playStep(st) {
   if (st.need && !S.qitems[st.need]) { const it = QITEMS[st.need]; toast('You need ' + (it ? it.icon + ' ' + it.name : 'something') + ' for this. Check Quest Items.'); storyCool = 4; return; }
   storyBusy = true; paused = true; P.path = [];
   const A = activeQ(), c = A.q, idx = A.i;
+  learnFlowInit(); if (!A.side && LF.gateStep(c, idx, st.who, () => { storyBusy = false; paused = false; storyCool = 4; })) return;
   let nextI = idx + 1; while (nextI < c.steps.length && !stepOn(c.steps[nextI])) nextI++; const last = nextI >= c.steps.length;
   const finish = () => {
     if (st.give) qGive(st.give); if (st.take) qTake(st.take);
@@ -1340,13 +1349,14 @@ function trackerHud(dt) {
   const el = $('qTrack'); if (!el) return; trkT -= dt; if (trkT > 0) return; trkT = .4;
   if (ATTRACT || scene) { el.hidden = true; return; }
   const list = trackerList(), avail = inside ? 0 : SIDE.filter(sideAvail).length, mini = S.cfg && S.cfg.trackMin != null ? S.cfg.trackMin : innerWidth < 620;
-  if (!list.length && !avail) { el.hidden = true; return; }
+  learnFlowInit(); const nl = LF.nextLock(W.did), nlTxt = nl.have >= nl.total ? '' : [nl.nextCase != null ? 'next case opens at ' + nl.nextCase + ' facts' : '', nl.nextNpc != null ? 'someone new shows up at ' + nl.nextNpc + ' facts' : ''].filter(Boolean).join(' · ');
+  if (!list.length && !avail && !nlTxt) { el.hidden = true; return; }
   const t = stepTarget(), dist = t ? Math.hypot(t.x - P.x, t.y - P.y) : 0;
-  const key = W.did + '|' + !!inside + '|' + mini + '|' + avail + '|' + list.map((r) => r.key + r.i + r.cur).join(',') + '|' + S.track;
+  const key = nl.have + '|' + nlTxt + '|' + W.did + '|' + !!inside + '|' + mini + '|' + avail + '|' + list.map((r) => r.key + r.i + r.cur).join(',') + '|' + S.track;
   if (el.dataset.k !== key) {
     el.dataset.k = key; el.classList.toggle('min', !!mini);
     const rows = list.slice(0, 4).map((r) => { const st = r.q.steps[r.i]; return '<div class="qtRow' + (r.cur ? ' cur' : '') + (r.side ? ' side' : '') + '" data-qt="' + r.track + '"><i>' + (r.side ? '📁' : '★') + '</i><div><small>' + (r.side ? 'Side case' : 'Main · Ch. ' + (r.q.d + 1)) + (r.here ? '' : ' · ' + esc(DISTRICTS[r.q.d].name)) + '</small><b>' + esc(r.q.title) + '</b><p>' + esc(st ? st.goal : '') + '</p><span class="qtPips">' + r.q.steps.map((x, k) => '<u class="' + (k < r.i ? 'ok' : k === r.i ? 'now' : '') + '"></u>').join('') + '</span></div>' + (r.cur ? '<button type="button" class="qtGo" title="Guide me there">🧭<em id="qtD"></em></button>' : '') + '</div>'; }).join('');
-    el.innerHTML = '<button type="button" class="qtHead" id="qtTog"><span>📋 Cases</span><b>' + list.length + (avail ? ' <em>+' + avail + ' new</em>' : '') + '</b><i>' + (mini ? '▸' : '▾') + '</i></button>' + (mini ? '' : rows + (list.length > 4 ? '<div class="qtMore">+' + (list.length - 4) + ' more in your Field Journal</div>' : '') + (avail ? '<div class="qtNew">' + avail + ' new case' + (avail > 1 ? 's' : '') + ' in ' + esc(W.D.name) + '. Look for the blue <b>!</b></div>' : ''));
+    el.innerHTML = '<button type="button" class="qtHead" id="qtTog"><span>📋 Cases</span><b>' + list.length + (avail ? ' <em>+' + avail + ' new</em>' : '') + '</b><i>' + (mini ? '▸' : '▾') + '</i></button>' + (mini ? '' : rows + (list.length > 4 ? '<div class="qtMore">+' + (list.length - 4) + ' more in your Field Journal</div>' : '') + (avail ? '<div class="qtNew">' + avail + ' new case' + (avail > 1 ? 's' : '') + ' in ' + esc(W.D.name) + '. Look for the blue <b>!</b></div>' : '') + (nlTxt ? '<div class="qtFacts">🧠 ' + nl.have + ' of ' + nl.total + ' facts here. ' + esc(nlTxt.charAt(0).toUpperCase() + nlTxt.slice(1)) + '.</div>' : ''));
     $('qtTog').onclick = (e) => { e.stopPropagation(); S.cfg.trackMin = !mini; saveS(); trkT = 0; el.dataset.k = ''; };
     el.querySelectorAll('[data-qt]').forEach((rw) => rw.onclick = (e) => { if (e.target.closest('.qtGo')) return; S.track = rw.dataset.qt; saveS(); beep(660, .06, 'triangle', .04); objectiveFlash(); TRAIL.t = 0; trkT = 0; });
     const go = el.querySelector('.qtGo'); if (go) go.onclick = (e) => { e.stopPropagation(); const tg = stepTarget(); if (!tg) return; if (tg.exit && inside) { exitBuilding(); return; } goTo(tg.x, tg.y); beep(880, .06, 'triangle', .04); };
@@ -1902,7 +1912,7 @@ function stagedRun(key, cfg) {
   S.runs = S.runs || {}; const per = 3, stages = Math.ceil(cfg.total / per); let run = S.runs[key];
   const kick = (i) => cfg.kicker + ' · STAGE ' + (i + 1) + ' OF ' + stages;
   const stage = (first) => {
-    const i = run.stage, k = Math.min(per, cfg.total - i * per), qs = cfg.pick(k); paused = true;
+    const i = run.stage, k = Math.min(per, cfg.total - i * per), qs = cfg.pick(k, i, run); paused = true;
     const lines = (first ? cfg.intro(run, stages) : []).concat(cfg.beat ? cfg.beat(i, stages) : []).concat(qs.map((q, j) => ['q', q, cfg.speakers[(i * per + j) % cfg.speakers.length]]));
     dialogue(lines, (r) => {
       run.right += r.right; run.n += r.n; run.stage++; saveS();
@@ -1912,7 +1922,7 @@ function stagedRun(key, cfg) {
       }, { focus: [P.x, P.y], kicker: kick(run.stage), noFollow: true, onLeave: () => { leaveDefault(); } });
     }, { focus: [P.x, P.y], kicker: kick(i), onLeave: () => { leaveDefault(); toast('💾 Saved at stage ' + (run.stage + 1) + ' of ' + stages + '.'); } });
   };
-  const fresh = () => { run = S.runs[key] = { stage: 0, right: 0, n: 0, t: Date.now() }; saveS(); stage(true); };
+  const fresh = () => { run = S.runs[key] = { stage: 0, right: 0, n: 0, t: Date.now() }; if (cfg.init) cfg.init(run); saveS(); stage(true); };
   if (run && run.stage > 0 && run.stage < stages) { paused = true; dialogue([['choice', [{ t: 'Resume at stage ' + (run.stage + 1) + ' of ' + stages + ' (' + run.right + ' of ' + run.n + ' so far)', go: 1, reply: [] }, { t: 'Start over from stage 1', reply: [] }], cfg.kicker]], (r) => { if (r.choices[0] && r.choices[0].go) stage(true); else fresh(); }, { focus: [P.x, P.y], kicker: cfg.kicker }); }
   else fresh();
 }
@@ -1938,8 +1948,11 @@ function finalCall() {
 // after all five districts: the Chapter 5 Final Exam, facts from the whole chapter, 85% to pass, in stages of three
 function chapterExam() {
   const all = [0, 1, 2, 3, 4].flatMap((d) => DISTRICTS[d].lessons); music.start('story');
-  stagedRun('exam', { total: 50, kicker: 'CHAPTER 5 FINAL EXAM', speakers: ['castillo', 'okonkwo', 'navarro'], pick: (k) => L.pickFacts(S, all, k, { exam: true }),
-    intro: (run, n) => [['narr', 'Patrol HQ, the training room. Fifty facts from the whole chapter.'], ['castillo', 'This is the whole chapter, cadet. You need eighty-five percent. It\'s three questions at a time, and you can take a break between rounds whenever you need to. Your score saves.'], ['choice', [{ t: 'Ready.', reply: [] }, { t: 'Give me a second.', reply: [['castillo', 'Take two. Then we start.']] }], 'Chapter 5 Final Exam']],
+  const N = L.factCount();
+  if (S.runs && S.runs.exam && !S.runs.exam.order) delete S.runs.exam; // a run saved before the exam covered every fact
+  stagedRun('exam', { total: N, kicker: 'CHAPTER 5 FINAL EXAM', speakers: ['castillo', 'okonkwo', 'navarro'], init: (run) => { run.order = L.examOrder(); },
+    pick: (k, i, run) => { if (!run.order) run.order = L.examOrder(); return L.examQs(run.order.slice(i * 3, i * 3 + k)); },
+    intro: (run, n) => [['narr', 'Patrol HQ, the training room. Every fact in the chapter, all ' + N + ' of them.'], ['castillo', 'This is the whole chapter, cadet. Every single fact, one question each. You need eighty-five percent. It\'s three at a time, and you can walk away between rounds whenever you need to. Your spot and your score save, so come back to it as many times as you want.'], ['choice', [{ t: 'Ready.', reply: [] }, { t: 'Give me a second.', reply: [['castillo', 'Take two. Then we start.']] }], 'Chapter 5 Final Exam']],
     done: (r) => {
       const pass = r.right / r.n >= .85; if (pass) { S.graduated = Date.now(); stat('exam'); } saveS();
       openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'CHAPTER 5 · PASSED' : 'CHAPTER EXAM · NOT YET') + '</b><h2>' + r.right + ' of ' + r.n + ' (' + Math.round(r.right / r.n * 100) + '%)</h2><p>' + (pass ? 'Every district, every fact, and the whole chapter on one exam. Port Meridian is proud of you.' : 'You need 85%. Run fact drills in any district and try again.') + '</p></div><div class="qAct"><button type="button" id="mDone">' + (pass ? 'Carry on' : 'Back to patrol') + '</button></div>');
@@ -2745,7 +2758,7 @@ function covered() { const e = FE_EL || (FE_EL = $('fe')); const c = !e.hidden &
 let QS = 0;
 function quietSkip() { const tz = (CINE.on ? CINE.z : cam.zUser) * (cam.zMul || 1), settled = Math.abs(cam.z - tz) < .001 && (!CINE.on || Math.abs(cam.x - CINE.x) + Math.abs(cam.y - CINE.y) < .6);
   if (!paused || !settled || ATTRACT || FX.rain || FX.storm || (call && call.prio === 1) || PHOTO) { QS = 0; return false; } return (QS = (QS + 1) % 2) === 1; }
-function frame(now) { const dt = Math.min(.05, (now - last) / 1000) * (typeof EP !== 'undefined' ? EP.timeScale() : 1); drsTick(now, now - last); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); if ((BKT -= dt) <= 0) { BKT = .25; bkTick(); ringTick(); opsTick(dt); } COOP.tick(dt, others, call); REW.tick(dt); CITY.tick(dt); PREM.memoryBarks(dt); POL.tick(dt); EP.tick(dt); ON.tick(dt); FEEL.tick(dt); if (!S.seenCine && !EP.busy && W && !inside && !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !paused) EP.intro(); } if (!covered() && !quietSkip()) render(now); } requestAnimationFrame(frame); }
+function frame(now) { const dt = Math.min(.05, (now - last) / 1000) * (typeof EP !== 'undefined' ? EP.timeScale() : 1); drsTick(now, now - last); last = now; shakeUpdate(dt); cineCam(dt); if (W) { if (ATTRACT) attractUpdate(dt, now); else { update(dt, now); smoothOthers(dt); if ((BKT -= dt) <= 0) { BKT = .25; bkTick(); ringTick(); opsTick(dt); if (LF) LF.tick(.25); } COOP.tick(dt, others, call); REW.tick(dt); CITY.tick(dt); PREM.memoryBarks(dt); POL.tick(dt); EP.tick(dt); ON.tick(dt); FEEL.tick(dt); if (!S.seenCine && !EP.busy && W && !inside && !ATTRACT && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !paused) EP.intro(); } if (!covered() && !quietSkip()) render(now); } requestAnimationFrame(frame); }
 // ---------- the unlock from the study hub ----------
 // The hub opens this page with a pass code once the cadet passes a 100-question test at 85% or better.
 function hubCheck(s) { let h = 2166136261; const t = s + '|patrol-city'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }
@@ -2777,7 +2790,7 @@ function lockedScreen() {
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); MG.watch(W.did); EVT.watch(); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { OPSM, dispatchCall: () => dispatchCall(), DE, LV, gossip: () => gossipLine(), POL, EP, award: (n, w) => award(n, w), SAFE, ON, playStep: (st) => playStep(st), activeQ: () => activeQ(), SIDE, CHAPTERS, get storyBusy() { return storyBusy; }, chapterDone: (i) => chapterDone(CHAPTERS[i]), travel: (d, t) => travel(d, t), openCall: () => { call.accepted = true; openCallScene(call); }, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, chapterExam, PREM, COOP, REW, get CITY() { return CITY; }, get PUR() { return PUR; }, profileCard: (u, c) => profileCard(u, c), get myUid() { return myUid; }, get RIDING() { return RIDING; }, get LEFT() { return LEFT; }, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { get LF() { learnFlowInit(); return LF; }, L, OPSM, dispatchCall: () => dispatchCall(), DE, LV, gossip: () => gossipLine(), POL, EP, award: (n, w) => award(n, w), SAFE, ON, playStep: (st) => playStep(st), activeQ: () => activeQ(), SIDE, CHAPTERS, get storyBusy() { return storyBusy; }, chapterDone: (i) => chapterDone(CHAPTERS[i]), travel: (d, t) => travel(d, t), openCall: () => { call.accepted = true; openCallScene(call); }, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, chapterExam, PREM, COOP, REW, get CITY() { return CITY; }, get PUR() { return PUR; }, profileCard: (u, c) => profileCard(u, c), get myUid() { return myUid; }, get RIDING() { return RIDING; }, get LEFT() { return LEFT; }, districtBoard, goTo, load, get others() { return others; } };
 
 // repeat visits open from the device's cache (skipped in tests so they always run the files on disk)
 if ('serviceWorker' in navigator && !/[?&](mock|skiptitle)\b/.test(location.search) && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

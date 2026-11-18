@@ -50,7 +50,9 @@ function prepare(q) {
 let FACTS = [], POOL = [];
 export async function loadFacts(url) {
   const d = await early(url) || await (await fetch(url, { cache: 'no-cache' })).json(); POOL = d.q;
-  FACTS = d.f.map((f, i) => ({ id: 'F' + i, les: f[0], text: f[1], pg: f[2], qs: f[3] }));
+  // two-statement questions ("Statement A: ... Statement B: ...") are left out everywhere; every fact has other questions
+  const two = (k) => POOL[k] && /^\s*Statement A\b/i.test(POOL[k][0]);
+  FACTS = d.f.map((f, i) => ({ id: 'F' + i, les: f[0], text: f[1], pg: f[2], qs: f[3].filter((k) => !two(k)).length ? f[3].filter((k) => !two(k)) : f[3] }));
   return FACTS.length;
 }
 export const factCount = () => FACTS.length;
@@ -72,6 +74,9 @@ export function factQFixed(fid, qi, r) {
 }
 // for a host picking a round: facts (open ones first) with a single-answer question each, as [fid, poolIndex]
 export function pickFactIds(S, lessons, n) { const done = S.facts || {}, all = shuffle(factList(lessons)); all.sort((a, b) => (done[a.id] ? 1 : 0) - (done[b.id] ? 1 : 0)); return all.slice(0, n).map((f) => { const ok = f.qs.filter((k) => POOL[k] && !Array.isArray(POOL[k][2])); const from = ok.length ? ok : f.qs; return [f.id, from[Math.floor(Math.random() * from.length)]]; }); }
+// the full chapter test: all 558 facts, each once, in a shuffled order kept with the saved run
+export const examOrder = () => shuffle(FACTS.map((f) => f.id));
+export function examQs(ids) { return ids.map((id) => FACTS.find((f) => f.id === id)).filter(Boolean).map(factQuestion); }
 export function factQ(id) { const f = FACTS.find((x) => x.id === id); return f ? factQuestion(f) : null; }
 // questions for n facts, open facts first (then ones missed recently)
 // every question is a fact: facts you haven't learned come first and a learned fact never comes back while any are left.
@@ -80,8 +85,11 @@ export function factQ(id) { const f = FACTS.find((x) => x.id === id); return f ?
 export function pickFacts(S, lessons, n, opts) {
   opts = opts || {}; const done = S.facts || {}, seen = S.fseen || {}, out = [], used = new Set(OUT_NOW);
   const take = (list) => { for (const f of list) { if (out.length >= n) return; if (used.has(f.id)) continue; used.add(f.id); out.push(f); } };
-  take(shuffle(factList(lessons).filter((f) => !done[f.id])));
-  if (out.length < n && !opts.exam && opts.wide !== false) take(shuffle(FACTS.filter((f) => !done[f.id])));
+  // facts you haven't mastered yet, the ones you've seen least recently first (never-seen first): you work through all of them,
+  // and a missed fact comes back after the others instead of right away
+  const fresh = (list) => shuffle(list.filter((f) => !done[f.id])).sort((a, b) => (seen[a.id] || 0) - (seen[b.id] || 0));
+  take(fresh(factList(lessons)));
+  if (out.length < n && !opts.exam && opts.wide !== false) take(fresh(FACTS));
   if (out.length < n) take(shuffle(factList(lessons)).sort((a, b) => (seen[a.id] || 0) - (seen[b.id] || 0)));
   out.forEach((f) => { OUT_NOW.push(f.id); if (OUT_NOW.length > 12) OUT_NOW.shift(); });
   return out.map(factQuestion);
