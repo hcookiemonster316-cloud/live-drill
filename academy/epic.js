@@ -1,6 +1,7 @@
 // The epic layer: studio splash, opening cinematic, sky and weather extras, camera polish, background radio traffic,
 // chapter endings, the Ledger mystery board, the rival, graduation and credits, district reputation, crime-scene
 // investigations, report writing, secret trophies, squad nights, category leaderboards, loading art, display options.
+import { RADIO_SCENES } from './heart.js';
 import { ENDING_FLAGS, ENDINGS, REFLECT, CLUES, SCENES, REPORT, CHATTER, WX_CALLS, TIPS2 } from './epicdata.js';
 
 export function installEpic(H) {
@@ -86,12 +87,13 @@ export function installEpic(H) {
     if (flash > 0) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = 'rgba(255,240,200,' + flash * .22 + ')'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.restore(); flash -= .05; } }
 
   // ================= 5. background radio traffic =================
-  let chatT = 30, chatQ = [];
+  let chatT = 30, chatQ = [], lastScene = null;
   function chatter(dt) {
     if (H.cine() || H.S.offDuty || !H.W) return; chatT -= dt; if (chatT > 0) return; chatT = 45 + Math.random() * 60;
+    if (!chatQ.length && Math.random() < .65) { const night = H.S.shift === 'night', pool = RADIO_SCENES.filter((x) => !x.when || (x.when === 'night') === night); let sc = pool[Math.floor(Math.random() * pool.length)]; for (let k = 0; k < 3 && sc && sc === lastScene; k++) sc = pool[Math.floor(Math.random() * pool.length)]; if (sc) { lastScene = sc; chatQ = sc.l.slice(); } }
     if (!chatQ.length) { const k = Math.floor(Math.random() * CHATTER.length); chatQ = [CHATTER[k]]; if (CHATTER[k + 1] && /^(Copy|Code 4|I\'ll|Engine 3|Return)/.test(CHATTER[k + 1][1]) || (CHATTER[k + 1] && CHATTER[k + 1][0] === 'Engine 3')) chatQ.push(CHATTER[k + 1]); }
     const [who, msg] = chatQ.shift(), lots = H.W.lots.filter((l) => l.name), place = lots.length ? rnd(lots).name : 'Main St', street = rnd(['Main St', 'Bay St', 'Oak Ave', 'Pine St', 'Harbor Rd']);
-    H.radio(who + (H.inside ? ' (muffled)' : ''), msg.replace('{place}', place).replace('{street}', street)); if (H.S.sound && (H.S.cfg.vRadio == null || H.S.cfg.vRadio > 0)) H.chirp(who); if (chatQ.length) chatT = 4 + Math.random() * 3;
+    H.radio(who + (H.inside ? ' (muffled)' : ''), msg.replace('{place}', place).replace('{street}', street)); if (H.S.sound && (H.S.cfg.vRadio == null || H.S.cfg.vRadio > 0)) H.chirp(who); if (chatQ.length) chatT = 3.5 + Math.random() * 2.5;
   }
 
   // ================= 6. chapter endings =================

@@ -23,6 +23,8 @@ export function installPhoneHud(H) {
     new MutationObserver(() => { r.classList.add('fresh'); clearTimeout(t); t = setTimeout(() => r.classList.remove('fresh'), 7000); }).observe(r, { childList: true });
     r.addEventListener('click', () => { if (body.classList.contains('phHud')) { const b = $('bRadio'); if (b) b.click(); } });
   }
+  // the radio and ability buttons ride above the call card, however tall it is (ResizeObserver: no forced layout)
+  const cc = $('callCard'); if (cc && typeof ResizeObserver !== 'undefined') new ResizeObserver((es) => { const h = es[0].contentRect.height; if (h) body.style.setProperty('--ccH', Math.round(h + 12) + 'px'); }).observe(cc);
   // Clean view
   const sh = document.querySelector('.hShift');
   if (sh) sh.addEventListener('click', () => {

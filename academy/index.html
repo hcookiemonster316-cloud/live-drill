@@ -30,7 +30,7 @@
 <link rel="modulepreload" href="city.js">
 <link rel="modulepreload" href="sagas.js">
 <link rel="modulepreload" href="tales.js">
-<link rel="modulepreload" href="icons.js"><link rel="modulepreload" href="phonehud.js">
+<link rel="modulepreload" href="icons.js"><link rel="modulepreload" href="phonehud.js"><link rel="modulepreload" href="heart.js">
 <link rel="modulepreload" href="npcgen.js">
 <link rel="modulepreload" href="offduty.js">
 <link rel="modulepreload" href="onboard.js">
@@ -1062,6 +1062,10 @@ body.phClean #radio,body.phClean .hChips,body.phClean .mini,body.phClean .offHud
 body.phClean .hShift::after{content:'Clean view';display:block;font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:#38bdf8}
 /* a lore card that arrived mid-conversation waits behind the open dialog instead of covering its buttons */
 body:has(#modal:not([hidden])) .lorePop{visibility:hidden;pointer-events:none}
+.ccQ{margin:6px 0 2px;padding:6px 9px;border-left:2px solid rgba(245,184,0,.6);background:rgba(255,255,255,.04);border-radius:0 8px 8px 0;font-style:italic;font-size:.76rem;line-height:1.35;color:#e2e8f0}
+body.phHud .ccQ{font-size:.72rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+body.phHud:has(#callCard:not([hidden])) .ptt,body.phHud:has(#callCard:not([hidden])) .abil{bottom:calc(var(--ccH,150px) + 70px + var(--safe-b))}body.phHud:has(#callCard:not([hidden])) .pttW{bottom:calc(var(--ccH,150px) + 126px + var(--safe-b))}
+body.phHud:has(#callCard:not([hidden])) .offHud,body.phHud:has(#callCard:not([hidden])) .objBar{visibility:hidden}
 </style>
 </head>
 <body>
