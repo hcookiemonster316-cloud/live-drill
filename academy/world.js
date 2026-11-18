@@ -658,15 +658,17 @@ export function personFast(g, sx, sy, o, t, key, lod) {
   if (flip) { g.save(); g.translate(sx, 0); g.scale(-1, 1); g.drawImage(c, -28, sy - 74, c.lw, c.lh); g.restore(); } else g.drawImage(c, sx - 28, sy - 74, c.lw, c.lh);
 }
 export function person(g, sx, sy, o, t) {
-  const s = o.s || 1, ph = o.ph || 0, mv = !!o.moving, cyc = (o.stride != null ? o.stride * 6.4 : t / 95) + ph, walk = mv ? Math.sin(cyc) : 0;
+  // age, build and facial hair: a teenager is a little shorter, older people stoop a little and go gray, the oldest use a cane
+  const AG = o.age, elder = AG === 'elder', senior = AG === 'senior' || elder;
+  const s = o.s || (AG === 'teen' ? .94 : 1), ph = o.ph || 0, mv = !!o.moving, cyc = (o.stride != null ? o.stride * 6.4 : t / 95) + ph, walk = mv ? Math.sin(cyc) : 0;
   const bob = mv ? (1 - Math.abs(Math.cos(cyc))) * 1.2 : Math.sin(t / 1100 + ph) * .3, back = !!o.back && mv;
   // idle: shift weight and glance around now and then
   const glance = !mv && o.glance !== false && Math.sin(t / 2300 + ph * 3.1) > .9 ? -1 : 1, face = (o.face || 1) * glance, lean = mv ? .5 * (o.face || 1) : Math.sin(t / 1700 + ph) * .25;
   const K = o.kit || (o.officer ? { shirt: '#22355e', pants: '#1b2a4a', hat: 'cap', hatCol: '#16213d', patch: '#f5b800' } : null);
   const rr = (k) => { const v = Math.sin((ph + 1.37) * (12.9898 + k * 7.233)) * 43758.5453; return v - Math.floor(v); };
-  const civ = !K, bw = civ ? .9 + rr(1) * .26 : 1, top = civ ? (o.top || ['tee', 'tee', 'jacket', 'hoodie', 'dress', 'tank', 'button', 'tee'][Math.floor(rr(2) * 8)]) : 'uniform';
+  const civ = !K, bw = o.build === 'heavy' ? 1.18 : o.build === 'slim' ? .88 : civ ? .9 + rr(1) * .26 : 1, top = civ ? (o.top || ['tee', 'tee', 'jacket', 'hoodie', 'dress', 'tank', 'button', 'tee'][Math.floor(rr(2) * 8)]) : 'uniform';
   const acc = civ ? (o.acc || ['none', 'none', 'backpack', 'bag', 'phone', 'coffee', 'shopping', 'shades', 'none'][Math.floor(rr(3) * 9)]) : 'none';
-  const pants = K ? K.pants : o.pants || '#3b4a5c', shirt = K ? K.shirt : o.shirt || '#c0392b', skin = o.skin || '#e0b48f', hair = civ && (o.old != null ? o.old : rr(13) < .13) && !o.kid ? ['#d1d5db', '#e5e7eb', '#9ca3af'][Math.floor(rr(14) * 3)] : o.hair || '#2b1d14', jacket = JACKETS[Math.floor(rr(4) * JACKETS.length)];
+  const pants = K ? K.pants : o.pants || '#3b4a5c', shirt = K ? K.shirt : o.shirt || '#c0392b', skin = o.skin || '#e0b48f', hair = senior && !o.hair ? (elder ? '#eef0f3' : '#c4c9d1') : civ && (o.old != null ? o.old : rr(13) < .13) && !o.kid ? ['#d1d5db', '#e5e7eb', '#9ca3af'][Math.floor(rr(14) * 3)] : o.hair || '#2b1d14', jacket = JACKETS[Math.floor(rr(4) * JACKETS.length)];
   const hs = o.hs != null ? o.hs : Math.floor(rr(5) * 9), old = civ && !o.kid && (o.old != null ? o.old : rr(13) < .13);
   const outer = top === 'jacket' ? jacket : top === 'hoodie' ? shade(shirt, .85) : shirt, sleeve = top === 'tank' ? 0 : top === 'tee' || top === 'dress' ? .45 : 1;
   const OL = 'rgba(12,16,26,.55)', lw = .7 * s, Y = sy - bob * s, W2 = (x) => x * bw, sx0 = sx;
@@ -727,7 +729,10 @@ export function person(g, sx, sy, o, t) {
   if (back && K && K.camelbak) RR(sx - 3 * s, Y - 24.5 * s, 6 * s, 11 * s, 2 * s, '#1f2937', true);
   // front arm swings opposite the front leg (or holds a phone, a coffee, a bag)
   if (back) arm(-face, walk, false, null); else arm(face, -walk, false, pose);
-  // neck and head
+  // a cane in the front hand
+  if ((o.cane || (elder && o.cane !== false)) && !back) { const hx = sx + face * W2(7) * s, hy = Y - 13.5 * s; g.strokeStyle = '#5b3a1e'; g.lineWidth = 1.3 * s; g.lineCap = 'round'; g.beginPath(); g.moveTo(hx - face * .8 * s, hy - .6 * s); g.lineTo(hx + face * .6 * s, hy - 1.2 * s); g.moveTo(hx, hy - .8 * s); g.lineTo(hx + face * 1.6 * s, sy - bob * s - .4 * s); g.stroke(); g.lineCap = 'butt'; }
+  // neck and head (older people carry the head a little forward and down)
+  const stX = elder ? face * 1.4 * s : senior ? face * .5 * s : 0, stY = elder ? 1.4 * s : senior ? .5 * s : 0; g.save(); g.translate(stX, stY);
   g.fillStyle = shade(skin, .82); g.fillRect(sx - 1.6 * s, Y - 26.5 * s, 3.2 * s, 2.4 * s);
   const hg = g.createRadialGradient(sx - 1.6 * s, Y - 30 * s, .5 * s, sx, Y - 28 * s, 6 * s); hg.addColorStop(0, shade(skin, 1.1)); hg.addColorStop(1, shade(skin, .82));
   g.beginPath(); g.ellipse(sx, Y - 28.6 * s, 4.9 * s, 5.4 * s, 0, 0, Math.PI * 2); g.fillStyle = hg; g.fill(); g.strokeStyle = OL; g.lineWidth = lw; g.stroke();
@@ -737,6 +742,11 @@ export function person(g, sx, sy, o, t) {
   else { g.fillStyle = '#1b1b1f'; g.beginPath(); g.arc(sx + face * 1.1 * s, Y - 28.1 * s, .5 * s, 0, Math.PI * 2); g.fill(); g.beginPath(); g.arc(sx + face * 3.4 * s, Y - 28.1 * s, .45 * s, 0, Math.PI * 2); g.fill(); }
   if (!back) { g.strokeStyle = shade(skin, .62); g.lineWidth = .6 * s; g.beginPath(); g.moveTo(sx + face * 4.6 * s, Y - 28.2 * s); g.lineTo(sx + face * 5 * s, Y - 26.8 * s); g.stroke();
   g.beginPath(); g.moveTo(sx + face * 1.6 * s, Y - 25.6 * s); g.lineTo(sx + face * 3.4 * s, Y - 25.8 * s); g.stroke(); }
+  if (senior && !back) { g.strokeStyle = shade(skin, .7); g.lineWidth = .4 * s; g.beginPath(); g.moveTo(sx + face * 4.1 * s, Y - 29.6 * s); g.lineTo(sx + face * 4.9 * s, Y - 30.1 * s); g.moveTo(sx + face * 4.2 * s, Y - 27.4 * s); g.lineTo(sx + face * 4.9 * s, Y - 27.1 * s); g.stroke(); }
+  if (o.beard && !back) { const bc = o.beardCol || (senior && !o.hair ? (elder ? '#f3f4f6' : '#cbd5e1') : hair); g.fillStyle = bc;
+    if (o.beard === 'full' || o.beard === 'stubble') { if (o.beard === 'stubble') g.globalAlpha = .35; g.beginPath(); g.ellipse(sx + face * .9 * s, Y - 25.4 * s, 4.5 * s, 2.7 * s, 0, -.15, Math.PI + .15); g.fill(); g.globalAlpha = 1; }
+    if (o.beard === 'full' || o.beard === 'mustache') { g.beginPath(); g.ellipse(sx + face * 2.6 * s, Y - 26.2 * s, 2 * s, .75 * s, 0, 0, Math.PI * 2); g.fill(); }
+    if (o.beard === 'goatee') { g.beginPath(); g.ellipse(sx + face * 2.4 * s, Y - 24.4 * s, 1.3 * s, 1.5 * s, 0, 0, Math.PI * 2); g.fill(); g.beginPath(); g.ellipse(sx + face * 2.6 * s, Y - 26.2 * s, 1.8 * s, .6 * s, 0, 0, Math.PI * 2); g.fill(); } }
   if (o.glasses && !back) { g.strokeStyle = '#111'; g.lineWidth = .6 * s; g.beginPath(); g.arc(sx + face * 1.1 * s, Y - 28.1 * s, 1.2 * s, 0, Math.PI * 2); g.arc(sx + face * 3.4 * s, Y - 28.1 * s, 1.1 * s, 0, Math.PI * 2); g.stroke(); }
   // headwear, or hair
   const hat = K ? K.hat : civ && rr(9) < .14 ? 'civcap' : civ && rr(9) < .2 ? 'beanie' : civ && rr(9) < .25 ? 'sunhat' : 'hair', hc = K && K.hatCol || ['#1f2937', '#b91c1c', '#1d4ed8', '#f5f5f5', '#166534'][Math.floor(rr(10) * 5)];
@@ -752,9 +762,10 @@ export function person(g, sx, sy, o, t) {
   else if (hat === 'headset') { g.fillStyle = hair; g.beginPath(); g.ellipse(sx, Y - 30.4 * s, 5.2 * s, 4.2 * s, 0, Math.PI, 0); g.fill(); g.strokeStyle = '#111'; g.lineWidth = 1.2 * s; g.beginPath(); g.arc(sx, Y - 29.4 * s, 5.8 * s, Math.PI * 1.1, -.1); g.stroke(); RR(sx - face * 6.2 * s, Y - 30 * s, 2.2 * s, 3.2 * s, .8 * s, '#111'); g.strokeStyle = '#111'; g.lineWidth = .7 * s; g.beginPath(); g.moveTo(sx - face * 5 * s, Y - 27.5 * s); g.quadraticCurveTo(sx + face * 1 * s, Y - 24.5 * s, sx + face * 3 * s, Y - 25.6 * s); g.stroke(); }
   else {
     const hcol = hair, dark = shade(hcol, .7); g.fillStyle = hcol; g.strokeStyle = OL; g.lineWidth = lw;
-    if (hs === 6) { g.beginPath(); g.ellipse(sx, Y - 30.4 * s, 5.8 * s, 5.2 * s, 0, Math.PI, 0); g.lineTo(sx + 5.8 * s, Y - 21.5 * s); g.quadraticCurveTo(sx, Y - 19.5 * s, sx - 5.8 * s, Y - 21.5 * s); g.closePath(); g.fill(); g.stroke(); }
+    if (hs === 6) { // a bob: hair around the face, not over it
+      g.beginPath(); g.moveTo(sx - face * 5.9 * s, Y - 23 * s); g.lineTo(sx - face * 5.9 * s, Y - 30 * s); g.ellipse(sx, Y - 30.4 * s, 5.9 * s, 5.2 * s, 0, face > 0 ? Math.PI : 0, face > 0 ? 0 : Math.PI, face < 0); g.lineTo(sx + face * 5.4 * s, Y - 27.6 * s); g.quadraticCurveTo(sx + face * 2.4 * s, Y - 31.4 * s, sx - face * .6 * s, Y - 30.2 * s); g.lineTo(sx - face * 1.4 * s, Y - 23 * s); g.closePath(); g.fill(); g.stroke(); }
     else if (hs === 7) { g.globalAlpha = .55; g.beginPath(); g.ellipse(sx, Y - 30.6 * s, 4.9 * s, 3.6 * s, 0, Math.PI, 0); g.fill(); g.globalAlpha = 1; }
-    else if (hs === 8) { g.beginPath(); g.arc(sx, Y - 32.2 * s, 6.8 * s, Math.PI * .85, Math.PI * 2.15); g.fill(); g.stroke(); }
+    else if (hs === 8) { g.beginPath(); g.arc(sx - face * .4 * s, Y - 33.4 * s, 6.4 * s, Math.PI * .88, Math.PI * 2.12); g.closePath(); g.fill(); g.stroke(); }
     else if (hs === 1) { g.globalAlpha = .9; g.beginPath(); g.ellipse(sx, Y - 30.2 * s, 5 * s, 3.8 * s, 0, Math.PI, 0); g.fill(); g.globalAlpha = 1; }
     else if (hs === 4) { g.beginPath(); g.moveTo(sx - 5.4 * s, Y - 23 * s); g.lineTo(sx - 5.6 * s, Y - 30 * s); g.ellipse(sx, Y - 30.4 * s, 5.6 * s, 5 * s, 0, Math.PI, 0); g.lineTo(sx + 5.4 * s, Y - 23 * s); g.lineTo(sx + 3.6 * s, Y - 24 * s); g.lineTo(sx + 4 * s, Y - 29.5 * s); g.lineTo(sx - 4 * s, Y - 29.5 * s); g.lineTo(sx - 3.6 * s, Y - 24 * s); g.closePath(); g.fill(); g.stroke(); }
     else if (hs === 5) { for (let k = 0; k < 7; k++) { const a = Math.PI + k / 6 * Math.PI; g.beginPath(); g.arc(sx + Math.cos(a) * 4.4 * s, Y - 30 * s + Math.sin(a) * 4 * s, 1.9 * s, 0, Math.PI * 2); g.fill(); } }
@@ -765,7 +776,7 @@ export function person(g, sx, sy, o, t) {
   }
   if (top === 'hoodie' && rr(11) < .4) { g.fillStyle = outer; g.beginPath(); g.ellipse(sx, Y - 30.6 * s, 5.9 * s, 5.4 * s, 0, Math.PI * .95, Math.PI * 2.05); g.fill(); g.strokeStyle = OL; g.lineWidth = lw; g.stroke(); }
   if (acc === 'phone' && !mv) { g.fillStyle = 'rgba(160,210,255,.5)'; g.beginPath(); g.arc(sx + face * 5.4 * s, Y - 27.5 * s, 1.1 * s, 0, Math.PI * 2); g.fill(); }
-  g.restore();
+  g.restore(); g.restore();
 }
 
 // a working dog that trots beside its handler

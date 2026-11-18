@@ -125,7 +125,7 @@ export const HEART = {
     '(The cat climbs into your lap and falls asleep. Clerk Hattie walks by and whispers, "She\'s never done that. Not even for me." She doesn\'t sound happy about it.)'],
   walt: ['Route 9, all stops. Exact change, please.',
     'You should ride along sometime. You\'d be surprised where everybody in this city goes. Mostly the pharmacy.',
-    'People keep telling me I was brave during the flood. I really wasn\'t. I just knew the route better than the water did. Mrs. Ochoa called me "mijo" the whole ride, and I\'m sixty-three.',
+    'People keep telling me I was brave during the flood. I really wasn\'t. I just knew the route better than the water did. Mrs. Ochoa called me "mijo" the whole ride. I was in my twenties, but okay.',
     'On the seventh trip the water was coming up over the steps. One old man wouldn\'t get on without his wife\'s ashes, so I went back in and got them. I was in water up to my waist. I\'m not saying you have to be brave. I\'m saying sometimes what matters to people isn\'t what you\'d think, and you have to take it seriously anyway.'],
   tasha: ['I\'m retired. Don\'t tell me about your symptoms. ...Okay, fine. Which arm?',
     'You\'re not drinking enough water. I can see it in your face. I did this for thirty years.',

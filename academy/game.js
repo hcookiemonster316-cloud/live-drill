@@ -24,6 +24,7 @@ import { installEvents } from './events.js';
 import { installPolish } from './polish.js';
 import { installPhoneHud } from './phonehud.js';
 import { installOps } from './patrolops.js';
+import { appearOpts } from './appearance.js';
 import { HEART, HEART_TIER, CALLER as CALLER_SAYS } from './heart.js';
 import { installEpic } from './epic.js';
 import { installOnboard } from './onboard.js';
@@ -831,7 +832,7 @@ function cat(sx, sy, now, g) { g = g || ctx; const t = Math.sin(now / 600) * 3; 
 function regsDraw(list, vis, now) {
   regs.forEach((r) => { const [sx, sy] = iso(r.x, r.y); if (!vis(sx, sy)) return; const near = Math.hypot(r.x - P.x, r.y - P.y);
     list.push({ d: r.x + r.y, f: () => {
-      if (r.n.cat) cat(sx, sy, now); else { const lk = r.n.look || {}; person(ctx, sx, sy, { kit: r.n.kit || npcKit(lk), hair: r.n.hair || lk.hair, skin: r.n.skin || lk.skin, moving: false, face: r.face, ph: r.ph, wave: (r.waveT || 0) > performance.now() }, now); if (r.n.glasses || lk.glasses) { ctx.fillStyle = '#111'; ctx.fillRect(sx - 4, sy - 29, 8, 1.2); } }
+      if (r.n.cat) cat(sx, sy, now); else { const lk = r.n.look || {}; { const wv = (r.waveT || 0) > performance.now(), o = Object.assign({ kit: r.n.kit || npcKit(lk), hair: r.n.hair || lk.hair, skin: r.n.skin || lk.skin, glasses: !!(r.n.glasses || lk.glasses), moving: false, face: r.face, ph: r.ph, wave: wv, glance: false }, r.ap || (r.ap = appearOpts(r.n.id))); if (wv) person(ctx, sx, sy, o, now); else personFast(ctx, sx, sy, o, now, 'rg' + r.n.id + '|' + Math.round((r.ph || 0) * 100)); } }
       if (near < 5.5) label(sx, sy - (r.n.cat ? 26 : 48), r.n.icon + ' ' + r.n.name, '#fde68a');
       if (!talkedNow[r.n.id] && near < 10) bubble(sx, sy - (r.n.cat ? 42 : 66), '💬', '#fde68a', now);
     } });
@@ -1746,7 +1747,7 @@ function factWatch() {
 // regulars: a conversation with real options, not a menu
 function npcTalk(r) {
   const n = r.n, f = S.npc[n.id] || 0, first = !talkedNow[n.id]; talkedNow[n.id] = talkedNow[n.id] || 1;
-  const lk0 = n.look || {}, look = n.cat ? { cat: true } : { kit: n.kit || npcKit(lk0), hair: n.hair || lk0.hair, skin: n.skin || lk0.skin, ph: r.ph };
+  const lk0 = n.look || {}, look = n.cat ? { cat: true } : Object.assign({ kit: n.kit || npcKit(lk0), hair: n.hair || lk0.hair, skin: n.skin || lk0.skin, glasses: !!(n.glasses || lk0.glasses), ph: r.ph }, appearOpts(n.id));
   const id = NPCS.find((x) => x.id === n.id) ? n.id : sayAs('reg_' + n.id, { name: n.name, icon: n.icon, role: n.role, look }); PLOOK[id] = look;
   const tier = f >= 6 ? 'best friends' : f >= 3 ? 'friends' : f >= 1 ? 'knows your name' : 'stranger';
   let mem = (TALE_MEMORY[n.id] || []).filter(([w]) => w.slice(0, 5) === 'side:' ? sideClosed(sideQ(w.slice(5)) || {}) : w.slice(0, 5) === 'main:' ? (S.story[+w.slice(5)] || 0) >= CHAPTERS[+w.slice(5)].steps.length : !!S.flags[w.slice(5)]), line = mem.length && (first || Math.random() < .4) ? mem[(S.calls || 0) % mem.length][1] : n.lines[(f + (S.calls || 0)) % n.lines.length], helped = talkedNow[n.id] === 2;
