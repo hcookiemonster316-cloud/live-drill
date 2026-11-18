@@ -161,7 +161,7 @@ export const HEART = {
     'There was a lady on Birch Street, Mrs. Gaines, who was writing letters to herself. Took me about a year to notice. She just wanted something in the mailbox with her name on it. So I started writing her. I signed them "a friend from the route." I did that for eleven years. After she passed, her daughter found the letters and came and found me. I still don\'t know what to say about it.'],
   andy: ['Grab a chair. The board\'s free, the coffee isn\'t, and the lessons are free if you don\'t argue with me.',
     'You open the same way every single time. I respect that. I also beat it every time.',
-    'That picture by the trophies is my old unit. Gulf War, \'91. Four of us used to play chess in the tent every night. I\'m the only one still playing. Some nights I play their openings. It keeps them in the game, I guess.',
+    'That picture by the trophies is my old unit, in Afghanistan. Four of us used to play chess in the tent every night. I\'m the only one still playing. Some nights I play their openings. It keeps them in the game, I guess.',
     'When I came home I couldn\'t sit in a room unless I was facing the door. I couldn\'t sleep. Chess was the only thing that slowed my head down to one problem at a time. That\'s really what I\'m teaching these kids. Not chess. Just how to handle one problem at a time.'],
   sunny: ['Oranges are a dollar a bag. Honor box is right there. It works, believe it or not. People are mostly good.',
     'You came back! Here, take a bag. You look like you don\'t eat enough fruit.',
