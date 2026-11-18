@@ -61,8 +61,8 @@ export function installLearnFlow(H) {
   }
   function tick(dt) {
     if (!H.free()) return; if (H.moving()) idle += dt; // counts only time spent moving around freely
-    if (idle >= (S.cfg && S.cfg.checkEvery || 70)) { idle = 0; fieldCheck(); }
+    if (idle >= (S.cfg && S.cfg.checkEvery || 30)) { idle = 0; fieldCheck(); }
   }
-  const answered = () => { idle = Math.max(0, idle - 45); fresh(); };
+  const answered = () => { idle = 0; fresh(); }; // answering anything restarts the 30-second count
   return { sideFactsOK, sideNeed, mainNeed, npcVisible, npcNeed, nextLock, gateStep, checkUnlocks, tick, answered, fieldCheck };
 }
