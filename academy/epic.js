@@ -32,7 +32,7 @@ export function installEpic(H) {
     busy = true; H.pause(true); const cam = H.cam, z0 = cam.z; cam.free = true;
     const el = document.createElement('div'); el.className = 'introCine'; el.innerHTML = '<div class="tcBar t"></div><div class="tcBar b"></div><div class="icRadio"></div><div class="icTitle"><small>PORT MERIDIAN, FLORIDA · 0600 HOURS</small><h1>PATROL CITY</h1><p>Every call is a lesson.</p></div><button type="button" class="icSkip">Skip ▸</button>';
     document.body.appendChild(el); document.body.classList.add('introOn'); requestAnimationFrame(() => el.classList.add('on'));
-    const radio = el.querySelector('.icRadio'), lines = [['Dispatch', 'Good morning, Port Meridian. All units, day shift is on the air.'], ['2-Baker-14', 'Baker-14, ten-eight. Coffee in hand.'], ['Dispatch', 'Copy. Be advised, we have a new cadet on the street today.'], ['Sgt. Castillo', 'That one\'s mine. Go easy on them, Velvet.'], ['Dispatch', 'I always do, Sergeant. Welcome to Port Meridian, cadet.']];
+    const radio = el.querySelector('.icRadio'), lines = [['Dispatch', 'Good morning, Port Meridian. All units, day shift is on the air.'], ['2-Baker-14', 'Baker-14, ten-eight. Coffee in hand.'], ['Dispatch', 'Copy. Heads up, everybody, we\'ve got a new cadet on the street today.'], ['Sgt. Castillo', 'That one\'s mine. Go easy on them, Velvet.'], ['Dispatch', 'I always do, Sergeant. Welcome to Port Meridian, cadet.']];
     lines.forEach((l, k) => setTimeout(() => { if (!cine) return; radio.innerHTML = '<div><b>' + esc(l[0]) + ':</b> ' + esc(l[1]) + '</div>'; radio.classList.remove('in'); void radio.offsetWidth; radio.classList.add('in'); H.chirp(); }, 1600 + k * 4200));
     cine = { t: 0, dur: 24, pts, z0, el }; H.setMood('title');
     const end = () => { if (!cine) return; const c = cine; cine = null; S.seenCine = 1; H.saveS(); c.el.classList.add('out'); cam.free = false; H.setMood(null); setTimeout(() => { c.el.remove(); document.body.classList.remove('introOn'); busy = false; H.pause(false); }, 700); };
@@ -144,10 +144,10 @@ export function installEpic(H) {
     S.graduated = S.graduated || Date.now(); H.saveS(); H.stat('graduated');
     const friends = H.NPCS.filter((n) => (H.S.npc || {})[n.id] >= 3).slice(0, 6).map((n) => n.name), vance = ((H.S.side || {}).vance5 || 0) >= 1;
     H.setMood('debrief');
-    H.dialogue([['narr', 'Graduation day. Justice Plaza is full of folding chairs, families, and one very interested cat.'], ['okonkwo', 'Cadets. Today you stop being cadets. Port Meridian trusted you with its streets for a whole academy. Now it trusts you with them for real.']]
-      .concat(vance ? [['vance', 'Next to me. Not behind me, not in front. Like I said.']] : [])
+    H.dialogue([['narr', 'Graduation day. Justice Plaza is full of folding chairs, families, and one very curious cat.'], ['okonkwo', 'Cadets, today you stop being cadets. Port Meridian trusted you with its streets for your whole academy. Now it\'s trusting you with them for real.']]
+      .concat(vance ? [['vance', 'Next to me. Not behind me, not in front of me. Like I said.']] : [])
       .concat(friends.length ? [['narr', 'In the crowd: ' + friends.join(', ') + '. Somebody is holding a sign with your call sign on it.']] : [])
-      .concat([['castillo', 'Twenty-two years, and I keep a list of every cadet who called me "ma\'am" on day one. You\'re on it. You\'re also on the other list. The short one.'], ['narr', 'Sgt. Castillo pins the badge on your chest. Her hands are steady. Her voice, for once, is not.'], ['castillo', 'Officer ' + H.S.cs + '. Go keep them safe.']]), () => credits(), { kicker: 'GRADUATION · FLORIDA BASIC RECRUIT TRAINING', voiced: true });
+      .concat([['castillo', 'Twenty-two years, and I keep a list of every cadet who called me "ma\'am" on their first day. You\'re on it. You\'re also on my other list. The short one.'], ['narr', 'Sergeant Castillo pins the badge on your chest. Her hands are steady. For once, her voice isn\'t.'], ['castillo', 'Officer ' + H.S.cs + '. Go keep them safe.']]), () => credits(), { kicker: 'GRADUATION · FLORIDA BASIC RECRUIT TRAINING', voiced: true });
   }
   function credits() {
     H.setMood('title'); const st = H.S.stats || {}, cast = ['Sgt. Dana Castillo', 'Lt. Okonkwo', 'Velvet (Dispatch)', 'Officer Pike', 'Det. Navarro', 'Lena Marsh', 'Cadet Devin Vance'];
@@ -180,7 +180,7 @@ export function installEpic(H) {
   function hero(d) {
     const T = ['Hometown Hero: Central', 'Hometown Hero: Eastside', 'Hometown Hero: Riverside', 'Hometown Hero: Industrial Park', 'Hometown Hero: Justice Row'][d], SK = { stripe: ['#f5b800', '#ef4444', '#14b8a6', '#f97316', '#8b5cf6'][d], text: 'HOMETOWN HERO' };
     const friends = H.NPCS.filter((n) => n.d === d && (H.S.npc || {})[n.id] >= 1).slice(0, 4);
-    H.dialogue([['narr', 'Someone has hung a banner across the street. It has your call sign on it. It is spelled correctly, mostly.']].concat(friends.map((n) => [n.id, rnd(['You did this. You came back every day.', 'The whole block chipped in for the banner. I bought the tape.', 'We feel safe here again. That\'s you.', 'Don\'t you dare get transferred.'])])).concat([['castillo', '(over the radio) A whole district, cadet. Most officers never get one. Enjoy it. Then get back to work.']]), () => {
+    H.dialogue([['narr', 'Somebody hung a banner across the street with your call sign on it. It\'s spelled right. Mostly.']].concat(friends.map((n) => [n.id, rnd(['You did this. You came back every day.', 'The whole block chipped in for the banner. I bought the tape.', 'We feel safe here again. That\'s you.', 'Don\'t you dare get transferred.'])])).concat([['castillo', '(over the radio) A whole district, cadet. Most officers never get that. Enjoy it. Then get back to work.']]), () => {
       H.S.titles = H.S.titles || {}; H.S.titles[T] = 1; H.S.carSkins = H.S.carSkins || {}; H.S.carSkins['hero' + d] = SK; H.saveS(); H.stat('hero'); H.award(300, 'Hometown Hero'); H.banner('🏆', T, 'Title and HOMETOWN HERO car skin unlocked.'); }, { kicker: 'HOMETOWN HERO · ' + H.dname(d).toUpperCase(), voiced: true });
   }
   const callMult = () => (H.W && repOf(H.W.did).idx >= 3 ? 1.1 : 1);
