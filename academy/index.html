@@ -30,7 +30,7 @@
 <link rel="modulepreload" href="city.js">
 <link rel="modulepreload" href="sagas.js">
 <link rel="modulepreload" href="tales.js">
-<link rel="modulepreload" href="icons.js"><link rel="modulepreload" href="phonehud.js"><link rel="modulepreload" href="heart.js"><link rel="modulepreload" href="patrolops.js"><link rel="modulepreload" href="learnflow.js">
+<link rel="modulepreload" href="icons.js"><link rel="modulepreload" href="phonehud.js"><link rel="modulepreload" href="heart.js"><link rel="modulepreload" href="patrolops.js"><link rel="modulepreload" href="learnflow.js"><link rel="modulepreload" href="variety.js">
 <link rel="modulepreload" href="npcgen.js">
 <link rel="modulepreload" href="offduty.js">
 <link rel="modulepreload" href="onboard.js">
@@ -528,7 +528,7 @@ body.cine .sqChip,body.photo .sqChip,body.attract .sqChip,body.photo .invCard{di
 .dlgConfirm{display:flex;justify-content:flex-end;margin-top:8px}.dlgConfirm button{min-height:40px;padding:0 20px;border-radius:99px;background:#f5b800;color:#111;font-weight:800;border:0}.dlgConfirm button:disabled{opacity:.45}
 .dlgPort.ok{box-shadow:0 0 0 2px #22c55e,0 0 18px rgba(34,197,94,.5)}.dlgPort.no{box-shadow:0 0 0 2px #ef4444,0 0 18px rgba(239,68,68,.4)}
 .dFacts{font-size:.8rem;color:#a5b0c7;margin:4px 0 6px}.dFacts b{color:#ffd34d;font-size:1rem}.dL em{font-style:normal;color:#8b95a7;font-size:.72rem;margin-left:4px}.dExam{display:grid;gap:4px;padding:12px;margin:8px 0;border-radius:14px;border:1px solid rgba(245,184,0,.5);background:linear-gradient(135deg,rgba(245,184,0,.16),rgba(255,255,255,.02))}.dExam b{font:800 1.2rem 'Meridian','Arial Narrow',system-ui,sans-serif}.dExam span{font-size:.82rem;color:#c7d0de}.dExam button{justify-self:start;min-height:40px;padding:0 18px;border-radius:99px;background:#f5b800;color:#111;font-weight:800;border:0}
-.dlgRetry{color:#fca5a5;font-weight:800;letter-spacing:.02em}
+.dlgRetry{color:#fca5a5;font-weight:800;letter-spacing:.02em}.dlgTimer{height:5px;border-radius:9px;background:rgba(255,255,255,.12);overflow:hidden;margin:0 0 8px}.dlgTimer i{display:block;height:100%;background:#f5b800;border-radius:inherit;transform-origin:left;animation:dlgTimer linear forwards}@keyframes dlgTimer{from{transform:scaleX(1)}to{transform:scaleX(0);background:#ef4444}}
 
 /* quest tracker */
 .qTrack{position:fixed;right:8px;top:calc(254px + var(--safe-t));z-index:5;width:236px;display:grid;gap:5px;font-size:.74rem}
@@ -1078,6 +1078,27 @@ body.phHud .stopBtn{bottom:calc(172px + var(--safe-b))}
 .sceneCap.on{opacity:1;transform:translate(-50%,0)}
 .dlgSaid{margin:0 0 6px;padding:5px 10px;border-radius:10px;background:rgba(245,184,0,.1);border-left:2px solid rgba(245,184,0,.7);font-size:.8rem;color:#fde68a;animation:drIn .25s ease-out}.dlgSaid b{font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;margin-right:6px;color:#f5b800}
 @media (prefers-reduced-motion:reduce){.sceneCap{transition:none}.drRow{animation:none}}
+.vgMini{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:14px;background:rgba(4,8,18,.62);opacity:0;transition:opacity .2s;--vgBg:#0f1a33}
+.vgMini.on{opacity:1}
+.vgCard{width:min(440px,100%);max-height:calc(100dvh - 28px);overflow:auto;padding:16px;border-radius:18px;background:linear-gradient(170deg,#13244a,#0b1630);border:1px solid rgba(255,255,255,.12);color:#e8eefc;box-shadow:0 20px 50px rgba(0,0,0,.45);font-family:'Meridian Text',system-ui,sans-serif;transform:translateY(8px);transition:transform .2s}
+.vgMini.on .vgCard{transform:none}
+.vgHead{display:grid;gap:2px;margin-bottom:10px}.vgHead span{font-size:.7rem;font-weight:800;letter-spacing:.12em;color:#f5b800}.vgHead b{font:800 1.25rem/1.15 'Meridian',system-ui,sans-serif}.vgHead small{color:#a9b6d3;font-size:.86rem}
+.vgStage{display:grid;place-items:center;padding:6px;border-radius:14px;background:radial-gradient(circle at 50% 40%,#22325a,#0d1730)}
+.vgFig{width:150px;height:auto}
+.vgBar{height:6px;border-radius:9px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:10px}.vgBar i{display:block;height:100%;background:#f5b800;animation:dlgTimer 5s linear forwards;transform-origin:left}
+.vgCount{text-align:center;font:800 1.6rem 'Meridian',system-ui;margin:6px 0 0;color:#f5b800}
+.vgOpts,.vgPick{display:grid;gap:8px;margin-top:10px}
+.vgOpts button,.vgPick button{min-height:46px;padding:10px 12px;border-radius:12px;border:1.5px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);color:#e8eefc;font:inherit;font-weight:600;text-align:left;cursor:pointer}
+.vgPick button.on{border-color:#f5b800;background:rgba(245,184,0,.16)}
+.vgOpts button.ok,.vgPick button.ok{border-color:#22c55e;background:rgba(34,197,94,.18)}.vgOpts button.no,.vgPick button.no{border-color:#ef4444;background:rgba(239,68,68,.16)}
+.vgPick button.miss{border:2px dashed #22c55e}.vgPick button.dim,.vgOpts button:disabled:not(.ok):not(.no){opacity:.5}
+.vgNote{margin:10px 0 0;color:#c9d3ea;font-size:.9rem;line-height:1.5}
+.vgActs{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.vgGo{min-height:44px;padding:0 18px;border-radius:12px;border:0;background:#f5b800;color:#0b1630;font:inherit;font-weight:800;cursor:pointer}.vgGo:disabled{opacity:.45}
+.vgPlan{display:block;width:100%;height:auto;color:#c9d3ea;margin:4px 0}
+.vgPt{cursor:pointer}.vgPt circle:first-child{fill:rgba(255,255,255,.06);stroke:rgba(255,255,255,.35);stroke-width:1.5}.vgPt circle:last-child{fill:#c9d3ea}
+.vgPt.on circle:first-child{fill:rgba(245,184,0,.3);stroke:#f5b800}.vgPt.on circle:last-child{fill:#f5b800}
+@media (prefers-reduced-motion:reduce){.vgMini,.vgCard{transition:none}.vgBar i{animation-duration:5s}}
 </style>
 </head>
 <body>
