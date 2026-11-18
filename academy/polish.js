@@ -62,14 +62,14 @@ export function installPolish(H) {
     if (f < 5 && Math.random() < .3 && H.wxBark) { const w = H.wxBark(); if (w) return w; }
     const tod = h < 11 ? 'Morning' : h < 17 ? 'Afternoon' : 'Evening';
     if (f >= 3 && S.title && Math.random() < .25) return rnd([tod + ', ' + S.title + '!', 'Well, if it isn\'t ' + S.title + '.', S.title + '! Heard about that.']);
-    if (f >= 5) return rnd(['There\'s my favorite cadet!', 'Hey you! Come say hi!', tod + ', partner!', 'Don\'t be a stranger now!', 'You\'re a sight for sore eyes.']);
-    if (f >= 3) return rnd([tod + ', cadet!', 'Hey! How\'s the watch?', 'Stay safe out there!', 'Good to see you around.', 'Cadet! Got a minute later?']);
+    if (f >= 5) return rnd(['There\'s my favorite cadet!', 'Hey, you! Come over here and say hi!', tod + ', partner!', 'Don\'t be a stranger now!', 'Oh, I\'m so glad to see you.']);
+    if (f >= 3) return rnd([tod + ', cadet!', 'Hey! How\'s your shift going?', 'Stay safe out there!', 'Good to see you around.', 'Hey, come find me later, okay?']);
     if (f >= 1) return rnd([tod + ', officer.', 'Oh, hey. Hi.', 'Back on patrol?', 'Hi there.']);
     if (tr < 35) return rnd(['…', 'Didn\'t call you.', 'Hmph.', '(looks away)']);
     if (tr > 70) return rnd(['Thanks for looking out for us.', tod + ', officer!', 'Glad you\'re around.', 'Appreciate you.']);
     return rnd([tod + '.', 'Officer.', 'Hey.', '(nods)']);
   }
-  const PED = { lo: ['…', '(crosses the street)', 'Not today, man.', '(avoids eye contact)', 'Didn\'t do anything.', '(phone suddenly very interesting)'], mid: ['(nods)', 'Hey.', 'Officer.', 'Busy day?', 'Hot one, huh?', 'Morning. Or whatever it is.', '(half a wave)'], hi: ['Thanks for being out here!', 'Hey! Stay safe, okay?', '(waves big)', 'My kid wants to be a cop. Say hi!', 'You all doing okay? Need water?', 'Saw you last week. You were nice to my mom.'] };
+  const PED = { lo: ['…', '(crosses the street)', 'Not today, man.', '(avoids eye contact)', 'I didn\'t do anything.', '(looks down at their phone)'], mid: ['(nods)', 'Hey.', 'Officer.', 'Busy day?', 'Hot one, huh?', 'Morning. Or whatever it is.', '(half a wave)'], hi: ['Thanks for being out here!', 'Hey! Stay safe, okay?', '(waves big)', 'My kid wants to be a cop. Say hi!', 'You all doing okay? Need water?', 'Saw you last week. You were nice to my mom.'] };
   function barks(dt) {
     for (let i = BARKS.length - 1; i >= 0; i--) { BARKS[i].t -= dt; if (BARKS[i].t <= 0) BARKS.splice(i, 1); }
     bT -= dt; if (bT > 0 || H.cine() || H.paused()) return; bT = .5; const P = H.P, now = performance.now(); if (P.inCar && P.moving) return;
