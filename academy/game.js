@@ -168,13 +168,24 @@ function chunkRange(ix0, iy0, ix1, iy1) {
   let mnx = 1e9, mxx = -1e9, mny = 1e9, mxy = -1e9; for (const p of pts) { if (p[0] < mnx) mnx = p[0]; if (p[0] > mxx) mxx = p[0]; if (p[1] < mny) mny = p[1]; if (p[1] > mxy) mxy = p[1]; }
   return [Math.max(0, Math.floor(mnx / CH)), Math.min(M, Math.floor(mxx / CH)), Math.max(0, Math.floor(mny / CH)), Math.min(M, Math.floor(mxy / CH))];
 }
+// manhole covers are part of the street: painted into each ground chunk once when it is made (also into the
+// neighbor a cover overlaps), instead of stamping every cover on screen every frame
+function groundChunk(W, cx, cy) {
+  const c = drawGround(W, cx, cy); if (W.inside) return c;
+  const cvs = c.canvas, k = cvs.width / cvs.lw, g = cvs.getContext('2d'), x0 = Math.max(1, cx * CH - 2), x1 = Math.min(N - 2, (cx + 1) * CH + 2), y0 = Math.max(1, cy * CH - 2), y1 = Math.min(N - 2, (cy + 1) * CH + 2);
+  let on = false;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { if (x % 11 !== 1 || y % 11 !== 6 || W.at(x, y) !== T.ROAD) continue;
+    const [sx, sy] = iso(x + .5, y + .5), lx = sx + c.ox - 10, ly = sy + c.oy - 5.5; if (lx > cvs.lw || ly > cvs.lh || lx + 20 < 0 || ly + 11 < 0) continue;
+    if (!on) { g.save(); g.setTransform(k, 0, 0, k, 0, 0); on = true; } g.drawImage(MANHOLE || (MANHOLE = manholeSprite()), lx, ly, 20, 11); }
+  if (on) g.restore(); return c;
+}
 // draw the chunks covering an iso rectangle into g (whose transform is already set); returns false if a chunk was missing
 let gMade = 0;
 function chunksInto(g, ix0, iy0, ix1, iy1, now) {
   const [cx0, cx1, cy0, cy1] = chunkRange(ix0 - 80, iy0 - 80, ix1 + 80, iy1 + 80); let whole = true;
   for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
     const k = cx + ',' + cy; let c = G.chunks.get(k);
-    if (!c) { if (gMade >= 1 && G.chunks.size > 4) { G.miss = 1; whole = false; continue; } c = drawGround(W, cx, cy); G.chunks.set(k, c); G.ver = (G.ver || 0) + 1; gMade++; }
+    if (!c) { if (gMade >= 1 && G.chunks.size > 4) { G.miss = 1; whole = false; continue; } c = groundChunk(W, cx, cy); G.chunks.set(k, c); G.ver = (G.ver || 0) + 1; gMade++; }
     c.used = now; g.drawImage(c.canvas, -c.ox, -c.oy, c.canvas.lw, c.canvas.lh);
   }
   return whole;
@@ -230,7 +241,7 @@ function groundAhead(dl) {
   const ccx = (cx0 + cx1) / 2 + Math.sign(vx + vy * 2) * .8, ccy = (cy0 + cy1) / 2 + Math.sign(vy * 2 - vx) * .8, want = [];
   for (let cy = Math.max(0, cy0 - 2); cy <= Math.min(M2, cy1 + 2); cy++) for (let cx = Math.max(0, cx0 - 2); cx <= Math.min(M2, cx1 + 2); cx++) if (!G.chunks.has(cx + ',' + cy)) want.push([Math.hypot(cx - ccx, cy - ccy), cx, cy]);
   want.sort((a, b) => a[0] - b[0]);
-  let built = 0; for (const [, cx, cy] of want) { if (built && (dl.timeRemaining() < 8 || performance.now() - t0 > 10)) break; const c2 = drawGround(W, cx, cy); c2.used = performance.now(); G.chunks.set(cx + ',' + cy, c2); G.ver = (G.ver || 0) + 1; built++; if (built >= 2) break; }
+  let built = 0; for (const [, cx, cy] of want) { if (built && (dl.timeRemaining() < 8 || performance.now() - t0 > 10)) break; const c2 = groundChunk(W, cx, cy); c2.used = performance.now(); G.chunks.set(cx + ',' + cy, c2); G.ver = (G.ver || 0) + 1; built++; if (built >= 2) break; }
   if (want.length > built) { G.idle = 1; idleSoon(groundAhead); }
 }
 
@@ -253,7 +264,7 @@ function load(did) {
   if (W.river && S.unit === 'marine') { const y = Math.max(2, Math.min(N - 3, Math.round(P.y))); pboat = { x: 36.6, y: y + .5, dir: 1, dock: [35.5, y + .5] }; }
   exploreInit(); liveInit(); placeRegulars(); ambienceInit(); SS = { rp: 0, calls: 0, right: 0, answered: 0, ords: {} }; COMBO = 0; bestCombo = 0; ordersInit(); comboHud(); abilitiesInit(); $('hExp').textContent = 'Explored ' + Math.floor(exCount / exTotal * 100) + '%';
   cam.x = iso(P.x, P.y)[0]; cam.y = iso(P.x, P.y)[1]; cam.free = false;
-  hud(); radio('Dispatch', 'All units, ' + shiftOf().name.toLowerCase() + ' in ' + W.D.name + ' is on. ' + S.cs + ', you are in service.'); VAR.onShift();
+  hud(); radio('Dispatch', 'All units, ' + shiftOf().name.toLowerCase() + ' in ' + W.D.name + ' is on. ' + S.cs + ', you are in service.'); VAR.onShift(); if (SPROUT_R[L.rankOf(S.xp).name] && !S.sproutTip) { S.sproutTip = 1; saveS(); setTimeout(() => toast('🌱 New cadets wear a sprout on their name. Veterans earn a mentor bonus for backing you up, so ask for backup any time.'), 9000); }
   CHAT.list = []; CHAT.seen = new Set(); if (net && net.chatOn) net.chatOn(did, chatIn); if (MG) MG.watch(did);
   if (net) Promise.resolve(net.join(did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).then(() => COOP.joinDistrict()).catch(() => {});
 }
@@ -439,7 +450,7 @@ function render(now) { RNOW = now; frameStart(); spriteResTick(false);
   if (pboat && !P.boat) { const [sx, sy] = iso(pboat.x, pboat.y); list.push({ d: pboat.x + pboat.y, f: () => { vehicle(ctx, sx, sy, pboat.dir, { kind: 'boat' }, now, NIGHT, false); if (Math.hypot(pboat.x - P.x, pboat.y - P.y) < 6) label(sx, sy - 30, 'Patrol boat', '#7dd3fc'); } }); }
   if (S.unit === 'k9' && !P.inCar && !P.boat) { const [sx, sy] = iso(K9.x, K9.y); list.push({ d: K9.x + K9.y, f: () => dogFast(ctx, sx, sy, K9.face, K9.moving, now) }); }
   Object.keys(others).forEach((k) => { const o = others[k]; if ((o.n == null ? -1 : o.n) !== (inside ? inside.idx : -1)) return; const [sx, sy] = iso(o.rx, o.ry); if (!vis(sx, sy)) return; list.push({ d: o.rx + o.ry, f: () => { const ou = unitOf(o.u); if (o.v) vehicle(ctx, sx, sy, o.d || 0, o.v === 2 ? { kind: 'boat' } : ou.ride, now, NIGHT, o.st === 'call'); else { const ck = (o.f || '') + '|' + o.u; if (o._ck !== ck) { const tk = String(o.f || 'ostd').split(','), of = (tk.find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1), lk = looks(tk); o._ck = ck; o._kit = kitWith(kitOf(of, o.u), o.f ? lk : {}); o._fl = Object.assign({}, outfitLook(of), lk); o._po = { kit: o._kit, s: 1 }; }
-      const po = o._po; po.moving = o.moving; po.face = o.face || 1; po.back = o.back; po.stride = o.stride; po.skin = o.skin; personFast(ctx, sx, sy, po, now, 'o' + ck + (o.skin || ''), OCOUNT > 20); if (o.u === 'k9') dogFast(ctx, sx - 14, sy + 6, 1, o.moving, now); if (cam.z > .6 || DRAWN_OTHERS < 25) flair(o._fl, sx, sy, now, 1); } const mate = S.squad && o.g === S.squad.code; if (mate) { ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, 15, 7.5, 0, 0, Math.PI * 2); ctx.stroke(); } if (mate || o.nearRank < (innerWidth < 700 ? 10 : 18)) label(sx, sy - (o.v ? 40 : 50), (o.k ? '[' + o.k + '] ' : '') + ou.icon + ' ' + o.c + (o.sh && o.sh !== S.shift ? ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') : ''), '#9cc3ff'); if (!(mate || o.nearRank < 8)) { /* bubbles only for the closest few */ } else if (o.say && performance.now() - o.sayAt < 7000) speech(sx, sy - (o.v ? 52 : 68), o.say.length > 34 ? o.say.slice(0, 32) + '…' : o.say); else if (o.q && now - o.qAt < 6000) speech(sx, sy - (o.v ? 52 : 68), QUICK[o.q.k] || ''); } }); });
+      const po = o._po; po.moving = o.moving; po.face = o.face || 1; po.back = o.back; po.stride = o.stride; po.skin = o.skin; personFast(ctx, sx, sy, po, now, 'o' + ck + (o.skin || ''), OCOUNT > 20); if (o.u === 'k9') dogFast(ctx, sx - 14, sy + 6, 1, o.moving, now); if (cam.z > .6 || DRAWN_OTHERS < 25) flair(o._fl, sx, sy, now, 1); } const mate = S.squad && o.g === S.squad.code; if (mate) { ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, 15, 7.5, 0, 0, Math.PI * 2); ctx.stroke(); } if (mate || o.nearRank < (innerWidth < 700 ? 10 : 18)) label(sx, sy - (o.v ? 40 : 50), (sprout(o) ? '🌱 ' : '') + (o.k ? '[' + o.k + '] ' : '') + ou.icon + ' ' + o.c + (o.sh && o.sh !== S.shift ? ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') : ''), '#9cc3ff'); if (!(mate || o.nearRank < 8)) { /* bubbles only for the closest few */ } else if (o.say && performance.now() - o.sayAt < 7000) speech(sx, sy - (o.v ? 52 : 68), o.say.length > 34 ? o.say.slice(0, 32) + '…' : o.say); else if (o.q && now - o.qAt < 6000) speech(sx, sy - (o.v ? 52 : 68), QUICK[o.q.k] || ''); } }); });
   if (!ATTRACT && !RIDING) { const [sx, sy] = iso(P.x, P.y); list.push({ d: P.x + P.y, f: () => { if (P.boat) vehicle(ctx, sx, sy, P.dir, { kind: 'boat' }, now, NIGHT, call && call.accepted); else if (P.inCar && RIDE() !== 'car') rideArt(ctx, sx, sy, P.dir || 0, RIDE(), now, !!(P.path && P.path.length), riderFn(now), (call && call.accepted) || STOPLIGHTS); else if (P.inCar) { FEEL.wetLights(ctx, sx, sy, now); const rl = FEEL.rollIn(ctx, sx, sy), dip = P.pitch || 0; if (dip) { ctx.save(); const f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][P.dir & 3]; ctx.translate(sx, sy); ctx.rotate(dip * .035 * (f[0] > 0 ? 1 : -1)); ctx.translate(-sx, -sy + Math.abs(dip) * .8); } vehicle(ctx, sx, sy, P.dir, LIFE.ride(U().ride), now, NIGHT, (call && call.accepted) || STOPLIGHTS); if (dip) ctx.restore(); if (rl) ctx.restore(); } else person(ctx, sx, sy, { kit: kitWith(myKit(), myLooks()), moving: P.moving, face: P.face, back: P.back, stride: P.stride, glance: false, skin: S.skin || '#c68e63', s: 1.08 }, now); } }); }
   liveDraw(list, vis, now); if (!ATTRACT) storyCast(list, vis, now);
   ambienceGround(); vfxGround(now, vis); if (!ATTRACT) trailDraw(now);
@@ -1492,7 +1503,8 @@ function ambienceInit() {
   AMB = { grass: [], holes: [], water: [], puddles: [] }; if (!W || W.inside) return;
   for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) { const v = W.at(x, y); if (v === T.GRASS && (x * 7 + y * 13) % 5 === 0) AMB.grass.push([x + .5, y + .5, Math.random() * 9]); if (v === T.ROAD && x % 11 === 1 && y % 11 === 6) AMB.holes.push([x + .5, y + .5]); if (v === T.WATER && (x + y * 3) % 2 === 0) AMB.water.push([x, y]); if ((v === T.ROAD || v === T.LOT || v === T.WALK) && ((x * 92821) ^ (y * 68917)) % 23 === 0) AMB.puddles.push([x + .3 + ((x * 7) % 5) / 12, y + .3 + ((y * 11) % 5) / 12, .6 + ((x + y) % 4) / 6]); }
 }
-function ambienceGround() { if (inside) return; const z = cam.z * dpr, hw = cv.width / 2 / z + 40, hh = cv.height / 2 / z + 40; AMB.holes.forEach((h) => { const q = h._iso || (h._iso = iso(h[0], h[1])), sx = q[0], sy = q[1]; if (sx < cam.x - hw || sx > cam.x + hw || sy < cam.y - hh || sy > cam.y + hh) return; ctx.drawImage(MANHOLE || (MANHOLE = manholeSprite()), sx - 10, sy - 5.5, 20, 11); }); }
+// with chunked ground the covers are baked in (groundChunk); only a single prebuilt ground canvas still needs them here
+function ambienceGround() { if (inside || !G || !G.canvas) return; const z = cam.z * dpr, hw = cv.width / 2 / z + 40, hh = cv.height / 2 / z + 40; AMB.holes.forEach((h) => { const q = h._iso || (h._iso = iso(h[0], h[1])), sx = q[0], sy = q[1]; if (sx < cam.x - hw || sx > cam.x + hw || sy < cam.y - hh || sy > cam.y + hh) return; ctx.drawImage(MANHOLE || (MANHOLE = manholeSprite()), sx - 10, sy - 5.5, 20, 11); }); }
 let MANHOLE = null;
 function manholeSprite() { const [c, g] = hiCanvas(20, 11, 3); g.fillStyle = '#2b3038'; g.beginPath(); g.ellipse(10, 5.5, 9, 4.5, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#4a515c'; g.lineWidth = 1; g.stroke(); return c; }
 function vfxGround(now, vis) { // under the objects: puddles in the rain, sparkles on the water
@@ -1850,8 +1862,8 @@ function openCallSceneQ(c) {
     paused = false; VAR.afterScene(c, res); const eff = (res.choices.find((o) => o.eff) || {}).eff; c.eff = eff; if (eff) consequence(eff, c);
     const r = { right: res.right, n: res.n };
     S.calls++; SS.calls++; NG.callCleared(); stat('p' + c.prio); if (inside) stat('inCall'); if (NIGHT) stat('nightCalls'); const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 && hasSk('tac2') ? 1.15 : 1) * (c.prio === 1 && hasSk('tac4') ? 1.25 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM * EP.callMult() * LV.mult() * NG.mult() * (hasSk('pat3') && EP.repOf(W.did).idx >= 2 ? 1.1 : 1), xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0) + (c.wrap === 'case' || c.wrap === 'resources' ? 10 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
-    const coopOk = c.coop && res.choices.some((o) => o.ok), xpT = Math.round(xp * (coopOk ? 1.25 * (hasSk('pat4') ? 1.15 : 1) : 1)); if (FX.storm) stat('stormCall'); EP.squadCall(); if (c.coop) { stat('coop'); if (coopOk) stat('coopGood'); }
-    const more = [c.posRow, PREM.threadDone(c), c.procOk != null ? ['🔗', 'Procedure', Math.round(c.procOk / 3 * 10), 10, c.procOk + ' of 3 arrest steps by the book'] : null].filter(Boolean); PREM.helped(c); PREM.seedThread(c);
+    const coopOk = c.coop && res.choices.some((o) => o.ok), mrow = cov ? mentorBonus(cov.uid) : null, xpT = Math.round(xp * (coopOk ? 1.25 * (hasSk('pat4') ? 1.15 : 1) : 1) * (mrow ? 1.5 : 1)); if (FX.storm) stat('stormCall'); EP.squadCall(); if (c.coop) { stat('coop'); if (coopOk) stat('coopGood'); }
+    const more = [mrow, c.posRow, PREM.threadDone(c), c.procOk != null ? ['🔗', 'Procedure', Math.round(c.procOk / 3 * 10), 10, c.procOk + ' of 3 arrest steps by the book'] : null].filter(Boolean); PREM.helped(c); PREM.seedThread(c);
     const report = (go) => (PREM.needsReport(c) ? PREM.report(c, (row) => go([row])) : go([]));
     EP.afterCall(c, (extra0) => report((rr) => POL.debrief({ extra: (extra0 || []).concat(more, rr), title: c.title, where: c.where, prio: c.prio, right: r.right, n: r.n, fast, resp: (clock - c.t0), approach: !a ? undefined : !c.eff ? null : (APPROACH_BONUS[c.eff] || 1) > 1 ? 'good' : 'ok', wrap: c.wrap, calm: res.choices.some((o) => o.eff2 === 'calm'), qs: res.qs || [], coop: coopOk ? c.coop : null, xp: xpT, role: c.coop ? 'Contact officer' : '' }, () => { closeModal(); radio(S.cs, 'Clear, back in service.'); award(Math.round(xpT * CITY.beatMult(c)), c.coop ? 'co-op call cleared' : 'call cleared'); queueLoot('Found on scene: ' + c.title, r.right === r.n ? .6 : .3); nextCall = (25 + Math.random() * 25) * (S.unit === 'patrol' ? .75 : 1); if (net) net.backup(null); COVER = null; })));
   }, { focus: [c.x, c.y], kicker: (c.prio === 1 ? 'PRIORITY 1' : c.prio === 2 ? 'PRIORITY 2' : 'ROUTINE') + ' · ' + c.where.toUpperCase(), onLeave: () => { leaveDefault(); c.accepted = true; call = c; callCard(); } });
@@ -1904,7 +1916,8 @@ function backupScene(uid, o) {
     { t: 'Stand right behind your partner', reply: [[id, 'Give me some space. If you\'re behind me you can\'t see what I can\'t.'], ['castillo', '(over the radio) Cover stands off at an angle, not right behind contact.']] }].sort(() => Math.random() - .5), 'You\'re the cover officer. Where do you set up?'],
     ['narr', 'Contact and cover: one officer makes contact and does the talking, the other watches hands, exits and the crowd. Training call, sim rules.'],
     ['q', qs[0], id], ['q', qs[1], 'castillo']], (r) => { if (net) net.assist(null); COOP.coopEnd(); setTimeout(() => { COOP.commendPrompt(uid, o.c, 'you backed them up'); if (COOP.aid) COOP.aidDone(); }, 2500); stat('coop'); const ok = r.choices.some((x) => x.ok); if (ok) stat('coopGood');
-      POL.debrief({ title: 'Backup: ' + (o.b.l || 'cover officer'), where: W.D.name, prio: 2, right: r.right, n: r.n, fast: true, resp: 0, approach: ok ? 'good' : null, wrap: 'case', calm: ok, qs: r.qs || [], coop: ok ? o.c : null, xp: Math.round((20 + r.right * 15) * (ok ? 1.25 : 1)), role: 'Cover officer' }, () => { closeModal(); award(Math.round((20 + r.right * 15) * (ok ? 1.25 : 1)), 'co-op backup'); });
+      const mrow = mentorBonus(uid), bxp = Math.round((20 + r.right * 15) * (ok ? 1.25 : 1) * (mrow ? 1.5 : 1));
+      POL.debrief({ extra: mrow ? [mrow] : [], title: 'Backup: ' + (o.b.l || 'cover officer'), where: W.D.name, prio: 2, right: r.right, n: r.n, fast: true, resp: 0, approach: ok ? 'good' : null, wrap: 'case', calm: ok, qs: r.qs || [], coop: ok ? o.c : null, xp: bxp, role: 'Cover officer' }, () => { closeModal(); award(bxp, mrow ? 'co-op backup + mentoring' : 'co-op backup'); });
     }, { focus: [o.b.x, o.b.y], kicker: 'CO-OP TRAINING · COVER OFFICER' });
 }
 
@@ -2392,7 +2405,7 @@ function bkCardTick() {
   if (!r || !free || BKGO) { if (!el.hidden) el.hidden = true; return; }
   if (el.dataset.k === r.key && !el.hidden) { const left = Math.max(0, 45 - (performance.now() - r.at) / 1000); el.style.setProperty('--left', (left / 45).toFixed(3)); return; }
   const d = Math.round(Math.hypot(r.b.x - P.x, r.b.y - P.y) * 4), un = unitOf(r.u) || {}; el.dataset.k = r.key; el.hidden = false; el.className = 'bkCard p' + (r.b.p || 2);
-  el.innerHTML = '<div class="bkTop"><b>' + (r.b.p === 1 ? '🚨 PRIORITY BACKUP' : '📻 BACKUP REQUEST') + '</b><span>' + d + ' m away</span></div><div class="bkWho">' + (un.icon || '🚓') + ' <b>' + esc(r.c) + '</b> needs ' + (COOP.wantLabel(r.b.n) ? 'a ' + esc(COOP.wantLabel(r.b.n)) + ' unit' : 'a cover officer') + (COOP.partnerOf(r.uid) ? ' · <i class="bkPt">your partner</i>' : '') + '</div><div class="bkWhat">' + esc(r.b.l || 'Cover officer requested') + '</div>' +
+  el.innerHTML = '<div class="bkTop"><b>' + (r.b.p === 1 ? '🚨 PRIORITY BACKUP' : '📻 BACKUP REQUEST') + '</b><span>' + d + ' m away</span></div><div class="bkWho">' + (un.icon || '🚓') + ' <b>' + esc(r.c) + '</b> needs ' + (COOP.wantLabel(r.b.n) ? 'a ' + esc(COOP.wantLabel(r.b.n)) + ' unit' : 'a cover officer') + (COOP.partnerOf(r.uid) ? ' · <i class="bkPt">your partner</i>' : '') + (sprout(others[r.uid]) ? ' · <i class="bkPt">🌱 new cadet' + (isVet() ? ', mentor bonus' : '') + '</i>' : '') + '</div><div class="bkWhat">' + esc(r.b.l || 'Cover officer requested') + '</div>' +
     '<div class="bkBtns"><button type="button" id="bkYes">Accept · en route</button><button type="button" class="ghost" id="bkNo">Decline</button></div><i class="bkTime"></i>';
   $('bkYes').onclick = () => bkAccept(r); $('bkNo').onclick = () => { BKDECL[r.key] = 1; BKQ.shift(); el.hidden = true; };
 }
@@ -2405,6 +2418,13 @@ function bkTick() {
   if (Math.hypot(BKGO.x - P.x, BKGO.y - P.y) < 2 && !stageBusy() && $('dlg').hidden && !scene) { const uid = BKGO.uid; BKGO = null; backupScene(uid, o); }
   else if (performance.now() - BKGO.t > 240000) bkStood('Backup request timed out.');
 }
+// new cadets (the first two ranks) wear a sprout over their name for everyone else; a veteran (Squad Leader 2 and up)
+// who backs one up or works a call with one as cover earns a mentor bonus, and five of those make a Field Training Officer
+const SPROUT_R = { 'Cadet': 1, 'Squad Leader 4': 1 }, sprout = (o) => !!(o && SPROUT_R[o.r]), isVet = () => S.xp >= 1200;
+function mentorBonus(uid) { const o = others[uid]; if (!isVet() || !sprout(o)) return null;
+  S.mentor = (S.mentor || 0) + 1; stat('mentor'); saveS();
+  if (S.mentor === 5) { S.titles = S.titles || {}; S.titles['Field Training Officer'] = 1; saveS(); setTimeout(() => banner('🌱', 'Field Training Officer', 'Five calls worked with new cadets. That is how the next class learns.'), 2500); }
+  return ['🌱', 'Mentoring', 10, 10, 'You worked this with a new cadet (' + o.c + '). Mentor bonus +50%']; }
 function onPlayers(all, uid) {
   myUid = uid; COOP.online(uid); const now = N0(), seen = {};
   Object.keys(all).forEach((k) => {
