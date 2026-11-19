@@ -51,9 +51,12 @@ export function installLearnFlow(H) {
   let idle = 0; const COORD = H.sayAs('coord', { name: 'Ofc. Dana Reid', icon: '📋', role: 'Training coordinator' });
   const contacts = [['Mrs. Tran', '👵', 'Excuse me, officer? Sorry. My grandson\'s in the academy and he asked me this, and I didn\'t know.'], ['Devon', '🙋', 'Hey, officer! Settle a bet for me and my friend real quick.'], ['Mr. Haskell', '🧔', 'Officer, I read something in the paper this morning and I want to make sure I understood it right.'], ['Kayla', '🧑‍🎓', 'Hi! I\'m doing a criminal justice class at the college. Can I ask you something?'], ['Ms. Patel', '💁', 'Officer, quick question, if you\'ve got a second. My son wants to be a cop.'], ['Luis', '🧑', 'Hey, you\'re a cop, right? I always wondered about this.']];
   function fieldCheck() {
-    const d = H.W().did, coord = Math.random() < .5, qs = L.pickFacts(S, H.DISTRICTS[d].lessons, coord ? 2 : 1, { wide: true }); if (!qs.length) return;
+    // the coordinator goes after your weakest lesson in this district and says so
+    const d = H.W().did, coord = Math.random() < .5, weak = L.weakest(S, d), m = L.mastery(S, weak), lname = L.lessonName(weak).replace(/^[\d.]+:?\s*/, '');
+    let qs = L.pickFacts(S, coord ? [weak] : H.DISTRICTS[d].lessons, coord ? 2 : 1, { wide: true }); if (!qs.length) return;
+    if (H.formatQ && Math.random() < .35) { const f = H.formatQ(qs[0].les); if (f) qs = [f].concat(qs.slice(1)); }
     let sp, open;
-    if (coord) { sp = COORD; open = [[sp, rnd(['Cadet, it\'s Reid from training. Got a minute? Two quick ones for you.', 'Hey, it\'s Reid. Your exam\'s coming, so let\'s keep you sharp. Ready?', 'Reid here. I\'m checking in on everybody in your class. Two questions, then I\'ll let you go.'])]]; }
+    if (coord) { sp = COORD; open = [[sp, m.n >= 3 && m.pct < .7 ? rnd(['Reid here. You\'ve been missing a few on ' + lname + '. Let\'s fix that. Two quick ones.', 'Hey, it\'s Reid. I pulled your numbers. ' + lname + ' is your weak spot right now. Two questions.', 'Reid from training. ' + lname + ' keeps tripping you up, so that\'s what we\'re doing today.']) : rnd(['Cadet, it\'s Reid from training. Got a minute? Two on ' + lname + '.', 'Hey, it\'s Reid. Your exam\'s coming, so let\'s keep you sharp. ' + lname + ' today.', 'Reid here. Checking in on everybody in your class. Two questions on ' + lname + ', then I\'ll let you go.'])]]; }
     else { const c = rnd(contacts); sp = H.sayAs('fc_' + c[0].replace(/\W/g, ''), { name: c[0], icon: c[1], role: 'Field contact' }); open = [[sp, c[2]]]; H.stat('fieldContacts'); }
     H.stat('fieldChecks');
     H.dialogue(open.concat(qs.map((q) => ['q', q, sp]), [[sp, coord ? rnd(['That\'s all I needed. Stay safe out there.', 'Good. I\'ll check back with you later.']) : rnd(['Thanks, officer. That really helps.', 'Huh. I didn\'t know that. Thank you!', 'Okay! I\'m telling my friend he owes me five bucks.'])]]),
