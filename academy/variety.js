@@ -450,7 +450,8 @@ export function installVariety(H) {
     const m = pick('moment', MOMENTS.map((_, i) => i)); MOMENTS[m](); logEvent(.3);
   }
   function tick(dt) {
-    if (!H.free() || H.call()) return; ambT -= dt;
+    // never right on the heels of something else: wait at least 12 seconds of free time after anything ends
+    if (!H.free() || H.call() || (S.cfg && S.cfg.noAmbient)) { ambT = Math.max(ambT, 12); return; } ambT -= dt;
     if (ambT <= 0) { ambT = 55 + Math.random() * 50; if (heat() < 4) ambient(); }
   }
 
