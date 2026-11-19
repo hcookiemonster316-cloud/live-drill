@@ -99,7 +99,7 @@ export const SIDE2 = [
   { id: 'deadair', d: 0, title: 'Dead Air', giver: 'kevin', req: [0, 1], blurb: 'Kevin from IT found a radio dead spot downtown.',
     offer: [['kevin', 'So, um, your radios. Near Bayfront Tower they just... stop working. I tested it with my scanner. It\'s a hobby. Please don\'t arrest me.'], ['kevin', 'The county radio tech is up at the Radio Tower today. She\'d want to see my graph. Everybody wants to see my graph.']],
     steps: [
-      { at: 'Radio Tower', who: 'rtech', goal: 'Show Kevin\'s graph to the radio tech at the Radio Tower', say: [['rtech', 'Huh. Signal\'s fine, fine, fine, and then there\'s nothing for a whole block. That\'s the downtown repeater. It\'s been acting up since the hurricane.'], ['rtech', 'I can fix it, but the work order has to come from the department. Somebody has to put it in writing.']], quiz: { les: 2, n: 1 } },
+      { at: 'Radio Tower', who: 'rtech', goal: 'Show Kevin\'s graph to Ana at the Radio Tower', say: [['rtech', 'Huh. Signal\'s fine, fine, fine, and then there\'s nothing for a whole block. That\'s the downtown repeater. It\'s been acting up since the hurricane.'], ['rtech', 'I can fix it, but the work order has to come from the department. Somebody has to put it in writing.']], quiz: { les: 2, n: 1 } },
       { at: 'Dispatch Center', who: 'velvet', goal: 'Bring it to Velvet at the Dispatch Center', say: [['velvet', 'A dead spot downtown? Officers walk that block every night.'],
         ['choice', [
           { t: 'Write it up as an officer safety hazard through the chain of command', set: 'deadairReport', trust: 1, reply: [['velvet', 'If it\'s an officer safety issue, it goes to the top of the list. I\'ll walk it over to the lieutenant myself.'], ['rtech', '(over the radio) Got the work order. The repeater\'ll be back up tonight.']] },
@@ -153,7 +153,7 @@ export const SIDE2 = [
   { id: 'fakepage', d: 0, title: 'Not Our Page', giver: 'diaz', giverAt: 'Bayfront Dog Run', req: [0, 4], blurb: 'A fake police page is asking for donations by gift card.',
     offer: [['diaz', 'Officer! My friends keep sharing a "Port Meridian Police Charity" page, and it wants donations in gift cards. It has your badge on it. That\'s not you, is it? Pepito, sit.']],
     steps: [
-      { at: 'Patrol HQ', inside: true, who: 'pio', goal: 'Take it to the public information officer at Patrol HQ', say: [['pio', 'That\'s not ours. Get screenshots, the account name, the payment details and the times, before they delete it.']], quiz: { les: 3, n: 1 } },
+      { at: 'Patrol HQ', inside: true, who: 'pio', goal: 'Take it to Officer Lane at Patrol HQ', say: [['pio', 'That\'s not ours. Get screenshots, the account name, the payment details and the times, before they delete it.']], quiz: { les: 3, n: 1 } },
       { at: 'Bayfront Dog Run', who: 'diaz', goal: 'Get back to Mrs. Diaz at the Dog Run', say: [['diaz', 'So what do I tell my friends?'],
         ['choice', [
           { t: 'Have the PIO warn people on the real page', set: 'fakeWarned', trust: 2, reply: [['pio', '(over the radio) Posted. It\'s on our real page now with a warning. The fake one should be down by tonight.'], ['diaz', 'I\'m telling everybody. Pepito\'s telling everybody.']] },
@@ -209,8 +209,8 @@ export const SIDE2 = [
   { id: 'wallwords', d: 1, title: 'Words on the Wall', giver: 'tran', giverAt: 'Corner Cell Repair', req: [1, 3], blurb: 'Threatening graffiti targets a shop owner. Again.',
     offer: [['tran', 'This is the third time. And it\'s not just graffiti, it\'s my name and a threat. An ex-employee keeps posting about me online too. My daughter works the counter. I\'m worried.']],
     steps: [
-      { at: 'Eastside Plaza', who: 'mallsec', goal: 'Check the cameras with plaza security', say: [['mallsec', 'Our camera covers the walkway behind his shop. Same hoodie, three nights. And the same guy walks through the plaza every day at noon and just stares at the store.']], quiz: { les: 7, n: 1 } },
-      { at: 'Substation', inside: true, who: 'castillo', goal: 'Talk threat assessment with Castillo at the Substation', say: [['castillo', 'This isn\'t one incident. It\'s a pattern of behavior. That\'s exactly what threat assessment is for.'],
+      { at: 'Eastside Plaza', who: 'mallsec', goal: 'Check the cameras with Guard Okoye at Eastside Plaza', say: [['mallsec', 'Our camera covers the walkway behind his shop. Same hoodie, three nights. And the same guy walks through the plaza every day at noon and just stares at the store.']], quiz: { les: 7, n: 1 } },
+      { at: 'Substation', inside: true, who: 'castillo', goal: 'Talk threat assessment with Castillo', say: [['castillo', 'This isn\'t one incident. It\'s a pattern of behavior. That\'s exactly what threat assessment is for.'],
         ['choice', [
           { t: 'Refer the pattern for threat assessment', set: 'btamReferral', trust: 1, reply: [['castillo', 'Right call. The team looks at the whole picture, not just the paint.']] },
           { t: 'Write it up as vandalism, case closed', set: 'btamVandal', reply: [['castillo', 'And the posts? The staring? Just writing a vandalism report misses the point.']] }]]], quiz: { les: 7, n: 1 } }
@@ -389,7 +389,7 @@ export const SIDE2 = [
   { id: 'propbag', d: 4, title: 'The Property Bag', giver: 'pd', giverAt: 'Public Defender', req: [4, 1], blurb: 'A defendant says money is missing from his property bag.',
     offer: [['pd', 'My client says he came in with three hundred dollars. The property sheet says two hundred. Somebody\'s wrong, and I\'d like to know who. Sergeant Ibarra keeps the property records at the County Records Annex.']],
     steps: [
-      { at: 'County Records Annex', inside: true, who: 'propoff', goal: 'Review the inventory with Sgt. Ibarra at the County Records Annex', say: [['propoff', 'Two officers counted it in front of him, and the body camera has the count on video. Two hundred, in twenties.'],
+      { at: 'County Records Annex', inside: true, who: 'propoff', goal: 'Review the inventory with Sgt. Ibarra', say: [['propoff', 'Two officers counted it in front of him, and the body camera has the count on video. Two hundred, in twenties.'],
         ['choice', [
           { t: 'Pull the video and share it with the defender', set: 'propVideo', trust: 1, reply: [['pd', '(over the radio) Two hundred on video, counted right in front of him. Thank you for being upfront about it.']] },
           { t: 'Tell the defender the sheet is final', reply: [['pd', '(over the radio) That\'s not how this works. I\'ll subpoena the video.']] }]]], quiz: { les: 20, n: 2 } }
@@ -406,7 +406,7 @@ export const SIDE2 = [
   { id: 'otherside', d: 4, title: 'The Other Side', giver: 'barnes', req: [4, 2], blurb: 'A defense attorney wants your honest account of an arrest.',
     offer: [['barnes', 'Cadet, I\'m defending a man you helped arrest. I\'m not trying to trick you. Your report says you read him his rights before you questioned him. Was that before or after he volunteered that statement in the car? You can talk to the prosecutor first if you want.']],
     steps: [
-      { at: 'State Attorney\'s Office', who: 'asa', goal: 'Check in with the prosecutor at the State Attorney\'s Office', say: [['asa', 'Tell him the truth. Exactly what\'s in your report, and nothing else. That\'s all you have to do here.'],
+      { at: 'State Attorney\'s Office', who: 'asa', goal: 'See the prosecutor at the State Attorney\'s Office', say: [['asa', 'Tell him the truth. Exactly what\'s in your report, and nothing else. That\'s all you have to do here.'],
         ['choice', [
           { t: 'Answer exactly as it happened, all of it', set: 'truthBoth', trust: 2, npc: { barnes: 1 }, reply: [['barnes', '(over the radio) Thank you. That doesn\'t happen as often as it should. It\'s how the system\'s supposed to work.']] },
           { t: 'Keep it general to protect the case', set: 'truthVague', trust: -2, reply: [['asa', 'Being vague hurts us more than the truth ever would. Don\'t ever shade it.']] }]]], quiz: { les: 19, n: 2 } }

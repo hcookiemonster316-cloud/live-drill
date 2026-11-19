@@ -625,7 +625,14 @@ function laneOff(c) { const k = .05 + (c.yieldK || 0) * .3; return [[0, k], [-k,
 let TRF = 0;
 function markerPoints() { const m = []; if (call) m.push(iso(call.x, call.y)); infos.forEach((i) => m.push(iso(i.x, i.y))); observes.forEach((o) => o.seen && m.push(iso(o.x, o.y))); citizens.forEach((c) => m.push(iso(c.x, c.y))); return m; }
 function ring(sx, sy, col, now) { const k = (now % 1400) / 1400; ctx.strokeStyle = col; ctx.globalAlpha = 1 - k; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(sx, sy, 12 + k * 26, (12 + k * 26) / 2, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
-function bubble(sx, sy, txt, col, now) { const b = Math.sin(now / 260) * 3; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(sx, sy + b, 11, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(sx - 5, sy + b + 8); ctx.lineTo(sx + 5, sy + b + 8); ctx.lineTo(sx, sy + b + 15); ctx.fill(); ctx.fillStyle = col === '#f5b800' ? '#0b1630' : '#fff'; ctx.font = '800 13px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, sx, sy + b + 1); }
+// map bubbles ("!", a radio, a heart) are drawn once per icon and color into a small sprite at the on-screen resolution,
+// then stamped with their bob each frame, like labels: same look, no per-frame circle, tail and icon text
+const BUBC = new Map();
+function bubble(sx, sy, txt, col, now) { const b = Math.sin(now / 260) * 3, k = txt + '|' + col + '|' + RES; let c = BUBC.get(k);
+  if (!c) { if (BUBC.size > 120) BUBC.clear(); const [cv, g] = hiCanvas(26, 30, Math.max(1.5, RES)); g.translate(13, 12);
+    g.fillStyle = col; g.beginPath(); g.arc(0, 0, 11, 0, Math.PI * 2); g.fill(); g.beginPath(); g.moveTo(-5, 8); g.lineTo(5, 8); g.lineTo(0, 15); g.fill();
+    g.fillStyle = col === '#f5b800' ? '#0b1630' : '#fff'; g.font = '800 13px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, 0, 1); c = cv; BUBC.set(k, c); }
+  ctx.drawImage(c, sx - 13, sy + b - 12, c.lw, c.lh); }
 // name tags are rendered once per text and colour, then stamped; dozens of players cost one drawImage each
 const LABELC = new Map();
 function label(sx, sy, txt, col) {
@@ -901,7 +908,11 @@ const sideQ = (id) => SIDE.find((q) => q.id === id);
 const sideOpenNoFacts = (q) => S.unlocked.includes(q.d) && (S.story[q.req[0]] || 0) >= q.req[1] && (!q.need || q.need(S));
 // side cases also wait for you to learn the district's facts (learnflow.js)
 const sideOpen = (q) => sideOpenNoFacts(q) && (!LF || LF.sideFactsOK(q) || S.side[q.id] != null);
-const sideAvail = (q) => q.d === W.did && sideOpen(q) && S.side[q.id] == null;
+const sideAvailRaw = (q) => q.d === W.did && sideOpen(q) && S.side[q.id] == null;
+// the cases on offer, worked out twice a second instead of three times per case per frame (markers, minimap, bubbles)
+let AVC = null, AVT = 0, AVW = null;
+function availSet() { const now = performance.now(); if (AVC && AVW === W && now - AVT < 500) return AVC; AVC = new Set(SIDE.filter(sideAvailRaw)); AVW = W; AVT = now; return AVC; }
+const sideAvail = (q) => availSet().has(q);
 const sideLive = (q) => S.side[q.id] != null && S.side[q.id] < q.steps.length;
 const sideClosed = (q) => S.side[q.id] != null && S.side[q.id] >= q.steps.length;
 let LF = null;
@@ -939,13 +950,13 @@ function offerSide(q) {
   const lines = q.offer.concat([['choice', [{ t: 'Take the case', accept: true }, { t: 'Not right now', reply: [[q.giver, 'No problem. You know where to find me.']] }]]]);
   dialogue(lines, () => {
     storyBusy = false; paused = false; storyCool = 1.5;
-    if (LASTCHOICE && LASTCHOICE.accept) { S.side[q.id] = 0; S.track = q.id; saveS(); music.sting('accept'); banner('📁', 'Side case opened: ' + q.title, q.blurb); objectiveFlash(); }
+    AVC = null; if (LASTCHOICE && LASTCHOICE.accept) { S.side[q.id] = 0; S.track = q.id; saveS(); music.sting('accept'); banner('📁', 'Side case opened: ' + q.title, q.blurb); objectiveFlash(); }
     else offerNo[q.id] = performance.now() + 90000;
   });
 }
 function sideDone(q) {
   { const w = q.steps.slice().reverse().find((x) => x.who && !/castillo|velvet/.test(x.who)); if (w) VAR.questDone(q, w.who); }
-  const rw = q.reward || {}; if (S.track === q.id) S.track = 'main'; saveS(); music.sting('done');
+  const rw = q.reward || {}; if (S.track === q.id) S.track = 'main'; AVC = null; saveS(); music.sting('done');
   const n = SIDE.filter(sideClosed).length;
   if (rw.title) { S.titles = S.titles || {}; S.titles[rw.title] = 1; }
   openModal('<div class="chEnd side' + (q.saga ? ' saga' : '') + '"><span class="chKick">' + (q.saga ? 'Story arc complete' : 'Side case closed') + (rw.title ? ' · title: ' + esc(rw.title) : '') + '</span><h2>' + esc(q.title) + '</h2><p>' + esc(DISTRICTS[q.d].name) + '</p><div class="chStamp">CASE CLOSED</div><p class="chNext">' + n + ' of ' + SIDE.length + ' side cases closed. People remember how you handled this one.</p></div><div class="qAct"><button type="button" id="mDone">Back to patrol</button></div>');
@@ -983,7 +994,7 @@ const TEMP = Object.assign({}, SIDE_CAST, SAGA_CAST, TALE_CAST, ACT2_CAST);
 // after a right answer: praise, then a tip about something else worth doing nearby
 function hintLine() {
   const opts = [], nm = (id) => giverName(id);
-  const av = inside ? [] : SIDE.filter(sideAvail); if (av.length) { const q = rnd(av); opts.push(nm(q.giver) + ' has been asking for an officer. Look for the blue mark.', 'Word is ' + nm(q.giver) + ' could use a hand. Might be worth a stop.'); }
+  const av = inside ? [] : SIDE.filter(sideAvail); if (av.length) { const dif = av.filter((x) => VAR.offerOK(x, av)), q = rnd(dif.length ? dif : av); opts.push(nm(q.giver) + ' has been asking for an officer. Look for the blue mark.', 'Word is ' + nm(q.giver) + ' could use a hand. Might be worth a stop.'); }
   const live = SIDE.filter((q) => sideLive(q) && S.track !== q.id); if (live.length) { const q = rnd(live); opts.push('Don\'t forget "' + q.title + '". Next up: ' + q.steps[S.side[q.id]].goal.toLowerCase() + '.'); }
   try { const m = L.districtMastery(S, W.did); if (!m.ready) opts.push((m.facts.total - m.facts.done) + ' facts left in ' + W.D.name + ' before your Final Call. Navarro runs fact drills from the City board.'); else opts.push('You\'re cleared for the ' + W.D.name + ' Final Call. Open the City board when you\'re ready.'); } catch (e) {}
   if (citizens.length) opts.push('There\'s a citizen out there flagging down an officer. Keep an eye out for the yellow question mark.');
@@ -1251,6 +1262,8 @@ function playStep(st) {
   let nextI = idx + 1; while (nextI < c.steps.length && !stepOn(c.steps[nextI])) nextI++; const last = nextI >= c.steps.length;
   const finish = () => {
     if (st.give) qGive(st.give); if (st.take) qTake(st.take);
+    // every errand pays off: a delivery mid-case earns a little and the person remembers you for it
+    if ((st.take || st.need) && !st.give && !st.twist && !last) { award(40, 'errand'); if (st.who) S.npc[st.who] = Math.min(6, (S.npc[st.who] || 0) + 1); }
     if (A.side) S.side[c.id] = nextI; else S.story[c.d] = nextI; if (st.set) S.flags[st.set] = Date.now(); saveS(); ord('story'); storyBusy = false; paused = false; storyCool = 2;
     const go = () => { if (last) (A.side ? sideDone(c) : chapterDone(c)); else { const nx = chStep(); if (nx) objectiveFlash(nx.goal); } };
     if (st.twist) { twistCard(st.twist); setTimeout(go, 1200); } else go();

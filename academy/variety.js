@@ -457,7 +457,7 @@ export function installVariety(H) {
 
   // ---------- quests ----------
   S.epi = S.epi || [];
-  function questDone(q, who) { if (!who) return; S.epi.push({ q: q.title, who, at: clock() + 240 + Math.random() * 300, d: H.did() }); while (S.epi.length > 6) S.epi.shift(); H.saveS(); }
+  function questDone(q, who) { S.vqShape = questShape(q); if (!who) return; S.epi.push({ q: q.title, who, at: clock() + 240 + Math.random() * 300, d: H.did() }); while (S.epi.length > 6) S.epi.shift(); H.saveS(); }
   const epiDue = () => S.epi.some((e) => e.d === H.did() && clock() >= e.at);
   function epilogue() {
     const i = S.epi.findIndex((e) => e.d === H.did() && clock() >= e.at); if (i < 0) return; const e = S.epi.splice(i, 1)[0]; H.saveS();
@@ -469,8 +469,33 @@ export function installVariety(H) {
     H.dialogue(lines, (r) => { H.award(15 + (r && r.right ? 15 : 0), 'they came back'); H.stat('epilogues'); }, { kicker: 'SOMEONE FROM AN OLD CASE' });
   }
   const PAUSE = ["Hold on, let me finish this text. Sorry. Okay. I'm here.", "Sorry, I was on the phone with my sister. She talks a lot. Okay.", "Give me one second. Okay. Hi. Sorry."];
+  // ---------- quest flow rules ----------
+  // A beat's shape: delivering something, searching a place, making a decision, or a conversation. Two steps in a row
+  // never play as the same shape: a repeat gets a different beat (a field mini-game or a decision question) worked in.
+  const stepShape = (st) => (st.take || st.need ? 'deliver' : st.inside ? 'search' : (st.say || []).some((l) => l[0] === 'choice') ? 'decide' : 'talk');
+  // a quest's shape, for offering cases: errands, mysteries, people stories and plain talks take turns
+  const QSH = {};
+  function questShape(q) { if (QSH[q.id]) return QSH[q.id]; const s = q.steps || [];
+    return (QSH[q.id] = s.some((x) => x.take || x.need) ? 'errand' : s.some((x) => x.twist) ? 'mystery' : s.some((x) => x.inside) ? 'search' : s.some((x) => (x.say || []).some((l) => l[0] === 'choice')) ? 'dilemma' : 'talk'); }
+  // the case just closed sets the kind the street gossip steers you away from next (nothing is hidden; it only points elsewhere)
+  function offerOK(q, avail) { const last = S.vqShape; if (!last || questShape(q) !== last) return true; return !avail.some((o) => o !== q && questShape(o) !== last); }
+  // a line longer than a phone screen comfortably holds is split at a sentence break, same speaker
+  const SPLIT = 170, NOSPLIT = { q: 1, fx: 1, gate: 1, wait: 1, choice: 1 };
+  function splitLong(lines) {
+    const out = [];
+    lines.forEach((l) => {
+      if (Array.isArray(l) && l.length === 2 && typeof l[0] === 'string' && !NOSPLIT[l[0]] && typeof l[1] === 'string' && l[1].length > SPLIT) {
+        const parts = l[1].match(/[^.!?]+[.!?]+["'”’)]*\s*|[^.!?]+$/g);
+        if (parts && parts.length > 1 && parts.join('') === l[1]) { let a = '', i = 0; const half = l[1].length / 2;
+          while (i < parts.length - 1 && (a.length + parts[i].length <= half + 30 || !a)) a += parts[i++];
+          const b = parts.slice(i).join(''); if (a.trim() && b.trim()) { out.push([l[0], a.trim()], [l[0], b.trim()]); return; } }
+      }
+      out.push(l);
+    });
+    return out;
+  }
   function questSeq(o) {
-    const { st, seq, side } = o; let out = seq.slice(); const who = st.who, p = partner(), cond = COND[S.vcond || 'normal'];
+    const { st, seq, side } = o; let out = splitLong(seq); const who = st.who, p = partner(), cond = COND[S.vcond || 'normal'];
     const pre = [];
     if (who && Math.random() < .12) pre.push([who, pick('qpause', PAUSE)]);
     if (who && cond && cond.remark && Math.random() < .25) pre.push([who, pick('qrem_' + S.vcond, cond.remark)]);
@@ -481,12 +506,21 @@ export function installVariety(H) {
     const text = [st.goal || ''].concat((st.say || []).map((l) => (typeof l[1] === 'string' ? l[1] : ''))).join(' ');
     const k = side && Math.random() < .35 ? miniFor(text) : null, at = out.findIndex((l) => l[0] === 'q');
     if (k) out.splice(at >= 0 ? at : Math.min(2, out.length), 0, ['narr', pick('mgLead', ["Before anything else, there's something you need to handle.", "First things first.", "This part's on you."])], miniLine(k));
+    // same shape as the step before: work in a different beat so the case does not settle into a loop
+    let shape = k ? 'mini' : stepShape(st);
+    if (!k && shape === S.vqBeat) {
+      const k2 = shape !== 'search' ? miniFor(text) : null;
+      if (k2) { out.splice(at >= 0 ? at : Math.min(2, out.length), 0, ['narr', pick('mgLead2', ["Something needs doing first.", "Hold on. This comes first.", "Before the talking, there's work."])], miniLine(k2)); shape = 'mini'; }
+      else { const les = (st.quiz && st.quiz.les) != null ? [st.quiz.les] : H.lessons(), dq = (() => { for (const x of les) { const q = decisionQ(x); if (q) return q; } return null; })();
+        if (dq) { const ch = out.findIndex((l) => l[0] === 'choice'), sp = st.who || 'castillo'; out.splice(ch >= 0 ? ch : Math.max(1, Math.ceil(out.length / 2)), 0, [sp, pick('decLead', ["Let me ask you something. What would you do here?", "Your call on this one. What do you do?", "Real quick, how would you handle this?"])], ['q', dq, sp]); shape = 'decide-q'; } }
+    }
+    S.vqBeat = shape;
     return pre.concat(out);
   }
 
   return {
     pick, hold, pickCall, logEvent, heat, dispatcher, dispatchText, caller, callerLines, complication, midChoice, wrapChoice, afterLines, afterScene, enRoute,
-    wantPair, offerPair, otherOutcome, mixQs, formatQ, sceneMini, miniLine, GAMES, tick, onShift, partner, questSeq, questDone,
+    wantPair, offerPair, otherOutcome, mixQs, formatQ, sceneMini, miniLine, GAMES, tick, onShift, partner, questSeq, questDone, questShape, stepShape, offerOK, splitLong,
     cond: () => COND[S.vcond || 'normal'], aKey
   };
 }
