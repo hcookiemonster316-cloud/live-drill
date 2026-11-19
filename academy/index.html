@@ -728,6 +728,9 @@ body.cine .offHud,body.photo .offHud,body.attract .offHud{display:none!important
 .dlgLogRow.narr{border-left-color:rgba(255,255,255,.2)}.dlgLogRow.narr p{font-style:italic;color:#aab6c8}
 @media (max-width:520px){.dlgPanel{grid-template-columns:72px 1fr;column-gap:11px}.dlgPort{width:72px!important;height:72px!important;border-radius:14px!important}.dlgCv{width:72px;height:72px}.dlgPlate{padding-right:100px}.dlgPlate b{font-size:1.1rem}.dlgBody .dlgTxt p{font-size:.98rem}}
 .dlgChoice{grid-template-columns:64px 1fr!important;grid-template-areas:"port plate" "body body"!important;row-gap:8px!important}.dlgChoice .dlgPort{width:64px!important;height:64px!important;border-radius:14px!important}.dlgChoice .dlgCv{width:64px;height:64px}.dlgChoice .dlgPlate{align-self:center}
+/* while choosing, only the options scroll, so the Log / Auto / Leave buttons never sit on top of an option */
+.dlgPanel.dlgChoice{overflow-y:visible;max-height:calc(91vh - 82px - var(--safe-b))}
+.dlgChoice .dlgBody{max-height:calc(91vh - 222px - var(--safe-b));overflow-y:auto;overscroll-behavior:contain}
 /* ===== call debrief ===== */
 .dbf{display:grid;gap:12px}
 .dbfHead small{font:800 .66rem system-ui;letter-spacing:.2em;color:#f5b800}.dbfHead h2{margin:4px 0 2px;font:800 1.5rem 'Meridian',system-ui}.dbfHead p{margin:0;color:#9fb0c8;font-size:.82rem}

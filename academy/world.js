@@ -311,9 +311,15 @@ export { shade };
 // ground: drawn once per district into one large canvas
 // the ground is drawn in chunks of CH x CH tiles, only around the camera, and cached
 export const CH = 16;
+// ground chunks are big canvases (about 8 MB each at full resolution); when the game drops an old chunk its canvas is
+// kept and reused for the next chunk of the same size instead of allocating a new one
+const GPOOL = [];
+export function recycleGround(c) { if (c && c.canvas && GPOOL.length < 6 && GPOOL.indexOf(c.canvas) < 0) GPOOL.push(c.canvas); }
+function groundCanvas(w, h, k) { const W2 = Math.ceil(w * k), H2 = Math.ceil(h * k), i = GPOOL.findIndex((c) => c.width === W2 && c.height === H2); if (i < 0) return hiCanvas(w, h, k);
+  const c = GPOOL.splice(i, 1)[0], g = c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.filter = 'none'; g.clearRect(0, 0, c.width, c.height); g.scale(k, k); return [c, g]; }
 export function drawGround(W, cx, cy) {
   const x0 = cx * CH, y0 = cy * CH, x1 = Math.min(N, x0 + CH) - 1, y1 = Math.min(N, y0 + CH) - 1, pad = 4;
-  const w = (x1 - x0 + y1 - y0 + 2) * TW / 2 + pad * 2, h = (x1 - x0 + y1 - y0 + 2) * TH / 2 + pad * 2, [c, g] = hiCanvas(w, h, GRES);
+  const w = (x1 - x0 + y1 - y0 + 2) * TW / 2 + pad * 2, h = (x1 - x0 + y1 - y0 + 2) * TH / 2 + pad * 2, [c, g] = groundCanvas(w, h, GRES);
   const ox = -(x0 - y1 - 1) * TW / 2 + pad, oy = -(x0 + y0) * TH / 2 + pad;
   let seed = 0; const R = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
   // tile-space to canvas: (u, v) inside tile (x, y), 0..1 each

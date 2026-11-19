@@ -1,3 +1,4 @@
+import { ACTS } from './decide.js';
 // Variety: keeps patrol from feeling the same twice.
 // - a pacing director: quiet after something intense, something spicy after a slow stretch, no repeats too soon
 // - calls built from parts: who's calling, what complicates it, what dispatch updates on the way, and what it turns out to be
@@ -244,8 +245,10 @@ export function installVariety(H) {
   // ---------- facts behind the new shapes ----------
   const fidFor = (re, les) => { const list = L.factList(les != null ? [les] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]); const f = list.find((x) => re.test(x.text)); return f ? f.id : null; };
   const factText = (fid) => { const f = fid && L.factList([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]).find((x) => x.id === fid); return f ? f.text : ''; };
-  function mkQ(les, stem, right, wrongs, re, kind) {
-    const fid = fidFor(re, les), opts = shuf([right].concat(wrongs)); return { id: 'V' + kind + ':' + stem.length + ':' + right.length, fid, kind: 'fact', les, stem, opts, c: opts.indexOf(right), multi: false, ex: factText(fid), fact: factText(fid) };
+  function mkQ(les, stem, right, wrongs, re, kind, act) {
+    const fid = fidFor(re, les), opts = shuf([right].concat(wrongs)), q = { id: 'V' + kind + ':' + stem.length + ':' + right.length, fid, kind: 'fact', les, stem, opts, c: opts.indexOf(right), multi: false, ex: factText(fid), fact: factText(fid) };
+    // a scene decision plays out: no second try, and what happens next depends on the call you made
+    if (act) Object.assign(q, { act: true, good: act[0], bad: act[1] }); return q;
   }
   // the decision in the moment is the question
   const DECIDE = [
@@ -255,7 +258,7 @@ export function installVariety(H) {
     [5, "He says he doesn't have any ID on him.", "Ask for his name, date of birth and address", ["Arrest him for not carrying identification", "Let him go since he's been cooperative", "Have him call someone to bring his wallet"], /name, date of birth|false identity|DAVID/i],
     [2, "The main channel is jammed and you need the unit next to you.", "Switch to talk around and reach them directly", ["Wait until the main channel clears up", "Call them on your cell phone instead", "Key up anyway and talk over the traffic"], /talk around/i],
     [1, "Someone across the lot pulls a gun. What do you get behind?", "The engine block of your patrol car", ["The open driver's door of your car", "The hedge along the front of the building", "The wooden fence around the dumpster"], /bullet-resistant|engine block/i],
-    [1, "You're talking to the caller right under a streetlight.", "Step out of the light so you aren't backlit", ["Stay in the light so everyone can see you", "Turn your flashlight on to see better", "Move closer to the caller under the light"], /backlight|silhouett/i],
+    [4, "You're talking to the caller right under a streetlight.", "Step out of the light so you aren't backlit", ["Stay in the light so everyone can see you", "Turn your flashlight on to see better", "Move closer to the caller under the light"], /backlight|silhouett/i],
     [17, "You're at the doorway of a dark storeroom.", "Stand to one side and scan in before entering", ["Step into the doorway and look around", "Rush in fast so nobody has time to react", "Call out and wait in the doorway for an answer"], /cutting the pie/i],
     [18, "He's running from you down an alley. What do you radio?", "Your location, his direction and his description", ["Just \"foot pursuit\" so you save your breath", "Nothing until you've caught up to him", "Only that you need backup right away"], /foot pursuit, radio/i],
     [19, "Before you put him in the back seat.", "Check the back seat for anything left there", ["Turn up the AC so he stays calm", "Let him pick which side to sit on", "Take off the cuffs so he's comfortable"], /rear compartment|clear the rear/i],
@@ -266,7 +269,35 @@ export function installVariety(H) {
     [15, "Things are getting heated at a civil standby.", "Separate them and suggest one of them leave", ["Pick a side so it ends faster", "Leave and let them work it out", "Tell them both they're going to jail"], /separate the parties|tension/i],
     [11, "A loose dog is growling at you from a yard.", "Keep your distance and get animal control", ["Walk up slowly and let it sniff you", "Throw something to scare it off", "Climb the fence to get away from it"], /animal control/i]
   ];
-  function decisionQ(les) { const d = DECIDE.filter((x) => x[0] === les); if (!d.length) return null; const X = pick('dec_' + les, d); return mkQ(les, X[1], X[2], X[3], X[4], 'dec'); }
+  // the hand-written decisions above plus the full set in decide.js (each with what happens if you get it right or wrong)
+  const DALL = () => DECIDE.concat(ACTS);
+  // what happens after each of the original decisions above, right call first
+  const OUT = {
+    "You're two blocks out on a fight call. Where do you park?": ["From up the street you see a third man waiting by the corner with a pipe.", "You pull up out front, right between the two groups, and both turn toward your car."],
+    "You're about to get out of the car.": ["Your scan catches a man watching you from the porch with his hand behind his back.", "Your phone buzzes loudly just as you creep up the driveway, and the dog inside starts barking."],
+    "Your backup just pulled up. Who does the talking?": ["He has only one voice to answer to, and your backup spots the knife clip in his pocket.", "Two officers talking at once, and he starts playing you against each other."],
+    "He says he doesn't have any ID on him.": ["His name and birthday come back with a match and a photo. It's him.", "With nothing to run, you can't tell if he gave you his real name."],
+    "The main channel is jammed and you need the unit next to you.": ["Talk around gets you straight through to the unit next door.", "By the time the main channel clears, the moment has passed."],
+    "Someone across the lot pulls a gun. What do you get behind?": ["Two rounds hit the car. The engine block stops both.", "A round goes straight through the car door."],
+    "You're talking to the caller right under a streetlight.": ["Out of the light, you can see the street, and nobody out there can pick you out.", "Lit up under the streetlight, you're the easiest thing on the block to see."],
+    "You're at the doorway of a dark storeroom.": ["Slicing the doorway, you see his shoes behind the shelving before he sees you.", "You step into the doorway, and he's right there behind the shelves."],
+    "He's running from you down an alley. What do you radio?": ["A unit cuts him off two streets over.", "Backup is coming, but nobody knows where to."],
+    "Before you put him in the back seat.": ["You find a razor blade tucked into the seat crease from the last prisoner.", "At the jail, a razor blade turns up in the seat he was sitting on."],
+    "At booking, what do you make sure to tell them?": ["The nurse flushes his eyes and logs his injuries before anyone touches him.", "A jail deputy gets pepper spray all over her hands, and nobody told her why."],
+    "A car is on fire. Where do you park?": ["The smoke blows the other way, and you have clean air to work in.", "The smoke rolls straight over your car and into your lungs."],
+    "Where do you watch a big crowd from?": ["From up high you see the fight start at the back before anyone on the ground does.", "Down in the crowd you can't see past the people right in front of you."],
+    "Security check on a closed store at night. First thing?": ["Watching from across the lot, you see a flashlight moving inside.", "Your headlights sweep the front windows, and the flashlight inside goes dark."],
+    "Things are getting heated at a civil standby.": ["Apart, they both calm down, and the exchange finishes without a scene.", "It turns into a shoving match while you're standing right there."],
+    "A loose dog is growling at you from a yard.": ["Animal control has it on a catchpole in fifteen minutes.", "It lunges as you step toward the gate."]
+  };
+  function decisionQ(les, avoid) { const d = DALL().filter((x) => x[0] === les && !(avoid && avoid.has(x[1]))); if (!d.length) return null; const X = pick('dec_' + les, d);
+    const o = OUT[X[1]] || []; return mkQ(les, X[1], X[2], X[3], X[4], 'dec', [X[5] || o[0] || null, X[6] || o[1] || null]); }
+  // most fact checks become decisions in the moment: each question in a set is swapped, about two times in three, for a
+  // decision from the same lesson (never the same decision or the same fact twice in one set). Exams stay straight tests.
+  function actify(qs, share) {
+    if (!qs || !qs.length) return qs; const seen = new Set(), fids = new Set(qs.map((q) => q && q.fid)), sh = share == null ? .67 : share;
+    return qs.map((q) => { if (!q || q.act || Math.random() > sh) return q; const d = decisionQ(q.les, seen); if (!d || (d.fid && fids.has(d.fid) && d.fid !== q.fid)) return q; seen.add(d.stem); fids.add(d.fid); return d; });
+  }
   const PHON = { A: 'Alpha', B: 'Bravo', C: 'Charlie', D: 'Delta', E: 'Echo', F: 'Foxtrot', G: 'Golf', H: 'Hotel', I: 'India', J: 'Juliet', K: 'Kilo', L: 'Lima', M: 'Mike', N: 'November', O: 'Oscar', P: 'Papa', Q: 'Quebec', R: 'Romeo', S: 'Sierra', T: 'Tango', U: 'Uniform', V: 'Victor', W: 'Whiskey', X: 'X-ray', Y: 'Yankee', Z: 'Zulu' };
   const NUMW = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
   function decodeQ() {
@@ -295,12 +326,12 @@ export function installVariety(H) {
   // one question in a scene may come in a different shape
   function formatQ(les) {
     const f = [];
-    if (DECIDE.some((x) => x[0] === les)) f.push(() => decisionQ(les));
+    if (DALL().some((x) => x[0] === les)) f.push(() => decisionQ(les));
     if (les === 2) f.push(decodeQ, missingQ);
     if (ORDERS.some((x) => x[0] === les)) f.push(() => orderQ(les));
     if (!f.length) return null; const q = rnd(f)(); return q && q.opts.length >= 3 ? q : null;
   }
-  function mixQs(les, qs) { if (!qs.length || Math.random() > .45) return qs; const q = formatQ(les); if (!q) return qs; const out = qs.slice(); out[Math.random() * out.length | 0] = q; return out; }
+  function mixQs(les, qs) { qs = actify(qs); if (!qs.length || qs.some((q) => q.act) || Math.random() > .45) return qs; const q = formatQ(les); if (!q) return qs; const out = qs.slice(); out[Math.random() * out.length | 0] = q; return out; }
 
   // ---------- mini-games ----------
   let ov = null;
@@ -520,7 +551,7 @@ export function installVariety(H) {
 
   return {
     pick, hold, pickCall, logEvent, heat, dispatcher, dispatchText, caller, callerLines, complication, midChoice, wrapChoice, afterLines, afterScene, enRoute,
-    wantPair, offerPair, otherOutcome, mixQs, formatQ, sceneMini, miniLine, GAMES, tick, onShift, partner, questSeq, questDone, questShape, stepShape, offerOK, splitLong,
+    wantPair, offerPair, otherOutcome, mixQs, formatQ, actify, decisionQ, ACTS, sceneMini, miniLine, GAMES, tick, onShift, partner, questSeq, questDone, questShape, stepShape, offerOK, splitLong,
     cond: () => COND[S.vcond || 'normal'], aKey
   };
 }

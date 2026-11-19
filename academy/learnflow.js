@@ -54,13 +54,16 @@ export function installLearnFlow(H) {
     // the coordinator goes after your weakest lesson in this district and says so
     const d = H.W().did, coord = Math.random() < .5, weak = L.weakest(S, d), m = L.mastery(S, weak), lname = L.lessonName(weak).replace(/^[\d.]+:?\s*/, '');
     let qs = L.pickFacts(S, coord ? [weak] : H.DISTRICTS[d].lessons, coord ? 2 : 1, { wide: true }); if (!qs.length) return;
-    if (H.formatQ && Math.random() < .35) { const f = H.formatQ(qs[0].les); if (f) qs = [f].concat(qs.slice(1)); }
-    let sp, open;
-    if (coord) { sp = COORD; open = [[sp, m.n >= 3 && m.pct < .7 ? rnd(['Reid here. You\'ve been missing a few on ' + lname + '. Let\'s fix that. Two quick ones.', 'Hey, it\'s Reid. I pulled your numbers. ' + lname + ' is your weak spot right now. Two questions.', 'Reid from training. ' + lname + ' keeps tripping you up, so that\'s what we\'re doing today.']) : rnd(['Cadet, it\'s Reid from training. Got a minute? Two on ' + lname + '.', 'Hey, it\'s Reid. Your exam\'s coming, so let\'s keep you sharp. ' + lname + ' today.', 'Reid here. Checking in on everybody in your class. Two questions on ' + lname + ', then I\'ll let you go.'])]]; }
+    // out on patrol a check is usually a call you have to make on the spot, not a quiz
+    if (H.actify) qs = H.actify(qs); if (H.formatQ && !qs.some((q) => q.act) && Math.random() < .35) { const f = H.formatQ(qs[0].les); if (f) qs = [f].concat(qs.slice(1)); }
+    let sp, open; const acts = qs.some((q) => q.act);
+    // a decision is a scenario Reid walks you through, not something a passer-by asks
+    if (acts) { sp = COORD; open = [[sp, rnd(['Reid here. Quick scenario for you. Picture it.', 'It\'s Reid. This happened to a cadet last week. Tell me what you do.', 'Reid from training. Real situation. Your call.', 'Hey, it\'s Reid. Walk me through this one.'])]]; }
+    else if (coord) { sp = COORD; open = [[sp, m.n >= 3 && m.pct < .7 ? rnd(['Reid here. You\'ve been missing a few on ' + lname + '. Let\'s fix that. Two quick ones.', 'Hey, it\'s Reid. I pulled your numbers. ' + lname + ' is your weak spot right now. Two questions.', 'Reid from training. ' + lname + ' keeps tripping you up, so that\'s what we\'re doing today.']) : rnd(['Cadet, it\'s Reid from training. Got a minute? Two on ' + lname + '.', 'Hey, it\'s Reid. Your exam\'s coming, so let\'s keep you sharp. ' + lname + ' today.', 'Reid here. Checking in on everybody in your class. Two questions on ' + lname + ', then I\'ll let you go.'])]]; }
     else { const c = rnd(contacts); sp = H.sayAs('fc_' + c[0].replace(/\W/g, ''), { name: c[0], icon: c[1], role: 'Field contact' }); open = [[sp, c[2]]]; H.stat('fieldContacts'); }
     H.stat('fieldChecks');
-    H.dialogue(open.concat(qs.map((q) => ['q', q, sp]), [[sp, coord ? rnd(['That\'s all I needed. Stay safe out there.', 'Good. I\'ll check back with you later.']) : rnd(['Thanks, officer. That really helps.', 'Huh. I didn\'t know that. Thank you!', 'Okay! I\'m telling my friend he owes me five bucks.'])]]),
-      (r) => { if (r && r.right) H.award(r.right * 15, coord ? 'training check' : 'field contact'); checkUnlocks(); }, { kicker: coord ? 'TRAINING COORDINATOR' : 'FIELD CONTACT', focus: [H.P().x, H.P().y] });
+    H.dialogue(open.concat(qs.map((q) => ['q', q, sp]), [[sp, coord || acts ? rnd(['That\'s all I needed. Stay safe out there.', 'Good. I\'ll check back with you later.']) : rnd(['Thanks, officer. That really helps.', 'Huh. I didn\'t know that. Thank you!', 'Okay! I\'m telling my friend he owes me five bucks.'])]]),
+      (r) => { if (r && r.right) H.award(r.right * 15, coord || acts ? 'training check' : 'field contact'); checkUnlocks(); }, { kicker: acts ? 'SCENARIO · YOUR CALL' : coord ? 'TRAINING COORDINATOR' : 'FIELD CONTACT', focus: [H.P().x, H.P().y] });
   }
   function tick(dt) {
     if (!H.free()) return; if (H.moving()) idle += dt; // counts only time spent moving around freely
