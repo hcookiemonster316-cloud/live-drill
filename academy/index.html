@@ -30,7 +30,7 @@
 <link rel="modulepreload" href="city.js">
 <link rel="modulepreload" href="sagas.js">
 <link rel="modulepreload" href="tales.js">
-<link rel="modulepreload" href="icons.js"><link rel="modulepreload" href="phonehud.js"><link rel="modulepreload" href="heart.js"><link rel="modulepreload" href="patrolops.js"><link rel="modulepreload" href="learnflow.js"><link rel="modulepreload" href="variety.js">
+<link rel="modulepreload" href="icons.js"><link rel="modulepreload" href="memory.js"><link rel="modulepreload" href="phonehud.js"><link rel="modulepreload" href="heart.js"><link rel="modulepreload" href="patrolops.js"><link rel="modulepreload" href="learnflow.js"><link rel="modulepreload" href="variety.js">
 <link rel="modulepreload" href="npcgen.js">
 <link rel="modulepreload" href="offduty.js">
 <link rel="modulepreload" href="onboard.js">
@@ -728,6 +728,12 @@ body.cine .offHud,body.photo .offHud,body.attract .offHud{display:none!important
 .dlgLogRow.narr{border-left-color:rgba(255,255,255,.2)}.dlgLogRow.narr p{font-style:italic;color:#aab6c8}
 @media (max-width:520px){.dlgPanel{grid-template-columns:72px 1fr;column-gap:11px}.dlgPort{width:72px!important;height:72px!important;border-radius:14px!important}.dlgCv{width:72px;height:72px}.dlgPlate{padding-right:100px}.dlgPlate b{font-size:1.1rem}.dlgBody .dlgTxt p{font-size:.98rem}}
 .dlgChoice{grid-template-columns:64px 1fr!important;grid-template-areas:"port plate" "body body"!important;row-gap:8px!important}.dlgChoice .dlgPort{width:64px!important;height:64px!important;border-radius:14px!important}.dlgChoice .dlgCv{width:64px;height:64px}.dlgChoice .dlgPlate{align-self:center}
+/* since your last shift: what people remember */
+.memList{list-style:none;margin:6px 0 14px;padding:0;display:grid;gap:8px}
+.memRow{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);line-height:1.4}
+.memRow i{font-style:normal;font-size:1.15rem;line-height:1.2}
+.memRow.good{border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.08)}
+.memRow.bad{border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.07)}
 /* while choosing, only the options scroll, so the Log / Auto / Leave buttons never sit on top of an option */
 .dlgPanel.dlgChoice{overflow-y:visible;max-height:calc(91vh - 82px - var(--safe-b))}
 .dlgChoice .dlgBody{max-height:calc(91vh - 222px - var(--safe-b));overflow-y:auto;overscroll-behavior:contain}

@@ -82,10 +82,14 @@ export function installPolish(H) {
       const [sx, sy] = H.iso(b.e.x, b.e.y), a = Math.min(1, b.t / .3, (b.t0 - b.t) / .2 + .2), y = sy - 62 - Math.min(1, (b.t0 - b.t) * 4) * 4;
       g.save(); g.globalAlpha = Math.max(0, a); g.font = '600 10px Meridian Text, system-ui, sans-serif';
       if (!b.lines) { const words = b.text.split(' '), out = []; let cur = ''; for (const wd of words) { const t = cur ? cur + ' ' + wd : wd; if (g.measureText(t).width > 168 && cur) { out.push(cur); cur = wd; } else cur = t; } out.push(cur); b.lines = out; b.w = Math.min(182, Math.max(...out.map((l) => g.measureText(l).width))) + 14; } // wrapped once per bark
-      const w = b.w, hh = 6 + b.lines.length * 12;
-      g.fillStyle = 'rgba(255,255,255,.95)'; g.strokeStyle = 'rgba(15,23,42,.35)'; g.lineWidth = 1; g.beginPath(); g.roundRect(sx - w / 2, y - hh, w, hh, 9); g.fill(); g.stroke();
-      g.beginPath(); g.moveTo(sx - 4, y); g.lineTo(sx, y + 5); g.lineTo(sx + 4, y); g.closePath(); g.fill();
-      g.fillStyle = '#0f172a'; g.textAlign = 'center'; g.textBaseline = 'middle'; b.lines.forEach((l, i) => g.fillText(l, sx, y - hh + 9 + i * 12, 172)); g.restore();
+      const w = b.w, hh = 6 + b.lines.length * 12, k = Math.min(6, Math.max(1, g.getTransform().a));
+      // the bubble and its text are drawn once into a sprite at the current zoom, then stamped each frame as it fades and
+      // rises; zooming in past it redraws it sharp
+      if (!b.spr || k > b.k * 1.15) { const c = document.createElement('canvas'), cw = w + 4, ch = hh + 9; c.width = Math.ceil(cw * k); c.height = Math.ceil(ch * k); const q = c.getContext('2d'); q.scale(k, k); q.translate(cw / 2, hh + 2);
+        q.font = '600 10px Meridian Text, system-ui, sans-serif'; q.fillStyle = 'rgba(255,255,255,.95)'; q.strokeStyle = 'rgba(15,23,42,.35)'; q.lineWidth = 1; q.beginPath(); q.roundRect(-w / 2, -hh, w, hh, 9); q.fill(); q.stroke();
+        q.beginPath(); q.moveTo(-4, 0); q.lineTo(0, 5); q.lineTo(4, 0); q.closePath(); q.fill();
+        q.fillStyle = '#0f172a'; q.textAlign = 'center'; q.textBaseline = 'middle'; b.lines.forEach((l, i) => q.fillText(l, 0, -hh + 9 + i * 12, 172)); b.spr = c; b.k = k; b.cw = cw; b.ch = ch; }
+      g.drawImage(b.spr, sx - b.cw / 2, y - hh - 2, b.cw, b.ch); g.restore();
     });
   }
 
