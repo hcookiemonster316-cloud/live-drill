@@ -52,7 +52,7 @@ export function installMemory(H) {
   function note(k, o) {
     if (!ECHO[k] || !o) return null;
     const d = { k, who: o.who || '', where: o.where || '', x: o.x, y: o.y, did: o.did != null ? o.did : did(), sh: M.shift, at: Date.now(), told: 0, said: 0 };
-    M.d.push(d); while (M.d.length > 40) M.d.shift(); H.saveS(); return d;
+    M.d.push(d); while (M.d.length > 40) M.d.shift(); if (H.onNote) H.onNote(d); H.saveS(); return d;
   }
   const who = (c) => c.vcn || '';
   // a call scene wrapped: how you came in and how you left are what the person remembers

@@ -56,8 +56,9 @@ export function installOnboard(H) {
       if (!S.menuOpen[lbl]) { const fn = items[i][1]; items[i] = [lbl + ' <i class="newTag">NEW</i>', () => { S.menuOpen[lbl] = 1; H.saveS(); fn(); }]; } }
     return items;
   }
+  const UNDER_PATH = { 'Service Record': 1, 'Academy Season': 1, 'Class Standing': 1, Trophies: 1, Collections: 1 }; // these open from Your Path now
   let gT = 3;
-  function gateTick(dt) { gT -= dt; if (gT > 0) return; gT = 3; for (const [lbl, g] of Object.entries(GATES)) { if (S.menuSeen[lbl] || !g[0]()) continue; S.menuSeen[lbl] = Date.now(); H.saveS(); H.banner(g[1], 'New in the menu: ' + lbl.replace(' · Mini Games', ''), g[2]); } }
+  function gateTick(dt) { gT -= dt; if (gT > 0) return; gT = 3; for (const [lbl, g] of Object.entries(GATES)) { if (S.menuSeen[lbl] || !g[0]()) continue; S.menuSeen[lbl] = Date.now(); H.saveS(); H.banner(g[1], (UNDER_PATH[lbl] ? 'New in Your Path: ' : 'New in the menu: ') + lbl.replace(' · Mini Games', ''), g[2]); } }
 
   // ================= 7. Continue card on the title screen =================
   function continueCard() {
