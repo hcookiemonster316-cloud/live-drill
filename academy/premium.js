@@ -83,12 +83,17 @@ export function installPremium(H) {
 
   // ================= a city that remembers =================
   // businesses you helped put a thank-you sign in the window for a week; regulars mention it as you walk by
-  function helped(c) { if (!c.where || /^block |parking lot/.test(c.where)) return; S.helped[H.W().did + ':' + c.where] = Date.now(); const ks = Object.keys(S.helped); if (ks.length > 60) delete S.helped[ks.sort((a, b) => S.helped[a] - S.helped[b])[0]]; H.saveS(); }
+  let helpedV = 0;
+  function helped(c) { if (!c.where || /^block |parking lot/.test(c.where)) return; helpedV++; S.helped[H.W().did + ':' + c.where] = Date.now(); const ks = Object.keys(S.helped); if (ks.length > 60) delete S.helped[ks.sort((a, b) => S.helped[a] - S.helped[b])[0]]; H.saveS(); }
   let SIGN = null;
   function signSprite() { if (SIGN) return SIGN; const [c, g] = H.hiCanvas(34, 22, 2); g.fillStyle = '#fef3c7'; g.beginPath(); g.roundRect(2, 2, 30, 17, 3); g.fill(); g.strokeStyle = '#b45309'; g.lineWidth = 1; g.stroke(); g.fillStyle = '#b45309'; g.font = '800 6px system-ui,sans-serif'; g.textAlign = 'center'; g.fillText('THANK YOU', 17, 9.5); g.fillText('OFFICERS ♥', 17, 16); SIGN = c; return c; }
+  // which lots have a sign is worked out every two seconds (and on a district change), not per lot per frame
+  let signLots = [], signT = 0, signW = null, signN = -1;
   function drawSigns(list, vis, ctx) {
     const W = H.W(), wk = 7 * 864e5; if (H.inside()) return;
-    for (const l of W.lots) { if (!l.name) continue; const at = S.helped[W.did + ':' + l.name]; if (!at || Date.now() - at > wk) continue; if (!l._sg) l._sg = H.iso(l.door[0] + .5, l.door[1] + .1); const [sx, sy] = l._sg; if (!vis(sx, sy)) continue;
+    const now = performance.now(), nh = helpedV;
+    if (now - signT > 2000 || signW !== W || signN !== nh) { signT = now; signW = W; signN = nh; const t = Date.now(); signLots = W.lots.filter((l) => { if (!l.name) return false; const at = S.helped[W.did + ':' + l.name]; return at && t - at <= wk; }); }
+    for (const l of signLots) { if (!l._sg) l._sg = H.iso(l.door[0] + .5, l.door[1] + .1); const [sx, sy] = l._sg; if (!vis(sx, sy)) continue;
       list.push({ d: l.door[0] + l.door[1] + .6, f: () => { const s = signSprite(); ctx.drawImage(s, sx - 17, sy - 52, s.lw, s.lh); } }); }
   }
   let mT = 0;

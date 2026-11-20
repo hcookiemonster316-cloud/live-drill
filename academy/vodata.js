@@ -57,18 +57,18 @@ export const CALLS = {
        ['Pursuit report due', 3, 'records', 'Your sergeant needs your report on last night\'s pursuit before end of shift.']]
 };
 
-// "Something's off": spotted only when you walk or drive close. [what you see, marker kind]
+// "Something's off": spotted only when you walk or drive close. [what you see, marker kind, road hazard it is (echoes.js)]
 export const OBSERVE = {
   0: [['A patrol car\'s light cover is cracked', 'car'], ['A wet patch spreads under a parked cruiser', 'car']],
   1: [['A car idles on dry grass, smoke rising', 'car'], ['A man waves from the curb as you roll past', 'person']],
-  2: [['Fluid shines across the lane in a rainbow', 'door'], ['A tree limb hangs low over the road', 'door']],
-  3: [['A car sits stopped with its nose in the lane', 'car']],
+  2: [['Fluid shines across the lane in a rainbow', 'door'], ['A tree limb hangs low over the road', 'door'], ['A pothole has opened up in the right lane', 'door', 'pothole']],
+  3: [['A car sits stopped with its nose in the lane', 'car'], ['A stop sign is knocked flat at the corner', 'door', 'sign']],
   4: [['A van leans hard on the corner, gear piled high', 'car']],
   5: [['Debris lies in the lane ahead', 'door']],
   6: [['Brake skid marks run toward a crosswalk', 'door']],
   7: [['Tire marks swing wide out of a corner', 'door']],
   8: [['A fresh dent on a post behind a parking space', 'door']],
-  9: [['A dark figure stands near the edge of the road', 'person']],
+  9: [['A dark figure stands near the edge of the road', 'person'], ['A streetlight is out over the crosswalk', 'door', 'light']],
   10: [['A patrol car blocks a lane with only its flashers on', 'car']],
   11: [['A car with a cracked windshield idles with no plate', 'car']]
 };

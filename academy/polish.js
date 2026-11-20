@@ -77,20 +77,24 @@ export function installPolish(H) {
     for (const r of H.regs) { const d = Math.hypot(r.x - P.x, r.y - P.y); if (d > 3.2 || d < .6) continue; const id = r.n.id; if ((barkCool.get(id) || 0) > now) continue; barkCool.set(id, now + 90000); BARKS.push({ e: r, text: barkLine(r.n), t: 3.4, t0: 3.4 }); H.faceTo(r); if (((S.npc || {})[id] || 0) >= 1 || Math.random() < .3) r.waveT = now + 1600; return; }
     if (Math.random() < .25) { const tr = (S.trust || {})[H.W.did] == null ? 50 : S.trust[H.W.did]; for (const p of H.peds) { const d = Math.hypot(p.x - P.x, p.y - P.y); if (d > 2.4) continue; if ((p.barkT || 0) > now) continue; p.barkT = now + 120000; const gs = tr >= 35 && Math.random() < .45 && H.gossip ? H.gossip() : null; BARKS.push({ e: p, text: gs || rnd(tr < 35 ? PED.lo : tr > 70 ? PED.hi : PED.mid), t: gs ? 4.6 : 2.8, t0: gs ? 4.6 : 2.8 }); return; } }
   }
+  // per frame this only stamps each bubble's cached sprite: no font parsing, no save/restore, one transform read for all
   function drawBarks(g) {
-    BARKS.forEach((b) => {
+    if (!BARKS.length) return;
+    const k = Math.min(6, Math.max(1, g.getTransform().a)), a0 = g.globalAlpha;
+    for (const b of BARKS) {
       const [sx, sy] = H.iso(b.e.x, b.e.y), a = Math.min(1, b.t / .3, (b.t0 - b.t) / .2 + .2), y = sy - 62 - Math.min(1, (b.t0 - b.t) * 4) * 4;
-      g.save(); g.globalAlpha = Math.max(0, a); g.font = '600 10px Meridian Text, system-ui, sans-serif';
-      if (!b.lines) { const words = b.text.split(' '), out = []; let cur = ''; for (const wd of words) { const t = cur ? cur + ' ' + wd : wd; if (g.measureText(t).width > 168 && cur) { out.push(cur); cur = wd; } else cur = t; } out.push(cur); b.lines = out; b.w = Math.min(182, Math.max(...out.map((l) => g.measureText(l).width))) + 14; } // wrapped once per bark
-      const w = b.w, hh = 6 + b.lines.length * 12, k = Math.min(6, Math.max(1, g.getTransform().a));
+      g.globalAlpha = Math.max(0, a);
+      if (!b.lines) { const f0 = g.font; g.font = '600 10px Meridian Text, system-ui, sans-serif'; const words = b.text.split(' '), out = []; let cur = ''; for (const wd of words) { const t = cur ? cur + ' ' + wd : wd; if (g.measureText(t).width > 168 && cur) { out.push(cur); cur = wd; } else cur = t; } out.push(cur); b.lines = out; b.w = Math.min(182, Math.max(...out.map((l) => g.measureText(l).width))) + 14; g.font = f0; } // wrapped once per bark
+      const w = b.w, hh = 6 + b.lines.length * 12;
       // the bubble and its text are drawn once into a sprite at the current zoom, then stamped each frame as it fades and
       // rises; zooming in past it redraws it sharp
       if (!b.spr || k > b.k * 1.15) { const c = document.createElement('canvas'), cw = w + 4, ch = hh + 9; c.width = Math.ceil(cw * k); c.height = Math.ceil(ch * k); const q = c.getContext('2d'); q.scale(k, k); q.translate(cw / 2, hh + 2);
         q.font = '600 10px Meridian Text, system-ui, sans-serif'; q.fillStyle = 'rgba(255,255,255,.95)'; q.strokeStyle = 'rgba(15,23,42,.35)'; q.lineWidth = 1; q.beginPath(); q.roundRect(-w / 2, -hh, w, hh, 9); q.fill(); q.stroke();
         q.beginPath(); q.moveTo(-4, 0); q.lineTo(0, 5); q.lineTo(4, 0); q.closePath(); q.fill();
         q.fillStyle = '#0f172a'; q.textAlign = 'center'; q.textBaseline = 'middle'; b.lines.forEach((l, i) => q.fillText(l, 0, -hh + 9 + i * 12, 172)); b.spr = c; b.k = k; b.cw = cw; b.ch = ch; }
-      g.drawImage(b.spr, sx - b.cw / 2, y - hh - 2, b.cw, b.ch); g.restore();
-    });
+      g.drawImage(b.spr, sx - b.cw / 2, y - hh - 2, b.cw, b.ch);
+    }
+    g.globalAlpha = a0;
   }
 
   // ================= 4. VOICED SCENES =================
