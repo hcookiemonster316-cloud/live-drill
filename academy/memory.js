@@ -114,5 +114,5 @@ export function installMemory(H) {
   function draw(now) {
     M.pr.forEach((p) => { if (p.did !== did()) return; const [sx, sy] = H.iso(p.x, p.y); H.bubble(sx, sy - 70, '🏠', '#38bdf8', now); });
   }
-  return { note, afterCall, deesc, pursuit, promiseOption, callerLine, onShift, briefing, tick, draw, ECHO, get open() { return M.pr; }, get dbg() { return { briefDue, free: H.free() }; }, get deeds() { return M.d; } };
+  return { note, afterCall, deesc, pursuit, promiseOption, callerLine, onShift, briefing, tick, draw, ECHO, get open() { return M.pr; }, get shiftNo() { return M.shift; }, get dbg() { return { briefDue, free: H.free() }; }, get deeds() { return M.d; } };
 }

@@ -6,7 +6,8 @@
 // The Chapter 5 content these replace is kept in ch5data.js, decide.js and the Chapter 5 bank (ch5.json, facts.json).
 export const CHAPTER = {
   id: 'vo', name: 'Vehicle Operations', exam: 'Vehicle Operations Final Exam',
-  bank: '../vo.json', facts: 'facts_vo.json', hub: 'https://claude.ai/artifact/QLBEHsVdKGoq3YkSSxsU21'
+  bank: '../vo.json', facts: 'facts_vo.json', hub: 'https://claude.ai/artifact/QLBEHsVdKGoq3YkSSxsU21',
+  open: true // open to every cadet (no 100-question test needed); set false to bring the hub test back as the key
 };
 
 // each district's lessons and the name it goes by on the map
