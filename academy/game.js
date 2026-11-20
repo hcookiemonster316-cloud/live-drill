@@ -28,6 +28,9 @@ import { appearOpts } from './appearance.js';
 import { installLearnFlow } from './learnflow.js';
 import { installVariety } from './variety.js';
 import { installMemory } from './memory.js';
+import { installFinale } from './finale.js';
+import { installCalendar } from './calendar.js';
+import { installSubjects } from './subjects.js';
 import { NPCS2 } from './people2.js';
 import { HEART, HEART_TIER, CALLER as CALLER_SAYS } from './heart.js';
 import { installEpic } from './epic.js';
@@ -265,7 +268,7 @@ function load(did) {
   if (W.river && S.unit === 'marine') { const y = Math.max(2, Math.min(N - 3, Math.round(P.y))); pboat = { x: 36.6, y: y + .5, dir: 1, dock: [35.5, y + .5] }; }
   exploreInit(); liveInit(); placeRegulars(); ambienceInit(); SS = { rp: 0, calls: 0, right: 0, answered: 0, ords: {} }; COMBO = 0; bestCombo = 0; ordersInit(); comboHud(); abilitiesInit(); $('hExp').textContent = 'Explored ' + Math.floor(exCount / exTotal * 100) + '%';
   cam.x = iso(P.x, P.y)[0]; cam.y = iso(P.x, P.y)[1]; cam.free = false;
-  hud(); radio('Dispatch', 'All units, ' + shiftOf().name.toLowerCase() + ' in ' + W.D.name + ' is on. ' + S.cs + ', you are in service.'); VAR.onShift(); MEM.onShift(); if (SPROUT_R[L.rankOf(S.xp).name] && !S.sproutTip) { S.sproutTip = 1; saveS(); setTimeout(() => toast('🌱 New cadets wear a sprout on their name. Veterans earn a mentor bonus for backing you up, so ask for backup any time.'), 9000); }
+  hud(); radio('Dispatch', 'All units, ' + shiftOf().name.toLowerCase() + ' in ' + W.D.name + ' is on. ' + S.cs + ', you are in service.'); VAR.onShift(); MEM.onShift(); CAL.onShift(); if (SPROUT_R[L.rankOf(S.xp).name] && !S.sproutTip) { S.sproutTip = 1; saveS(); setTimeout(() => toast('🌱 New cadets wear a sprout on their name. Veterans earn a mentor bonus for backing you up, so ask for backup any time.'), 9000); }
   CHAT.list = []; CHAT.seen = new Set(); if (net && net.chatOn) net.chatOn(did, chatIn); if (MG) MG.watch(did);
   if (net) Promise.resolve(net.join(did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).then(() => COOP.joinDistrict()).catch(() => {});
 }
@@ -602,6 +605,11 @@ const MEM = installMemory({ S, P, did: () => W.did, saveS: () => saveS(), toast:
   free: () => !!W && !inside && !scene && !call && !PUR && !storyBusy && !paused && $('dlg').hidden && $('modal').hidden && !ATTRACT && !OPSM.busy && !RIDING && !S.offDuty,
   // a promise can be kept while the next call is still waiting to be taken
   freeKeep: () => !!W && !inside && !scene && !(call && call.accepted) && !PUR && !storyBusy && !paused && $('dlg').hidden && $('modal').hidden && !ATTRACT && !OPSM.busy && !RIDING && !S.offDuty });
+// the exam as a finale: the last shift (finale.js)
+const FIN = installFinale({ S, MEM, NPCS, esc });
+const CAL = installCalendar({ S, NPCS, esc, saveS: () => saveS(), radio: (a, b) => radio(a, b), lessonName: (l) => L.lessonName(l), whereNow: (n) => POL.whereNow(n), homeOf: (n) => NPC_AT[n.id] || n.home, openModal: (h) => openModal(h), closeModal: () => closeModal(), did: () => W.did, exam: () => chapterExam() });
+// the chapter's subjects as inner voices in scenes (subjects.js)
+const SUBJ = installSubjects({ S, sayAs: (...a) => sayAs(...a), lessonName: (l) => L.lessonName(l) });
 const OPSM = installOps({ dialogue: (...a) => dialogue(...a), debrief: (...a) => POL.debrief(...a), closeModal: () => closeModal(), award: (...a) => award(...a), stat: (...a) => stat(...a), radio: (...a) => radio(...a), cs: () => S.cs, sayAs: (...a) => sayAs(...a), leave: () => leaveDefault(),
   pickFact: (les) => { const ok = les.filter((l) => W.D.lessons.indexOf(l) >= 0); return L.pickFacts(S, [ok.length ? rnd(ok) : L.weakest(S, W.did)], 1)[0]; } });
 if (S.cfg && S.cfg.dlgAuto == null) S.cfg.dlgAuto = 'short'; if (S.cfg && S.cfg.dlgFlow == null) S.cfg.dlgFlow = true;
@@ -747,12 +755,21 @@ function liveUpdate(dt) {
   if (FX.sail) { FX.sail.y += FX.sail.dir * dt * .5; if (FX.sail.y > N - 4 || FX.sail.y < 3) FX.sail.dir *= -1; }
   if (FX.rain) { for (let i = 0; i < (FX.storm ? 16 : 6); i++) FX.drops.push({ x: Math.random() * 1.3, y: -.05, v: (FX.storm ? 1.5 : .9) + Math.random() * .5 }); FX.drops.forEach((d) => { d.y += d.v * dt; d.x -= (.12 + (FX.wind || 0) * .6) * dt; }); FX.drops = FX.drops.filter((d) => d.y < 1.05); }
 }
+// the busker's music notes, drawn once as the game's own vector shapes (an eighth note and a pair of beamed notes) and reused
+const NOTESPR = [];
+function noteSpr(i) { let c = NOTESPR[i]; if (c && c.r === RES) return c; const [cv, g] = hiCanvas(12, 14, RES); g.fillStyle = g.strokeStyle = '#8b5a2b'; g.lineWidth = 1.3; g.lineCap = 'round';
+  const head = (x, y) => { g.beginPath(); g.ellipse(x, y, 2.4, 1.8, -.35, 0, Math.PI * 2); g.fill(); };
+  if (i === 0) { head(4.2, 11); g.beginPath(); g.moveTo(6.3, 10.4); g.lineTo(6.3, 2); g.quadraticCurveTo(7, 5, 10, 6.5); g.stroke(); }
+  else { head(3, 11.4); head(9, 10.2); g.beginPath(); g.moveTo(5.1, 10.8); g.lineTo(5.1, 3); g.moveTo(11.1, 9.6); g.lineTo(11.1, 1.8); g.stroke(); g.lineWidth = 2; g.beginPath(); g.moveTo(5.1, 3); g.lineTo(11.1, 1.8); g.stroke(); }
+  cv.r = RES; NOTESPR[i] = cv; return cv; }
+// the people at street events (busker, food-truck line, road crew) are cached sprites like everyone else on the street
+const BUSK = { shirt: '#6d28d9', pants: '#1f2937', hair: '#1a1a1a', skin: '#a26a42', ph: 0 }, CREW = { kit: { shirt: '#ff6b1a', pants: '#1f2937', hat: 'helmet', hatCol: '#f5d000', vest: '#d4ff3a', vestText: '' }, skin: '#c68e63', moving: false }, LINEUP = [];
 function liveDraw(list, vis, now) {
   FX.birds.forEach((b) => { const [sx, sy] = iso(b.x, b.y); if (!vis(sx, sy)) return; list.push({ d: b.x + b.y + (b.fly ? 50 : 0), f: () => bird(sx, sy - b.h, b, now) }); });
   FX.events.forEach((e) => { const [sx, sy] = iso(e.x, e.y); if (!vis(sx, sy)) return;
-    if (e.k === 'music') list.push({ d: e.x + e.y, f: () => { person(ctx, sx, sy, { shirt: '#6d28d9', pants: '#1f2937', hair: '#1a1a1a', skin: '#a26a42', ph: 0 }, now); ctx.fillStyle = '#8b5a2b'; ctx.save(); ctx.translate(sx + 4, sy - 18); ctx.rotate(-.5); ctx.fillRect(-8, -2, 16, 4); ctx.beginPath(); ctx.ellipse(-8, 0, 5, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); ctx.font = '14px system-ui'; ctx.textAlign = 'center'; const k = (now / 900) % 1; ctx.globalAlpha = 1 - k; ctx.fillText('♪', sx + 10 + k * 8, sy - 44 - k * 22); ctx.globalAlpha = 1 - ((k + .5) % 1); ctx.fillText('♫', sx - 6 - ((k + .5) % 1) * 6, sy - 44 - ((k + .5) % 1) * 22); ctx.globalAlpha = 1; } });
-    if (e.k === 'truck') list.push({ d: e.x + e.y, f: () => { vehicle(ctx, sx, sy, 1, { kind: 'van', body: '#f5b800', side: '#e6a800', stripe: '#d22d3d', scale: 1.3, text: 'FOOD' }, now, NIGHT, false); for (let k = 0; k < 3; k++) person(ctx, sx - 22 + k * 10, sy + 16 + k * 3, { shirt: SHIRT[(k * 3) % SHIRT.length], pants: '#2c3e50', hair: HAIR[k], skin: SKIN[k + 1], ph: k }, now); label(sx, sy - 46, e.name, '#ffd34d'); } });
-    if (e.k === 'work') list.push({ d: e.x + e.y, f: () => { [[-1, -.4], [-1, .4], [1, -.4], [1, .4]].forEach(([a, b]) => { const [cx, cy] = iso(e.x + b * .6, e.y + a * 1.3); drawProp(ctx, { t: 'cone' }, cx, cy, now, NIGHT); }); person(ctx, sx, sy, { kit: { shirt: '#ff6b1a', pants: '#1f2937', hat: 'helmet', hatCol: '#f5d000', vest: '#d4ff3a', vestText: '' }, skin: '#c68e63', moving: false }, now); } });
+    if (e.k === 'music') list.push({ d: e.x + e.y, f: () => { personFast(ctx, sx, sy, BUSK, now, 'evBusk'); ctx.fillStyle = '#8b5a2b'; ctx.save(); ctx.translate(sx + 4, sy - 18); ctx.rotate(-.5); ctx.fillRect(-8, -2, 16, 4); ctx.beginPath(); ctx.ellipse(-8, 0, 5, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); const k = (now / 900) % 1, k2 = (k + .5) % 1, n1 = noteSpr(0), n2 = noteSpr(1); ctx.globalAlpha = 1 - k; ctx.drawImage(n1, sx + 10 + k * 8 - 6, sy - 44 - k * 22 - 11, n1.lw, n1.lh); ctx.globalAlpha = 1 - k2; ctx.drawImage(n2, sx - 6 - k2 * 6 - 6, sy - 44 - k2 * 22 - 11, n2.lw, n2.lh); ctx.globalAlpha = 1; } });
+    if (e.k === 'truck') list.push({ d: e.x + e.y, f: () => { vehicle(ctx, sx, sy, 1, { kind: 'van', body: '#f5b800', side: '#e6a800', stripe: '#d22d3d', scale: 1.3, text: 'FOOD' }, now, NIGHT, false); for (let k = 0; k < 3; k++) personFast(ctx, sx - 22 + k * 10, sy + 16 + k * 3, LINEUP[k] || (LINEUP[k] = { shirt: SHIRT[(k * 3) % SHIRT.length], pants: '#2c3e50', hair: HAIR[k], skin: SKIN[k + 1], ph: k }), now, 'evLine' + k); label(sx, sy - 46, e.name, '#ffd34d'); } });
+    if (e.k === 'work') list.push({ d: e.x + e.y, f: () => { [[-1, -.4], [-1, .4], [1, -.4], [1, .4]].forEach(([a, b]) => { const [cx, cy] = iso(e.x + b * .6, e.y + a * 1.3); drawProp(ctx, { t: 'cone' }, cx, cy, now, NIGHT); }); personFast(ctx, sx, sy, CREW, now, 'evCrew'); } });
   });
   if (FX.train) { for (let k = 0; k < FX.train.cars; k++) { const x = FX.train.x - k * 2.2; if (x < -3 || x > N + 3) continue; const [sx, sy] = iso(x, W.railY + .5); if (!vis(sx, sy)) continue; list.push({ d: x + W.railY + 1, f: () => drawProp(ctx, { t: 'boxcar', x, y: W.railY + .5, color: k === 0 ? '#f5b800' : ['#8b3a2a', '#2f5d7a', '#556b2f', '#7a6a55'][k % 4] }, sx, sy, now, NIGHT) }); } }
   if (FX.sail) { const [sx, sy] = iso(FX.sail.x, FX.sail.y); if (vis(sx, sy)) list.push({ d: FX.sail.x + FX.sail.y, f: () => sailboat(sx, sy, now) }); }
@@ -1046,6 +1063,7 @@ const DLG_LOG = []; let DLG_HIDE_T = 0;
 const hashStr = (s) => [...String(s)].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
 // how a speaker looks in their portrait (null: use their icon)
 function portraitLook(id) {
+  if (String(id).startsWith('v_')) return null; // an inner voice shows its subject's icon, never a face
   if (PLOOK[id]) return PLOOK[id];
   if (id === '@you') return { kit: kitWith(myKit(), myLooks()), skin: S.skin || '#c68e63', hair: '#1a1a1a' };
   const c = CAST[id]; if (c && c.look) return { kit: c.look, skin: c.skin, hair: '#1a1a1a' };
@@ -1055,7 +1073,7 @@ function portraitLook(id) {
 }
 // a speaker's accent colour and voice (pitch, timbre) stay the same every time you meet them
 function speakerStyle(id, lk) {
-  let col; const h = hashStr(id); col = id === '@you' ? '#f5b800' : CAST[id] ? '#f5b800' : lk && (lk.kit ? lk.kit.shirt : lk.shirt) || ['#38bdf8', '#a78bfa', '#34d399', '#fb923c', '#f472b6'][h % 5];
+  let col; const h = hashStr(id); const vc = SUBJ.col(id); if (vc) return { col: vc, f: 120, wave: 'sine', voice: true }; col = id === '@you' ? '#f5b800' : CAST[id] ? '#f5b800' : lk && (lk.kit ? lk.kit.shirt : lk.shirt) || ['#38bdf8', '#a78bfa', '#34d399', '#fb923c', '#f472b6'][h % 5];
   const rgb = /^#[0-9a-f]{6}$/i.test(col) ? [1, 3, 5].map((k) => parseInt(col.substr(k, 2), 16)) : null; if (rgb && !CAST[id] && id !== '@you' && (Math.max(...rgb) - Math.min(...rgb) < 40 || Math.max(...rgb) < 70)) col = ['#38bdf8', '#a78bfa', '#34d399', '#fb923c', '#f472b6'][h % 5];
   return { col, f: id === 'exhibita' ? 720 : 150 + (h % 9) * 24, wave: ['triangle', 'sine', 'triangle', 'square'][(h >> 4) % 4] };
 }
@@ -1103,6 +1121,7 @@ function sceneCaption(text) {
   let el = $('sceneCap'); if (!el) { el = document.createElement('div'); el.id = 'sceneCap'; el.className = 'sceneCap'; document.body.appendChild(el); }
   el.textContent = text; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), Math.max(3600, text.length * 55));
 }
+const AFTER_NO = ['Shake it off. We\'re still working.', 'Okay. Breathe. Next thing.', 'You\'ll remember that one. Let\'s keep going.', 'Happens to everybody once. Don\'t let it happen twice.'];
 const ACT_NO = ['That one got away from us. Here\'s the thing:', 'Next time, remember this:', 'Okay. Learn from that one.', 'That\'s on us. The rule is:', 'Here\'s what should have happened:'];
 function dialogue(lines, done, opts) {
   opts = opts || {}; const box = $('dlg'); let seq = lines.slice(), i = -1, typing = null, full = '', auto = !!(S.cfg && S.cfg.autoDlg), skipping = false, autoT = 0, alive = true, lastSp = null, lastName = '';
@@ -1130,7 +1149,7 @@ function dialogue(lines, done, opts) {
   }; pRaf = requestAnimationFrame(drawPort);
   const setSpeaker = (id, c, radio, mood) => {
     const lk = id ? portraitLook(id) : null, st = speakerStyle(id || 'narr', lk), changed = id !== lastSp;
-    pLook = lk; ico.textContent = lk ? '' : (radio ? '📻' : c ? c.icon : ''); port.className = 'dlgPort' + (radio ? ' radio' : '') + (mood ? ' ' + mood : '') + (lk ? '' : ' emoji');
+    pLook = lk; panel.classList.toggle('dlgVoice', !!st.voice); ico.textContent = lk ? '' : (radio ? '📻' : c ? c.icon : ''); port.className = 'dlgPort' + (radio ? ' radio' : '') + (mood ? ' ' + mood : '') + (lk ? '' : ' emoji');
     panel.style.setProperty('--acc', st.col); panel.style.setProperty('--accL', lighten(st.col.startsWith('#') ? st.col : '#f5b800', .55));
     if (changed && id) { portW.classList.remove('swap'); void portW.offsetWidth; portW.classList.add('swap'); }
     lastSp = id; return st;
@@ -1161,6 +1180,7 @@ function dialogue(lines, done, opts) {
         if (o.fx) { try { o.fx(res); } catch (er) {} } seq.splice(i + 1, 0, ...(o.reply || [])); setChoiceMode(false); next(); });
       return;
     }
+    if (ln[0] === 'q' && ln[1] && ln[1].act && !ln[1]._v && Math.random() < .6) { ln[1]._v = 1; const vl = SUBJ.nudge(ln[1].les); if (vl) { seq.splice(i, 0, vl); return show(); } }
     if (ln[0] === 'q') {
       skipping = false; const q = ln[1], sp = ln[2] || 'castillo', c = who(sp); let picked = []; window.__curQ = q; setSpeaker(sp, c, false, ''); panel.classList.add('dlgQuiz'); panel.classList.toggle('dlgAct', !!q.act);
       plate.querySelector('b').textContent = c.name; plate.querySelector('small').textContent = q.act ? 'Your call' : L.lessonName(q.les != null ? q.les : W.D.lessons[0]) || '';
@@ -1177,7 +1197,10 @@ function dialogue(lines, done, opts) {
         body.querySelectorAll('[data-k]').forEach((b) => { const k = +b.dataset.k, isC = q.multi ? q.c.indexOf(k) >= 0 : k === q.c; b.disabled = true; b.classList.add(isC ? 'ok' : picked.indexOf(k) >= 0 ? 'no' : 'dim'); });
         const fact = (q.fact || q.ex || '').trim(); setTimeout(() => { const V = VOICES[sp] || VOICES[String(sp).replace(/^reg_/, '')] || ANYONE, nx = seq[i + 1], more = !nx || nx[0] !== 'q', add = q.act && (ok ? q.good : q.bad)
             // a decision plays out in the scene: what happens next, then the person with you says why
-            ? [['narr', ok ? q.good : q.bad], [sp, ok ? rnd(V.p) : rnd(ACT_NO) + (fact ? ' ' + fact : ''), { quiz: ok ? 'ok' : 'no' }]]
+            ? (ok ? [['narr', q.good]].concat(Math.random() < .35 && SUBJ.right(q.les) ? [SUBJ.right(q.les)] : []).concat([[sp, rnd(V.p), { quiz: 'ok' }]])
+              // a wrong call is a story beat: what happens, then the subject's voice names the rule, then the scene goes on
+              : SUBJ.wrong(q.les, fact) ? [['narr', q.bad], SUBJ.wrong(q.les, fact), [sp, rnd(AFTER_NO), { quiz: 'no' }]] : [['narr', q.bad], [sp, rnd(ACT_NO) + (fact ? ' ' + fact : ''), { quiz: 'no' }]])
+            : !ok && !tries && q.les != null && SUBJ.on() && Math.random() < .5 && SUBJ.wrong(q.les, fact) ? [SUBJ.wrong(q.les, fact), [sp, rnd(AFTER_NO), { quiz: 'no' }]]
             : [[sp, ok ? rnd(tries ? V.r : V.p) : rnd(CORRECT) + (fact ? ' ' + fact : ''), { quiz: ok ? 'ok' : 'no' }]];
           // a question is part of the conversation, not the end of it: when the scene goes on, the reaction leads straight
           // back into it; only when the question was the last thing does the person wrap up with a closing line
@@ -1681,7 +1704,7 @@ function exitBoat() { if (!P.boat) return; P.boat = false; P.path = []; pboat.x 
 function exitCar() { if (!P.inCar) return; P.inCar = false; P.path = []; pcar.x = P.x; pcar.y = P.y; const r = nearest(Math.floor(P.x), Math.floor(P.y), (x, y) => W.walkable(x, y) && W.at(x, y) !== T.ROAD); if (r) { P.x = r[0] + .5; P.y = r[1] + .5; } hud(); }
 
 // ---------- learning scenes ----------
-function openModal(html) { const m = $('modal'); if (m.hidden && typeof FEEL !== 'undefined' && S.sound) FEEL.UI.open(); m.innerHTML = '<div class="mBox">' + html + '</div>'; m.hidden = false; paused = false; }
+function openModal(html) { const m = $('modal'), cap = $('sceneCap'); if (cap) cap.classList.remove('on'); /* a film caption never sits on top of a card */ if (m.hidden && typeof FEEL !== 'undefined' && S.sound) FEEL.UI.open(); m.innerHTML = '<div class="mBox">' + html + '</div>'; m.hidden = false; paused = false; }
 function closeModal() { if (!$('modal').hidden && typeof FEEL !== 'undefined' && S.sound) FEEL.UI.close(); $('modal').hidden = true; scene = null; }
 // a run of questions with feedback; done(result) at the end
 function runQuestions(head, qs, done) {
@@ -1863,7 +1886,7 @@ function openCallSceneQ(c) {
   if (a) lines.push(['choice', a.opts, a.q]);
   if (/warrant|arrest/i.test(c.title)) arrestLines(c).forEach((x) => lines.push(x));
   if (c.open === 'assess') lines.push(['narr', 'You stop short of the door and take in the whole scene: exits, hands, who is watching.']); else if (c.open === 'id') lines.push(['narr', 'You ask for ID up front. The caller fumbles for a wallet, then hands it over.']);
-  VAR.callerLines(c, cid).forEach((x) => lines.push(x)); MEM.callerLine(c, cid).forEach((x) => lines.push(x)); VAR.complication(c, cid).forEach((x) => lines.push(x)); { const mg = VAR.sceneMini(c); if (mg) lines.push(mg); }
+  VAR.callerLines(c, cid).forEach((x) => lines.push(x)); MEM.callerLine(c, cid).forEach((x) => lines.push(x)); { const ov = SUBJ.open(c.les); if (ov) lines.push(ov); } VAR.complication(c, cid).forEach((x) => lines.push(x)); { const mg = VAR.sceneMini(c); if (mg) lines.push(mg); }
   PREM.threadLines(c, 'velvet').forEach((x) => lines.push(x));
   const pt = VAR.partner(); qs.forEach((q, k) => { lines.push(['q', q, k % 2 ? (pt ? pt.id : 'castillo') : cid]); if (k === 0 && qs.length > 2) lines.push(VAR.midChoice(c, cid, () => { const z = newCitizen(); z.les = c.les; citizens.push(z); })); });
   lines.push(['fx', (res) => VAR.afterLines(c, res)]);
@@ -1966,10 +1989,10 @@ function factDrill() {
 // away; the run is saved and picks up at the same stage next time
 function stagedRun(key, cfg) {
   S.runs = S.runs || {}; const per = 3, stages = Math.ceil(cfg.total / per); let run = S.runs[key];
-  const kick = (i) => cfg.kicker + ' · STAGE ' + (i + 1) + ' OF ' + stages;
+  const kick = (i) => (cfg.kick ? cfg.kick(i, stages) : cfg.kicker + ' · STAGE ' + (i + 1) + ' OF ' + stages);
   const stage = (first) => {
     const i = run.stage, k = Math.min(per, cfg.total - i * per), qs = cfg.pick(k, i, run); paused = true;
-    const lines = (first ? cfg.intro(run, stages) : []).concat(cfg.beat ? cfg.beat(i, stages) : []).concat(qs.map((q, j) => ['q', q, cfg.speakers[(i * per + j) % cfg.speakers.length]]));
+    const lines = (first ? cfg.intro(run, stages) : []).concat(cfg.beat ? cfg.beat(i, stages, qs) : []).concat(qs.map((q, j) => ['q', q, cfg.speakers[(i * per + j) % cfg.speakers.length]]));
     dialogue(lines, (r) => {
       run.right += r.right; run.n += r.n; run.stage++; saveS();
       if (run.stage >= stages) { delete S.runs[key]; saveS(); paused = false; cfg.done({ right: run.right, n: run.n }); return; }
@@ -2006,12 +2029,13 @@ function chapterExam() {
   const all = [0, 1, 2, 3, 4].flatMap((d) => DISTRICTS[d].lessons); music.start('story');
   const N = L.factCount();
   if (S.runs && S.runs.exam && !S.runs.exam.order) delete S.runs.exam; // a run saved before the exam covered every fact
-  stagedRun('exam', { total: N, kicker: 'CHAPTER 5 FINAL EXAM', speakers: ['castillo', 'okonkwo', 'navarro'], init: (run) => { run.order = L.examOrder(); },
+  stagedRun('exam', { total: N, kicker: 'LAST SHIFT · CHAPTER 5 FINAL EXAM', kick: FIN.kick, speakers: ['castillo', 'okonkwo', 'navarro'], init: (run) => { run.order = L.examOrder(); },
     pick: (k, i, run) => { if (!run.order) run.order = L.examOrder(); return L.examQs(run.order.slice(i * 3, i * 3 + k)); },
-    intro: (run, n) => [['narr', 'Patrol HQ, the training room. Every fact in the chapter, all ' + N + ' of them.'], ['castillo', 'This is the whole chapter, cadet. Every single fact, one question each. You need eighty-five percent. It\'s three at a time, and you can walk away between rounds whenever you need to. Your spot and your score save, so come back to it as many times as you want.'], ['choice', [{ t: 'Ready.', reply: [] }, { t: 'Give me a second.', reply: [['castillo', 'Take two. Then we start.']] }], 'Chapter 5 Final Exam']],
+    intro: (run, n) => FIN.intro(n, N), beat: (i, n, qs) => FIN.beat(i, n, qs),
     done: (r) => {
-      const pass = r.right / r.n >= .85; if (pass) { S.graduated = Date.now(); stat('exam'); } saveS();
-      openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'CHAPTER 5 · PASSED' : 'CHAPTER EXAM · NOT YET') + '</b><h2>' + r.right + ' of ' + r.n + ' (' + Math.round(r.right / r.n * 100) + '%)</h2><p>' + (pass ? 'Every district, every fact, and the whole chapter on one exam. Port Meridian is proud of you.' : 'You need 85%. Run fact drills in any district and try again.') + '</p></div><div class="qAct"><button type="button" id="mDone">' + (pass ? 'Carry on' : 'Back to patrol') + '</button></div>');
+      // the score is the exam, unchanged; the ending around it shows who you helped on the way here
+      const E = FIN.ending(r), pass = E.pass; if (pass) { S.graduated = Date.now(); stat('exam'); } saveS();
+      openModal(E.html + '<div class="qAct"><button type="button" id="mDone">' + (pass ? 'Carry on' : 'Back to patrol') + '</button></div>');
       if (pass) { music.sting('promo'); shake(8, .6); }
       $('mDone').onclick = () => { closeModal(); award(pass ? 1000 : 50, pass ? 'chapter exam passed' : 'exam attempt'); if (pass) queueLoot('Chapter 5 Final Exam', 1, 'l'); };
     } });
@@ -2031,7 +2055,7 @@ function endOfWatch() {
     '<div class="rptGrid"><div><em>' + SS.calls + '</em><span>Calls cleared</span></div><div><em>' + Math.round(acc * 100) + '%</em><span>Accuracy</span></div><div><em>' + bestCombo + '</em><span>Best streak</span></div><div><em>' + od + '/3</em><span>Shift orders</span></div><div><em>' + SS.rp + '</em><span>RP earned</span></div><div><em>' + esc(L.rankOf(S.xp).name) + '</em><span>Rank</span></div></div>' +
     '<div class="rptGrade g' + grade + '"><span>' + grade + '</span></div><p class="rptNote">' + esc(note) + '</p>' + masteryLine() + '</div><div class="qAct"><button type="button" id="eNext">Start next shift</button></div>');
   if (S.sound) [523, 659, 784].forEach((f, i) => beep(f, .25, 'triangle', .05, .5 + i * .1));
-  $('eNext').onclick = () => { if (FX.storm) stat('stormShift'); const i = SHIFTS.findIndex((x) => x.id === S.shift); S.shift = SHIFTS[(i + 1) % 3].id; saveS(); clock = 0; closeModal(); load(W.did); award(grade === 'S' ? 120 : grade === 'A' ? 80 : 50, 'full shift · grade ' + grade); queueLoot('End of watch: found in your duty bag', 1, grade === 'S' ? 'r' : grade === 'A' ? 'u' : 'c'); };
+  $('eNext').onclick = () => { if (FX.storm) stat('stormShift'); CAL.advance(); const i = SHIFTS.findIndex((x) => x.id === S.shift); S.shift = SHIFTS[(i + 1) % 3].id; saveS(); clock = 0; closeModal(); load(W.did); award(grade === 'S' ? 120 : grade === 'A' ? 80 : 50, 'full shift · grade ' + grade); queueLoot('End of watch: found in your duty bag', 1, grade === 'S' ? 'r' : grade === 'A' ? 'u' : 'c'); };
 }
 
 // ---------- HUD ----------
@@ -2708,16 +2732,16 @@ function mainMenu(go) {
 // ---- pause menu ----
 let PAUSED_BY_MENU = false;
 // the pause menu is grouped by what you want to do; every entry has an icon from the same set as the action bar
-const PM_GROUPS = [['On duty', ['District Incident', 'My Beat', 'Investigations', 'Partner Care', 'Weekend PT Meet', 'Go off duty', 'Go back on duty', 'Squad Dispatch Board', 'Rec Room · Mini Games', 'PT', 'Uniform Inspection', 'Daily Challenges', 'This Week in the City', 'Photo Mode']],
+const PM_GROUPS = [['On duty', ['District Incident', 'My Beat', 'Investigations', 'Partner Care', 'Weekend PT Meet', 'Go off duty', 'Go back on duty', 'Squad Dispatch Board', 'Rec Room · Mini Games', 'PT', 'Uniform Inspection', 'Daily Challenges', 'Academy Calendar', 'This Week in the City', 'Photo Mode']],
   ['Progress', ['Other Lives', 'The Gazette', 'Service Record', 'Field Journal', 'Case Files', 'Mystery Board', 'Collections', 'Trophies', 'Academy Season', 'Class Standing', 'Leaderboards', 'Rival: Cadet Vance', 'Community Trust Map', 'Locker', 'Quest Items']],
   ['Options', ['Settings', 'Controls', 'Display & Audio', 'Saves & Backups', 'New Game+ · FTO', 'Report a problem', 'Quit to Title']]];
-const PM_ICON = { 'Other Lives': 'walk', 'The Gazette': 'book', 'Quest Items': 'key', 'District Incident': 'flag', 'My Beat': 'map', Investigations: 'folder', 'Partner Care': 'heart', 'Weekend PT Meet': 'dumbbell', 'Service Record': 'star', 'Squad Dispatch Board': 'map', 'Field Journal': 'book', 'Rec Room · Mini Games': 'pad', 'Go off duty': 'coffee', 'Go back on duty': 'badge', PT: 'dumbbell', 'Uniform Inspection': 'shirt', 'Class Standing': 'bars', 'Daily Challenges': 'cal', 'This Week in the City': 'city', 'Academy Season': 'trophy', 'Mystery Board': 'puzzle', 'Rival: Cadet Vance': 'rival', Leaderboards: 'podium', 'Case Files': 'folder', Collections: 'grid', 'Community Trust Map': 'heart', Locker: 'locker', 'Photo Mode': 'camera', Trophies: 'trophy', Settings: 'gear', Controls: 'keys', 'Display & Audio': 'screen', 'Saves & Backups': 'cloud', 'New Game+ · FTO': 'redo', 'Report a problem': 'flag', 'Quit to Title': 'power' };
+const PM_ICON = { 'Other Lives': 'walk', 'The Gazette': 'book', 'Quest Items': 'key', 'District Incident': 'flag', 'My Beat': 'map', Investigations: 'folder', 'Partner Care': 'heart', 'Weekend PT Meet': 'dumbbell', 'Service Record': 'star', 'Squad Dispatch Board': 'map', 'Field Journal': 'book', 'Rec Room · Mini Games': 'pad', 'Go off duty': 'coffee', 'Go back on duty': 'badge', PT: 'dumbbell', 'Uniform Inspection': 'shirt', 'Class Standing': 'bars', 'Daily Challenges': 'cal', 'Academy Calendar': 'cal', 'This Week in the City': 'city', 'Academy Season': 'trophy', 'Mystery Board': 'puzzle', 'Rival: Cadet Vance': 'rival', Leaderboards: 'podium', 'Case Files': 'folder', Collections: 'grid', 'Community Trust Map': 'heart', Locker: 'locker', 'Photo Mode': 'camera', Trophies: 'trophy', Settings: 'gear', Controls: 'keys', 'Display & Audio': 'screen', 'Saves & Backups': 'cloud', 'New Game+ · FTO': 'redo', 'Report a problem': 'flag', 'Quit to Title': 'power' };
 const ICON_FILL_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>';
 function pauseMenu() {
   if (ATTRACT || PHOTO || !$('start').hidden || looting || document.querySelector('.lorePop, .tCard, .introCine')) return; const el = fe(); if (!el.hidden) return;
   const was = paused; paused = true; PAUSED_BY_MENU = true; el.hidden = false; el.className = 'fe pauseBg';
   const close = () => { el.hidden = true; el.innerHTML = ''; el.className = 'fe'; paused = was; PAUSED_BY_MENU = false; };
-  const items = [['Resume', close], ['Service Record', () => { close(); REW.panel(); }], ['Quest Items', () => { close(); qItemsPanel(); }], ['My Beat', () => { close(); CITY.beatPanel(); }], ['Investigations', () => { close(); CITY.casesPanel(); }], ['Weekend PT Meet', () => { close(); CITY.meetPanel(); }], ...(CITY.hasAnimal() ? [['Partner Care', () => { close(); CITY.animalPanel(); }]] : []), ...(CITY.live ? [['District Incident', () => { close(); CITY.pickRole(); }]] : []), ...(S.squad && S.squad.lead ? [['Squad Dispatch Board', () => { close(); COOP.board(); }]] : []), ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], [S.offDuty ? 'Go back on duty' : 'Go off duty', () => { close(); OFF.toggle(); }], ['PT', () => { close(); ACAD.ptMenu(); }], ['Uniform Inspection', () => { close(); ACAD.inspMenu(); }], ['Class Standing', () => { close(); ACAD.standing(); }], ['Daily Challenges', () => { close(); EVT.dailyCard(); }], ['This Week in the City', () => { close(); EVT.eventCard(); }], ['Academy Season', () => { close(); POL.seasonPanel(); }], ['Mystery Board', () => { close(); EP.board(); }], ['Rival: Cadet Vance', () => { close(); EP.rivalPanel(); }], ['Leaderboards', () => { close(); EP.boards(); }], ['Case Files', () => { close(); POL.caseFiles(); }], ['Collections', () => { close(); EVT.collections(); }], ['Community Trust Map', () => { close(); trustMap(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Other Lives', () => { close(); LV.panel(); }], ['The Gazette', () => { close(); LV.gazette(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Controls', () => POL.controlsPanel(pauseMenuAgain)], ['Display & Audio', () => EP.calibrate(pauseMenuAgain)], ['Saves & Backups', () => SAFE.savesPanel(pauseMenuAgain)], ['New Game+ · FTO', () => NG.panel(pauseMenuAgain)], ['Report a problem', () => SAFE.reportPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
+  const items = [['Resume', close], ['Service Record', () => { close(); REW.panel(); }], ['Quest Items', () => { close(); qItemsPanel(); }], ['My Beat', () => { close(); CITY.beatPanel(); }], ['Investigations', () => { close(); CITY.casesPanel(); }], ['Weekend PT Meet', () => { close(); CITY.meetPanel(); }], ...(CITY.hasAnimal() ? [['Partner Care', () => { close(); CITY.animalPanel(); }]] : []), ...(CITY.live ? [['District Incident', () => { close(); CITY.pickRole(); }]] : []), ...(S.squad && S.squad.lead ? [['Squad Dispatch Board', () => { close(); COOP.board(); }]] : []), ['Field Journal', () => { close(); journal(); }], ['Rec Room · Mini Games', () => { close(); MG.open(); }], [S.offDuty ? 'Go back on duty' : 'Go off duty', () => { close(); OFF.toggle(); }], ['PT', () => { close(); ACAD.ptMenu(); }], ['Uniform Inspection', () => { close(); ACAD.inspMenu(); }], ['Class Standing', () => { close(); ACAD.standing(); }], ['Daily Challenges', () => { close(); EVT.dailyCard(); }], ['Academy Calendar', () => { close(); CAL.panel(); }], ['This Week in the City', () => { close(); EVT.eventCard(); }], ['Academy Season', () => { close(); POL.seasonPanel(); }], ['Mystery Board', () => { close(); EP.board(); }], ['Rival: Cadet Vance', () => { close(); EP.rivalPanel(); }], ['Leaderboards', () => { close(); EP.boards(); }], ['Case Files', () => { close(); POL.caseFiles(); }], ['Collections', () => { close(); EVT.collections(); }], ['Community Trust Map', () => { close(); trustMap(); }], ['Locker', () => { close(); locker(); }], ['Photo Mode', () => { close(); photoMode(); }], ['Other Lives', () => { close(); LV.panel(); }], ['The Gazette', () => { close(); LV.gazette(); }], ['Trophies', () => trophyRoom(pauseMenuAgain)], ['Settings', () => settingsPanel(pauseMenuAgain)], ['Controls', () => POL.controlsPanel(pauseMenuAgain)], ['Display & Audio', () => EP.calibrate(pauseMenuAgain)], ['Saves & Backups', () => SAFE.savesPanel(pauseMenuAgain)], ['New Game+ · FTO', () => NG.panel(pauseMenuAgain)], ['Report a problem', () => SAFE.reportPanel(pauseMenuAgain)], ['Quit to Title', () => { saveS(); location.reload(); }]];
   ON.gateMenu(items); SAFE.cloudSave(false);
   function pauseMenuAgain() { el.hidden = true; paused = was; PAUSED_BY_MENU = false; pauseMenu(); }
   const h = hourNow(), hh = String(Math.floor(h)).padStart(2, '0') + String(Math.floor((h % 1) * 60)).padStart(2, '0');
@@ -2862,7 +2886,7 @@ function lockedScreen() {
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); MG.watch(W.did); EVT.watch(); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { get LF() { learnFlowInit(); return LF; }, get FX() { return FX; }, VAR, dialogue: (...x) => dialogue(...x), MEM, POLB: () => POL.barks, get curCall() { return call; }, dropCall: () => { call = null; callCard(); }, openCallScene: (c) => openCallSceneQ(c), L, OPSM, dispatchCall: () => dispatchCall(), DE, LV, gossip: () => gossipLine(), POL, EP, award: (n, w) => award(n, w), SAFE, ON, playStep: (st) => playStep(st), activeQ: () => activeQ(), SIDE, CHAPTERS, get storyBusy() { return storyBusy; }, chapterDone: (i) => chapterDone(CHAPTERS[i]), travel: (d, t) => travel(d, t), openCall: () => { call.accepted = true; openCallScene(call); }, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, chapterExam, PREM, COOP, REW, get CITY() { return CITY; }, get PUR() { return PUR; }, profileCard: (u, c) => profileCard(u, c), get myUid() { return myUid; }, get RIDING() { return RIDING; }, get LEFT() { return LEFT; }, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { get LF() { learnFlowInit(); return LF; }, get FX() { return FX; }, VAR, dialogue: (...x) => dialogue(...x), MEM, FIN, SUBJ, CAL, POLB: () => POL.barks, get curCall() { return call; }, dropCall: () => { call = null; callCard(); }, openCallScene: (c) => openCallSceneQ(c), L, OPSM, dispatchCall: () => dispatchCall(), DE, LV, gossip: () => gossipLine(), POL, EP, award: (n, w) => award(n, w), SAFE, ON, playStep: (st) => playStep(st), activeQ: () => activeQ(), SIDE, CHAPTERS, get storyBusy() { return storyBusy; }, chapterDone: (i) => chapterDone(CHAPTERS[i]), travel: (d, t) => travel(d, t), openCall: () => { call.accepted = true; openCallScene(call); }, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, chapterExam, PREM, COOP, REW, get CITY() { return CITY; }, get PUR() { return PUR; }, profileCard: (u, c) => profileCard(u, c), get myUid() { return myUid; }, get RIDING() { return RIDING; }, get LEFT() { return LEFT; }, districtBoard, goTo, load, get others() { return others; } };
 
 // repeat visits open from the device's cache (skipped in tests so they always run the files on disk)
 if ('serviceWorker' in navigator && !/[?&](mock|skiptitle)\b/.test(location.search) && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
