@@ -1,12 +1,21 @@
 // Learning engine: question pools by lesson, picking (missed and unseen first), mastery and district unlocks.
 import { DISTRICTS, RANKS } from './data.js';
-const KEY = 'patrolcity:v1';
+const KEY = 'patrolcity:v1', CHAPTER_ID = 'vo';
 
 export function loadState() {
   let s = null; try { s = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { s = null; }
   // a damaged or missing save falls back to the newest hourly backup
   if (!s || typeof s !== 'object') { try { const ks = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.indexOf('patrolcity:bak:') === 0) ks.push(k); } ks.sort().reverse(); for (const k of ks) { const b = JSON.parse(localStorage.getItem(k)); if (b && b.cs) { s = b; break; } } } catch (e) {} }
   s = s || {};
+  // the game switched chapters (Chapter 5 to Vehicle Operations): progress tied to the old chapter's lessons and facts is
+  // set aside in ch5 (not deleted), and the new chapter starts fresh. Rank, RP, gear, people and places all carry over.
+  if (s.ch !== CHAPTER_ID) {
+    if (s.log || s.facts || (s.cleared && s.cleared.length) || s.graduated) {
+      const keep = {}; ['log', 'seen', 'miss', 'facts', 'cleared', 'graduated', 'runs', 'newFact'].forEach((k) => { if (s[k] != null) keep[k] = s[k]; });
+      s.ch5 = s.ch5 || keep; s.log = {}; s.seen = {}; s.miss = {}; s.facts = {}; s.cleared = []; s.runs = {}; delete s.graduated; delete s.newFact;
+    }
+    s.ch = CHAPTER_ID;
+  }
   return Object.assign({ cs: '', home: null, unlocked: [], cleared: [], shift: 'day', xp: 0, log: {}, seen: {}, miss: {}, calls: 0, answered: 0, right: 0, sound: true, trust: {}, zoom: 0, shiftStats: null, unit: '' }, s);
 }
 export function saveState(S) { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
@@ -45,18 +54,24 @@ function prepare(q) {
   const order = shuffle(q.opts.map((_, i) => i)), multi = Array.isArray(q.c);
   return { id: q.id, kind: q.kind, les: q.les, stem: q.stem, opts: order.map((i) => q.opts[i]), c: multi ? q.c.map((k) => order.indexOf(k)) : order.indexOf(q.c), multi, ex: q.ex, pg: q.pg };
 }
-// facts: the 558 facts of the study hub's Full Chapter Exam (facts.json). Each fact has the questions that test it.
+// facts: the facts of the study hub's Full Chapter Exam (facts_vo.json for Vehicle Operations). Each fact has the questions that test it.
 // A fact is complete once you answer one of its questions correctly.
-let FACTS = [], POOL = [];
+// FACT_BY_ID and FACT_LISTS are built once at load, so lookups by id or lesson don't scan every fact each time
+let FACTS = [], POOL = [], FACT_BY_ID = new Map(), FACT_LISTS = new Map();
 export async function loadFacts(url) {
   const d = await early(url) || await (await fetch(url, { cache: 'no-cache' })).json(); POOL = d.q;
   // two-statement questions ("Statement A: ... Statement B: ...") are left out everywhere; every fact has other questions
   const two = (k) => POOL[k] && /^\s*Statement A\b/i.test(POOL[k][0]);
   FACTS = d.f.map((f, i) => ({ id: 'F' + i, les: f[0], text: f[1], pg: f[2], qs: f[3].filter((k) => !two(k)).length ? f[3].filter((k) => !two(k)) : f[3] }));
+  FACT_BY_ID = new Map(FACTS.map((f) => [f.id, f])); FACT_LISTS = new Map();
   return FACTS.length;
 }
 export const factCount = () => FACTS.length;
-export function factList(lessons) { const set = new Set(lessons); return FACTS.filter((f) => set.has(f.les)); }
+export const lessonCount = () => (BANK ? BANK.lessons.length : 0);
+export const allLessons = () => Array.from({ length: lessonCount() }, (_, i) => i);
+// the list for a set of lessons is cached (callers only read it; anything that reorders copies it first)
+export function factList(lessons) { const k = lessons.join(','); let l = FACT_LISTS.get(k); if (!l) { const set = new Set(lessons); l = FACTS.filter((f) => set.has(f.les)); FACT_LISTS.set(k, l); } return l; }
+export const factById = (id) => FACT_BY_ID.get(id) || null;
 export function factProgress(S, lessons) { const all = factList(lessons), f = S.facts || {}; return { done: all.filter((x) => f[x.id]).length, total: all.length }; }
 // FTO mode (New Game+): select-all-that-apply questions come up whenever a fact has one
 let HARD = false; export function setHard(v) { HARD = !!v; }
@@ -65,19 +80,19 @@ function factQuestion(f) {
   const qi = from[Math.floor(Math.random() * from.length)], r = POOL[qi], multi = Array.isArray(r[2]), order = shuffle(r[1].map((_, i) => i));
   return { id: 'P' + qi, fid: f.id, kind: 'fact', les: f.les, stem: r[0], opts: order.map((i) => r[1][i]), c: multi ? r[2].map((k) => order.indexOf(k)) : order.indexOf(r[2]), multi, ex: r[4] || f.text, pg: r[5] || f.pg, fact: f.text };
 }
-export function fact(S, lesson) { const p = FACTS.filter((f) => f.les === lesson); if (!p.length) return null; const open = p.filter((f) => !(S.facts || {})[f.id]), from = open.length ? open : p, f = from[Math.floor(Math.random() * from.length)]; return { id: f.id, text: f.text, pg: f.pg, les: lesson, done: !!(S.facts || {})[f.id] }; }
+export function fact(S, lesson) { const p = factList([lesson]); if (!p.length) return null; const open = p.filter((f) => !(S.facts || {})[f.id]), from = open.length ? open : p, f = from[Math.floor(Math.random() * from.length)]; return { id: f.id, text: f.text, pg: f.pg, les: lesson, done: !!(S.facts || {})[f.id] }; }
 // the same question on every player's screen: a fixed fact and pool question, options shuffled by a shared random source
 export function factQFixed(fid, qi, r) {
-  const f = FACTS.find((x) => x.id === fid); if (!f) return null; const q = POOL[qi] || POOL[f.qs[0]], n = q[1].length, order = q[1].map((_, i) => i);
+  const f = FACT_BY_ID.get(fid); if (!f) return null; const q = POOL[qi] || POOL[f.qs[0]], n = q[1].length, order = q[1].map((_, i) => i);
   for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
   return { id: 'P' + qi, fid: f.id, kind: 'fact', les: f.les, stem: q[0], opts: order.map((i) => q[1][i]), c: order.indexOf(q[2]), multi: false, ex: q[4] || f.text, pg: q[5] || f.pg, fact: f.text };
 }
 // for a host picking a round: facts (open ones first) with a single-answer question each, as [fid, poolIndex]
 export function pickFactIds(S, lessons, n) { const done = S.facts || {}, all = shuffle(factList(lessons)); all.sort((a, b) => (done[a.id] ? 1 : 0) - (done[b.id] ? 1 : 0)); return all.slice(0, n).map((f) => { const ok = f.qs.filter((k) => POOL[k] && !Array.isArray(POOL[k][2])); const from = ok.length ? ok : f.qs; return [f.id, from[Math.floor(Math.random() * from.length)]]; }); }
-// the full chapter test: all 558 facts, each once, in a shuffled order kept with the saved run
+// the full chapter test: every fact, each once, in a shuffled order kept with the saved run
 export const examOrder = () => shuffle(FACTS.map((f) => f.id));
-export function examQs(ids) { return ids.map((id) => FACTS.find((f) => f.id === id)).filter(Boolean).map(factQuestion); }
-export function factQ(id) { const f = FACTS.find((x) => x.id === id); return f ? factQuestion(f) : null; }
+export function examQs(ids) { return ids.map((id) => FACT_BY_ID.get(id)).filter(Boolean).map(factQuestion); }
+export function factQ(id) { const f = FACT_BY_ID.get(id); return f ? factQuestion(f) : null; }
 // questions for n facts, open facts first (then ones missed recently)
 // every question is a fact: facts you haven't learned come first and a learned fact never comes back while any are left.
 // opts.wide (default true): if these lessons are all learned, draw unlearned facts from the rest of the chapter instead of repeating.

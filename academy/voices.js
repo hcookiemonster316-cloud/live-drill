@@ -21,7 +21,7 @@ export const VOICES = {
   marcus: { p: ['Yep, that\'s right.', 'Yeah, exactly.'], r: ['There it is. Took you a minute, but you got it.'],
     a: ['I gotta run, I\'ve got six deliveries and my chain\'s making a weird noise.', 'If you ever need a shortcut downtown, just ask me.', 'Most people just yell at me for riding on the sidewalk. This was nice.'] },
   okafor: { p: ['Correct. Somebody\'s been reading.', 'Exactly right.'], r: ['That\'s right. Changing your answer is part of learning.'],
-    a: ['All three copies of Chapter 5 are checked out, and every one of them is highlighted.', 'Quietly, please. But well done.', 'We\'re open until nine if you ever want to study here.'] },
+    a: ['All three copies of the Vehicle Operations chapter are checked out, and every one of them is highlighted.', 'Quietly, please. But well done.', 'We\'re open until nine if you ever want to study here.'] },
   kevin: { p: ['Oh, nice. Yeah, that\'s right.', 'That\'s right! Wow, okay. You\'re good at this.'], r: ['Second try. Hey, sometimes you just have to restart.'],
     a: ['Have you tried turning your radio off and back on? Sorry. I ask everybody that.', 'Anyway, I\'ve got forty-one tickets waiting on me. Pray for me.', 'I could never do your job. I\'d hide in the server room.'] },
   rosa: { p: ['¡Eso! That\'s right, mijo.', 'Muy bien. Smart and polite.'], r: ['Ay, there it is. I knew you knew it.'],

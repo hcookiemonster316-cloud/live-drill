@@ -1,30 +1,31 @@
-// Patrol City content: districts (one per Chapter 5 unit), landmarks, dispatch calls and "something's off" moments.
-// Lesson numbers are positions in ch5.json's lessons list (0 = Lesson 1.1 ... 20 = Lesson 5.2).
+// Patrol City content: districts, landmarks, dispatch calls and "something's off" moments.
+// The game teaches Vehicle Operations (vodata.js): lesson numbers are positions in vo.json's lessons list (0 = Lesson 1.1 ... 11 = Lesson 4.3).
+// Calls and "something's off" moments live in vodata.js; the Chapter 5 versions are kept in ch5data.js.
 // Each lot is a kind, or [kind, name, sign], or { strip: [...] } for a block of four storefronts.
 export const DISTRICTS = [
-  { id: 0, name: 'Central District', unit: 'Unit 1 · Patrol Basics', lessons: [0, 1, 2, 3], color: '#f5b800', theme: 'downtown',
+  { id: 0, name: 'Central District', unit: 'Unit 1–2 · Inspection and Observation', lessons: [0, 1], color: '#f5b800', theme: 'downtown',
     blurb: 'Downtown. Headquarters, roll call, the dispatch center and the radio tower.',
     lots: ['hq', ['houses', 'Palmetto Row'], ['apartments', 'Harbor View Apartments'], ['church', 'First Light Chapel'], ['park', 'Bayfront Dog Run'], ['school', 'Founders Elementary'], ['shop', 'Spokes & Spares'], ['pawn', 'Downtown Pawn & Loan'], 'dispatch', 'radio', 'bank', 'records', ['tower', 'Bayfront Tower', ''], ['diner', 'Night Owl Diner', 'DINER'], 'parking',
       { strip: [['cafe', 'Grind & Badge Coffee', 'COFFEE'], ['barber', 'Sharp Edges Barbershop', 'BARBER'], ['books', 'Dog-Eared Books', 'BOOKS'], ['pizza', 'Slice of Justice', 'PIZZA']] },
       ['plaza', 'Founders Plaza'], ['tower', 'Meridian Office Tower', ''], ['library', 'Central Library', 'LIBRARY'], 'garage', ['transit', 'Downtown Transit Center', 'TRANSIT'], ['clinic', 'Downtown Urgent Care', 'URGENT CARE'], ['park', 'Founders Park']] },
-  { id: 1, name: 'Eastside', unit: 'Unit 2 · Duties on Patrol', lessons: [4, 5, 6, 7], color: '#3b82f6', theme: 'commercial',
-    blurb: 'Gas stations, a strip mall and busy corners. Contacts, backup and threat assessment.',
+  { id: 1, name: 'Eastside', unit: 'Unit 2 · Roads, Weather and Crash Avoidance', lessons: [2, 3], color: '#3b82f6', theme: 'commercial',
+    blurb: 'Gas stations, a strip mall and busy corners. Wet roads, intersections and crash avoidance.',
     lots: ['substation', ['farm', 'Old Grove Farm'], ['woods', 'Eastgate Pines'], ['church', 'Eastside Baptist Church'], ['school', 'Eastside Middle School'], ['shop', 'Eastside Jewelers'], ['diner', 'Sunrise Café'], ['gas', 'Gas & Go', 'GAS'], ['mall', 'Eastside Plaza', 'PLAZA'], ['motel', 'Eastgate Motel', 'MOTEL'], ['autoshop', "Big Earl's Auto", 'AUTO'], ['carwash', 'Bubbles Car Wash', 'WASH'],
       { strip: [['laundromat', 'Spin City Laundromat', 'LAUNDRY'], ['shop', "Rosa's Bodega", 'BODEGA'], ['pharmacy', 'Eastside Pharmacy', 'Rx'], ['nails', 'Glam Nails', 'NAILS']] },
       ['houses', 'Maple Court'], ['gym', 'Iron Will Boxing Gym', 'BOXING'], ['apartments', 'Eastgate Apartments', ''],
       { strip: [['pizza', "Tony's Pizza", 'PIZZA'], ['cafe', 'The Donut Stop', 'DONUTS'], ['shop', 'Corner Cell Repair', 'PHONES'], ['barber', 'Fade Factory', 'BARBER']] },
       'parking', ['gas', 'Fuel Depot', 'FUEL'], ['houses', 'Birch Lane'], ['center', 'Eastside Community Center', 'COMMUNITY'], ['park', 'Eastside Dog Park']] },
-  { id: 2, name: 'Riverside', unit: 'Unit 3 · Non-Criminal Calls', lessons: [8, 9, 10, 11, 12, 13, 14, 15, 16], color: '#16a34a', theme: 'residential',
+  { id: 2, name: 'Riverside', unit: 'Unit 3 · Handling and Steering', lessons: [4, 5], color: '#16a34a', theme: 'residential',
     blurb: 'Homes, apartments, the park, a pawn shop and the stadium on the river.', river: true,
     lots: ['substation', ['farm', 'Willow Creek Farm'], ['woods', 'Cypress Hammock'], ['houses', 'Heron Point'], ['park', 'Riverwalk'], ['shop', 'Riverside Feed & Seed'], ['houses', 'Cypress Lane'], ['diner', 'Pelican Diner'], ['apartments', 'Bayou Senior Apartments'], ['houses', 'Willow Street'], ['apartments', 'River Bend Apartments', ''], ['pawn', 'River Pawn', 'PAWN'], ['park', 'Riverside Park'], 'firestation', ['stadium', 'River Stadium'], ['church', 'Community Church'],
       ['school', 'Riverside School', 'SCHOOL'], ['school', 'Little Paddlers Daycare', 'DAYCARE'], ['marina', 'Riverside Marina', 'MARINA'],
       { strip: [['bait', 'Hook, Line & Sinker', 'BAIT'], ['cafe', 'The Rowboat Café', 'CAFE'], ['clinic', 'Riverside Vet Clinic', 'VET'], ['shop', 'River Market', 'MARKET']] }] },
-  { id: 3, name: 'Industrial Park', unit: 'Unit 4 · Structure and Area Searches', lessons: [17, 18], color: '#f97316', theme: 'industrial',
-    blurb: 'Warehouses, fenced lots, a rail yard and alarms that go off after dark.',
+  { id: 3, name: 'Industrial Park', unit: 'Unit 3 · Braking, Cornering and Backing', lessons: [6, 7, 8], color: '#f97316', theme: 'industrial',
+    blurb: 'Warehouses, fenced lots, a rail yard and tight lanes where you brake, turn and back up.',
     lots: ['substation', ['woods', 'North Spur Pines'], ['farm', 'Sandhill Sod Farm'], ['apartments', 'Railside Apartments'], ['houses', 'Millworker Row'], ['warehouse', 'Coastline Freight', 'FREIGHT'], ['warehouse', 'Palmetto Paper Co.', 'PAPER'], ['storage', 'Lock-It Storage', 'STORAGE'], ['railyard', 'Eastline Rail Yard'], ['warehouse', 'Gulf Packaging', 'GULF'], ['lumber', 'Sawdust Lumber Yard', 'LUMBER'], 'parking',
       ['scrapyard', "Rusty's Scrap & Salvage", 'SCRAP'], ['truckstop', 'Big Rig Truck Stop', 'TRUCK STOP'], ['warehouse', 'Sunrise Bottling', 'BOTTLING'], ['lot', 'Vacant Lot'], ['warehouse', 'County Evidence Storage', 'EVIDENCE'], ['railyard', 'North Spur Yard'], ['scrapyard', 'Green Bin Recycling', 'RECYCLE'], ['diner', 'The Lunch Pail', 'LUNCH']] },
-  { id: 4, name: 'Justice Row', unit: 'Unit 5 · Arrest Procedures', lessons: [19, 20], color: '#a855f7', theme: 'civic',
-    blurb: 'The county courthouse, the jail and its sally port, bail bonds and the public defender.',
+  { id: 4, name: 'Justice Row', unit: 'Unit 4 · Lights and Sirens', lessons: [9, 10, 11], color: '#a855f7', theme: 'civic',
+    blurb: 'The county courthouse, the jail and long dark roads for night and emergency driving.',
     lots: ['substation', ['houses', 'Magnolia Terrace'], ['apartments', 'Courtside Lofts'], ['church', 'Old Stone Church'], ['park', 'Gavel Green'], ['records', 'County Records Annex'], 'courthouse', 'jail', 'sallyport', ['bonds', 'Freedom Bail Bonds', 'BONDS'], ['plaza', 'Justice Plaza'], ['tower', 'County Administration', ''], 'parking',
       ['defender', 'Public Defender', 'LAW'], { strip: [['office', 'Barnes & Ruiz, Attorneys', 'LAW'], ['cafe', 'Objection! Espresso', 'ESPRESSO'], ['shop', 'Quick Copy & Notary', 'COPY'], ['office', 'Probation & Parole', 'PROBATION']] },
       ['tower', 'Clerk of Court', ''], 'parking', ['diner', 'The Gavel Grill', 'GRILL'], ['tower', "State Attorney's Office", ''], ['shop', 'Courthouse Newsstand', 'NEWS'], ['park', 'Veterans Memorial Park']] }
@@ -43,7 +44,7 @@ export const NPCS = [
   { id: 'marcus', d: 0, name: 'Marcus', role: 'Bike messenger', home: 'tower', icon: '🚲', look: { shirt: '#22c55e', pants: '#111827', hair: '#1a1a1a', skin: '#7a4b2a', cap: '#f97316' }, help: 3,
     lines: ["\"I deliver to every building downtown, so I know which elevators to stay out of.\"", "\"That gray sedan in the garage? I've seen that same plate on three different cars this month. Just saying.\"", "\"If you need to get to the courthouse fast, don't go the way your GPS tells you.\""] },
   { id: 'okafor', d: 0, name: 'Ms. Okafor', role: 'Head librarian', home: 'library', icon: '📚', look: { shirt: '#7c3aed', pants: '#374151', hair: '#1a1a1a', skin: '#5a3620', glasses: true }, help: 2,
-    lines: ["\"We have three copies of Chapter 5, and every one of them is highlighted from front to back.\"", "\"Inside voices, please. And yes, that means your radio too.\"", "\"By the way, you still have two books out. They were due Tuesday.\""] },
+    lines: ["\"We have three copies of the Vehicle Operations chapter, and every one of them is highlighted from front to back.\"", "\"Inside voices, please. And yes, that means your radio too.\"", "\"By the way, you still have two books out. They were due Tuesday.\""] },
   { id: 'kevin', d: 0, name: 'Kevin from IT', role: 'Tower tech support', home: 'tower', icon: '💻', look: { shirt: '#93c5fd', pants: '#475569', hair: '#8a5a2b', skin: '#f1c9a5', glasses: true }, help: 3,
     lines: ["\"Did you try turning it off and back on? That works on radios too, I promise.\"", "\"The records terminal's slow because nobody ever restarts it. Ever.\"", "\"I'm not supposed to say what's in the server room. It's mostly snacks.\""] },
   // Eastside
@@ -141,52 +142,7 @@ export const LANDMARKS = {
 };
 
 // Dispatch calls per lesson: [title, priority, where (landmark kind or 'any'), radio line].
-export const CALLS = {
-  0: [['Proactive patrol: business district', 3, 'bank', 'Make a visible pass through the business district and check on business owners.'],
-      ['Car with its dome light on in a closed lot', 2, 'parking', 'Caller reports a car parked in a closed lot with its dome light on.'],
-      ['Neighborhood watch meeting', 3, 'any', 'Watch captain asks for an officer to stop by and talk about recent thefts.']],
-  1: [['Suspicious person, hands in waistband', 2, 'any', 'Caller reports a man pacing and reaching into his waistband.'],
-      ['Shots-fired report', 1, 'garage', 'Several calls about possible gunshots near the garage. Use cover on approach.']],
-  2: [['Radio check: dead spot', 3, 'radio', 'Units report a dead spot near the tower. Check your radio and report back.'],
-      ['Channel congestion on a priority call', 2, 'dispatch', 'A priority call is tying up the channel. Report to dispatch.']],
-  3: [['Run a tag: possible stolen', 2, 'parking', 'A parked car may match a stolen-vehicle report. Run the tag and confirm any hit.'],
-      ['Records request at the terminal', 3, 'records', 'Records needs you to verify a query you ran this morning.']],
-  4: [['Burglary just occurred', 1, 'mall', 'Store owner says someone just ran from a smashed back door.'],
-      ['Disturbance in progress', 2, 'motel', 'Loud argument in a motel room. Plan your approach and parking.']],
-  5: [['Suspicious person at the pumps', 2, 'gas', 'Clerk reports a man asking customers for money and refusing to leave.']],
-  6: [['Officer requests backup: traffic stop', 1, 'any', 'Unit on a stop with three occupants requests backup.']],
-  7: [['Concerning statements by a former employee', 2, 'autoshop', 'Owner says a fired worker posted about "making them pay."']],
-  8: [['Citizen needs assistance', 3, 'any', 'Lost visitor and a stalled car blocking a lane.'], ['Lockout call', 3, 'houses', 'Resident locked out with a child inside the car.']],
-  9: [['Well-being check', 2, 'apartments', 'Daughter has not heard from her elderly mother in four days.'], ['Vacation security check', 3, 'houses', 'Homeowner away for a week asked for checks of the house.']],
-  10: [['Death notification', 2, 'houses', 'Another agency asks you to notify the next of kin of a traffic death.']],
-  11: [['Aggressive dog loose', 2, 'park', 'Large dog charging joggers in the park.'], ['Alligator in a pool', 2, 'houses', 'Homeowner reports an alligator in the backyard pool.']],
-  12: [['Vehicle fire', 1, 'any', 'Car smoking heavily at the curb, driver out.'], ['Fire alarm activation', 2, 'school', 'Alarm sounding at the school after hours.']],
-  13: [['Stolen TV at the pawn shop', 3, 'pawn', 'Pawn record matches a TV reported stolen last week.'], ['Wallet turned in', 3, 'church', 'Someone turned in a wallet found in the parking lot.']],
-  14: [['Landlord-tenant lockout', 2, 'apartments', 'Tenant says the landlord changed the locks.'], ['Repossession dispute', 2, 'houses', 'Owner and recovery agent arguing over a car on the hook.']],
-  15: [['Civil standby', 3, 'houses', 'A resident wants an officer present while she collects her belongings.']],
-  16: [['Large crowd after the game', 2, 'stadium', 'Crowd growing in the stadium lot after a loss; some bottles thrown.']],
-  17: [['Burglary alarm at a warehouse', 2, 'warehouse', 'Audible alarm, rear door. Alarm company has no key holder yet.'], ['Building search', 1, 'storage', 'Door pried open at the storage office. Suspect may still be inside.']],
-  18: [['Suspect fled on foot', 1, 'railyard', 'Burglary suspect ran into the rail yard. Set a perimeter.'], ['Area search at the lumber yard', 2, 'lumber', 'Caller saw someone climb the fence into the lumber yard.']],
-  19: [['Arrest on a warrant', 2, 'bonds', 'Confirmed warrant for a man outside the bail bonds office.'], ['Transport an arrestee', 2, 'courthouse', 'Courthouse deputies need an arrestee transported to the jail.']],
-  20: [['Booking at the county jail', 2, 'jail', 'Bring your arrestee through the sally port for booking.']]
-};
-
-// "Something's off": spotted only when you walk or drive close. Each points at a lesson in the district.
-export const OBSERVE = {
-  0: [['A car idles in a closed lot at night', 'car'], ['A business door stands open after closing', 'door']],
-  1: [['Someone keeps reaching toward his waistband', 'person'], ['A man watches you from a parked car', 'car']],
-  2: [['Your radio is silent; no traffic at all', 'radio']],
-  3: [['A tag looks swapped from another car', 'car']],
-  4: [['Fresh pry marks on a back door', 'door']],
-  5: [['A man stares at the pumps and paces', 'person']],
-  6: [['A patrol car sits on a stop with lights on', 'car']],
-  7: [['A note taped to a door reads "You will regret this"', 'door']],
-  8: [['A senior seems lost at the bus stop', 'person']], 9: [['Mail piled up at a front door', 'door']],
-  11: [['A dog with no collar limps near the road', 'person']], 12: [['Smoke from under a parked car\'s hood', 'car']],
-  13: [['A bike leans unlocked for days', 'door']], 16: [['A crowd gathers and grows louder', 'person']],
-  17: [['A warehouse side door is ajar', 'door']], 18: [['Footprints lead toward the fence', 'door']],
-  19: [['A man walks away fast when he sees you', 'person']], 20: [['An arrestee\'s property bag is unsealed', 'door']]
-};
+export { CALLS, OBSERVE } from './vodata.js';
 
 export const SHIFTS = [
   { id: 'day', name: 'Day shift', hours: '0600–1800', start: 6, note: 'Daylight patrol' },
@@ -217,39 +173,39 @@ export const STATS = [
 // kit: uniform look. ride: vehicle look and handling. fav: lessons whose calls pay the unit's bonus.
 export const UNITS = [
   { id: 'patrol', name: 'Patrol', icon: '🚓', color: '#1d4ed8', st: { res: 3, per: 3, rap: 3, com: 3, tac: 3 },
-    perk: 'Backbone of the department', perkText: 'Dispatch keeps you busy: calls come in 25% sooner and every call pays 10% more RP. Balanced at everything.', fav: [0, 1, 4, 6],
+    perk: 'Backbone of the department', perkText: 'Dispatch keeps you busy: calls come in 25% sooner and every call pays 10% more RP. Balanced at everything.', fav: [0, 1, 3, 10],
     kit: { shirt: '#22355e', pants: '#1b2a4a', hat: 'cap', hatCol: '#16213d', patch: '#f5b800' },
     ride: { kind: 'sedan', label: 'Marked patrol car', body: '#14171c', side: '#f2f2f2', stripe: null, bar: 'full', speed: 1.05, scale: 1.05, text: 'POLICE' } },
   { id: 'swat', name: 'SWAT', icon: '🛡️', color: '#4b5320', st: { res: 2, per: 3, rap: 1, com: 4, tac: 5 },
-    perk: 'Entry team', perkText: 'Priority 1 calls pay 50% more RP. Building and area search calls come up more often.', fav: [17, 18, 1],
+    perk: 'Entry team', perkText: 'Priority 1 calls pay 50% more RP. Building and area search calls come up more often.', fav: [10, 11, 4],
     kit: { shirt: '#3d4532', pants: '#2f3527', hat: 'helmet', hatCol: '#2b3022', vest: '#8a7a55', vestText: 'POLICE', patch: '#d8c99a' },
     ride: { kind: 'armored', label: 'Armored rescue vehicle', body: '#2f3527', side: '#3d4532', stripe: null, bar: 'grille', speed: .85, scale: 1.3 } },
   { id: 'k9', name: 'K9', icon: '🐕', color: '#b45309', st: { res: 4, per: 5, rap: 2, com: 2, tac: 2 },
-    perk: 'Partner', perkText: 'Your dog walks with you and alerts on anything off from twice as far. Area search calls pay double.', fav: [18, 17, 5],
+    perk: 'Partner', perkText: 'Your dog walks with you and alerts on anything off from twice as far. Area search calls pay double.', fav: [9, 1, 8],
     kit: { shirt: '#1f2f50', pants: '#1f2f50', hat: 'cap', hatCol: '#1a2440', vest: null, patch: '#d4a017', badgeText: 'K-9' },
     ride: { kind: 'suv', label: 'K-9 SUV', body: '#f2f2f2', side: '#f2f2f2', stripe: '#b45309', bar: 'full', speed: 1.05, scale: 1.12, text: 'K-9' } },
   { id: 'neg', name: 'Crisis Negotiator', icon: '📞', color: '#0e7490', st: { res: 2, per: 2, rap: 5, com: 5, tac: 1 },
-    perk: 'Talk it down', perkText: 'Disturbance, threat and dispute calls pay double RP. Calls wait the longest for you.', fav: [4, 7, 14, 15],
+    perk: 'Talk it down', perkText: 'Disturbance, threat and dispute calls pay double RP. Calls wait the longest for you.', fav: [3, 11, 2],
     kit: { shirt: '#1e3a5f', pants: '#5b5246', hat: 'headset', hatCol: '#111', vest: '#0e7490', vestText: 'NEGOTIATOR', patch: '#e0f2fe' },
     ride: { kind: 'suv', label: 'Unmarked SUV', body: '#1b1f27', side: '#262b35', stripe: null, bar: 'hidden', speed: 1, scale: 1.12 } },
   { id: 'marine', name: 'Marine Unit', icon: '⚓', color: '#0369a1', st: { res: 3, per: 4, rap: 2, com: 3, tac: 3 },
-    perk: 'On the water', perkText: 'In Riverside you launch a patrol boat on the river. Animal and crowd calls pay double RP.', fav: [11, 16, 12],
+    perk: 'On the water', perkText: 'In Riverside you launch a patrol boat on the river. Animal and crowd calls pay double RP.', fav: [2, 4, 9],
     kit: { shirt: '#7aa7d6', pants: '#1f2f50', hat: 'boonie', hatCol: '#1f2f50', vest: '#f97316', vestText: '', patch: '#fff' },
     ride: { kind: 'truck', label: 'Marine unit truck', body: '#f2f2f2', side: '#f2f2f2', stripe: '#0369a1', bar: 'full', speed: 1, scale: 1.15, text: 'MARINE' } },
   { id: 'brt', name: 'Behavioral Resource', icon: '🤝', color: '#0d9488', st: { res: 2, per: 3, rap: 4, com: 5, tac: 1 },
-    perk: 'Steady presence', perkText: 'Well-being checks and death notifications pay double RP and build twice the community trust.', fav: [9, 10, 8],
+    perk: 'Steady presence', perkText: 'Well-being checks and death notifications pay double RP and build twice the community trust.', fav: [1, 3, 0],
     kit: { shirt: '#14b8a6', pants: '#a8977a', hat: 'none', vest: null, patch: '#fff', lanyard: '#0d9488' },
     ride: { kind: 'sedan', label: 'Unmarked compact', body: '#e8e8e8', side: '#d4d4d4', stripe: '#0d9488', bar: 'hidden', speed: 1, scale: .95 } },
   { id: 'hoi', name: 'Homeless Initiative', icon: '🏠', color: '#65a30d', st: { res: 3, per: 3, rap: 5, com: 3, tac: 1 },
-    perk: 'Outreach', perkText: 'Two extra citizens need you on every shift, and citizen contacts pay 50% more RP.', fav: [8, 13, 14],
+    perk: 'Outreach', perkText: 'Two extra citizens need you on every shift, and citizen contacts pay 50% more RP.', fav: [1, 2, 5],
     kit: { shirt: '#4d7c0f', pants: '#3f3a32', hat: 'cap', hatCol: '#365314', vest: null, patch: '#fef9c3' },
     ride: { kind: 'van', label: 'Outreach van', body: '#f8fafc', side: '#e2e8f0', stripe: '#65a30d', bar: 'full', speed: .95, scale: 1.22, text: 'OUTREACH' } },
   { id: 'det', name: 'Detective', icon: '🔎', color: '#6b7280', st: { res: 3, per: 5, rap: 3, com: 3, tac: 1 },
-    perk: 'Investigator', perkText: 'One more "something\'s off" in every district, study points recharge twice as fast, and records and property calls pay double.', fav: [3, 13, 19],
+    perk: 'Investigator', perkText: 'One more "something\'s off" in every district, study points recharge twice as fast, and records and property calls pay double.', fav: [0, 11, 1],
     kit: { shirt: '#e5e7eb', pants: '#374151', hat: 'none', vest: null, tie: '#7f1d1d', plain: true, patch: '#f5b800' },
     ride: { kind: 'sedan', label: 'Unmarked sedan', body: '#5b616b', side: '#4b5058', stripe: null, bar: 'hidden', speed: 1.05, scale: 1 } },
   { id: 'sro', name: 'School Resource', icon: '🎓', color: '#7c3aed', st: { res: 2, per: 3, rap: 5, com: 3, tac: 2 },
-    perk: 'Teach back', perkText: 'Study points pay double RP. School and well-being calls pay double.', fav: [9, 12, 8],
+    perk: 'Teach back', perkText: 'Study points pay double RP. School and well-being calls pay double.', fav: [5, 6, 7],
     kit: { shirt: '#22355e', pants: '#1b2a4a', hat: 'cap', hatCol: '#3b2a6b', vest: null, patch: '#c4b5fd' },
     ride: { kind: 'suv', label: 'School resource SUV', body: '#f2f2f2', side: '#f2f2f2', stripe: '#7c3aed', bar: 'full', speed: 1, scale: 1.12, text: 'SRO' } }
 ];

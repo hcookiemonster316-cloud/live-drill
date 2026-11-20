@@ -76,7 +76,7 @@ export function installCity(H) {
     y += 10;
     const cm = Object.values(S.comms2 || {}).reduce((a, b) => a + b, 0); g.fillStyle = '#cbd5e1'; g.font = "600 40px Meridian Text, sans-serif";
     g.fillText('🎖️ ' + cm + ' commendations' + (S.partner && S.partner.rank ? '  ·  🤝 ' + S.partner.rank : ''), 80, y + 30); g.fillText('🗺️ ' + Object.keys(S.lore || {}).length + ' pages of city history', 80, y + 100);
-    g.fillStyle = '#64748b'; g.font = "600 30px Meridian Text, sans-serif"; g.fillText('Sim training · FBRTP Chapter 5', 80, 1270);
+    g.fillStyle = '#64748b'; g.font = "600 30px Meridian Text, sans-serif"; g.fillText('Sim training · FBRTP Vehicle Operations', 80, 1270);
     c.toBlob(async (blob) => { const file = new File([blob], 'patrol-city-record.png', { type: 'image/png' });
       try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'My Patrol City service record' }); H.stat('shared'); return; } } catch (e) {}
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'patrol-city-record.png'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); H.toast('🖼️ Saved your service record card.'); H.stat('shared'); }, 'image/png');

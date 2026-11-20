@@ -4,6 +4,7 @@ import { installDeesc } from './deesc.js';
 import { installLives } from './lives.js'; // first, so every canvas draws the game's own icons instead of system emoji
 installIcons();
 import { N, TW, TH, T, CH, iso, unIso, buildDistrict, drawGround, setRes, setGroundRes, frameStart, setSun, RES, GRES, drawBuilding, drawProp, car, person, personFast, dog, dogFast, vehicle, rideArt, CAR_COLORS, shade, drawPropFast, hiCanvas, recycleGround } from './world.js';
+import { CHAPTER } from './vodata.js';
 import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
 import * as L from './learn.js';
 import { startNet } from './net.js';
@@ -1670,7 +1671,7 @@ function musicUpdate(dt) { musT -= dt; if (musT > 0) return; musT = .8; if (!S.s
 function titleScreen() {
   const t = $('title'); t.hidden = false;
   t.innerHTML = '<div class="tiBadge"><svg viewBox="0 0 64 72"><defs><linearGradient id="tiG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset=".5" stop-color="#f5b800"/><stop offset="1" stop-color="#a86f00"/></linearGradient></defs><path d="M32 3l25 9v19c0 18-11 31-25 38C18 62 7 49 7 31V12z" fill="url(#tiG)" stroke="#5c3d00" stroke-width="1.6"/><path d="M32 10l19 7v14c0 14-8 24-19 30-11-6-19-16-19-30V17z" fill="#0b1630" stroke="#ffe27a" stroke-width="1.2"/><path d="M32 17l3 6.2 6.8 1-4.9 4.8 1.2 6.8-6.1-3.2-6.1 3.2 1.2-6.8-4.9-4.8 6.8-1z" fill="#ffe27a"/><text x="32" y="52" text-anchor="middle" font-family="Meridian,sans-serif" font-weight="800" font-size="8" fill="#ffe27a" letter-spacing="1">PMPD</text></svg></div>' +
-    '<h1 class="tiLogo"><span>PATROL</span><span>CITY</span><i class="tiShine"></i></h1><div class="tiSub">' + esc(WORLD.city.toUpperCase()) + ' · FIELD IMMERSION PROGRAM</div><div class="tiClass">' + esc(WORLD.tagline.split('·')[1] || '') + ' · Chapter 5</div>' +
+    '<h1 class="tiLogo"><span>PATROL</span><span>CITY</span><i class="tiShine"></i></h1><div class="tiSub">' + esc(WORLD.city.toUpperCase()) + ' · FIELD IMMERSION PROGRAM</div><div class="tiClass">' + esc(WORLD.tagline.split('·')[1] || '') + ' · ' + CHAPTER.name + '</div>' +
     '<div class="tiMenu"></div><div class="tiVer">' + STUDIO.ver + ' · A ' + STUDIO.name.replace(/\b(\w)(\w*)/g, (m, a, b) => a + b.toLowerCase()) + ' production</div><div class="tiFoot"><button type="button" id="tiSnd">' + (S.sound ? '🔊 Sound on' : '🔇 Sound off') + '</button><span>A training simulation. Every scenario is a sim round.</span></div>';
   requestAnimationFrame(() => t.classList.add('in'));
   $('tiSnd').onclick = (e) => { e.stopPropagation(); S.sound = !S.sound; saveS(); $('tiSnd').textContent = S.sound ? '🔊 Sound on' : '🔇 Sound off'; if (S.sound) { audio(); music.start('title'); } else music.stop(); };
@@ -1811,23 +1812,23 @@ function ordersHud() {
 
 // judgment calls on the way in: each choice is reasonable, and each has a consequence that shows up later
 const APPROACH = [
-  { les: [4, 12, 17, 1], q: 'Lights and siren all the way in?', opts: [
-    { t: 'Siren off a few blocks out, roll in quiet', eff: 'quiet', reply: [['velvet', '(over the radio) Copy, quiet approach. Units on scene shortly.']] },
-    { t: 'Lights and siren all the way to the door', eff: 'loud', reply: [['velvet', '(over the radio) Copy, emergency response. Clear the intersections.']] }] },
-  { les: [4, 14, 15, 7, 16], q: 'Where do you park?', opts: [
-    { t: 'A few doors down, out of view', eff: 'smart', reply: [['castillo', '(over the radio) Good. Never park in front of the address.']] },
-    { t: 'Right out front, it\'s faster', eff: 'front', trust: -1, reply: [['castillo', '(over the radio) Right out front? Everybody inside just watched you pull up.']] }] },
-  { les: [8, 9, 10, 11, 13], q: 'How do you start?', opts: [
-    { t: 'Talk to the neighbors first', eff: 'neighbors', trust: 1, reply: [['velvet', '(over the radio) Copy. Neighbor on the porch is waving you over.']] },
-    { t: 'Go straight to the door', eff: 'direct', reply: [['velvet', '(over the radio) Copy, you\'re on scene.']] }] },
-  { les: [1, 5, 0, 3], q: 'The subject hasn\'t noticed you yet.', opts: [
-    { t: 'Watch from a distance for a minute', eff: 'observe', reply: [['castillo', '(over the radio) Good. What are his hands doing? What\'s around him?']] },
-    { t: 'Walk right up and make contact', eff: 'contact', reply: [['castillo', '(over the radio) Okay. Stay sharp, and watch those hands.']] }] }
+  { les: [10, 11], q: 'Running code to this one. How do you drive it?', opts: [
+    { t: 'Lights and siren, slowing at every intersection', eff: 'smart', reply: [['velvet', '(over the radio) Copy, emergency response. Clear each intersection.']] },
+    { t: 'Lights and siren, holding your speed through lights', eff: 'front', trust: -1, reply: [['castillo', '(over the radio) Your siren isn\'t a shield. Not everyone hears it. Slow down at the intersections.']] }] },
+  { les: [1, 2, 3, 9], q: 'Wet, dark streets on the way. How do you drive in?', opts: [
+    { t: 'Slow it down and leave six seconds to the car ahead', eff: 'smart', reply: [['castillo', '(over the radio) Good. Bad weather, six seconds.']] },
+    { t: 'Keep your speed, it\'s only a few blocks away', eff: 'direct', reply: [['velvet', '(over the radio) Copy, en route.']] }] },
+  { les: [0, 4, 5, 6, 7, 8], q: 'The car sat all shift. Before you roll?', opts: [
+    { t: 'Quick walk-around: tires, leaks, lights', eff: 'smart', reply: [['castillo', '(over the radio) Good habit. Thirty seconds now saves the shift.']] },
+    { t: 'Jump in and go, it was fine this morning', eff: 'direct', reply: [['velvet', '(over the radio) Copy, en route.']] }] },
+  { les: [1, 3, 11], q: 'The car you\'re looking for hasn\'t seen you yet.', opts: [
+    { t: 'Hang back and watch it for a minute', eff: 'observe', reply: [['castillo', '(over the radio) Good. Where is it headed? Who is inside?']] },
+    { t: 'Pull right up behind it', eff: 'contact', reply: [['castillo', '(over the radio) Okay. Leave yourself room, and tell dispatch where you are.']] }] }
 ];
 function approachFor(les) { const a = APPROACH.filter((x) => x.les.indexOf(les) >= 0); return a.length ? a[Math.floor(Math.random() * a.length)] : null; }
 // consequences, some immediate and some later in the shift
 function consequence(eff, c) {
-  if (eff === 'loud' && (c.les === 4 || c.les === 17)) setTimeout(() => { const o = newObserve(); o.les = c.les; o.text = 'Fresh footprints leading away from the call you just cleared. Someone heard you coming'; observes.push(o); radio('Dispatch', 'Caller says someone ran out the back when the siren got close.'); }, 9000);
+  if (eff === 'loud' && c.les === 11) setTimeout(() => { const o = newObserve(); o.les = c.les; o.text = 'Fresh footprints leading away from the call you just cleared. Someone heard you coming'; observes.push(o); radio('Dispatch', 'Caller says someone ran out the back when the siren got close.'); }, 9000);
   if (eff === 'neighbors') { const n = newCitizen(); n.les = c.les; citizens.push(n); radio('Dispatch', 'The neighbor you spoke with wants to tell you something else. Look for them nearby.'); }
   if (eff === 'front') S.trust[W.did] = Math.max(0, (S.trust[W.did] == null ? 50 : S.trust[W.did]) - 2);
   if (eff === 'observe' && Math.random() < .5) setTimeout(() => queueLoot('Spotted while you watched: dropped by the subject', 1, 'c'), 1200);
@@ -1971,7 +1972,7 @@ function infoPoint(i) {
     { t: 'Copy it into your notebook and move on', reply: [['narr', 'You write it down. Neatly. Navarro would be proud.']], fx: () => { award(4, 'notes'); } }], 'Study point']], (r) => { i.cool = S.unit === 'det' ? 60 : 120; ord('study'); if (r.n) award(Math.round((r.right ? 10 : 3) * rapMult() * (S.unit === 'sro' ? 2 : 1) * (1 + gp('rpStudy') / 100)), 'study point'); queueLoot('Left behind at ' + i.name, .1); }, { focus: [i.x, i.y], kicker: 'STUDY POINT · ' + i.name.toUpperCase() });
 }
 function backupScene(uid, o) {
-  const ls = W.D.lessons.indexOf(6) >= 0 ? [6] : W.D.lessons, qs = VAR.actify(L.pickFacts(S, ls, 2)), id = sayAs('mate', { name: o.c, icon: (unitOf(o.u) || {}).icon || '🚓', role: 'Cadet requesting backup' });
+  const ls = W.D.lessons, qs = VAR.actify(L.pickFacts(S, ls, 2)), id = sayAs('mate', { name: o.c, icon: (unitOf(o.u) || {}).icon || '🚓', role: 'Cadet requesting backup' });
   if (net) net.assist(uid); stat('assists'); if (S.squad && others[uid] && others[uid].g === S.squad.code) stat('sqAssist'); COOP.coopStart(uid, 'cover'); COOP.ptAdd(uid, 10);
   dialogue([[id, '(over the radio) ' + S.cs + ', glad you\'re here. ' + (o.b.l || 'Need a second set of eyes.')], ['choice', [
     { t: 'Take a cover position with a clear view of the hands', ok: 1, reply: [[id, 'Copy, you\'re cover. I\'ll make contact.']] },
@@ -1997,7 +1998,7 @@ function districtBoard(tabs) {
       (un ? '<div class="dFacts"><b>' + m.facts.done + '</b> of ' + m.facts.total + ' facts completed</div><div class="dLes">' + d.lessons.map((l, k) => { const x = m.lessons[k].facts; return '<div class="dL"><span>' + esc(L.lessonName(l)) + ' <em>' + x.done + '/' + x.total + '</em></span><i><b style="width:' + Math.round(x.total ? x.done / x.total * 100 : 0) + '%" class="' + (x.done >= x.total ? 'ok' : '') + '"></b></i></div>'; }).join('') + '</div>' : '<p class="dLock">Complete every fact in the district before it and pass its Final Call.</p>') +
       '<div class="dAct">' + (cl ? '<span class="cleared">★ District cleared</span>' : '') + (un && !here ? '<button type="button" data-go="' + d.id + '">Patrol here</button>' : '') + (here && m.facts.done < m.facts.total ? '<button type="button" data-drill="1">Fact drill with Navarro</button>' : '') + (here && !cl ? '<button type="button" data-final="1" ' + (m.ready ? '' : 'disabled') + '>' + (m.ready ? 'Take the District Final Call' : 'Final Call · ' + (m.facts.total - m.facts.done) + ' facts to go') + '</button>' : '') + '</div></div>';
   }).join('');
-  openModal('<div class="uNow" style="--uc:' + U().color + '"><span>' + U().icon + '</span><div><b>' + esc(unitName(U())) + '</b><small>' + esc(U().perk) + '</small></div><button type="button" id="uSw">Switch unit</button></div><div class="sceneHead"><b>CITY MAP · DISTRICTS</b><h2>Complete every fact to unlock the Final Call</h2><p>A fact is complete once you get its check right: at study points, on calls, with citizens and regulars, or in a fact drill. Pass a district\'s Final Call to transfer to the next district.</p></div>' + (S.cleared.length >= 5 ? '<div class="dExam"><b>Chapter 5 Final Exam</b><span>' + (S.graduated ? '★ Passed' : 'Every district cleared. Facts from the whole chapter, 85% to pass.') + '</span><button type="button" data-exam="1">' + (S.graduated ? 'Retake the exam' : 'Take the Chapter Exam') + '</button></div>' : '') + '' + (tabs || '') + '<div class="dList">' + rows + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
+  openModal('<div class="uNow" style="--uc:' + U().color + '"><span>' + U().icon + '</span><div><b>' + esc(unitName(U())) + '</b><small>' + esc(U().perk) + '</small></div><button type="button" id="uSw">Switch unit</button></div><div class="sceneHead"><b>CITY MAP · DISTRICTS</b><h2>Complete every fact to unlock the Final Call</h2><p>A fact is complete once you get its check right: at study points, on calls, with citizens and regulars, or in a fact drill. Pass a district\'s Final Call to transfer to the next district.</p></div>' + (S.cleared.length >= 5 ? '<div class="dExam"><b>' + CHAPTER.exam + '</b><span>' + (S.graduated ? '★ Passed' : 'Every district cleared. Facts from the whole chapter, 85% to pass.') + '</span><button type="button" data-exam="1">' + (S.graduated ? 'Retake the exam' : 'Take the Chapter Exam') + '</button></div>' : '') + '' + (tabs || '') + '<div class="dList">' + rows + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
   $('mClose').onclick = closeModal; $('uSw').onclick = unitPicker; document.querySelectorAll('[data-j]').forEach((b) => b.onclick = () => { jTab = b.dataset.j; journal(); }); document.querySelectorAll('[data-tr]').forEach((b) => b.onclick = () => { S.track = b.dataset.tr; saveS(); beep(660, .06, 'triangle', .04); journal(); });
   document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { closeModal(); S.home = S.home == null ? +b.dataset.go : S.home; saveS(); clock = 0; travel(+b.dataset.go); });
   const fb = document.querySelector('[data-final]'); if (fb) fb.onclick = () => { closeModal(); finalCall(); };
@@ -2046,18 +2047,18 @@ function finalCall() {
     done: (r) => {
       const pass = r.right / r.n >= 13 / 15 - 1e-9; if (pass) { if (!S.cleared.includes(did)) S.cleared.push(did); if (!S.unlocked.includes(nx)) S.unlocked.push(nx); stat('finals'); } saveS();
       const allDone = S.cleared.length >= 5;
-      openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'DISTRICT CLEARED · TRANSFER APPROVED' : 'FINAL CALL · NOT YET') + '</b><h2>' + r.right + ' of ' + r.n + ' by the book</h2><p>' + (pass ? (allDone ? 'Every district cleared. The Chapter 5 Final Exam is open on the City map.' : 'Transfer orders are signed: ' + esc(DISTRICTS[nx].name) + ' is open. ' + esc(DISTRICTS[nx].unit) + '.') : 'You need 13 of 15. Review the facts you missed and come back.') + '</p></div><div class="qAct">' + (pass && !allDone ? '<button type="button" id="mGo">Transfer to ' + esc(DISTRICTS[nx].name) + '</button>' : '') + '<button type="button" class="' + (pass && !allDone ? 'ghost' : '') + '" id="mDone">' + (pass && !allDone ? 'Stay in ' + esc(W.D.name) + ' for now' : 'Back to patrol') + '</button></div>');
+      openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'DISTRICT CLEARED · TRANSFER APPROVED' : 'FINAL CALL · NOT YET') + '</b><h2>' + r.right + ' of ' + r.n + ' by the book</h2><p>' + (pass ? (allDone ? 'Every district cleared. The ' + CHAPTER.exam + ' is open on the City map.' : 'Transfer orders are signed: ' + esc(DISTRICTS[nx].name) + ' is open. ' + esc(DISTRICTS[nx].unit) + '.') : 'You need 13 of 15. Review the facts you missed and come back.') + '</p></div><div class="qAct">' + (pass && !allDone ? '<button type="button" id="mGo">Transfer to ' + esc(DISTRICTS[nx].name) + '</button>' : '') + '<button type="button" class="' + (pass && !allDone ? 'ghost' : '') + '" id="mDone">' + (pass && !allDone ? 'Stay in ' + esc(W.D.name) + ' for now' : 'Back to patrol') + '</button></div>');
       if (pass) { good(); music.sting('promo'); shake(6, .5); }
       $('mDone').onclick = () => { closeModal(); award(pass ? 300 : 40, pass ? 'district cleared' : 'final call attempt'); if (pass) queueLoot('District cleared: ' + W.D.name, 1, 'r'); };
       if ($('mGo')) $('mGo').onclick = () => { closeModal(); award(300, 'district cleared'); queueLoot('District cleared: ' + W.D.name, 1, 'r'); S.home = nx; saveS(); clock = 0; travel(nx); };
     } });
 }
-// after all five districts: the Chapter 5 Final Exam, facts from the whole chapter, 85% to pass, in stages of three
+// after all five districts: the Vehicle Operations Final Exam, facts from the whole chapter, 85% to pass, in stages of three
 function chapterExam() {
   const all = [0, 1, 2, 3, 4].flatMap((d) => DISTRICTS[d].lessons); music.start('story');
   const N = L.factCount();
   if (S.runs && S.runs.exam && !S.runs.exam.order) delete S.runs.exam; // a run saved before the exam covered every fact
-  stagedRun('exam', { total: N, kicker: 'LAST SHIFT · CHAPTER 5 FINAL EXAM', kick: FIN.kick, speakers: ['castillo', 'okonkwo', 'navarro'], init: (run) => { run.order = L.examOrder(); },
+  stagedRun('exam', { total: N, kicker: 'LAST SHIFT · ' + CHAPTER.exam.toUpperCase(), kick: FIN.kick, speakers: ['castillo', 'okonkwo', 'navarro'], init: (run) => { run.order = L.examOrder(); },
     pick: (k, i, run) => { if (!run.order) run.order = L.examOrder(); return L.examQs(run.order.slice(i * 3, i * 3 + k)); },
     intro: (run, n) => FIN.intro(n, N), beat: (i, n, qs) => FIN.beat(i, n, qs),
     done: (r) => {
@@ -2065,7 +2066,7 @@ function chapterExam() {
       const E = FIN.ending(r), pass = E.pass; if (pass) { S.graduated = Date.now(); stat('exam'); } saveS();
       openModal(E.html + '<div class="qAct"><button type="button" id="mDone">' + (pass ? 'Carry on' : 'Back to patrol') + '</button></div>');
       if (pass) { music.sting('promo'); shake(8, .6); }
-      $('mDone').onclick = () => { closeModal(); award(pass ? 1000 : 50, pass ? 'chapter exam passed' : 'exam attempt'); if (pass) queueLoot('Chapter 5 Final Exam', 1, 'l'); };
+      $('mDone').onclick = () => { closeModal(); award(pass ? 1000 : 50, pass ? 'chapter exam passed' : 'exam attempt'); if (pass) queueLoot(CHAPTER.exam, 1, 'l'); };
     } });
 }
 function gatePrompt(g) { PREM.buzz('gate');
@@ -2533,7 +2534,7 @@ function startScreen() {
   const old = /^\d-([A-Za-z]+)-(\d{1,3})$/.exec(S.cs || ''); let phon = old && PHONETIC.includes(old[1]) ? old[1] : 'Adam', num = old ? old[2] : '';
   const csNow = () => (did + 1) + '-' + phon + '-' + (num || '##');
   const draw = () => {
-    $('start').innerHTML = '<div class="stBox"><div class="stBrand"><span class="stBadge" data-noicon><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17l-5.6 3 1.1-6.3L2.9 9.3l6.3-.9z" fill="#0f1a33" stroke="#fff3b0" stroke-width=".8" stroke-linejoin="round"/></svg></span><div><b>PATROL CITY</b><small>Learn the job on the street · Chapter 5</small></div></div>' +
+    $('start').innerHTML = '<div class="stBox"><div class="stBrand"><span class="stBadge" data-noicon><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17l-5.6 3 1.1-6.3L2.9 9.3l6.3-.9z" fill="#0f1a33" stroke="#fff3b0" stroke-width=".8" stroke-linejoin="round"/></svg></span><div><b>PATROL CITY</b><small>Learn the job on the street · ' + CHAPTER.name + '</small></div></div>' +
       '<label class="stL">Your call sign</label><div class="stCs"><b id="stCsNow">' + esc(csNow()) + '</b></div>' +
       '<div class="stCsPick"><span class="stPre" title="Your district number">' + (did + 1) + '</span><select id="stPhon" aria-label="Phonetic letter">' + PHONETIC.map((p) => '<option' + (p === phon ? ' selected' : '') + '>' + p + '</option>').join('') + '</select><input id="stNum" inputmode="numeric" maxlength="3" placeholder="Unit #" aria-label="Unit number, 1 to 999" value="' + esc(num) + '"></div><p class="stNote">The first number is your district. Pick your phonetic letter and type your unit number (1 to 999).</p>' +
       '<label class="stL">Pick your shift</label><div class="stS">' + SHIFTS.map((s) => '<button type="button" class="' + (s.id === shift ? 'on' : '') + '" data-s="' + s.id + '"><b>' + s.name + '</b><span>' + s.hours + '</span><small>' + s.note + '</small></button>').join('') + '</div>' +
@@ -2541,7 +2542,7 @@ function startScreen() {
       '<label class="stL">Today\'s uniform</label><div class="stS stO">' + ['std', 'pt', 'unit'].map((k) => '<button type="button" class="' + (k === (S.outfit || 'std') ? 'on' : '') + '" data-o="' + k + '"><b>' + OUTFITS[k].icon + ' ' + OUTFITS[k].name + '</b><span>' + esc(OUTFITS[k].text) + '</span></button>').join('') + '</div>' +
       '<label class="stL">Pick your specialty unit</label>' + unitCards(unit) +
       
-      '<button type="button" class="stGo" id="stGo">Start roll call</button><p class="stFine">Sim training game for FBRTP cadets. Answers come from your Chapter 5 study material.</p></div>';
+      '<button type="button" class="stGo" id="stGo">Start roll call</button><p class="stFine">Sim training game for FBRTP cadets. Answers come from your ' + CHAPTER.name + ' study material.</p></div>';
     const csOk = () => /^[1-9]\d{0,2}$/.test(num);
     const goState = () => { const b = $('stGo'); b.disabled = !unit || !csOk(); b.textContent = !csOk() ? 'Type your unit number' : !unit ? 'Pick a specialty unit' : 'Start roll call'; $('stCsNow').textContent = csNow(); };
     $('stPhon').onchange = (e) => { phon = e.target.value; goState(); };
@@ -2709,7 +2710,7 @@ TROPHIES.push(
   ['wave', 'Friendly Wave', 'Wave at another cadet.', 'b', () => st('waves') >= 1],
   ['squadchat', 'Squad Chatter', 'Send 25 squad messages.', 's', () => st('sqMsg') >= 25]
 );
-TROPHIES.push(['fact1', 'Know This', 'Complete your first fact.', 'b', () => Object.keys(S.facts || {}).length >= 1], ['fact100', 'Fact Finder', 'Complete 100 facts.', 's', () => Object.keys(S.facts || {}).length >= 100], ['factall', 'Every Fact in the Chapter', 'Complete all 558 facts.', 'g', () => Object.keys(S.facts || {}).length >= 558], ['final1', 'Transfer Orders', 'Pass a District Final Call.', 's', () => st('finals') >= 1], ['exam', 'Chapter 5: Passed', 'Pass the Chapter 5 Final Exam.', 'g', () => !!S.graduated]);
+TROPHIES.push(['fact1', 'Know This', 'Complete your first fact.', 'b', () => Object.keys(S.facts || {}).length >= 1], ['fact100', 'Fact Finder', 'Complete 100 facts.', 's', () => Object.keys(S.facts || {}).length >= 100], ['factall', 'Every Fact in the Chapter', 'Complete all 558 facts.', 'g', () => Object.keys(S.facts || {}).length >= 558], ['final1', 'Transfer Orders', 'Pass a District Final Call.', 's', () => st('finals') >= 1], ['exam', 'Graduate', 'Pass the ' + CHAPTER.exam + '.', 'g', () => !!S.graduated]);
 TROPHIES.push(...EP.SECRETS);
 TROPHIES.push(['callS1', 'Textbook', 'Earn an S rank on a call debrief.', 'b', () => st('callS') >= 1], ['callS10', 'By the Book, Every Time', 'Earn 10 S ranks on calls.', 'g', () => st('callS') >= 10], ['coop1', 'Contact and Cover', 'Handle a co-op training call the right way with another cadet.', 's', () => st('coopGood') >= 1], ['caseSet', 'Case Closed', 'Complete a district\'s case file set.', 'g', () => st('caseSet') >= 1], ['season10', 'Halfway There', 'Reach tier 10 on the Academy Season.', 's', () => S.season && S.season.xp >= 4000], ['friends10', 'Everybody Knows Your Name', 'Become friends with 10 regulars.', 's', () => Object.keys(S.npc || {}).filter((k) => S.npc[k] >= 3).length >= 10]);
 TROPHIES.push(['lore1', 'Local History', 'Discover a piece of lore out in the city.', 'b', () => LORE.some((e) => e.when.slice(0, 6) === 'visit:' && S.lore[e.id])], ['lore20', 'Town Historian', 'Discover 20 lore entries.', 's', () => LORE.filter((e) => S.lore[e.id]).length >= 20], ['loreall', 'Keeper of Port Meridian', 'Discover every lore entry.', 'g', () => LORE.every((e) => S.lore[e.id])], ['side10d', 'Neighborhood Fixture', 'Close all ten side cases in one district.', 's', () => DISTRICTS.some((D) => SIDE.filter((q) => q.d === D.id).every(sideClosed))], ['side25', 'Busy Beat', 'Close 25 side cases.', 's', () => SIDE.filter(sideClosed).length >= 25]);
@@ -2895,23 +2896,23 @@ function unlocked() {
   if (/[?&]mock\b/.test(location.search)) return true;
   if (code) {
     const [body, sig] = code.split('.');
-    try { const d = JSON.parse(decodeURIComponent(escape(atob(body.replace(/-/g, '+').replace(/_/g, '/'))))); if (sig === hubCheck(body) && d.n >= 100 && d.p >= 85) { localStorage.setItem('patrolcity:pass', JSON.stringify(d)); } } catch (e) {}
+    try { const d = JSON.parse(decodeURIComponent(escape(atob(body.replace(/-/g, '+').replace(/_/g, '/'))))); if (sig === hubCheck(body) && d.n >= 100 && d.p >= 85 && d.ch === CHAPTER.id) { localStorage.setItem('patrolcity:pass', JSON.stringify(d)); } } catch (e) {}
     q.delete('pass'); try { history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '')); } catch (e) {}
   }
-  try { const d = JSON.parse(localStorage.getItem('patrolcity:pass') || 'null'); return !!(d && d.n >= 100 && d.p >= 85); } catch (e) { return false; }
+  try { const d = JSON.parse(localStorage.getItem('patrolcity:pass') || 'null'); return !!(d && d.n >= 100 && d.p >= 85 && d.ch === CHAPTER.id); } catch (e) { return false; }
 }
 function lockedScreen() {
-  const hub = 'https://claude.ai/artifact/FCt8dGZe3PWnASYvu2u6iF';
+  const hub = CHAPTER.hub;
   $('loading').hidden = true; const st = $('start'); st.hidden = false;
-  st.innerHTML = '<div class="stBox lockBox"><div class="stBrand"><span class="stBadge">🔒</span><div><b>PATROL CITY</b><small>Learn the job on the street · Chapter 5</small></div></div>' +
-    '<h2 class="lockH">Earn your way onto the street</h2><p class="lockP">Patrol City opens from your Chapter 5 study hub once you pass a <b>100-question test with 85% or better</b>. Then tap <b>Play Patrol City</b> in the hub\'s Game Center and you\'re in for good on this device.</p>' +
+  st.innerHTML = '<div class="stBox lockBox"><div class="stBrand"><span class="stBadge">🔒</span><div><b>PATROL CITY</b><small>Learn the job on the street · ' + CHAPTER.name + '</small></div></div>' +
+    '<h2 class="lockH">Earn your way onto the street</h2><p class="lockP">Patrol City opens from your ' + CHAPTER.name + ' study hub once you pass a <b>100-question test with 85% or better</b>. Then tap <b>Play Patrol City</b> in the hub\'s Game Center and you\'re in for good on this device.</p>' +
     '<a class="stGo lockGo" href="' + hub + '">Open the study hub</a><p class="stFine">Already unlocked on another device? Open Patrol City from the hub on this one too.</p></div>';
 }
 
 (async function boot() {
   if (!unlocked()) { lockedScreen(); return; }
   $('loading').textContent = 'Loading the city…';
-  try { await Promise.all([L.loadBank('../ch5.json'), L.loadFacts('facts.json')]); S.facts = Object.fromEntries(Object.entries(S.facts || {}).filter(([k]) => k[0] === 'F')); } catch (e) { $('loading').textContent = 'Could not load the question bank. Check your connection and refresh.'; return; }
+  try { await Promise.all([L.loadBank(CHAPTER.bank), L.loadFacts(CHAPTER.facts)]); S.facts = Object.fromEntries(Object.entries(S.facts || {}).filter(([k]) => k[0] === 'F')); } catch (e) { $('loading').textContent = 'Could not load the question bank. Check your connection and refresh.'; return; }
   $('loading').hidden = true;
   attractStart(); requestAnimationFrame(frame); applyCfg(); if (FAST) { S.seenIntro = 1; startScreen(); } else bootSequence(titleScreen);
   COOP.pttInit(); { const b = $('ptt'); if (b) b.innerHTML = ico('radio'); }

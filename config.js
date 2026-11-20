@@ -16,6 +16,7 @@ window.LIVE_CONFIG = {
   events: [],
   // One entry per chapter question bank in the chapters folder.
   chapters: [
-    { id: 'ch5', title: 'Chapter 5', file: 'ch5.json', hub: 'https://claude.ai/artifact/FCt8dGZe3PWnASYvu2u6iF' }
+    { id: 'ch5', title: 'Chapter 5', file: 'ch5.json', hub: 'https://claude.ai/artifact/FCt8dGZe3PWnASYvu2u6iF' },
+    { id: 'vo', title: 'Vehicle Operations', file: 'vo.json', hub: 'https://claude.ai/artifact/QLBEHsVdKGoq3YkSSxsU21' }
   ]
 };

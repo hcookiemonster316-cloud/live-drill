@@ -522,7 +522,7 @@ const SECRETS = {
   barber: ['The Wall of Bad Haircuts', 'Polaroids of every cadet who said "just a little off the top."'],
   books: ['The Cat\'s Throne', 'A cushion on top of the true crime shelf. Do not sit there.'],
   pizza: ['The Secret Menu', '"The Rookie": cheese, extra cheese, and a pep talk.'],
-  library: ['The Highlighted Chapter 5', 'Every single line is yellow. A previous cadet was here.'],
+  library: ['The Highlighted Vehicle Operations Chapter', 'Every single line is yellow. A previous cadet was here.'],
   transit: ['The Lost Umbrella Pile', 'Forty-three umbrellas. It has never once rained in here.'],
   clinic: ['The Sticker Drawer', 'For brave patients. Every cadet who comes in leaves with a dinosaur sticker.'],
   laundromat: ['Machine Seven\'s Quarter Stash', 'Forty dollars in quarters behind the panel. Machine seven has been saving.'],

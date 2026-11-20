@@ -88,7 +88,7 @@ export const ITEMS = [
   { id: 'energy', r: 'r', icon: '⚡', name: 'Suspicious Energy Drink', kind: 'use', effect: 'energy', text: 'The can just says "ENERGY" in a font that is yelling at you.', useText: 'Your heart is now a drum solo. 40% faster for the next two hours.' },
   { id: 'pot', r: 'l', icon: '🫖', name: 'The Coffee Pot That Never Empties', kind: 'use', effect: 'pot', reuse: true, text: 'Passed down from class to class. Nobody has ever seen it get refilled. Nobody asks.', useText: 'Bottomless: your next calls wait an extra hour, again, forever.' },
   // ---- keepsakes ----
-  { id: 'highlighter', r: 'c', icon: '🖍️', name: 'Half-Dead Highlighter', kind: 'keep', text: 'Every line of Chapter 5 is now yellow. Every. Single. Line. Highlighting has lost all meaning.' },
+  { id: 'highlighter', r: 'c', icon: '🖍️', name: 'Half-Dead Highlighter', kind: 'keep', text: 'Every line of the Vehicle Operations chapter is now yellow. Every. Single. Line. Highlighting has lost all meaning.' },
   { id: 'lint', r: 'c', icon: '🧻', name: 'Emergency Lint Roller', kind: 'keep', text: 'For the 0559 realization that your uniform is 40% dog hair.' },
   { id: 'seeds', r: 'c', icon: '🌻', name: 'Sunflower Seeds', kind: 'keep', text: 'Official fuel of long patrols. The shells in the cupholder are now evidence.' },
   { id: 'socks', r: 'c', icon: '🧦', name: 'All-Black Crew Socks', kind: 'keep', text: 'Not navy. Not charcoal. Black. The instructor carries a flashlight for this exact reason.' },
@@ -152,7 +152,7 @@ ITEMS.push(
   { id: 'citationbook', r: 'u', icon: '📒', name: 'Practice Citation Book', slot: 'carry', perk: { rpCall: 6, per: 1 }, text: 'Filled with practice tickets written to fictional people named Mr. Example.' },
   { id: 'mapbook', r: 'u', icon: '🗺️', name: 'Port Meridian Street Atlas (2009)', slot: 'carry', perk: { explore: 2, drive: 5 }, text: 'Out of date, dog-eared and somehow more reliable than your phone.' },
   { id: 'umbrella', r: 'u', icon: '☂️', name: 'Compact Umbrella', slot: 'carry', perk: { com: 1, explore: 1 }, text: 'Technically not uniform. Technically keeps your uniform dry. The technicalities are being debated.' },
-  { id: 'flashcards', r: 'u', icon: '🗂️', name: 'Chapter 5 Flashcards (Rubber-Banded)', slot: 'carry', perk: { rpStudy: 18 }, text: 'Five hundred cards. One rubber band. One day it will snap, and it will be glorious.' },
+  { id: 'flashcards', r: 'u', icon: '🗂️', name: 'Vehicle Ops Flashcards (Rubber-Banded)', slot: 'carry', perk: { rpStudy: 18 }, text: 'Five hundred cards. One rubber band. One day it will snap, and it will be glorious.' },
   { id: 'squadpatch', r: 'r', icon: '🛡️', name: 'Squad Morale Patch', slot: 'carry', perk: { rpSquad: 15, rap: 1 }, text: 'Your squad voted on the design. It took three hours. It is a raccoon holding a flashlight.' },
   { id: 'bodycamtrainer', r: 'r', icon: '📹', name: 'Training Body Cam (Lens Cap Off)', slot: 'carry', perk: { per: 1, rpCall: 8, rpCit: 5 }, text: 'Every scenario recorded for review. Your instructor has a highlight reel. You are in it.' },
   { id: 'thermos', r: 'r', icon: '🧉', name: 'Night Shift Thermos', slot: 'carry', perk: { wait: 20, light: 10 }, text: 'Keeps coffee hot for nine hours. Keeps hands warm for one.' },

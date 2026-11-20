@@ -14,7 +14,7 @@ export function installPath(H) {
       if (f.done < f.total) return { icon: '📚', t: 'Learn ' + (f.total - f.done) + ' more fact' + (f.total - f.done === 1 ? '' : 's') + ' in ' + D.name, s: (d === here ? '' : 'Go back to ' + D.name + '. ') + 'Calls, drills and the people on your beat all teach them.' };
       return { icon: '🏁', t: 'Pass ' + D.name + '\'s Final Call', s: 'Every fact is learned. The Final Call clears the district.' };
     }
-    if (!S.graduated) return { icon: '🎓', t: 'Take the Chapter 5 Final Exam', s: 'Your last shift. 85% to graduate.', exam: true };
+    if (!S.graduated) return { icon: '🎓', t: 'Take the Vehicle Operations Final Exam', s: 'Your last shift. 85% to graduate.', exam: true };
     return { icon: '⭐', t: 'You graduated', s: 'New Game+ lets you come back as an FTO and train new cadets.' };
   }
   function panel() {
@@ -22,7 +22,7 @@ export function installPath(H) {
     const r = H.rankOf(S.xp), nx = r.next, n = nextStep(), day = H.day();
     const stops = H.DISTRICTS.map((D, d) => { const f = all[d], done = cl.includes(d), now = !done && S.unlocked.includes(d) && !H.DISTRICTS.slice(0, d).some((_, k) => !cl.includes(k));
       return '<li class="pathStop ' + (done ? 'done' : now ? 'now' : 'next') + '"><i>' + (done ? '✅' : now ? '📍' : '🔒') + '</i><span><b>' + H.esc(D.name) + '</b><small>' + (done ? 'Cleared' : f.done + ' of ' + f.total + ' facts' + (f.done >= f.total ? ' · Final Call next' : '')) + '</small></span></li>'; }).join('') +
-      '<li class="pathStop ' + (S.graduated ? 'done' : cl.length >= 5 ? 'now' : 'next') + '"><i>' + (S.graduated ? '✅' : '🎓') + '</i><span><b>Chapter 5 Final Exam</b><small>' + (S.graduated ? 'Passed · graduated' : cl.length >= 5 ? 'Open now' : 'Opens when all five districts are cleared · exam day is academy day ' + H.TERM) + '</small></span></li>';
+      '<li class="pathStop ' + (S.graduated ? 'done' : cl.length >= 5 ? 'now' : 'next') + '"><i>' + (S.graduated ? '✅' : '🎓') + '</i><span><b>Vehicle Operations Final Exam</b><small>' + (S.graduated ? 'Passed · graduated' : cl.length >= 5 ? 'Open now' : 'Opens when all five districts are cleared · exam day is academy day ' + H.TERM) + '</small></span></li>';
     const side = [
       ['rec', '⭐', 'Service Record', 'Ten tracks that level up from what you do most'],
       ['season', '🏆', 'Academy Season', 'Season tiers: titles, cash and car skins'],

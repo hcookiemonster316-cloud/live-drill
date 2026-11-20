@@ -9,7 +9,7 @@ const S2 = (t, r) => [t, 2, r], S1 = (t, r) => [t, 1, r], S0 = (t, r) => [t, 0, 
 
 export const OPS = {
   traffic: {
-    title: 'Traffic stop', icon: '🚗', prio: 3, les: [0, 1, 2, 3], kicker: 'TRAFFIC STOP',
+    title: 'Traffic stop', icon: '🚗', prio: 3, les: [1, 3, 10], kicker: 'TRAFFIC STOP',
     variants: {
       clean: { what: 'A gray sedan doing 52 in a 35, school zone just ended.', why: 'going 52 in a 35', who: 'Teresa Baptiste', tag: 'Florida tag GKL-4471' },
       suspended: { what: 'A white pickup with a taillight out.', why: 'a taillight that\'s out', who: 'Marcus Dell', tag: 'Florida tag 7HW-220' },
@@ -70,7 +70,7 @@ export const OPS = {
   },
 
   welfare: {
-    title: 'Welfare check', icon: '🏠', prio: 2, les: [8, 9], kicker: 'WELFARE CHECK',
+    title: 'Welfare check', icon: '🏠', prio: 2, les: [1, 9], kicker: 'WELFARE CHECK',
     variants: {
       fine: { who: 'Mr. Harold Pike', caller: 'His niece in Ohio' },
       fallen: { who: 'Mrs. Edna Shaw', caller: 'Her neighbor across the hall' },
@@ -117,7 +117,7 @@ export const OPS = {
   },
 
   warrant: {
-    title: 'Serve an arrest warrant', icon: '📄', prio: 2, les: [19, 20, 5, 6], kicker: 'WARRANT',
+    title: 'Serve an arrest warrant', icon: '📄', prio: 2, les: [10, 11, 8], kicker: 'WARRANT',
     variants: {
       calm: { who: 'Derek Fenn', charge: 'failure to appear on a theft charge' },
       family: { who: 'Luis Ortega', charge: 'violation of probation' },
@@ -149,7 +149,7 @@ export const OPS = {
   },
 
   transport: {
-    title: 'Jail transport and booking', icon: '🚓', prio: 3, les: [19, 20], kicker: 'TRANSPORT',
+    title: 'Jail transport and booking', icon: '🚓', prio: 3, les: [0, 6, 10], kicker: 'TRANSPORT',
     variants: { std: {} },
     steps: () => [
       ['Before he gets in your car?', [
@@ -178,7 +178,7 @@ export const OPS = {
   },
 
   business: {
-    title: 'Night business check', icon: '🔦', prio: 3, les: [0, 1, 17, 18], kicker: 'BUSINESS CHECK',
+    title: 'Night business check', icon: '🔦', prio: 3, les: [1, 9], kicker: 'BUSINESS CHECK',
     variants: { quiet: {}, door: {}, worker: {} },
     steps: () => [
       ['narr', 'Two in the morning. You park behind the strip mall to walk it with your flashlight and shake the door handles.'],

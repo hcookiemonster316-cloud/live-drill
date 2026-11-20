@@ -19,7 +19,7 @@ export const HEART = {
     'Man, you\'re everywhere today! Every corner I turn, there you are.',
     'Everybody thinks bike messengers are crazy. I\'ve been doing this eleven years and I\'ve never hit anybody. I\'m careful. I just look fast because everybody else is standing still.',
     'Honestly? I ride because when I stop, I start thinking. Some nights after work I just ride the whole downtown loop until I\'m tired enough to sleep. I don\'t know. You probably get that.'],
-  okafor: ['If you\'re here for the Chapter 5 book, all three copies are checked out. Restrooms are past the atlases.',
+  okafor: ['If you\'re here for the Vehicle Operations book, all three copies are checked out. Restrooms are past the atlases.',
     'I put a book aside for you. I know you didn\'t ask. That\'s kind of what librarians do.',
     'My mother taught forty kids with nine books back home. She had them take turns reading out loud so the books would last. I think about her every time somebody complains the Wi-Fi is slow.',
     'When my family came here I was eleven, and I didn\'t talk like the other kids. The librarian at the old branch let me stay until closing every day and she never once asked me why. I never got to thank her. So I guess this whole job is me thanking her.'],

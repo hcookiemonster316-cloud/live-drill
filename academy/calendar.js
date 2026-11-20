@@ -1,5 +1,5 @@
 // The academy calendar: every full shift is one academy day, and the term counts down to exam day. Exam day is a target,
-// never a lock: the Chapter 5 Final Exam opens when every district is cleared, early or late. Each day has a class from
+// never a lock: the chapter's final exam opens when every district is cleared, early or late. Each day has a class from
 // the chapter syllabus, and the calendar shows where the regulars you know are right now, friends first, with what they
 // do at this hour (their routines live in polish.js and act2.js).
 export const TERM = 20;

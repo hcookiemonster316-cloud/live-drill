@@ -1,32 +1,10 @@
-// The exam as a finale: the Chapter 5 Final Exam plays as your last shift. Every stage is a call on that night, the
+// The exam as a finale: the chapter's final exam plays as your last shift. Every stage is a call on that night, the
 // shift clock runs from 1900 to 0700, people you helped turn up along the way, and the ending depends on two things:
 // what you learned (the exam score, unchanged) and who you helped (who comes to your graduation).
 const rnd = (a) => a[(Math.random() * a.length) | 0];
 
-// what comes over the radio for a stage, by the lesson of its first question
-const CALLFOR = [
-  "Walk the downtown loop. The business owners asked for a visible presence tonight.",
-  "Man with a weapon reported behind the liquor store on Fourth. Use caution.",
-  "Two channels busy tonight. Keep your radio traffic tight.",
-  "A records check on a car at the Bayview Motel comes back with a hit.",
-  "Robbery alarm at the pharmacy on Fifth. Units responding.",
-  "Man checking car door handles in the parking garage.",
-  "1-Charlie-4 is asking for backup at a disturbance on Marsh.",
-  "A teacher called in about a student's threatening posts.",
-  "Family stranded on the causeway with a flat and two kids.",
-  "Neighbors haven't seen the man in 12B in four days.",
-  "The medical examiner needs a notification made tonight.",
-  "Loose dog cornering kids at the Palm Avenue bus stop.",
-  "Smoke showing from a duplex on Willow.",
-  "Front desk: a woman with a stolen bike and a found wallet.",
-  "Repo truck and an angry owner in a driveway on Cedar.",
-  "Custody exchange getting loud at the gas station on Route 9.",
-  "Crowd spilling into the street after the concert lets out.",
-  "Burglar alarm at the hardware store. Back door.",
-  "Suspect fled on foot into the neighborhood behind the school.",
-  "Arrest made at the plaza. Prisoner needs a ride.",
-  "County jail. Booking is waiting on your paperwork."
-];
+// what comes over the radio for a stage, by the lesson of its first question (vodata.js)
+import { CALLFOR, CHAPTER } from './vodata.js';
 
 export function installFinale(H) {
   const S = H.S;
@@ -48,7 +26,7 @@ export function installFinale(H) {
       lines.push(['narr', rnd([p.name + ' waves from the sidewalk as you roll past. "Good luck tonight, officer!"', p.name + ' left a coffee for you at the front desk. The note says, "For your last night. Thank you."', 'Over the radio, dispatch adds: "' + p.name + ' called just to say good luck. That doesn\'t happen often."', p.name + ' flashes the porch light twice as you drive by. Everybody on the block knows it\'s your last shift.'])]); } }
     return lines;
   }
-  const intro = (n, N) => [['narr', '1900 hours. Patrol HQ. Your last shift as a cadet, and the Chapter 5 Final Exam rides along with it.'],
+  const intro = (n, N) => [['narr', '1900 hours. Patrol HQ. Your last shift as a cadet, and the ' + CHAPTER.exam + ' rides along with it.'],
     ['castillo', 'Here\'s how tonight works. Every call is a stage, three questions each. That\'s every fact in the chapter, all ' + N + ', across ' + n + ' calls. You need eighty-five percent to graduate. You can step away between calls whenever you need to. Your spot and your score save.'],
     ['castillo', 'And cadet? The people out there know it\'s your last night. You\'ll see.'],
     ['choice', [{ t: 'Let\'s roll.', reply: [] }, { t: 'Give me a second.', reply: [['castillo', 'Take two. Then we roll.']] }], 'Last shift']];

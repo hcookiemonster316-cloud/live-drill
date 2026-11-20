@@ -1,4 +1,4 @@
-import { ACTS } from './decide.js';
+import { ACTS } from './vodata.js'; // the chapter's scene decisions (Chapter 5's are kept in decide.js)
 // Variety: keeps patrol from feeling the same twice.
 // - a pacing director: quiet after something intense, something spicy after a slow stretch, no repeats too soon
 // - calls built from parts: who's calling, what complicates it, what dispatch updates on the way, and what it turns out to be
@@ -57,7 +57,8 @@ export function installVariety(H) {
     19: [["Pick up a prisoner at the hospital", 2, 'any', "Arrestee was cleared by the ER. Transport him to the county jail."], ["Family showed up during an arrest", 2, 'houses', "Arrest in progress. The arrestee's mother and brother just pulled up and they're upset."]],
     20: [["Arrestee might be a juvenile", 2, 'jail', "Booking says the man you brought in might be seventeen. Confirm his age before they process him."], ["Arrestee says he's sick at booking", 2, 'jail', "Your arrestee is telling booking he needs his heart medicine."]]
   };
-  Object.keys(EXTRA).forEach((k) => { if (H.CALLS[k]) EXTRA[k].forEach((c) => { if (!H.CALLS[k].some((x) => x[0] === c[0])) H.CALLS[k].push(c); }); });
+  // EXTRA above holds Chapter 5 calls, kept for reference; the Vehicle Operations calls are all in vodata.js
+  if (false) Object.keys(EXTRA).forEach((k) => { if (H.CALLS[k]) EXTRA[k].forEach((c) => { if (!H.CALLS[k].some((x) => x[0] === c[0])) H.CALLS[k].push(c); }); });
 
   // ---------- dispatchers ----------
   const DISP = {
@@ -243,8 +244,8 @@ export function installVariety(H) {
   function otherOutcome(c, unit) { setTimeout(() => { H.radio(dispatcher().label, unit + ' ' + rnd(OUTCOME).replace(/^cleared it/, 'cleared the ' + c.title.toLowerCase())); }, 70000 + Math.random() * 60000); }
 
   // ---------- facts behind the new shapes ----------
-  const fidFor = (re, les) => { const list = L.factList(les != null ? [les] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]); const f = list.find((x) => re.test(x.text)); return f ? f.id : null; };
-  const factText = (fid) => { const f = fid && L.factList([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]).find((x) => x.id === fid); return f ? f.text : ''; };
+  const fidFor = (re, les) => { const list = L.factList(les != null ? [les] : L.allLessons()); const f = list.find((x) => re.test(x.text)); return f ? f.id : null; };
+  const factText = (fid) => { const f = fid && L.factById(fid); return f ? f.text : ''; };
   function mkQ(les, stem, right, wrongs, re, kind, act) {
     const fid = fidFor(re, les), opts = shuf([right].concat(wrongs)), q = { id: 'V' + kind + ':' + stem.length + ':' + right.length, fid, kind: 'fact', les, stem, opts, c: opts.indexOf(right), multi: false, ex: factText(fid), fact: factText(fid) };
     // a scene decision plays out: no second try, and what happens next depends on the call you made
@@ -270,7 +271,8 @@ export function installVariety(H) {
     [11, "A loose dog is growling at you from a yard.", "Keep your distance and get animal control", ["Walk up slowly and let it sniff you", "Throw something to scare it off", "Climb the fence to get away from it"], /animal control/i]
   ];
   // the hand-written decisions above plus the full set in decide.js (each with what happens if you get it right or wrong)
-  const DALL = () => DECIDE.concat(ACTS);
+  // DECIDE and OUT are Chapter 5 decisions, kept for reference; the game uses the chapter's decisions in vodata.js
+  const DALL = () => ACTS;
   // what happens after each of the original decisions above, right call first
   const OUT = {
     "You're two blocks out on a fight call. Where do you park?": ["From up the street you see a third man waiting by the corner with a pipe.", "You pull up out front, right between the two groups, and both turn toward your car."],
@@ -312,11 +314,12 @@ export function installVariety(H) {
     const m = Math.random() * 4 | 0, msg = parts.filter((_, i) => i !== m).map((p) => p[1].replace(/"/g, '')).join(', ');
     return mkQ(2, 'You key up: "' + msg + '." Dispatch asks you to repeat. What did you leave out?', parts[m][0], parts.filter((_, i) => i !== m).map((p) => p[0]), /brief and accurate with officer identification/i, 'miss');
   }
+  // procedures the chapter gives in order
   const ORDERS = [
-    [5, 'Gaining compliance', ['Ask for voluntary compliance', 'Give a verbal command', 'Use Defensive Tactics'], /voluntary compliance first/i],
-    [17, 'Before you go into a building', ['Stop', 'Look', 'Listen'], /stop, look and listen/i],
-    [7, 'Behavioral threat assessment', ['Identify', 'Assess', 'Manage'], /identif.*assess.*manag|three core functions/i],
-    [19, 'Loading an arrestee', ['Check the rear doors and windows', 'Clear the back seat', 'Search the arrestee', 'Seat belt them in'], /rear window controls|clear the rear|right rear seat/i]
+    [5, 'A right turn with shuffle steering', ['Right hand up to 12 o\'clock, pull down', 'Left hand slides down to 6 o\'clock', 'Hands meet at 6, left hand grips', 'Right hand slides back up to 12'], /move the right hand up to 12 o'clock/i],
+    [6, 'Braking to a stop', ['Pivot your right foot onto the brake', 'Set the ball of your foot mid-pedal', 'Apply pressure, then keep increasing it'], /Braking step 1/i],
+    [7, 'Cornering', ['Signal before the turn', 'Brake to a safe speed, still straight', 'Line up on the outside of the turn', 'Hold a constant speed into the turn'], /Cornering steps 1 to 3/i],
+    [8, 'Backing up', ['Foot on the brake, shift into reverse', 'Turn your upper body to the right', 'Look out the rear window and scan', 'Release the brake and back up slowly'], /Backing steps 1 and 2/i]
   ];
   function orderQ(les) {
     const O = ORDERS.filter((x) => x[0] === les); if (!O.length) return null; const X = pick('ord_' + les, O), right = X[2], wr = new Set();
@@ -327,7 +330,7 @@ export function installVariety(H) {
   function formatQ(les) {
     const f = [];
     if (DALL().some((x) => x[0] === les)) f.push(() => decisionQ(les));
-    if (les === 2) f.push(decodeQ, missingQ);
+    // decodeQ and missingQ are Chapter 5 radio drills, not used for Vehicle Operations
     if (ORDERS.some((x) => x[0] === les)) f.push(() => orderQ(les));
     if (!f.length) return null; const q = rnd(f)(); return q && q.opts.length >= 3 ? q : null;
   }
@@ -340,7 +343,7 @@ export function installVariety(H) {
     ov.className = 'vgMini ' + (cls || ''); ov.innerHTML = '<div class="vgCard">' + html + '</div>'; ov.hidden = false; requestAnimationFrame(() => ov.classList.add('on')); return ov.querySelector('.vgCard');
   }
   function closeOv() { if (!ov) return; ov.classList.remove('on'); setTimeout(() => { if (ov && !ov.classList.contains('on')) ov.hidden = true; }, 220); }
-  const recordFact = (les, re, ok) => { const fid = fidFor(re, les); try { L.record(S, { id: 'MG:' + (fid || les), fid, les }, ok); } catch (e) {} H.saveS(); };
+  const recordFact = (les, re, ok) => { const fid = fidFor(re, les); if (!fid) return; try { L.record(S, { id: 'MG:' + (fid || les), fid, les }, ok); } catch (e) {} H.saveS(); };
   const head = (k, t, sub) => '<div class="vgHead"><span>' + k + '</span><b>' + t + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</div>';
   // Observe: a five-second look at someone, then describe them
   const COLORS = [['red', '#c0392b'], ['blue', '#2563eb'], ['green', '#16a34a'], ['yellow', '#eab308'], ['purple', '#7e22ce'], ['white', '#f1f5f9'], ['gray', '#6b7280'], ['orange', '#ea580c'], ['black', '#1f2937']];
