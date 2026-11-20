@@ -3,8 +3,8 @@
 // beat. And hints, so no case is ever lost: when the case you're on hasn't moved for a while, your partner says over the
 // radio exactly what's holding it up (another district, not enough facts yet, or where that person is right now).
 const rnd = (a) => a[(Math.random() * a.length) | 0];
-// lessons whose calls weigh on you: weapons, threats, a death notification, fire, a foot pursuit
-const HEAVY_LES = { 1: 1, 7: 1, 10: 1, 12: 1, 18: 1 };
+// lessons whose calls weigh on you: emergency runs (crashes with injuries, officer needs help) and pursuits
+const HEAVY_LES = { 10: 1, 11: 1 };
 const HEAVY_DEED = { deeslose: 1, purbad: 1, harsh: 1 };
 const STALL = 300; // seconds of free patrol on the same step before a hint
 
@@ -13,7 +13,7 @@ export function installPacing(H) {
   // ---------- breathers ----------
   let due = 0, cool = 0, why = '';
   function heavy(reason) { if (cool > 0) return; due = 25; why = reason || ''; }
-  const afterCall = (c) => { if (c && (c.prio === 1 || HEAVY_LES[c.les])) heavy(c.les === 10 ? 'notify' : 'call'); };
+  const afterCall = (c) => { if (c && (c.prio === 1 || HEAVY_LES[c.les])) heavy('call'); };
   const onNote = (d) => { if (HEAVY_DEED[d.k]) heavy(d.k); };
   const SCENES = {
     coffee: (p, sp) => [['narr', p + ' pulls into the lot of an all-night diner without asking.'], [sp, 'Ten minutes. Coffee. That last one was a lot, and the radio knows where to find us.'],

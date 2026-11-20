@@ -48,8 +48,20 @@ export function installEpic(H) {
   const moonPhase = () => { const syn = 29.530588853, ref = Date.UTC(2000, 0, 6, 18, 14) / 864e5; return (((Date.now() / 864e5 - ref) % syn) + syn) % syn / syn; };
   const fullMoon = () => { const p = moonPhase(); return p > .46 && p < .54; };
   const debris = [];
+  // one heat-haze wave built once per screen size: each line is the same wave slid sideways and moved down, so a frame
+  // strokes 9 cached paths instead of rebuilding ~500 points
+  let hazeKey = '', hazePath = null;
+  function hazeWave(W, dpr) {
+    const key = W + '/' + dpr; if (key === hazeKey) return hazePath;
+    const k = 40 * dpr, per = 2 * Math.PI * k, p = new Path2D(); let first = true;
+    for (let x = 0; x <= W + per + 24 * dpr; x += 24 * dpr) { const yy = Math.sin(x / k) * 3 * dpr; if (first) { p.moveTo(x, yy); first = false; } else p.lineTo(x, yy); }
+    hazeKey = key; hazePath = p; return p;
+  }
+  // the canvas's pixel ratio, read from layout only when the canvas is resized (clientWidth forces a layout each frame)
+  let dprW = -1, dprV = 1;
+  const skyDpr = (cv) => { if (cv.width !== dprW) { dprW = cv.width; dprV = cv.width / cv.clientWidth || 1; } return dprV; };
   function skyDraw(ctx, cv, now) {
-    if (H.inside || H.S.cfg.quality === 'low') return; const h = H.hour(), night = h >= 19.5 || h < 5.5, dpr = cv.width / cv.clientWidth || 1;
+    if (H.inside || H.S.cfg.quality === 'low') return; const h = H.hour(), night = h >= 19.5 || h < 5.5, dpr = skyDpr(cv);
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (night && !H.wx().rain && !H.wx().fog) {
       const a = Math.min(1, h >= 19.5 ? (h - 19.5) / 1.5 : (5.5 - h) / 1.5), W = cv.width;
@@ -62,7 +74,7 @@ export function installEpic(H) {
       ctx.fillStyle = 'rgba(180,186,200,.35)'; [[-.3, -.2, .22], [.25, .15, .16], [-.05, .4, .12]].forEach(([u, v, s]) => { ctx.beginPath(); ctx.arc(mx + u * r, my + v * r, s * r, 0, 7); ctx.fill(); }); ctx.globalAlpha = 1;
     }
     const wx = H.wx(), hot = /Hot/.test(wx.label || '') && h >= 11 && h < 17 && !wx.rain;
-    if (hot && H.S.cfg.motion !== false) { const W = cv.width, Hh = cv.height; ctx.fillStyle = 'rgba(255,190,110,.06)'; ctx.fillRect(0, 0, W, Hh); ctx.strokeStyle = 'rgba(255,235,200,.07)'; ctx.lineWidth = 2 * dpr; for (let i = 0; i < 9; i++) { const y = Hh * (.25 + i * .08) + Math.sin(now / 700 + i) * 6 * dpr; ctx.beginPath(); for (let x = 0; x <= W; x += 24 * dpr) ctx.lineTo(x, y + Math.sin(x / (40 * dpr) + now / 260 + i) * 3 * dpr); ctx.stroke(); } }
+    if (hot && H.S.cfg.motion !== false) { const W = cv.width, Hh = cv.height; ctx.fillStyle = 'rgba(255,190,110,.06)'; ctx.fillRect(0, 0, W, Hh); ctx.strokeStyle = 'rgba(255,235,200,.07)'; ctx.lineWidth = 2 * dpr; const k = 40 * dpr, per = 2 * Math.PI * k, wave = hazeWave(W, dpr); for (let i = 0; i < 9; i++) { const y = Hh * (.25 + i * .08) + Math.sin(now / 700 + i) * 6 * dpr, tx = -(((now / 260 + i) * k) % per); ctx.setTransform(1, 0, 0, 1, tx, y); ctx.stroke(wave); } ctx.setTransform(1, 0, 0, 1, 0, 0); }
     if ((wx.storm || wx.wind > .5) && H.S.cfg.motion !== false) {
       if (debris.length < (wx.storm ? 26 : 12) && Math.random() < .5) debris.push({ x: -.05, y: Math.random(), vx: .18 + Math.random() * .25, vy: (Math.random() - .5) * .06, r: Math.random() * 6, s: Math.random() < .7 ? 'leaf' : 'paper', c: rnd(['#7c9a3a', '#a16207', '#4d7c0f', '#d6d3d1']) });
       debris.forEach((d) => { d.x += d.vx / 60; d.y += d.vy / 60 + Math.sin(now / 300 + d.r) * .0008; d.r += .15; const x = d.x * cv.width, y = d.y * cv.height; ctx.save(); ctx.translate(x, y); ctx.rotate(d.r); ctx.fillStyle = d.c; if (d.s === 'leaf') { ctx.beginPath(); ctx.ellipse(0, 0, 4 * dpr, 2 * dpr, 0, 0, 7); ctx.fill(); } else ctx.fillRect(-3 * dpr, -4 * dpr, 6 * dpr, 8 * dpr); ctx.restore(); });

@@ -21,7 +21,7 @@ export function installPolish(H) {
       ['🤝', 'Community', (d.wrap === 'case' || d.wrap === 'resources' ? 10 : 3) + (d.calm ? 5 : 0), 15, d.wrap === 'case' ? 'Left a case number' : d.wrap === 'resources' ? 'Connected them with resources' : 'Cleared quickly' + (d.calm ? ' · kept it calm' : '')]
     ].filter(Boolean);
     (d.extra || []).forEach((r) => rows.push(r));
-    if (d.coop) rows.push(['🛡️', 'Teamwork', 5, 5, 'Contact and cover with ' + d.coop]);
+    if (d.coop) rows.push(['🛡️', 'Teamwork', 5, 5, 'Ran backup with ' + d.coop]);
     const base = rows.filter((r) => r[1] !== 'Teamwork'), score = Math.min(100, Math.round(base.reduce((a, r) => a + r[2], 0) / base.reduce((a, r) => a + r[3], 0) * 100) + (d.coop ? 5 : 0)), g = grade(score), key = d.title, best = S.grades[key];
     const better = !best || 'DCBAS'.indexOf(g) > 'DCBAS'.indexOf(best); if (better) S.grades[key] = g; H.stat('callGrade' + g); if (g === 'S') H.stat('callS'); H.saveS();
     H.setMood('debrief'); H.sting(g === 'S' || g === 'A' ? 'gradeS' : 'grade');

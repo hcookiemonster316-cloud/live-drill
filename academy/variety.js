@@ -28,7 +28,7 @@ export function installVariety(H) {
   // pick a call: no repeat of the last few, intensity follows the director, and tonight's conditions lean the mix
   function pickCall(list) {
     const h = heat(), cond = COND[S.vcond || 'normal'], fresh = list.filter((c) => recentT.indexOf(c[0]) < 0), pool = fresh.length ? fresh : list;
-    const w = pool.map((c) => { let x = 1; if (h > 3.5 && c[1] === 1) x *= .3; if (h < 1 && c[1] <= 2) x *= 1.8; if (cond && cond.bias && cond.bias.test(c[0])) x *= 2.6; return x; });
+    const w = pool.map((c) => { let x = H.arcBias ? H.arcBias(c) : 1; if (h > 3.5 && c[1] === 1) x *= .3; if (h < 1 && c[1] <= 2) x *= 1.8; if (cond && cond.bias && cond.bias.test(c[0])) x *= 2.6; return x; });
     let r = Math.random() * w.reduce((a, b) => a + b, 0), out = pool[0]; for (let i = 0; i < pool.length; i++) { r -= w[i]; if (r <= 0) { out = pool[i]; break; } }
     recentT.push(out[0]); while (recentT.length > 5) recentT.shift(); return out;
   }

@@ -80,13 +80,13 @@ export function installMemory(H) {
     M.pr = []; M.shift++; H.saveS(); briefDue = 6;
   }
   function briefing() {
-    const due = M.d.filter((d) => !d.told && d.sh < M.shift); if (!due.length) return false;
+    const due = M.d.filter((d) => !d.told && d.sh < M.shift), top = H.arcSummary ? H.arcSummary() : ''; if (!due.length && !top) return false;
     // the newest few, with at least one good one up front if there is one
     // the newest two good things and the newest thing that didn't go well, so it's never all praise or all complaints
     const good = due.filter((d) => ECHO[d.k].good), bad = due.filter((d) => !ECHO[d.k].good), pick = good.slice(-2).concat(bad.slice(-1));
     due.slice().reverse().forEach((d) => { if (pick.length < 3 && pick.indexOf(d) < 0) pick.push(d); }); due.forEach((d) => { d.told = 1; }); H.saveS();
     const rows = pick.map((d) => '<li class="memRow ' + (ECHO[d.k].good ? 'good' : 'bad') + '"><i>' + ECHO[d.k].icon + '</i><span>' + H.esc(fill(rnd(ECHO[d.k].brief), d)) + '</span></li>').join('');
-    H.openModal('<div class="sceneHead"><b>SINCE YOUR LAST SHIFT</b><h2>What people remember</h2><p>How you handled your calls doesn\'t stay on the call. It follows you around the city.</p></div><ul class="memList">' + rows + '</ul><div class="qAct"><button type="button" id="mClose">Back to work</button></div>');
+    H.openModal('<div class="sceneHead"><b>SINCE YOUR LAST SHIFT</b><h2>' + (rows ? 'What people remember' : 'Roll call briefing') + '</h2><p>' + (rows ? 'How you handled your calls doesn\'t stay on the call. It follows you around the city.' : 'Here\'s how your last shift added up.') + '</p></div>' + top + (rows ? '<ul class="memList">' + rows + '</ul>' : '') + '<div class="qAct"><button type="button" id="mClose">Back to work</button></div>');
     const b = document.getElementById('mClose'); if (b) b.onclick = () => H.closeModal();
     return true;
   }

@@ -17,6 +17,16 @@ export function installPath(H) {
     if (!S.graduated) return { icon: '🎓', t: 'Take the Vehicle Operations Final Exam', s: 'Your last shift. 85% to graduate.', exam: true };
     return { icon: '⭐', t: 'You graduated', s: 'New Game+ lets you come back as an FTO and train new cadets.' };
   }
+  // exam readiness: facts you know and haven't missed since, against the 85% you need, and what to study next
+  function readyHTML() {
+    if (!H.readiness) return '';
+    const r = H.readiness(), pass = 85, gap = Math.max(0, Math.ceil(r.total * pass / 100) - r.solid);
+    const say = r.pct >= pass ? 'You\'re at passing level. Keep it there: missed facts come back over the radio.' : gap + ' more fact' + (gap === 1 ? '' : 's') + ' to reach the 85% you need' + (r.review ? ', and ' + r.review + ' missed fact' + (r.review === 1 ? '' : 's') + ' to fix' : '') + '.';
+    const weak = r.weak.map((w) => '<li><b>' + H.esc('Lesson ' + w.name.replace(': ', ' · ')) + '</b><small>' + w.done + ' of ' + w.total + ' facts</small></li>').join('');
+    return '<div class="ready"><div class="readyTop"><b>' + r.pct + '%</b><span><small>Exam readiness</small><em>' + H.esc(say) + '</em></span></div>' +
+      '<span class="readyBar"><span style="width:' + r.pct + '%"></span><i style="left:' + pass + '%"></i></span>' +
+      (weak ? '<p class="finLbl">Work on next</p><ul class="readyWeak">' + weak + '</ul>' : '') + '</div>';
+  }
   function panel() {
     const cl = S.cleared || [], all = H.DISTRICTS.map((_, d) => facts(d)), have = all.reduce((a, f) => a + f.done, 0), tot = all.reduce((a, f) => a + f.total, 0);
     const r = H.rankOf(S.xp), nx = r.next, n = nextStep(), day = H.day();
@@ -36,6 +46,7 @@ export function installPath(H) {
       (H.hint ? '<div class="pathHint"><button type="button" class="ghost" id="pathHint">Stuck on a case? Get a hint</button><p id="pathHintT" hidden></p></div>' : '') +
       '<div class="pathBars"><div><b>' + have + ' / ' + tot + '</b><small>Facts learned</small><span class="grpBar"><span style="width:' + Math.round(100 * have / Math.max(1, tot)) + '%"></span></span></div>' +
       '<div><b>' + (nx ? Math.max(0, nx[0] - S.xp) + ' RP' : 'Top rank') + '</b><small>' + (nx ? 'to ' + H.esc(nx[1]) : 'Graduate rank reached') + '</small><span class="grpBar"><span style="width:' + (nx ? Math.round(100 * Math.min(1, S.xp / nx[0])) : 100) + '%"></span></span></div></div>' +
+      readyHTML() +
       '<p class="finLbl">The road</p><ol class="pathStops">' + stops + '</ol>' +
       '<p class="finLbl">What feeds it</p><div class="pathSides">' + side + '</div>' +
       '<div class="qAct">' + (n.exam ? '<button type="button" id="pathExam">Start the final exam</button>' : '') + '<button type="button" class="' + (n.exam ? 'ghost' : '') + '" id="pathClose">Back to patrol</button></div>');

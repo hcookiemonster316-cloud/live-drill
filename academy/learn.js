@@ -11,8 +11,8 @@ export function loadState() {
   // set aside in ch5 (not deleted), and the new chapter starts fresh. Rank, RP, gear, people and places all carry over.
   if (s.ch !== CHAPTER_ID) {
     if (s.log || s.facts || (s.cleared && s.cleared.length) || s.graduated) {
-      const keep = {}; ['log', 'seen', 'miss', 'facts', 'cleared', 'graduated', 'runs', 'newFact'].forEach((k) => { if (s[k] != null) keep[k] = s[k]; });
-      s.ch5 = s.ch5 || keep; s.log = {}; s.seen = {}; s.miss = {}; s.facts = {}; s.cleared = []; s.runs = {}; delete s.graduated; delete s.newFact;
+      const keep = {}; ['log', 'seen', 'miss', 'facts', 'fmiss', 'fseen', 'cleared', 'graduated', 'runs', 'newFact'].forEach((k) => { if (s[k] != null) keep[k] = s[k]; });
+      s.ch5 = s.ch5 || keep; s.log = {}; s.seen = {}; s.miss = {}; s.facts = {}; s.fmiss = {}; s.fseen = {}; s.cleared = []; s.runs = {}; delete s.graduated; delete s.newFact;
     }
     s.ch = CHAPTER_ID;
   }
@@ -103,16 +103,28 @@ export function pickFacts(S, lessons, n, opts) {
   // facts you haven't mastered yet, the ones you've seen least recently first (never-seen first): you work through all of them,
   // and a missed fact comes back after the others instead of right away
   const fresh = (list) => shuffle(list.filter((f) => !done[f.id])).sort((a, b) => (seen[a.id] || 0) - (seen[b.id] || 0));
+  take(dueReviews(S, lessons)); // a fact you missed comes back a few minutes later, ahead of new ones
   take(fresh(factList(lessons)));
   if (out.length < n && !opts.exam && opts.wide !== false) take(fresh(FACTS));
   if (out.length < n) take(shuffle(factList(lessons)).sort((a, b) => (seen[a.id] || 0) - (seen[b.id] || 0)));
   out.forEach((f) => { OUT_NOW.push(f.id); if (OUT_NOW.length > 12) OUT_NOW.shift(); });
   return out.map(factQuestion);
 }
+// spaced review: a missed fact is due again REVIEW_MS after the miss (soon enough to fix it, late enough not to parrot it)
+export const REVIEW_MS = 4 * 60 * 1000;
+export function dueReviews(S, lessons) { const fm = S.fmiss || {}, now = Date.now(); return factList(lessons).filter((f) => fm[f.id] && now - fm[f.id] >= REVIEW_MS).sort((a, b) => fm[a.id] - fm[b.id]); }
+// how ready you are for the final exam: facts you've gotten right and haven't missed since, out of the whole chapter,
+// plus the lessons with the most left to learn
+export function readiness(S) {
+  const f = S.facts || {}, fm = S.fmiss || {}, solid = FACTS.filter((x) => f[x.id] && !fm[x.id]).length, total = FACTS.length;
+  const les = Array.from({ length: lessonCount() }, (_, i) => { const p = factProgress(S, [i]); return { les: i, name: lessonName(i), done: p.done, total: p.total, left: p.total - p.done }; });
+  const weak = les.filter((x) => x.left > 0).sort((a, b) => (b.left / b.total) - (a.left / a.total) || b.left - a.left).slice(0, 3);
+  return { pct: total ? Math.round(100 * solid / total) : 0, solid, total, review: Object.keys(fm).length, weak };
+}
 const OUT_NOW = []; // facts handed out recently, so two scenes in a row don't ask the same one
 export function record(S, q, ok) {
   S.seen[q.id] = Date.now(); if (ok) delete S.miss[q.id]; else S.miss[q.id] = 1;
-  if (q.fid) { S.fseen = S.fseen || {}; S.fseen[q.fid] = Date.now(); }
+  if (q.fid) { S.fseen = S.fseen || {}; S.fseen[q.fid] = Date.now(); S.fmiss = S.fmiss || {}; if (ok) delete S.fmiss[q.fid]; else S.fmiss[q.fid] = Date.now(); }
   if (ok && q.fid) { S.facts = S.facts || {}; if (!S.facts[q.fid]) { S.facts[q.fid] = 1; S.newFact = (S.newFact || 0) + 1; } }
   const L = (S.log[q.les] = S.log[q.les] || []); L.push(ok ? 1 : 0); while (L.length > 10) L.shift();
   S.answered++; if (ok) S.right++;
@@ -121,5 +133,6 @@ export function record(S, q, ok) {
 export function mastery(S, les) { const L = S.log[les] || []; const pct = L.length ? L.reduce((a, b) => a + b, 0) / L.length : 0; return { n: L.length, pct, done: L.length >= 8 && pct >= .8 }; }
 export function districtMastery(S, did) { const ls = DISTRICTS[did].lessons, m = ls.map((l) => Object.assign(mastery(S, l), { facts: factProgress(S, [l]) })), fp = factProgress(S, ls); return { lessons: m, done: m.filter((x) => x.done).length, total: ls.length, facts: fp, ready: fp.total > 0 && fp.done >= fp.total, pct: fp.total ? fp.done / fp.total : 0 }; }
 // lesson the next call should teach: the weakest one in the district
-export function weakest(S, did) { const ls = DISTRICTS[did].lessons.slice(); return shuffle(ls).sort((a, b) => { const A = mastery(S, a), B = mastery(S, b); return (A.done - B.done) || (A.n - B.n) || (A.pct - B.pct); })[0]; }
+// a lesson with a missed fact due for review comes first, so review arrives as the next call over the radio
+export function weakest(S, did) { const ls = DISTRICTS[did].lessons.slice(), due = (l) => (dueReviews(S, [l]).length ? 0 : 1); return shuffle(ls).sort((a, b) => { const A = mastery(S, a), B = mastery(S, b); return (due(a) - due(b)) || (A.done - B.done) || (A.n - B.n) || (A.pct - B.pct); })[0]; }
 export function isRight(q, ans) { return q.multi ? (Array.isArray(ans) && ans.length === q.c.length && ans.every((k) => q.c.indexOf(k) >= 0)) : ans === q.c; }
