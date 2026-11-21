@@ -764,13 +764,13 @@ const FSCALE = .62;
 export function dir8Of(o) { if (o.dir8 != null) return o.dir8; const f = (o.face || 1) > 0; return o.moving && o.back ? (f ? 3 : 5) : f ? 1 : 7; }
 function folkSprite(o, t, key) {
   let D = o.folk || FXD.get(key); if (!D) { D = folkFromLook(o); if (FXD.size > 3000) FXD.clear(); FXD.set(key, D); }
-  const d = dir8Of(o), mv = !!o.moving, fr = mv ? Math.floor(((((o.stride != null ? o.stride * 6.4 : t / 95) + (o.ph || 0)) % TAU + TAU) % TAU) / TAU * 8) : 8;
+  const d = dir8Of(o), mv = !!o.moving, fr = mv ? Math.floor(((((o.stride != null ? o.stride * 6.4 : t / 95) + (o.ph || 0)) % TAU + TAU) % TAU) / TAU * 8) : o.wave ? 8 + (Math.floor(t / 220) & 1) : 8; // a wave swings the hand between two frames
   const lk = key + (o.wave ? '|w' : ''), k = lk + '|' + d + '|' + fr; let c = FX.get(k); if (c) return c;
   if (t !== FXT) { FXT = t; FXBUD = 2; }
   const first = FXFIRST.get(lk);
   // a person's very first frame is drawn right away (they never pop in); the rest come from the worker
-  if (!first || (!FXW && FXBUD > 0)) { if (FXBUD <= 0 && first) return first; FXBUD--; const DD = o.wave ? Object.assign({}, D, { pose: 'up' }) : D; return fxStore(k, lk, new ImageData(folkRGBA(DD, d, mv ? (fr + .5) / 8 * TAU : 0, mv, o.folk ? 4 : 3), FSW, FSH), o.sit); }
-  if (FXW && ![...FXJOB.values()].some((j) => j.k === k) && FXJOB.size < 24) { const id = ++FXN; FXJOB.set(id, { k, lk, bare: !!o.sit }); try { FXW.postMessage({ id, D: o.wave ? Object.assign({}, D, { pose: 'up' }) : D, d, ph: mv ? (fr + .5) / 8 * TAU : 0, mv, ss: o.folk ? 4 : 3 }); } catch (e) { FXJOB.delete(id); FXW = null; } }
+  if (!first || (!FXW && FXBUD > 0)) { if (FXBUD <= 0 && first) return first; FXBUD--; const DD = o.wave ? Object.assign({}, D, { pose: 'up', wavePh: fr - 8 }) : D; return fxStore(k, lk, new ImageData(folkRGBA(DD, d, mv ? (fr + .5) / 8 * TAU : 0, mv, o.folk ? 4 : 3), FSW, FSH), o.sit); }
+  if (FXW && ![...FXJOB.values()].some((j) => j.k === k) && FXJOB.size < 24) { const id = ++FXN; FXJOB.set(id, { k, lk, bare: !!o.sit }); try { FXW.postMessage({ id, D: o.wave ? Object.assign({}, D, { pose: 'up', wavePh: fr - 8 }) : D, d, ph: mv ? (fr + .5) / 8 * TAU : 0, mv, ss: o.folk ? 4 : 3 }); } catch (e) { FXJOB.delete(id); FXW = null; } }
   return FX.get(lk + '|' + d + '|8') || first;
 }
 export function personPixel(g, sx, sy, o, t, key) {

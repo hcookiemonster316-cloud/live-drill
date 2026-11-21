@@ -68,7 +68,10 @@ function figure(D, v, mir, ph, mv) {
   // ---- arms ----
   const armY = topY + 1.9, UP = 6.4 * (B === 'tall' ? 1.05 : 1), FO = 5.8 * (B === 'tall' ? 1.05 : 1);
   const armInfo = (lx, s, pose) => { let th = s * .45, bend = .2 + Math.max(0, s) * .5, out = 0;
-    if (pose === 'hold') { th = .25; bend = 1.45; } else if (pose === 'up') { th = 2.6; bend = .2; } else if (pose === 'carry') { th = .05; bend = .25; out = .6; } else if (pose === 'hip') { th = -.1; bend = 1.4; out = 2.6; } else if (pose === 'sling') { th = .1; bend = 1.6; } else if (pose === 'raise') { th = .9; bend = .9; out = 1.2; } else if (pose === 'cross') { th = .35; bend = 1.7; out = -2; }
+    if (pose === 'up') { // a wave: the arm goes out and up to the side, the hand swings between two frames
+      const sg = Math.sign(lx), P0 = place(lx, 0), P1 = place(lx + sg * 5.4, 2), P2 = place(lx + sg * (D.wavePh ? 10.6 : 7.6), 3);
+      return { sx: P0.x, sy: armY, ex: P1.x, ey: armY - .6, wx: P2.x, wy: armY - 7.2, d: P0.d, hd: P2.d + 2, fa: Math.PI, fwd: place(0, 1).x }; }
+    if (pose === 'hold') { th = .25; bend = 1.45; } else if (pose === 'up') { th = 2.6; bend = D.wavePh ? .75 : -.25; } else if (pose === 'carry') { th = .05; bend = .25; out = .6; } else if (pose === 'hip') { th = -.1; bend = 1.4; out = 2.6; } else if (pose === 'sling') { th = .1; bend = 1.6; } else if (pose === 'raise') { th = .9; bend = .9; out = 1.2; } else if (pose === 'cross') { th = .35; bend = 1.7; out = -2; }
     const sh3 = [lx, 0], el3 = [lx + Math.sign(lx) * (.5 + out * .5), Math.sin(th) * UP], wr3 = [lx + Math.sign(lx) * (.8 + out) * (pose === 'cross' ? -1 : 1) + (pose === 'cross' ? -Math.sign(lx) * 4 : 0), el3[1] + Math.sin(th + bend) * FO];
     const P0 = place(...sh3), P1 = place(...el3), P2 = place(...wr3);
     return { sx: P0.x, sy: armY, ex: P1.x, ey: armY + Math.cos(th) * UP, wx: P2.x, wy: armY + Math.cos(th) * UP + Math.cos(th + bend) * FO, d: P0.d, hd: P2.d, fa: th + bend, fwd: place(0, 1).x }; };
@@ -235,8 +238,11 @@ function figure(D, v, mir, ph, mv) {
       ear.forEach((p) => { if (p.d > -3) ell('hat', HCX + p.x * .95, HCY + .4, kind === 'headphones' ? 2.1 : 1.6, 2.4, kind === 'headphones' ? hc : 'dark', { gloss: true }); });
       if (kind === 'headset') { const p = ear.find((q) => q.d > -3 && q.x <= 0) || ear[0], m = place(0, 6); if (p.d > -3 && v !== 4) limb('hat', HCX + p.x * .95, HCY + 1.8, HCX + m.x * .75, HCY + 4.4, .45, .45, 'dark', { f: .3 }); } }
     if (kind === 'welder') { const p = place(0, 3); ell('hat', HCX + p.x * .5, HCY - 7.4, HRX - .2, 3.2, 'dark', { gloss: true }); if (place(0, 5).d > 0) rect('hat', HCX + p.x * .6 - 1.6, HCY - 8.2, HCX + p.x * .6 + 1.6, HCY - 6.8, 'lens', { f: .6 }); rect('hat', HCX - HRX, HCY - 5, HCX + HRX, HCY - 4, 'dark', { f: .35 }); }
-    if (kind === 'veil') { // beekeeper: brimmed hat with a mesh veil over the face
-      dome(HRX + .2, 6.6, 4.8, 'white'); put('hat', (x, y) => Math.abs(x - HCX) < (HRX + 2.4) - (y - HCY) * .05 && y > HCY - 4.4 && y < HCY + 8.4 && (x - HCX) * 0 === 0, [HCX - 10, HCY - 4.4, HCX + 10, HCY + 8.4], 'mesh', (x, y) => ((Math.floor(x) + Math.floor(y)) % 2 ? .38 : .5)); ell('hat', HCX, HCY - 4.8, 12 * Math.max(.8, Math.abs(ca)) + .6, 1.7, 'hat', { flatY: true }); }
+    if (kind === 'veil') { // beekeeper: brimmed hat, the mesh veil hangs at the sides and gathers at the collar (the face shows through)
+      dome(HRX + .2, 6.6, 4.8, 'white'); const mesh = (x, y) => ((Math.floor(x) + Math.floor(y)) % 2 ? .4 : .55);
+      for (const sd of [-1, 1]) put('hat', (x, y) => { const dx = (x - HCX) * sd; return dx > HRX - 1.6 && dx < HRX + 2.2 - (y - HCY) * .08 && y > HCY - 4.4 && y < HCY + 8.2; }, [HCX - 10, HCY - 4.4, HCX + 10, HCY + 8.2], 'mesh', mesh);
+      if (back) put('hat', (x, y) => Math.abs(x - HCX) < HRX + 2 && y > HCY - 4.4 && y < HCY + 8.2, [HCX - 10, HCY - 4.4, HCX + 10, HCY + 8.2], 'mesh', mesh);
+      trap('hat', HCX, HCY + 6.4, HCY + 8.6, HRX + 1.4, HRX + 2.2, 'mesh', { cr: 0, f: .45 }); ell('hat', HCX, HCY - 4.8, 12 * Math.max(.8, Math.abs(ca)) + .6, 1.7, 'hat', { flatY: true }); }
     if (kind === 'pigeon') { const p = place(-7.4, 0); acc(onHead, () => {}); }
     if (kind === 'goggles') { rect('hat', HCX - HRX - .3, HCY - 4.4, HCX + HRX + .3, HCY - 3.4, 'dark', { f: .3 }); const p = place(0, 6.2); if (p.d > 0) for (const lx of [-2.4, 2.4]) { const q = place(lx, 6.2); ell('hat', HCX + q.x * .9, HCY - 4.8, 1.5, 1.2, 'lens', { gloss: true }); } }
     if (kind === 'tiara' || kind === 'band') rect('hat', HCX - HRX + .4, HCY - 6.4, HCX + HRX - .4, HCY - 5.4, hc, { f: .6 });
