@@ -751,6 +751,8 @@ export function personFast(g, sx, sy, o, t, key, lod) {
 // whites and highlights when there are enough pixels to show them. Everything is drawn facing right in its own local
 // space (feet at 0, head up), then mirrored for people facing left, with the key light kept on the upper left of the
 // screen either way. The sprite cache (personFast) draws each pose once, so all of this costs nothing per frame.
+// perceived brightness of a '#rrggbb' color, 0..255
+const lumOf = (h) => { const n = parseInt(String(h).slice(1, 7), 16); return .299 * (n >> 16) + .587 * (n >> 8 & 255) + .114 * (n & 255); };
 export function person(g, sx, sy, o, t) {
   const AG = o.age, elder = AG === 'elder', senior = AG === 'senior' || elder, teen = AG === 'teen';
   const s = o.s || (teen ? .94 : 1), ph = o.ph || 0, mv = !!o.moving, cyc = (o.stride != null ? o.stride * 6.4 : t / 95) + ph, walk = mv ? Math.sin(cyc) : 0;
@@ -804,7 +806,7 @@ export function person(g, sx, sy, o, t) {
     // shoe: heel behind the ankle, toe pointing forward, a sole and a highlight
     const sc = far ? shade(shoe, .8) : shoe;
     g.beginPath(); g.moveTo(ax - 1.6, ay - 1.4); g.quadraticCurveTo(ax - .4, ay - 2.2, ax + 1.2, ay - 1.6); g.quadraticCurveTo(ax + 3.8, ay - 1.2, ax + 4, ay + .1); g.lineTo(ax + 4, ay + .7); g.lineTo(ax - 1.8, ay + .7); g.closePath(); g.fillStyle = sc; g.fill(); g.strokeStyle = OL; g.lineWidth = .5 / s; g.stroke();
-    g.fillStyle = shade(sc, sc === '#eeeeee' ? .78 : 1.6); g.fillRect(ax - 1.8, ay + .15, 5.8, .55);
+    g.fillStyle = sc === '#eeeeee' ? shade(sc, .78) : lumOf(sc) < 60 ? '#3b3e47' : shade(sc, 1.35); g.fillRect(ax - 1.8, ay + .15, 5.8, .55);
     if (D > 2 && !far) ell(ax + 1.8, ay - 1, .9, .35, 'rgba(255,255,255,.28)');
   };
   leg(Wd(-1.5), -walk, true); leg(Wd(1.3), walk, false);
@@ -881,7 +883,7 @@ export function person(g, sx, sy, o, t) {
   // a cane in the front hand
   if ((o.cane || (elder && o.cane !== false)) && !back) { line(Wd(6.4), -16.6, Wd(7.6), -.4, '#5b3a1e', 1); line(Wd(5.6), -16.9, Wd(7.1), -16.6, '#5b3a1e', 1); }
   // ---- neck and head ----
-  const stX = elder ? 1.4 : senior ? .5 : 0, stY = elder ? 1.4 : senior ? .5 : 0; g.save(); g.translate(stX, stY);
+  const stX = elder ? 1.4 : senior ? .5 : 0, stY = elder ? 1.4 : senior ? .5 : 0; g.save(); g.translate(stX, stY); if (o.headScale) { g.translate(.5, -28.4); g.scale(o.headScale, o.headScale); g.translate(-.5, 28.4); } // pixel sprites use a bigger head
   rrect(-1.2, -29.4, 3, 3, 1, shade(skin, .8));
   const HX = .5, HY = -32.6, RX = 3.7, RY = 4.2;
   // the head: a skull and a jaw that comes forward to the chin
