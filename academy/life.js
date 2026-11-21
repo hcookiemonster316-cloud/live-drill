@@ -127,7 +127,7 @@ export function installLife(H) {
       if (a0()) { const c = viol.c, [sx, sy] = iso(c.x, c.y); H.bubble(sx, sy - 40, '!', Math.floor(now / 300) % 2 ? '#ef4444' : '#2563eb', now); H.label(sx, sy - 64, viol.v[0], '#fecaca'); }
     },
     tapViolator(near) { if (!viol || viol.c.stopped) return false; const c = viol.c; if (!near(c.x, c.y, 36)) return false; return tryStop(c); },
-    drawKid(list, vis, now) { acts.forEach((a) => { if (a.kind !== 'kid') return; const [sx, sy] = H.iso(a.x, a.y); if (vis(sx, sy)) list.push({ d: a.x + a.y, f: () => H.person(H.ctx, sx, sy, { ph: 7, shirt: '#f59e0b', s: .78, face: -1 }, now) }); }); }
+    drawKid(list, vis, now) { acts.forEach((a) => { if (a.kind !== 'kid') return; const [sx, sy] = H.iso(a.x, a.y); if (vis(sx, sy)) list.push({ d: a.x + a.y, f: () => (H.personFast || H.person)(H.ctx, sx, sy, { ph: 7, shirt: '#f59e0b', s: .78, face: -1, kid: true }, now, 'kid7') }); }); }
   };
   function a0() { return viol && viol.c && !viol.c.stopped; }
 }

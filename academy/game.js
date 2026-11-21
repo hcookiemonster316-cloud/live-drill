@@ -3,7 +3,7 @@ import { installIcons } from './icons.js';
 import { installDeesc } from './deesc.js';
 import { installLives } from './lives.js'; // first, so every canvas draws the game's own icons instead of system emoji
 installIcons();
-import { N, TW, TH, T, CH, iso, unIso, buildDistrict, drawGround, setRes, setGroundRes, frameStart, setSun, RES, GRES, drawBuilding, drawProp, car, person, personFast, dog, dogFast, vehicle, bikeFast, rideArt, CAR_COLORS, shade, drawPropFast, hiCanvas, recycleGround } from './world.js';
+import { N, TW, TH, T, CH, iso, unIso, buildDistrict, drawGround, setRes, setGroundRes, frameStart, setSun, RES, GRES, drawBuilding, drawProp, car, person, personFast, PIXELFOLK, dog, dogFast, vehicle, bikeFast, rideArt, CAR_COLORS, shade, drawPropFast, hiCanvas, recycleGround } from './world.js';
 import { CHAPTER } from './vodata.js';
 import { installShiftArc } from './shiftarc.js';
 import { installHandsOn } from './handson.js';
@@ -12,6 +12,8 @@ import { installMood } from './mood.js';
 import { installPartners } from './partners.js';
 import { installWays, SIGNATURE, SIG_CAST } from './ways.js';
 import { installSpecial } from './special.js';
+import { FOLK } from './folkcast.js';
+import { sprite as folkSpriteOf, fromLook as folkFromLookG, SW as FSW, SH as FSH, OX as FOX, OY as FOY } from './pixelfolk.js';
 import { momentArt } from './moments.js';
 import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
 import * as L from './learn.js';
@@ -356,10 +358,13 @@ function goTo(x, y, onArrive) {
   P.path = p; P.onArrive = onArrive || null; cam.free = false;
 }
 function gateBlock(x, y) { return W.gates.some((g) => !S.unlocked.includes(g.to) && Math.abs(g.x - x) <= 1 && Math.abs(g.y - y) <= 1 && false); }
+// the 8 sprite directions from a step on the map: screen right is +x-y, screen down is +x+y
+function dir8From(dx, dy) { const a = Math.atan2((dx + dy) * .5, dx - dy); return [2, 1, 0, 7, 6, 5, 4, 3][(Math.round(a / (Math.PI / 4)) + 8) % 8]; }
 function stepAlong(e, dt, sp) {
   if (!e.path.length) { e.moving = false; return true; }
   const [tx, ty] = e.path[0], dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy), m = sp * dt;
   if (Math.abs(dx - dy) > .01) e.face = dx - dy > 0 ? 1 : -1; e.back = dx + dy < -.01; e.stride = (e.stride || 0) + Math.min(m, d);
+  if (d > .001) e.dir8 = dir8From(dx, dy);
   if (Math.abs(dx) > Math.abs(dy)) e.dir = dx > 0 ? 0 : 2; else if (Math.abs(dy) > .01) e.dir = dy > 0 ? 1 : 3;
   e.moving = true;
   if (d <= m) { e.x = tx; e.y = ty; e.path.shift(); return !e.path.length; }
@@ -583,7 +588,7 @@ function trustMap(did) {
 let STOPLIGHTS = false;
 const LIFE = installLife({ S, L, get W() { return W; }, get P() { return P; }, get pcar() { return pcar; }, get inside() { return inside; }, NIGHT: () => NIGHT, traffic: () => traffic, call: () => call, clock: () => clock, rain: () => !!FX.rain,
   dialogue: (...a) => dialogue(...a), sayAs: (...a) => sayAs(...a), award: (...a) => award(...a), stat: (...a) => stat(...a), ord: (...a) => ord(...a), toast: (m) => toast(m), banner: (...a) => banner(...a), beep: (...a) => beep(...a), chirp: (w) => chirp(w), good: () => good(), bad: () => bad(), radio: (...a) => radio(...a),
-  saveS: () => saveS(), hud: () => hud(), openModal: (h) => openModal(h), closeModal: () => closeModal(), $: (id) => $(id), esc: (x) => esc(x), iso: (x, y) => iso(x, y), get ctx() { return ctx; }, bubble: (...a) => bubble(...a), label: (...a) => label(...a), person: (...a) => person(...a),
+  saveS: () => saveS(), hud: () => hud(), openModal: (h) => openModal(h), closeModal: () => closeModal(), $: (id) => $(id), esc: (x) => esc(x), iso: (x, y) => iso(x, y), get ctx() { return ctx; }, bubble: (...a) => bubble(...a), label: (...a) => label(...a), person: (...a) => person(...a), personFast: (...a) => personFast(...a),
   rideKind: () => RIDE(), motorPool: () => motorPool(), goTo: (...a) => goTo(...a), doorSpot: (l) => doorSpot(l), whereAt: (x, y) => { const n = nearestLotTo(x, y); return n ? 'near ' + n : 'on patrol'; }, lights: (on) => { STOPLIGHTS = on; } });
 // off the clock: off-duty mode, leisure, ride-alongs, homes, morale and friendship stories (see offduty.js)
 const OFF = installOffDuty({ mood: (m) => { DLGMOOD = m; }, S, L, get W() { return W; }, get P() { return P; }, get inside() { return inside; }, call: () => call, paused: () => paused || !!scene,
@@ -971,7 +976,7 @@ function cat(sx, sy, now, g) { g = g || ctx; const t = Math.sin(now / 600) * 3; 
 function regsDraw(list, vis, now) {
   regs.forEach((r) => { const [sx, sy] = iso(r.x, r.y); if (!vis(sx, sy)) return; const near = Math.hypot(r.x - P.x, r.y - P.y);
     list.push({ d: r.x + r.y, f: () => {
-      if (r.n.cat) cat(sx, sy, now); else { const lk = r.n.look || {}; { const wv = (r.waveT || 0) > performance.now(), o = Object.assign({ kit: r.n.kit || npcKit(lk), hair: r.n.hair || lk.hair, skin: r.n.skin || lk.skin, glasses: !!(r.n.glasses || lk.glasses), moving: false, face: r.face, ph: r.ph, wave: wv, glance: false }, r.ap || (r.ap = appearOpts(r.n.id))); if (wv) person(ctx, sx, sy, o, now); else personFast(ctx, sx, sy, o, now, 'rg' + r.n.id + '|' + Math.round((r.ph || 0) * 100)); } }
+      if (r.n.cat) cat(sx, sy, now); else { const lk = r.n.look || {}; { const wv = (r.waveT || 0) > performance.now(), o = Object.assign({ kit: r.n.kit || npcKit(lk), hair: r.n.hair || lk.hair, skin: r.n.skin || lk.skin, glasses: !!(r.n.glasses || lk.glasses), moving: false, face: r.face, ph: r.ph, wave: wv, glance: false, folk: FOLK[r.n.id] }, r.ap || (r.ap = appearOpts(r.n.id))); if (wv && !PIXELFOLK) person(ctx, sx, sy, o, now); else personFast(ctx, sx, sy, o, now, 'rg' + r.n.id + '|' + Math.round((r.ph || 0) * 100)); } }
       if (near < 5.5) label(sx, sy - (r.n.cat ? 26 : 48), r.n.icon + ' ' + r.n.name, '#fde68a');
       if (!talkedNow[r.n.id] && near < 10) bubble(sx, sy - (r.n.cat ? 42 : 66), '💬', '#fde68a', now);
     } });
@@ -1143,8 +1148,8 @@ function portraitLook(id) {
   if (String(id).startsWith('v_')) return null; // an inner voice shows its subject's icon, never a face
   if (PLOOK[id]) return PLOOK[id];
   if (id === '@you') return { kit: kitWith(myKit(), myLooks()), skin: S.skin || '#c68e63', hair: '#1a1a1a' };
-  const c = CAST[id]; if (c && c.look) return { kit: c.look, skin: c.skin, hair: '#1a1a1a' };
-  const n = NPCS.find((x) => x.id === id); if (n) { if (n.cat) return { cat: true }; const lk = n.look || {}, r = regs.find((x) => x.n.id === id); return { kit: n.kit || npcKit(lk), hair: n.hair || lk.hair, skin: n.skin || lk.skin, ph: r ? r.ph : undefined }; }
+  const c = CAST[id]; if (c && c.look) return { kit: c.look, skin: c.skin, hair: '#1a1a1a', folk: FOLK[id] };
+  const n = NPCS.find((x) => x.id === id); if (n) { if (n.cat) return { cat: true }; const lk = n.look || {}, r = regs.find((x) => x.n.id === id); return { kit: n.kit || npcKit(lk), hair: n.hair || lk.hair, skin: n.skin || lk.skin, ph: r ? r.ph : undefined, folk: FOLK[id] }; }
   const t = TEMP[id]; if (t) { const h = hashStr(id); return { ph: h % 997, shirt: ['#c0392b', '#2e86de', '#16a085', '#8e44ad', '#e67e22', '#2c3e50', '#d35400', '#27ae60'][h % 8], skin: ['#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#ffdbac', '#a0662f'][(h >> 3) % 6], hair: ['#2b1d14', '#5a3825', '#1a1a1a', '#b07b3c', '#9a9a9a'][(h >> 5) % 5], kid: /age 9|teen|kid|child/i.test((t.name || '') + ' ' + (t.role || '')) }; }
   return null;
 }
@@ -1221,6 +1226,8 @@ function dialogue(lines, done, opts) {
     const bob = (typing ? Math.abs(Math.sin(now / 90)) * 1.6 : Math.sin(now / 900) * .6) + pNod * 3, s = pLook.kid ? 2.9 : 3.4;
     pg.save(); pg.translate(48, 96); pg.rotate(pTilt); pg.translate(-48, -96);
     if (pLook.cat) { pg.translate(48, 72 - bob); pg.scale(3.4, 3.4); cat(0, 0, now, pg); }
+    else if (PIXELFOLK) { // the speaker's own pixel sprite, head and shoulders, turned toward the text
+      const ps = 4.2, c = pLook._spr || (pLook._spr = folkSpriteOf(pLook.folk || folkFromLookG(pLook), 7, 0, false)); pg.imageSmoothingEnabled = false; pg.drawImage(c, 50 - FOX * ps, 40 + 38.6 * ps - FOY * ps - bob, FSW * ps, FSH * ps); }
     else person(pg, 50, 50 + 29 * s - bob, Object.assign({}, pLook, { s, moving: false, face: -1, glance: false, noShadow: true }), now);
     pg.restore();
   }; pRaf = requestAnimationFrame(drawPort);

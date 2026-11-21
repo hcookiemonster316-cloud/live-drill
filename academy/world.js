@@ -1,4 +1,5 @@
 // Patrol City world: district maps (tiles, buildings, props) and the isometric art, all drawn in code.
+import { fromLook as folkFromLook, rgba as folkRGBA, SW as FSW, SH as FSH, OX as FOX, OY as FOY } from './pixelfolk.js';
 import { DISTRICTS, LANDMARKS } from './data.js';
 
 export const N = 145, TW = 64, TH = 32; // 13 x 13 city blocks per district
@@ -729,7 +730,36 @@ const JACKETS = ['#2f3b4c', '#5a3e2b', '#3b5249', '#7a2e2e', '#1f2937', '#4b4f8a
 // so sixty cadets on screen cost sixty image copies instead of sixty full drawings
 const PCACHE = new Map(), TAU = Math.PI * 2; let SHSPR = null;
 let PHIT = 0; const IDLE_T = 3200, PCAP = navigator.deviceMemory && navigator.deviceMemory < 4 ? 700 : 1200;
+// ---- pixel people (pixelfolk.js): flat 2D pixel art in 8 directions, drawn crisp at any zoom ----
+// One small 48x64 image per pose (no hi-res copies), idle people share one frame, and every frame after a person's
+// first is rasterized in a worker, so new walk frames and turns never stall the main thread.
+export let PIXELFOLK = !(typeof location !== 'undefined' && /[?&]classic\b/.test(location.search));
+export function setPixelFolk(on) { PIXELFOLK = !!on; }
+const FX = new Map(), FXFIRST = new Map(), FXJOB = new Map(), FXD = new Map(); let FXW = null, FXN = 0, FXT = -1, FXBUD = 0; const FXCAP = 2200;
+try { if (typeof Worker !== 'undefined' && typeof document !== 'undefined' && !(typeof location !== 'undefined' && /[?&]noworker\b/.test(location.search))) { FXW = new Worker(new URL('./folkw.js', import.meta.url), { type: 'module' }); FXW.onmessage = (e) => { const d = e.data, j = FXJOB.get(d.id); FXJOB.delete(d.id); if (!j) return; if (d.fail) { FXW = null; return; } fxStore(j.k, j.lk, new ImageData(d.a, d.w, d.h)); }; FXW.onerror = () => { FXW = null; }; } } catch (e) { FXW = null; }
+// a crisp pixel-art contact shadow (two soft tones) is baked under the feet, so a person is one image copy
+function fxShadow(im) { const a = im.data; for (let y = FOY - 3; y <= Math.min(FSH - 1, FOY + 2); y++) for (let x = 0; x < FSW; x++) { const u = (x + .5 - FOX - 1) / 8.5, v = (y + .5 - FOY) / 3.2, r = u * u + v * v; if (r > 1) continue; const k = (y * FSW + x) * 4; if (a[k + 3]) continue; a[k + 3] = r < .45 ? 92 : 52; } return im; }
+function fxStore(k, lk, im) { const c = document.createElement('canvas'); c.width = FSW; c.height = FSH; c.getContext('2d').putImageData(fxShadow(im), 0, 0); if (FX.size > FXCAP) { let n = 200; for (const kk of FX.keys()) { FX.delete(kk); if (--n <= 0) break; } } FX.set(k, c); if (!FXFIRST.has(lk)) FXFIRST.set(lk, c); return c; }
+// which of the 8 directions a person faces: their own heading if the mover set one, otherwise from facing and walking away
+export function dir8Of(o) { if (o.dir8 != null) return o.dir8; const f = (o.face || 1) > 0; return o.moving && o.back ? (f ? 3 : 5) : f ? 1 : 7; }
+function folkSprite(o, t, key) {
+  let D = o.folk || FXD.get(key); if (!D) { D = folkFromLook(o); if (FXD.size > 3000) FXD.clear(); FXD.set(key, D); }
+  const d = dir8Of(o), mv = !!o.moving, fr = mv ? Math.floor(((((o.stride != null ? o.stride * 6.4 : t / 95) + (o.ph || 0)) % TAU + TAU) % TAU) / TAU * 8) : 8;
+  const lk = key + (o.wave ? '|w' : ''), k = lk + '|' + d + '|' + fr; let c = FX.get(k); if (c) return c;
+  if (t !== FXT) { FXT = t; FXBUD = 2; }
+  const first = FXFIRST.get(lk);
+  // a person's very first frame is drawn right away (they never pop in); the rest come from the worker
+  if (!first || (!FXW && FXBUD > 0)) { if (FXBUD <= 0 && first) return first; FXBUD--; const DD = o.wave ? Object.assign({}, D, { pose: 'up' }) : D; return fxStore(k, lk, new ImageData(folkRGBA(DD, d, mv ? (fr + .5) / 8 * TAU : 0, mv, o.folk ? 4 : 3), FSW, FSH)); }
+  if (FXW && ![...FXJOB.values()].some((j) => j.k === k) && FXJOB.size < 24) { const id = ++FXN; FXJOB.set(id, { k, lk }); try { FXW.postMessage({ id, D: o.wave ? Object.assign({}, D, { pose: 'up' }) : D, d, ph: mv ? (fr + .5) / 8 * TAU : 0, mv, ss: o.folk ? 4 : 3 }); } catch (e) { FXJOB.delete(id); FXW = null; } }
+  return FX.get(lk + '|' + d + '|8') || first;
+}
+export function personPixel(g, sx, sy, o, t, key) {
+  const c = folkSprite(o, t, key); if (!c) return; const s = o.s || 1, sm = g.imageSmoothingEnabled;
+  castShadow(g, sx, sy, 9 * s, .9 * s);
+  if (sm) g.imageSmoothingEnabled = false; g.drawImage(c, sx - FOX * s, sy - FOY * s, FSW * s, FSH * s); if (sm) g.imageSmoothingEnabled = true;
+}
 export function personFast(g, sx, sy, o, t, key, lod) {
+  if (PIXELFOLK) return personPixel(g, sx, sy, o, t, key);
   const s = o.s || 1, mv = !!o.moving, cyc = mv ? (o.stride != null ? o.stride * 6.4 : t / 95) + (o.ph || 0) : 0, fr0 = mv ? Math.floor((((cyc % TAU) + TAU) % TAU) / TAU * 8) : 8 + (Math.floor((t / IDLE_T + (o.ph || 0) * .7) * 4) & 3), fr = lod ? (mv ? fr0 & 6 : 8) : fr0;
   // idle people breathe: four cached frames over a 3.2 s cycle (frames 8-11), each person on their own phase
   // in a crowd, people facing left are the right-facing sprite mirrored, and sprites are a little softer: half the sprites, half the memory
