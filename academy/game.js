@@ -10,6 +10,7 @@ import { installHandsOn } from './handson.js';
 import { installEchoes } from './echoes.js';
 import { installMood } from './mood.js';
 import { installPartners } from './partners.js';
+import { installWays, SIGNATURE, SIG_CAST } from './ways.js';
 import { momentArt } from './moments.js';
 import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
 import * as L from './learn.js';
@@ -53,7 +54,7 @@ import { installCoop, QUICK_EXTRA } from './coop.js';
 import { installRewards } from './rewards.js';
 import { installCity } from './city.js';
 if (QUICK.length < 10) QUICK.push(QUICK_EXTRA);
-SIDE2.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); SAGAS.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); SAGA_LORE.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); });
+SIDE2.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); SIGNATURE.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); SAGAS.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); SAGA_LORE.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); });
 TALES.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); TALE_LORE.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); }); Object.assign(QITEMS, TALE_ITEMS);
 ACT2.forEach((q) => { if (!SIDE.some((o) => o.id === q.id)) SIDE.push(q); }); ACT2_LORE.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); }); Object.assign(QITEMS, ACT2_ITEMS);
 SET_NOTES.forEach((n) => { if (!NOTES.some((o) => o.id === n.id)) NOTES.push(n); }); NOTE_SETS.forEach((c) => LORE.push({ id: 'c_' + c.id, when: 'note:' + c.d, title: c.title, text: c.find + ' ' + ACT2_ITEMS[c.item].read }));
@@ -644,6 +645,7 @@ const ECHO = installEchoes({ S, T, N, W: () => W, shiftKey: () => MEM.shiftNo, s
 // contrast and a color script: the shift's tension and closed cases color the screen
 const MOOD = installMood({ inside: () => !!inside, pursuit: () => !!PUR, phase: () => SARC.phase, urgent: () => !!(call && call.accepted && call.prio === 1), day: () => { const h = hourNow(); return h >= 8 && h < 17; }, layer: (k, w, h, p) => gradeLayer(k, w, h, p) });
 // partner cases: Walsh, Park and Castillo each have a story told over shifts together
+const WAYS = installWays({ get S() { return S; }, saveS: () => saveS(), esc: (x) => esc(x), trustUp: (n) => { S.trust[W.did] = Math.min(100, (S.trust[W.did] == null ? 50 : S.trust[W.did]) + n); } });
 const PART = installPartners({ S, saveS: () => saveS(), partner: () => VAR.partner(), free: () => streetFree(), dialogue: (...a) => dialogue(...a), twist: (t) => twistCard(t) });
 // the exam as a finale: the last shift (finale.js)
 const FIN = installFinale({ S, MEM, NPCS, esc, backers: () => GRP.backers() });
@@ -1042,11 +1044,11 @@ function offerSide(q) {
 }
 function sideDone(q) {
   { const w = q.steps.slice().reverse().find((x) => x.who && !/castillo|velvet/.test(x.who)); if (w) VAR.questDone(q, w.who); }
-  const rw = q.reward || {}; if (S.track === q.id) S.track = 'main'; AVC = null; saveS(); music.sting('done');
+  const rw = q.reward || {}, wy = WAYS.close(q, rw); if (S.track === q.id) S.track = 'main'; AVC = null; saveS(); music.sting('done');
   const n = SIDE.filter(sideClosed).length;
   if (rw.title) { S.titles = S.titles || {}; S.titles[rw.title] = 1; }
-  openModal('<div class="chEnd side' + (q.saga ? ' saga' : '') + '"><span class="chKick">' + (q.saga ? 'Story arc complete' : 'Side case closed') + (rw.title ? ' · title: ' + esc(rw.title) : '') + '</span><h2>' + esc(q.title) + '</h2><p>' + esc(DISTRICTS[q.d].name) + '</p><div class="chStamp">CASE CLOSED</div><p class="chNext">' + n + ' of ' + SIDE.length + ' side cases closed. People remember how you handled this one.</p></div><div class="qAct"><button type="button" id="mDone">Back to patrol</button></div>');
-  good(); $('mDone').onclick = () => { closeModal(); award(rw.rp || 100, 'side case'); if (rw.loot) queueLoot('Side case: ' + q.title, 1, rw.loot); };
+  openModal('<div class="chEnd side' + (q.saga ? ' saga' : '') + '"><span class="chKick">' + (q.saga ? 'Story arc complete' : q.sig ? 'Signature case closed' : 'Side case closed') + (rw.title ? ' · title: ' + esc(rw.title) : '') + '</span><h2>' + esc(q.title) + '</h2><p>' + esc(DISTRICTS[q.d].name) + '</p><div class="chStamp">CASE CLOSED</div>' + wy.html + '<p class="chNext">' + n + ' of ' + SIDE.length + ' side cases closed. People remember how you handled this one.</p></div><div class="qAct"><button type="button" id="mDone">Back to patrol</button></div>');
+  good(); $('mDone').onclick = () => { closeModal(); award(wy.rp, 'side case'); if (rw.loot) queueLoot('Side case: ' + q.title, 1, rw.loot); };
 }
 function storyUpdate(dt) {
   storyCool -= dt; if (storyBusy || scene || storyCool > 0 || !$('modal').hidden || heldByLeave()) return;
@@ -1076,7 +1078,7 @@ function applyChoice(o) {
 //   ['q', question, speakerId]    a chapter question asked inside the scene; the speaker reacts to the answer
 //   ['fx', fn]                    run something mid-scene
 // opts: { focus: [x, y], zoom, kicker } frames the camera on the scene and labels it.
-const TEMP = Object.assign({}, SIDE_CAST, SAGA_CAST, TALE_CAST, ACT2_CAST);
+const TEMP = Object.assign({}, SIDE_CAST, SAGA_CAST, TALE_CAST, ACT2_CAST, SIG_CAST);
 // after a right answer: praise, then a tip about something else worth doing nearby
 function hintLine() {
   const opts = [], nm = (id) => giverName(id);
@@ -1364,8 +1366,10 @@ function playStep(st) {
   storyBusy = true; paused = true; P.path = [];
   const A = activeQ(), c = A.q, idx = A.i;
   learnFlowInit(); if (!A.side && LF.gateStep(c, idx, st.who, () => { storyBusy = false; paused = false; storyCool = 4; })) return;
-  let nextI = idx + 1; while (nextI < c.steps.length && !stepOn(c.steps[nextI])) nextI++; const last = nextI >= c.steps.length;
+  let nextI = idx + 1; while (nextI < c.steps.length && !stepOn(c.steps[nextI])) nextI++; let last = nextI >= c.steps.length;
   const finish = () => {
+    // a choice in this scene can open or close later steps (a route in a signature case), so the next step is worked out again here
+    nextI = idx + 1; while (nextI < c.steps.length && !stepOn(c.steps[nextI])) nextI++; last = nextI >= c.steps.length;
     if (st.give) qGive(st.give); if (st.take) qTake(st.take);
     // every errand pays off: a delivery mid-case earns a little and the person remembers you for it
     if ((st.take || st.need) && !st.give && !st.twist && !last) { award(40, 'errand'); if (st.who) S.npc[st.who] = Math.min(6, (S.npc[st.who] || 0) + 1); }
@@ -1396,7 +1400,8 @@ function playStep(st) {
     seq.push([sp2, radio + rnd(['Okay. If I were you, I\'d ', 'So here\'s what I\'d do next. I\'d ', 'Alright. Next thing I\'d do is ']) + g.charAt(0).toLowerCase() + g.slice(1) + '.']);
   }
   seq = VAR.questSeq({ c, st, seq, side: A.side });
-  dialogue(seq, (r) => { if (r && r.n) award(r.right * 20, 'story'); if (r && r.halted) { storyBusy = false; paused = false; storyCool = 4; return; } finish(); }, { focus: tg ? [tg.x, tg.y] : [P.x, P.y], kicker: (A.side ? (c.saga ? 'STORY ARC · ' : 'SIDE CASE · ') : '') + c.title.toUpperCase(), voiced: !A.side });
+  seq = WAYS.seq(c, st, seq, last, A.side); // the last scene of a side case: talk, look into it, or by the book (ways.js)
+  dialogue(seq, (r) => { if (r && r.n) award(r.right * 20, 'story'); if (r && r.halted) { storyBusy = false; paused = false; storyCool = 4; return; } finish(); }, { focus: tg ? [tg.x, tg.y] : [P.x, P.y], kicker: (A.side ? (c.saga ? 'STORY ARC · ' : c.sig ? 'SIGNATURE CASE · ' : 'SIDE CASE · ') : '') + c.title.toUpperCase(), voiced: !A.side });
 }
 function chapterDone(c) { EP.ending(c, () => chapterDone2(c)); }
 function chapterDone2(c) {
@@ -1802,6 +1807,8 @@ function floatsDraw(now) {
 }
 // the promotion ceremony
 function promotion(rank) {
+  // two ranks at once (a big reward) play one after the other, never stacked on top of each other
+  if (document.querySelector('.promo')) { setTimeout(() => promotion(rank), 900); return; }
   music.sting('promo'); shake(8, .6);
   const lvl = [0, 200, 600, 1200, 2000, 3000, 4200, 5600, 7200, 9000].filter((t) => S.xp >= t).length, opened = SLOTS.filter((sl) => sl.need && S.xp >= sl.need && S.xp - sl.need < 400);
   const el = document.createElement('div'); el.className = 'promo';

@@ -445,6 +445,22 @@ export function drawGround(W, cx, cy) {
 export let RES = 1, GRES = 2; export function setRes(k) { RES = k; } export function setGroundRes(k) { GRES = k; }
 // when RES changes, only a few sprites per frame are redrawn; the rest keep using their previous drawing until then
 let MISS = 0; const LASTC = new Map(); export function frameStart() { MISS = 0; }
+// a sprite cut down to the pixels it actually uses: the same picture at the same spot, but every stamp after that
+// copies a small rectangle instead of a mostly empty one (a hydrant in a 120 x 150 box is about 3% ink).
+// c.ox/c.oy are where the cut-out sits inside the original box, in logical pixels.
+export function trimSprite(c) {
+  if (typeof document === 'undefined' || !c.width || !c.height) { c.ox = 0; c.oy = 0; return c; }
+  let d; try { d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; } catch (e) { c.ox = 0; c.oy = 0; return c; }
+  const W = c.width, H = c.height; let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (let y = 0; y < H; y++) { const r = y * W * 4; for (let x = 0; x < W; x++) if (d[r + x * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; y1 = y; } }
+  const k = c.width / c.lw;
+  if (x1 < 0) { const e = document.createElement('canvas'); e.width = e.height = 1; e.lw = e.lh = 1 / k; e.ox = e.oy = 0; return e; }
+  if ((x1 - x0 + 1) * (y1 - y0 + 1) > W * H * .8) { c.ox = 0; c.oy = 0; return c; }
+  // keep a clear border so smoothing at sub-pixel positions fades to nothing exactly as it did in the big box
+  x0 = Math.max(0, x0 - 2); y0 = Math.max(0, y0 - 2); x1 = Math.min(W - 1, x1 + 2); y1 = Math.min(H - 1, y1 + 2);
+  const t = document.createElement('canvas'); t.width = x1 - x0 + 1; t.height = y1 - y0 + 1; t.getContext('2d').drawImage(c, x0, y0, t.width, t.height, 0, 0, t.width, t.height);
+  t.lw = t.width / k; t.lh = t.height / k; t.ox = x0 / k; t.oy = y0 / k; return t;
+}
 function reuse(base) { return MISS >= 6 ? LASTC.get(base) : null; }
 function remember(base, c) { MISS++; if (LASTC.size > 4000) LASTC.clear(); LASTC.set(base, c); }
 let SUNLEN = 0; export function setSun(len) { SUNLEN = len || 0; }
@@ -613,8 +629,8 @@ export function drawPropFast(g, p, sx, sy, t, night) {
   else if (PROP_STATIC.has(p.t)) { key = p.t; if (p._pk == null) { let pk = ''; for (const k in p) if (k !== 'x' && k !== 'y' && k !== 't' && k !== 'on' && k[0] !== '_') pk += '|' + k + '=' + p[k]; p._pk = pk; } key += p._pk + (p.on ? '|on' : ''); }
   if (!key) return drawProp(g, p, sx, sy, t, night);
   key += '|' + (night ? 1 : 0); const base = 'p' + key; key += '|' + RES; let c = PROPC.get(key) || reuse(base);
-  if (!c) { if (PROPC.size > 500) PROPC.clear(); const [cv, cg] = hiCanvas(120, 150, RES); if (!q) { q = {}; for (const k in p) if (k[0] !== '_') q[k] = p[k]; q.x = 0; q.y = Math.floor(p.x * 7 + p.y * 13) & 3; } drawProp(cg, q, 60, 130, 0, night); c = cv; PROPC.set(key, c); remember(base, c); }
-  g.drawImage(c, sx - 60 + ox, sy - 130, c.lw, c.lh);
+  if (!c) { if (PROPC.size > 500) PROPC.clear(); const [cv, cg] = hiCanvas(120, 150, RES); if (!q) { q = {}; for (const k in p) if (k[0] !== '_') q[k] = p[k]; q.x = 0; q.y = Math.floor(p.x * 7 + p.y * 13) & 3; } drawProp(cg, q, 60, 130, 0, night); c = trimSprite(cv); PROPC.set(key, c); remember(base, c); }
+  g.drawImage(c, sx - 60 + ox + c.ox, sy - 130 + c.oy, c.lw, c.lh);
 }
 // props, people and cars are drawn each frame (cheap shapes)
 export function drawProp(g, p, sx, sy, t, night) {
