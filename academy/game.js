@@ -444,7 +444,10 @@ function render(now) { RNOW = now; frameStart(); spriteResTick(false);
   ctx.setTransform(z, 0, 0, z, tx, ty);
   groundDraw(z, tx, ty);
   const vx0 = cam.x - cv.width / 2 / z - 120, vx1 = cam.x + cv.width / 2 / z + 120, vy0 = cam.y - cv.height / 2 / z - 300, vy1 = cam.y + cv.height / 2 / z + 140;
-  const vis = (sx, sy) => sx > vx0 && sx < vx1 && sy > vy0 && sy < vy1;
+  // anchors of people, cars and props: their sprites reach at most ~80 px sideways, ~140 px up and ~30 px down, so the
+  // test is that tight; the wider box above stays for the grid lookups (buildings are culled by their own bounds)
+  const sx0 = cam.x - cv.width / 2 / z - 80, sx1 = cam.x + cv.width / 2 / z + 80, sy0 = cam.y - cv.height / 2 / z - 40, sy1 = cam.y + cv.height / 2 / z + 150;
+  const vis = (sx, sy) => sx > sx0 && sx < sx1 && sy > sy0 && sy < sy1;
   const list = [];
   // buildings between you and the camera fade so you can always see yourself (and others near you)
   const [pix, piy] = iso(P.x, P.y), pd = P.x + P.y;
@@ -1584,7 +1587,7 @@ let MANHOLE = null;
 function manholeSprite() { const [c, g] = hiCanvas(20, 11, 3); g.fillStyle = '#2b3038'; g.beginPath(); g.ellipse(10, 5.5, 9, 4.5, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#4a515c'; g.lineWidth = 1; g.stroke(); return c; }
 function vfxGround(now, vis) { // under the objects: puddles in the rain, sparkles on the water
   if (inside) return; const h = hourNow(), day = h >= 7 && h < 18.5;
-  if (FX.rain) AMB.puddles.forEach(([x, y, r]) => { const [sx, sy] = iso(x, y); if (!vis(sx, sy)) return; const pg = ctx.createRadialGradient(sx - 4, sy - 2, 1, sx, sy, 16 * r); pg.addColorStop(0, day ? 'rgba(200,220,240,.35)' : 'rgba(255,220,160,.22)'); pg.addColorStop(.7, 'rgba(60,80,110,.25)'); pg.addColorStop(1, 'rgba(60,80,110,0)'); ctx.fillStyle = pg; ctx.beginPath(); ctx.ellipse(sx, sy, 18 * r, 8 * r, 0, 0, Math.PI * 2); ctx.fill();
+  if (FX.rain) AMB.puddles.forEach(([x, y, r]) => { const [sx, sy] = iso(x, y); if (!vis(sx, sy)) return; const pz = puddleSprite(day, r); ctx.drawImage(pz, sx - pz.lw / 2, sy - pz.lh / 2, pz.lw, pz.lh);
     const k = ((now / 700 + x * 3.1) % 1); ctx.strokeStyle = 'rgba(220,235,250,' + (.5 * (1 - k)) + ')'; ctx.lineWidth = .8; ctx.beginPath(); ctx.ellipse(sx + Math.sin(x * 9) * 6, sy + Math.cos(y * 7) * 2, 1 + k * 7, .5 + k * 3.5, 0, 0, Math.PI * 2); ctx.stroke(); });
   if (S.cfg.quality !== 'low') { const tw = now / 1000; for (let i = 0; i < AMB.water.length; i += 1) { const [x, y] = AMB.water[i], ph = (x * 1.7 + y * 2.3), k = Math.sin(tw * 2.2 + ph) ; if (k < .86) continue; const [sx, sy] = iso(x + .5 + Math.sin(ph) * .3, y + .5 + Math.cos(ph) * .3); if (!vis(sx, sy)) continue; const a = (k - .86) / .14; ctx.fillStyle = day ? 'rgba(255,255,255,' + (.8 * a) + ')' : 'rgba(255,240,200,' + (.45 * a) + ')'; ctx.beginPath(); ctx.moveTo(sx - 4 * a, sy); ctx.lineTo(sx, sy - 1.5 * a); ctx.lineTo(sx + 4 * a, sy); ctx.lineTo(sx, sy + 1.5 * a); ctx.fill(); } }
 }
@@ -2875,6 +2878,14 @@ let ZINIT = 0;
 addEventListener('resize', resize); resize();
 // soft round light and shadow spots are drawn once per color and stamped, instead of building a new gradient for every lamp every frame
 const RADS = new Map();
+// a rain puddle is painted once per size (and day or night), then stamped, instead of a new gradient per puddle per frame
+const PUDS = new Map();
+function puddleSprite(day, r) {
+  const q = Math.round(r * 10) / 10, k = (day ? 'd' : 'n') + q; let c = PUDS.get(k); if (c) return c;
+  const w = 36 * q + 2, h = 16 * q + 2, [cv, g] = hiCanvas(w, h, 2), cx = w / 2, cy = h / 2;
+  const pg = g.createRadialGradient(cx - 4, cy - 2, 1, cx, cy, 16 * q); pg.addColorStop(0, day ? 'rgba(200,220,240,.35)' : 'rgba(255,220,160,.22)'); pg.addColorStop(.7, 'rgba(60,80,110,.25)'); pg.addColorStop(1, 'rgba(60,80,110,0)');
+  g.fillStyle = pg; g.beginPath(); g.ellipse(cx, cy, 18 * q, 8 * q, 0, 0, Math.PI * 2); g.fill(); PUDS.set(k, cv); return cv;
+}
 function radSprite(col) { let c = RADS.get(col); if (c) return c; if (RADS.size > 64) RADS.clear(); c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); RADS.set(col, c); return c; }
 // dynamic resolution: watch the real frame rate against the screen's refresh rate (60, 90, 120 Hz...) and trade a little
 // sharpness for smoothness when frames run long, then sharpen back up when there's headroom

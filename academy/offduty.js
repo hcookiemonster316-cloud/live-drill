@@ -144,6 +144,6 @@ export function installOffDuty(H) {
   return {
     setup, toggle, tick, rpMult, run, arcOption, arcReady, hud, mood,
     get acts() { return acts.filter(showable); }, get all() { return acts; },
-    draw(now) { acts.forEach((a) => { if (!showable(a)) return; const [sx, sy] = H.iso(a.x, a.y); H.bubble(sx, sy - 36, a.icon, a.col, now); if (Math.hypot(H.P.x - a.x, H.P.y - a.y) < 4) H.label(sx, sy - 60, a.label, '#e2e8f0'); }); }
+    draw(now) { acts.forEach((a) => { if (!showable(a) || Math.hypot(H.P.x - a.x, H.P.y - a.y) > 11) return; /* markers only nearby: the map stays clear around you */ const [sx, sy] = H.iso(a.x, a.y); H.bubble(sx, sy - 36, a.icon, a.col, now); if (Math.hypot(H.P.x - a.x, H.P.y - a.y) < 4) H.label(sx, sy - 60, a.label, '#e2e8f0'); }); }
   };
 }

@@ -2,7 +2,7 @@
 
 Standing rules from the owner:
 - **Every feature ships with an optimization pass.** New features must leave the game at least as fast as before: measure before/after, and pair each feature with a speed-up (cache it, draw it once, move it off the main thread, or do it less often). Never trade visual quality for speed.
-- **Don't break the game.** Before pushing: syntax-check every touched module with `node --input-type=module --check < file.js` (plain `node --check` misses errors here), run the Playwright regression tests, and look at screenshots of anything visual.
+- **Don't break the game.** Before pushing: syntax-check every touched module with `node --input-type=module --check < file.js` (plain `node --check` misses errors here), run the quick regression check, and look at screenshots of anything visual. If the quick check passes, push live, then run the full regression suite and fix anything it finds (owner's call, 2026-11-20).
 - PvP and co-op are training scenarios with sim rounds only, never live fire. Don't reward bad habits or illegal activity; pursuits, arrests and use of force follow policy (reward terminating risky pursuits, safe distance, radio discipline, de-escalation).
 - At most 3 quiz questions per interaction; longer runs are split into saved stages, and the player can walk away from any interaction.
 - Quiz options must be similar in length and content; the right answer must not be obvious.

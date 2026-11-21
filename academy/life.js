@@ -123,7 +123,7 @@ export function installLife(H) {
     update(dt) { trafficTick(dt); carTick(dt); hudT -= dt; if (hudT <= 0) { hudT = .5; carHud(); } },
     draw(now) { // icons over things you can do, and the violator
       const ctx = H.ctx, iso = H.iso;
-      acts.forEach((a) => { if (!showable(a)) return; const [sx, sy] = iso(a.x, a.y); H.bubble(sx, sy - (a.person ? 58 : 34), a.icon, a.col, now); if (Math.hypot(H.P.x - a.x, H.P.y - a.y) < 4) H.label(sx, sy - (a.person ? 82 : 58), a.label, '#e2e8f0'); });
+      acts.forEach((a) => { if (!showable(a) || Math.hypot(H.P.x - a.x, H.P.y - a.y) > 11) return; /* markers only nearby: the map stays clear around you */ const [sx, sy] = iso(a.x, a.y); H.bubble(sx, sy - (a.person ? 58 : 34), a.icon, a.col, now); if (Math.hypot(H.P.x - a.x, H.P.y - a.y) < 4) H.label(sx, sy - (a.person ? 82 : 58), a.label, '#e2e8f0'); });
       if (a0()) { const c = viol.c, [sx, sy] = iso(c.x, c.y); H.bubble(sx, sy - 40, '!', Math.floor(now / 300) % 2 ? '#ef4444' : '#2563eb', now); H.label(sx, sy - 64, viol.v[0], '#fecaca'); }
     },
     tapViolator(near) { if (!viol || viol.c.stopped) return false; const c = viol.c; if (!near(c.x, c.y, 36)) return false; return tryStop(c); },

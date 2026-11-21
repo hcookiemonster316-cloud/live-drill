@@ -207,14 +207,28 @@ function features(W, R) {
   W.quiet = quiet;
 }
 
+// each district's palette: Central steel and glass blues, Eastside brick and terracotta, Riverside painted pastels,
+// the industrial park rust and oxide, Justice Row limestone
 const PAL = {
-  downtown: ['#8ea3b8', '#7b8fa6', '#a7b5c4', '#6f8299', '#c2c9d2', '#566a82'],
-  commercial: ['#d9b48f', '#c9a27a', '#e0c9a6', '#b58f6b', '#d6d0c4', '#a77b5c'],
-  residential: ['#e8d8b8', '#cfe0d0', '#e7c9b7', '#d4dbe6', '#f1e3c6', '#c9d8b8'],
-  industrial: ['#9aa0a6', '#8b9198', '#b0a48f', '#7f878f', '#a3a9ad', '#8a8170'],
-  civic: ['#e6e1d6', '#d8d2c4', '#cfc8b8', '#ece7dc', '#c9c3b5', '#b9b2a2']
+  downtown: ['#7d9bb8', '#5f7f9e', '#9fb6cc', '#4e6b88', '#b8c7d6', '#6d8aa6'],
+  commercial: ['#b5523b', '#9c4433', '#c8794d', '#d19a4c', '#a8553f', '#8a4a34'],
+  residential: ['#f2e3a6', '#bfe3cf', '#f4c4b0', '#c8d9ef', '#e5d0ef', '#f7efd9'],
+  industrial: ['#8a5a44', '#6f7d80', '#9a8f78', '#7a4b3a', '#5f6b6e', '#a28466'],
+  civic: ['#ece5d3', '#e0d7c0', '#f2ecdd', '#d6ccb4', '#e8e1cf', '#cfc4aa']
 };
-function B(W, x, y, w, d, h, o) { W.buildings.push(Object.assign({ x, y, w, d, h }, o)); for (let yy = y; yy < y + d; yy++) for (let xx = x; xx < x + w; xx++) W.set(xx, yy, T.BLDG); }
+// and its ground: sidewalks, plazas and grass tinted to match
+const GROUND = {
+  downtown: { walk: '#c1c5cc', plaza: '#d0d5dc', grass: '#4f8a52' },
+  commercial: { walk: '#c9b39b', plaza: '#d6b394', grass: '#6a8f3c' },
+  residential: { walk: '#cfc8b4', plaza: '#d9d0b4', grass: '#4c9a45' },
+  industrial: { walk: '#a9a49b', plaza: '#b5ada0', grass: '#7d8a4e' },
+  civic: { walk: '#d9d3c4', plaza: '#e4ddcc', grass: '#5d8f4a' }
+};
+// every building leans toward its district's palette (40%), so a street reads as Central, Eastside or Riverside at a glance
+const hex2 = (c) => { const n = parseInt(c.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+const blend = (c, t, f) => { if (!/^#[0-9a-f]{6}$/i.test(c || '')) return c; const a = hex2(c), b = hex2(t); return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * f).toString(16).padStart(2, '0')).join(''); };
+function B(W, x, y, w, d, h, o) { const pal = PAL[W.D.theme]; if (o && o.color && pal && !o.keepColor) o = Object.assign({}, o, { color: blend(o.color, pal[(x * 31 + y * 17) % pal.length], .4) });
+  W.buildings.push(Object.assign({ x, y, w, d, h, mat: W.D.theme }, o)); for (let yy = y; yy < y + d; yy++) for (let xx = x; xx < x + w; xx++) W.set(xx, yy, T.BLDG); }
 function P(W, t, x, y, o) { W.props.push(Object.assign({ t, x, y }, o)); }
 function area(W, x0, y0, x1, y1, v) { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) W.set(x, y, v); }
 
@@ -333,7 +347,8 @@ export function drawGround(W, cx, cy) {
     const q = side === 0 ? [[0, 0], [1, 0], [1, f], [0, f]] : side === 1 ? [[1, 0], [1, 1], [1 - f, 1], [1 - f, 0]] : side === 2 ? [[0, 1], [1, 1], [1, 1 - f], [0, 1 - f]] : [[0, 0], [0, 1], [f, 1], [f, 0]];
     poly(q.map(([u, v]) => at(x, y, u, v)), col);
   };
-  const BASE = { [T.ROAD]: '#3a3f46', [T.WALK]: '#bdb6a8', [T.GRASS]: '#5b8c3e', [T.PLAZA]: '#cfc3ab', [T.LOT]: '#454a52', [T.WATER]: '#25618a', [T.BLDG]: '#55585c', [T.FENCE]: '#7f8a6e', [T.SAND]: '#dcc893', [T.GRAVEL]: '#8d877c', [T.RAIL]: '#7a7266' };
+  const GD = GROUND[W.D.theme] || GROUND.downtown;
+  const BASE = { [T.ROAD]: '#3a3f46', [T.WALK]: GD.walk, [T.GRASS]: GD.grass, [T.PLAZA]: GD.plaza, [T.LOT]: '#454a52', [T.WATER]: '#25618a', [T.BLDG]: '#55585c', [T.FENCE]: '#7f8a6e', [T.SAND]: '#dcc893', [T.GRAVEL]: '#8d877c', [T.RAIL]: '#7a7266' };
   const isW = (x, y) => W.at(x, y) === T.WATER;
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     seed = (x * 73856093) ^ (y * 19349663) ^ (W.did * 83492791); R(); R();
@@ -470,11 +485,18 @@ export function drawBuilding(b, night, sun) {
   const st = b.style;
   const winLit = [];
   const qa = (pa, pb, f) => [pa[0] + (pb[0] - pa[0]) * f, pa[1] + (pb[1] - pa[1]) * f];
+  // each district's signature material on its ordinary buildings: Eastside brick, Justice Row stone, Riverside painted
+  // siding, rust streaks in the industrial park, a sky sheen on Central's glass
+  const plain = !/^(glass|house|corrugated|bays|garage|stadium|storage|brick|stone|motel|jail)$/.test(st || '');
+  const mortar = st === 'brick' || st === 'stone' || st === 'motel' || st === 'jail' ? st : plain && b.mat === 'commercial' ? 'brick' : plain && b.mat === 'civic' ? 'stone' : null;
+  if (plain && b.mat === 'residential') { g.lineWidth = .5; [[Dp, C], [C, Bp]].forEach(([P0, P1]) => { for (let y = 2.4; y < h - 3; y += 2.4) { const a1 = tx(up(P0, y)), b1 = tx(up(P1, y)); g.strokeStyle = 'rgba(0,0,0,.09)'; g.beginPath(); g.moveTo(a1[0], a1[1]); g.lineTo(b1[0], b1[1]); g.stroke(); g.strokeStyle = 'rgba(255,255,255,.12)'; g.beginPath(); g.moveTo(a1[0], a1[1] - .6); g.lineTo(b1[0], b1[1] - .6); g.stroke(); } }); }
+  if (b.mat === 'industrial' && st !== 'glass' && st !== 'house') { [[Dp, C, b.w], [C, Bp, b.d]].forEach(([P0, P1, n]) => { for (let k = 0; k < Math.max(2, n); k++) { const t = (k + .3 + R() * .4) / Math.max(2, n), p = qa(P0, P1, t), q0 = tx(up(p, h - 2)), q1 = tx(up(p, h * (.35 + R() * .3))), gr = g.createLinearGradient(0, q0[1], 0, q1[1]); gr.addColorStop(0, 'rgba(120,52,24,.32)'); gr.addColorStop(1, 'rgba(120,52,24,0)'); g.fillStyle = gr; g.fillRect(q0[0] - 1.6, q0[1], 3.2 + R() * 2, q1[1] - q0[1]); } }); }
+  if (b.mat === 'downtown' && st === 'glass' && !night) { const a0 = tx(up(Dp, h)), c0 = tx(C), gr = g.createLinearGradient(a0[0], a0[1], c0[0], c0[1]); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(.45, 'rgba(220,240,255,.16)'); gr.addColorStop(.55, 'rgba(255,255,255,0)'); poly([Dp, C, up(C, h), up(Dp, h)], gr); }
   // brick and stone: mortar courses with staggered joints
-  if (st === 'brick' || st === 'stone' || st === 'motel' || st === 'jail') {
-    const step = st === 'stone' ? 6 : 3.2, jw = st === 'stone' ? 12 : 6;
+  if (mortar) {
+    const step = mortar === 'stone' ? 6 : 3.2, jw = mortar === 'stone' ? 12 : 6;
     [[Dp, C, b.w], [C, Bp, b.d]].forEach(([P0, P1, n]) => { const len = Math.hypot(P1[0] - P0[0], P1[1] - P0[1]), cnt = Math.floor(len / jw);
-      g.strokeStyle = st === 'stone' ? 'rgba(0,0,0,.08)' : 'rgba(255,240,225,.10)'; g.lineWidth = .5;
+      g.strokeStyle = mortar === 'stone' ? 'rgba(0,0,0,.08)' : 'rgba(255,240,225,.10)'; g.lineWidth = .5;
       for (let y = step; y < h - 3; y += step) { const a1 = tx(up(P0, y)), b1 = tx(up(P1, y)); g.beginPath(); g.moveTo(a1[0], a1[1]); g.lineTo(b1[0], b1[1]); g.stroke();
         const off = (Math.round(y / step) % 2) * .5; for (let k = 0; k < cnt; k++) { const p0 = tx(up(qa(P0, P1, (k + off) / cnt), y)); g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p0[0], p0[1] - step); g.stroke(); } } });
   }
