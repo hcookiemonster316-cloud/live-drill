@@ -194,7 +194,7 @@ delete ICONS.gun_free_badge;
 
 // every emoji the game uses, mapped to an icon above
 const MAP = {
-  '🛡': 'shield', '🚓': 'cruiser', '🚔': 'cruiser', '🎖': 'medal', '📻': 'radio', '🧾': 'receipt', '🤝': 'handshake', '🗂': 'dividers', '🏠': 'house', '📦': 'box', '👀': 'eyes', '📋': 'clipboard', '☕': 'coffee', '🔧': 'wrench', '🔒': 'lock', '🔐': 'lock', '⚖': 'scales',
+  '🚑': 'firetruck', '🕯': 'candle', '🎈': 'balloon', '🛡': 'shield', '🚓': 'cruiser', '🚔': 'cruiser', '🎖': 'medal', '📻': 'radio', '🧾': 'receipt', '🤝': 'handshake', '🗂': 'dividers', '🏠': 'house', '📦': 'box', '👀': 'eyes', '📋': 'clipboard', '☕': 'coffee', '🔧': 'wrench', '🔒': 'lock', '🔐': 'lock', '⚖': 'scales',
   '🏷': 'tag', '🧢': 'cap', '🐕': 'dog', '🐩': 'dog', '🦮': 'dog', '⛽': 'can', '📍': 'pin', '🔦': 'flashlight', '📜': 'scroll', '🏃': 'runner', '🧭': 'compass', '🎧': 'headphones', '🎣': 'fishing', '💛': 'heartY', '🗺': 'map', '🚨': 'siren', '📚': 'books', '📁': 'folder', '📂': 'folder',
   '🥾': 'hiking', '🐦': 'bird', '🎓': 'grad', '🔎': 'magnifier', '🔍': 'magnifier', '⛪': 'church', '🥊': 'glove', '🧽': 'sponge', '✉': 'envelope', '💈': 'shirt', '👔': 'tie', '🎮': 'game', '🌀': 'spiral', '🚗': 'car', '🚙': 'car', '🚘': 'car', '🚕': 'car2', '⭐': 'star', '★': 'star', '🏡': 'home2', '🚐': 'van',
   '🎒': 'backpack', '💍': 'ring2', '⚓': 'anchor', '🩺': 'stethoscope', '🚲': 'bike', '🧥': 'coat', '🍕': 'pizza', '📸': 'camera', '📷': 'camera', '❔': 'question', '❓': 'question', '📝': 'memo', '📖': 'openbook', '🏢': 'building', '🚂': 'train', '🚃': 'train', '📘': 'book', '📕': 'bookR', '📗': 'bookG', '🕵': 'detective',

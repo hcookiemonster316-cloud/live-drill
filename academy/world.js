@@ -933,7 +933,7 @@ function vehicleFast(g, sx, sy, dir, v, t, night, on) {
   if (on) return drawVehicle(g, sx, sy, dir, v, t, night, on);
   let k = dir + '|' + (night ? 1 : 0) + '|' + Math.round(SUNLEN); for (const f in v) k += '|' + f + '=' + v[f]; const base = 'v' + k; k += '|' + RES;
   let c = VCACHE.get(k) || reuse(base);
-  if (!c) { if (VCACHE.size > 260) { let n = 40; for (const kk of VCACHE.keys()) { VCACHE.delete(kk); if (--n <= 0) break; } } const sc = v.scale || 1, W = Math.ceil(150 * sc), Hh = Math.ceil(120 * sc), [cv, cg] = hiCanvas(W, Hh, RES); drawVehicle(cg, W / 2, Hh * .72, dir, v, 0, night, false); cv.ax = W / 2; cv.ay = Hh * .72; c = cv; VCACHE.set(k, c); remember(base, c); }
+  if (!c) { if (VCACHE.size > 260) { let n = 40; for (const kk of VCACHE.keys()) { VCACHE.delete(kk); if (--n <= 0) break; } } const sc = v.scale || 1, W = Math.ceil(150 * sc), Hh = Math.ceil(120 * sc), [cv, cg] = hiCanvas(W, Hh, RES); drawVehicle(cg, W / 2, Hh * .72, dir, v, 0, night, false); c = trimSprite(cv); c.ax = W / 2 - c.ox; c.ay = Hh * .72 - c.oy; VCACHE.set(k, c); remember(base, c); }
   g.drawImage(c, sx - c.ax, sy - c.ay, c.lw, c.lh);
 }
 export function car(g, sx, sy, dir, color, police, t, night, scale, bar) {
