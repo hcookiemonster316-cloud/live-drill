@@ -13,6 +13,7 @@ import { installPartners } from './partners.js';
 import { installWays, SIGNATURE, SIG_CAST } from './ways.js';
 import { installSpecial } from './special.js';
 import { FOLK } from './folkcast.js';
+import { installUiStage } from './uistage.js';
 import { sprite as folkSpriteOf, fromLook as folkFromLookG, SW as FSW, SH as FSH, OX as FOX, OY as FOY } from './pixelfolk.js';
 import { momentArt } from './moments.js';
 import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
@@ -409,7 +410,7 @@ function update(dt, now) {
   if ((P.inCar || P.boat) && call && call.accepted) { sirenT -= dt; if (sirenT <= 0) { sirenT = .9; beep(720, .42, 'sine', .018); beep(980, .42, 'sine', .018, .45); } }
   if (net && now - moveSent > 120) { moveSent = now; net.move(P.x, P.y, P.boat ? 2 : P.inCar ? 1 : 0, P.dir); }
   liveUpdate(dt);
-  LIFE.update(dt); SPEC.tick(dt, P.x, P.y); OFF.tick(dt); ACAD.tick(dt); EVT.dailyTick(dt); storyUpdate(dt); objectiveHud(); trackerHud(dt); trailUpdate(dt); loreCheck(dt); tipsUpdate(dt); musicUpdate(dt); trophyCheck(dt); squadTick(dt); factWatch(); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
+  LIFE.update(dt); UIS.tick(dt); SPEC.tick(dt, P.x, P.y); OFF.tick(dt); ACAD.tick(dt); EVT.dailyTick(dt); storyUpdate(dt); objectiveHud(); trackerHud(dt); trailUpdate(dt); loreCheck(dt); tipsUpdate(dt); musicUpdate(dt); trophyCheck(dt); squadTick(dt); factWatch(); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
   if (inside && !P.path.length && Math.hypot(W.door[0] - P.x, W.door[1] - P.y) < .45) exitBuilding();
   hudClock();
   if (clock >= SHIFT_MIN && !scene) endOfWatch();
@@ -700,6 +701,7 @@ const EP = installEpic({ S, comfort: () => PREM, NPCS, esc: (x) => esc(x), $: (i
   cine: () => document.body.classList.contains('cine'), pause: (on) => { paused = on; }, hour: () => hourNow(), iso: (x, y) => iso(x, y), dname: (d) => DISTRICTS[d].name, loreDist: (n) => LORE_DIST[n], loreAt: (n) => { const e = LORE.find((x) => x.when === 'visit:' + n); return e ? e.id : null; },
   radio: (w, m) => radio(w, m), chirp: (w) => chirp(w), wx: () => Object.assign({ label: '' }, EVT.WX || {}, { rain: FX.rain, storm: FX.storm, wind: FX.wind || 0, cold: FX.cold, fog: FX.fog || 0 }), sparkle: (x, y, now, c) => sparkle(x, y, now, c),
   dialogue: (l, d, o) => dialogue(l, d, o), week: () => ACAD.week(), weekKey: () => EVT.weekKey ? EVT.weekKey() : '', net: () => net, hasSkill: (id) => hasSk(id), ready: () => !ATTRACT && !looting && !loreBusy && !storyBusy && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !document.querySelector('.lorePop, .tCard') && !paused && !scene });
+const UIS = installUiStage({ S, saveS: () => saveS(), relayout: () => placeOrders(), toast: (t) => toast(t), esc: (x) => esc(x), call: () => call, nextStep: () => PATH.nextStep() });
 const ON = installOnboard({ S, CHAPTERS, esc: (x) => esc(x), get P() { return P; }, get W() { return W; }, storyBusy: () => storyBusy, dlgOpen: () => !$('dlg').hidden, call: () => call, forceCall: () => { if (!call) nextCall = Math.min(nextCall, 2); },
   ready: () => !ATTRACT && !looting && !loreBusy && !storyBusy && !scene && !paused && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !EP.busy && !!S.seenCine && !document.querySelector('.lorePop, .tCard'),
   banner: (...a) => banner(...a), award: (...a) => award(...a), beep: (...a) => beep(...a), saveS: () => saveS(), dname: (d) => DISTRICTS[d].name,
@@ -1800,7 +1802,7 @@ function exitBoat() { if (!P.boat) return; P.boat = false; P.path = []; pboat.x 
 function exitCar() { if (!P.inCar) return; P.inCar = false; P.path = []; pcar.x = P.x; pcar.y = P.y; const r = nearest(Math.floor(P.x), Math.floor(P.y), (x, y) => W.walkable(x, y) && W.at(x, y) !== T.ROAD); if (r) { P.x = r[0] + .5; P.y = r[1] + .5; } hud(); }
 
 // ---------- learning scenes ----------
-function openModal(html) { const m = $('modal'), cap = $('sceneCap'); if (cap) cap.classList.remove('on'); /* a film caption never sits on top of a card */ if (m.hidden && typeof FEEL !== 'undefined' && S.sound) FEEL.UI.open(); m.innerHTML = '<div class="mBox">' + html + '</div>'; m.hidden = false; paused = false; }
+function openModal(html) { const m = $('modal'), cap = $('sceneCap'); if (cap) cap.classList.remove('on'); /* a film caption never sits on top of a card */ if (m.hidden && typeof FEEL !== 'undefined' && S.sound) FEEL.UI.open(); m.innerHTML = '<div class="mBox">' + (typeof UIS !== 'undefined' ? UIS.footer(html) : html) + '</div>'; m.hidden = false; paused = false; }
 function closeModal() { if (!$('modal').hidden && typeof FEEL !== 'undefined' && S.sound) FEEL.UI.close(); $('modal').hidden = true; scene = null; }
 // a run of questions with feedback; done(result) at the end
 function runQuestions(head, qs, done) {
@@ -2631,7 +2633,7 @@ function startScreen() {
     document.querySelectorAll('.uCard').forEach((b) => b.onclick = () => { unit = b.dataset.u; draw(); });
     document.querySelectorAll('[data-o]').forEach((b) => b.onclick = () => { S.outfit = b.dataset.o; draw(); });
     goState();
-    $('stGo').onclick = () => { if (!unit || !csOk()) return; audio(); endAttract(); S.cs = csNow(); S.shift = shift; S.unit = unit; S.unitsUsed = S.unitsUsed || {}; S.unitsUsed[unit] = 1; if (S.home == null) { S.home = did; S.unlocked = [did]; } saveS(); $('start').hidden = true; clock = 0; travel(S.home != null && S.unlocked.includes(did) ? did : S.home, rollCall); };
+    $('stGo').onclick = () => { if (!unit || !csOk()) return; audio(); endAttract(); const freshCareer = !S.cs; S.cs = csNow(); if (freshCareer) UIS.start(); S.shift = shift; S.unit = unit; S.unitsUsed = S.unitsUsed || {}; S.unitsUsed[unit] = 1; if (S.home == null) { S.home = did; S.unlocked = [did]; } saveS(); $('start').hidden = true; clock = 0; travel(S.home != null && S.unlocked.includes(did) ? did : S.home, rollCall); };
   };
   draw(); $('start').hidden = false;
 }
