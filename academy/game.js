@@ -566,7 +566,7 @@ function motorPool() {
     $('mClose').onclick = closeModal; document.querySelectorAll('[data-rd]').forEach((b) => b.onclick = () => { if (P.inCar) exitCar(); S.ride = b.dataset.rd; saveS(); stat('ride_' + S.ride); if (pcar && W.carSpot) { pcar.x = W.carSpot[0]; pcar.y = W.carSpot[1]; } hud(); toast(RIDES[S.ride].icon + ' ' + RIDES[S.ride].name + ' checked out. It\'s parked out front.'); draw(); }); };
   draw();
 }
-const riderFn = (now) => (x, y, o) => person(ctx, x, y, Object.assign({ kit: kitWith(myKit(), myLooks()), skin: S.skin || '#c68e63', glance: false }, o), now);
+const riderFn = (now) => (x, y, o) => { const r = Object.assign({ kit: kitWith(myKit(), myLooks()), skin: S.skin || '#c68e63', glance: false }, o); if (PIXELFOLK) { r.sit = true; r.moving = false; personFast(ctx, x, y, r, now, 'ride|' + JSON.stringify(r.kit) + r.skin); } else person(ctx, x, y, r, now); };
 // community trust, block by block: every choice that builds or costs trust is remembered where it happened
 function blockTrust(n) { const lot = inside ? inside.lot : null, x = lot ? lot.ox + 4 : P.x, y = lot ? lot.oy + 4 : P.y, bx = Math.floor((x - 2) / 11), by = Math.floor((y - 2) / 11); if (bx < 0 || by < 0 || bx > 12 || by > 12) return; S.btrust = S.btrust || {}; const d = (S.btrust[W.did] = S.btrust[W.did] || {}), k = bx + ',' + by; d[k] = Math.max(-10, Math.min(10, (d[k] || 0) + n)); stat('trustAct'); }
 const TMAP = {};
@@ -977,8 +977,8 @@ function regsDraw(list, vis, now) {
   regs.forEach((r) => { const [sx, sy] = iso(r.x, r.y); if (!vis(sx, sy)) return; const near = Math.hypot(r.x - P.x, r.y - P.y);
     list.push({ d: r.x + r.y, f: () => {
       if (r.n.cat) cat(sx, sy, now); else { const lk = r.n.look || {}; { const wv = (r.waveT || 0) > performance.now(), o = Object.assign({ kit: r.n.kit || npcKit(lk), hair: r.n.hair || lk.hair, skin: r.n.skin || lk.skin, glasses: !!(r.n.glasses || lk.glasses), moving: false, face: r.face, ph: r.ph, wave: wv, glance: false, folk: FOLK[r.n.id] }, r.ap || (r.ap = appearOpts(r.n.id))); if (wv && !PIXELFOLK) person(ctx, sx, sy, o, now); else personFast(ctx, sx, sy, o, now, 'rg' + r.n.id + '|' + Math.round((r.ph || 0) * 100)); } }
-      if (near < 5.5) label(sx, sy - (r.n.cat ? 26 : 48), r.n.icon + ' ' + r.n.name, '#fde68a');
-      if (!talkedNow[r.n.id] && near < 10) bubble(sx, sy - (r.n.cat ? 42 : 66), '💬', '#fde68a', now);
+      if (near < 5.5) label(sx, sy - (r.n.cat ? 26 : PIXELFOLK ? 36 : 48), r.n.icon + ' ' + r.n.name, '#fde68a');
+      if (!talkedNow[r.n.id] && near < 10) bubble(sx, sy - (r.n.cat ? 42 : PIXELFOLK ? 52 : 66), '💬', '#fde68a', now);
     } });
   });
 }

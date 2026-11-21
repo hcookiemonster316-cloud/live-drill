@@ -1,5 +1,5 @@
 // Patrol City world: district maps (tiles, buildings, props) and the isometric art, all drawn in code.
-import { fromLook as folkFromLook, rgba as folkRGBA, SW as FSW, SH as FSH, OX as FOX, OY as FOY } from './pixelfolk.js';
+import { fromLook as folkFromLook, rgba as folkRGBA, pixelize, SW as FSW, SH as FSH, OX as FOX, OY as FOY } from './pixelfolk.js';
 import { DISTRICTS, LANDMARKS } from './data.js';
 
 export const N = 145, TW = 64, TH = 32; // 13 x 13 city blocks per district
@@ -736,11 +736,13 @@ let PHIT = 0; const IDLE_T = 3200, PCAP = navigator.deviceMemory && navigator.de
 export let PIXELFOLK = !(typeof location !== 'undefined' && /[?&]classic\b/.test(location.search));
 export function setPixelFolk(on) { PIXELFOLK = !!on; }
 const FX = new Map(), FXFIRST = new Map(), FXJOB = new Map(), FXD = new Map(); let FXW = null, FXN = 0, FXT = -1, FXBUD = 0; const FXCAP = 2200;
-try { if (typeof Worker !== 'undefined' && typeof document !== 'undefined' && !(typeof location !== 'undefined' && /[?&]noworker\b/.test(location.search))) { FXW = new Worker(new URL('./folkw.js', import.meta.url), { type: 'module' }); FXW.onmessage = (e) => { const d = e.data, j = FXJOB.get(d.id); FXJOB.delete(d.id); if (!j) return; if (d.fail) { FXW = null; return; } fxStore(j.k, j.lk, new ImageData(d.a, d.w, d.h)); }; FXW.onerror = () => { FXW = null; }; } } catch (e) { FXW = null; }
+try { if (typeof Worker !== 'undefined' && typeof document !== 'undefined' && !(typeof location !== 'undefined' && /[?&]noworker\b/.test(location.search))) { FXW = new Worker(new URL('./folkw.js', import.meta.url), { type: 'module' }); FXW.onmessage = (e) => { const d = e.data, j = FXJOB.get(d.id); FXJOB.delete(d.id); if (!j) return; if (d.fail) { FXW = null; return; } fxStore(j.k, j.lk, new ImageData(d.a, d.w, d.h), j.bare); }; FXW.onerror = () => { FXW = null; }; } } catch (e) { FXW = null; }
 // a crisp pixel-art contact shadow (two soft tones) is baked under the feet, so a person is one image copy
 function fxShadow(im) { const a = im.data; for (let y = FOY - 3; y <= Math.min(FSH - 1, FOY + 2); y++) for (let x = 0; x < FSW; x++) { const u = (x + .5 - FOX - 1) / 8.5, v = (y + .5 - FOY) / 3.2, r = u * u + v * v; if (r > 1) continue; const k = (y * FSW + x) * 4; if (a[k + 3]) continue; a[k + 3] = r < .45 ? 92 : 52; } return im; }
-function fxStore(k, lk, im) { const c = document.createElement('canvas'); c.width = FSW; c.height = FSH; c.getContext('2d').putImageData(fxShadow(im), 0, 0); if (FX.size > FXCAP) { let n = 200; for (const kk of FX.keys()) { FX.delete(kk); if (--n <= 0) break; } } FX.set(k, c); if (!FXFIRST.has(lk)) FXFIRST.set(lk, c); return c; }
+function fxStore(k, lk, im, bare) { const c = document.createElement('canvas'); c.width = FSW; c.height = FSH; c.getContext('2d').putImageData(bare ? im : fxShadow(im), 0, 0); if (FX.size > FXCAP) { let n = 200; for (const kk of FX.keys()) { FX.delete(kk); if (--n <= 0) break; } } FX.set(k, c); if (!FXFIRST.has(lk)) FXFIRST.set(lk, c); return c; }
 // which of the 8 directions a person faces: their own heading if the mover set one, otherwise from facing and walking away
+// pixel people stand about as tall as a car (about 28 units), so the city and its buildings keep their scale
+const FSCALE = .62;
 export function dir8Of(o) { if (o.dir8 != null) return o.dir8; const f = (o.face || 1) > 0; return o.moving && o.back ? (f ? 3 : 5) : f ? 1 : 7; }
 function folkSprite(o, t, key) {
   let D = o.folk || FXD.get(key); if (!D) { D = folkFromLook(o); if (FXD.size > 3000) FXD.clear(); FXD.set(key, D); }
@@ -749,13 +751,13 @@ function folkSprite(o, t, key) {
   if (t !== FXT) { FXT = t; FXBUD = 2; }
   const first = FXFIRST.get(lk);
   // a person's very first frame is drawn right away (they never pop in); the rest come from the worker
-  if (!first || (!FXW && FXBUD > 0)) { if (FXBUD <= 0 && first) return first; FXBUD--; const DD = o.wave ? Object.assign({}, D, { pose: 'up' }) : D; return fxStore(k, lk, new ImageData(folkRGBA(DD, d, mv ? (fr + .5) / 8 * TAU : 0, mv, o.folk ? 4 : 3), FSW, FSH)); }
-  if (FXW && ![...FXJOB.values()].some((j) => j.k === k) && FXJOB.size < 24) { const id = ++FXN; FXJOB.set(id, { k, lk }); try { FXW.postMessage({ id, D: o.wave ? Object.assign({}, D, { pose: 'up' }) : D, d, ph: mv ? (fr + .5) / 8 * TAU : 0, mv, ss: o.folk ? 4 : 3 }); } catch (e) { FXJOB.delete(id); FXW = null; } }
+  if (!first || (!FXW && FXBUD > 0)) { if (FXBUD <= 0 && first) return first; FXBUD--; const DD = o.wave ? Object.assign({}, D, { pose: 'up' }) : D; return fxStore(k, lk, new ImageData(folkRGBA(DD, d, mv ? (fr + .5) / 8 * TAU : 0, mv, o.folk ? 4 : 3), FSW, FSH), o.sit); }
+  if (FXW && ![...FXJOB.values()].some((j) => j.k === k) && FXJOB.size < 24) { const id = ++FXN; FXJOB.set(id, { k, lk, bare: !!o.sit }); try { FXW.postMessage({ id, D: o.wave ? Object.assign({}, D, { pose: 'up' }) : D, d, ph: mv ? (fr + .5) / 8 * TAU : 0, mv, ss: o.folk ? 4 : 3 }); } catch (e) { FXJOB.delete(id); FXW = null; } }
   return FX.get(lk + '|' + d + '|8') || first;
 }
 export function personPixel(g, sx, sy, o, t, key) {
-  const c = folkSprite(o, t, key); if (!c) return; const s = o.s || 1, sm = g.imageSmoothingEnabled;
-  castShadow(g, sx, sy, 9 * s, .9 * s);
+  const c = folkSprite(o, t, key); if (!c) return; const s = (o.s || 1) * FSCALE, sm = g.imageSmoothingEnabled;
+  if (!o.sit) castShadow(g, sx, sy, 9 * (o.s || 1) * .75, .9 * (o.s || 1) * .75);
   if (sm) g.imageSmoothingEnabled = false; g.drawImage(c, sx - FOX * s, sy - FOY * s, FSW * s, FSH * s); if (sm) g.imageSmoothingEnabled = true;
 }
 export function personFast(g, sx, sy, o, t, key, lod) {
@@ -1038,7 +1040,10 @@ function drawVehicleShadow(g, sx, sy, dir, v) {
   const sg = g.createRadialGradient(c0[0] + 2, c0[1] + 2, 2, c0[0] + 2, c0[1] + 2, 22 * s); sg.addColorStop(0, 'rgba(0,0,0,.42)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
   g.fillStyle = sg; g.beginPath(); g.ellipse(c0[0] + 2, c0[1] + 2, 22 * s, 11 * s, 0, 0, Math.PI * 2); g.fill();
 }
+// a canvas that draws nothing: drawVehicle with onlyText draws just the door lettering (crisp over pixel vehicles)
+const NOCTX = new Proxy({}, { get: (o, k) => k in o ? o[k] : () => NOCTX, set: () => true });
 export function drawVehicle(g, sx, sy, dir, v, t, night, on) {
+  const G0 = g; if (v.onlyText) g = NOCTX; if (v.noText) v = Object.assign({}, v, { text: null });
   const s = v.scale || 1, kind = v.kind || 'sedan', tall = { armored: 1.55, van: 1.45, suv: 1.2, truck: 1.15 }[kind] || 1;
   const hl = kind === 'van' || kind === 'armored' ? .44 : .41, hw = .2, H = 8.5 * tall, R = rig(sx, sy, dir, s, hl, hw), P = R.P, uE = R.uVis, vE = R.vVis;
   const body = v.body, sideCol = v.side || body, line = 'rgba(8,12,20,.45)';
@@ -1081,7 +1086,8 @@ export function drawVehicle(g, sx, sy, dir, v, t, night, on) {
   // roof text (unit number)
   if (v.roofText) { const q = P(c.ta * .4 + c.tb * .6, 0, cH + .2); g.save(); g.translate(q[0], q[1]); g.scale(1, .5); g.rotate(R.U[0] ? Math.PI / 4 : -Math.PI / 4); g.fillStyle = '#111'; g.font = '800 ' + 5 * s + 'px Meridian,system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(v.roofText, 0, 0); g.restore(); }
   // side text
-  if (v.text) { const q = P(-.05, vE, H * .52), a = P(-1, vE, 0), b = P(1, vE, 0); let ex = b[0] - a[0], ey = b[1] - a[1]; if (ex < 0) { ex = -ex; ey = -ey; } const L = Math.hypot(ex, ey); g.save(); g.translate(q[0], q[1]); g.transform(ex / L, ey / L, 0, 1, 0, 0); g.fillStyle = v.stripe || v.doors ? '#0b0b0b' : '#ffffff'; g.font = '800 ' + 3.6 * s + 'px Meridian,system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(v.text, 0, 0); g.restore(); }
+  if (v.text) { const g0 = g; g = G0; const q = P(-.05, vE, H * .52), a = P(-1, vE, 0), b = P(1, vE, 0); let ex = b[0] - a[0], ey = b[1] - a[1]; if (ex < 0) { ex = -ex; ey = -ey; } const L = Math.hypot(ex, ey); g.save(); g.translate(q[0], q[1]); g.transform(ex / L, ey / L, 0, 1, 0, 0); g.fillStyle = v.stripe || v.doors ? '#0b0b0b' : '#ffffff'; g.font = '800 ' + 3.6 * s + 'px Meridian,system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(v.text, 0, 0); g.restore(); g = g0; }
+  if (v.onlyText) return;
   // light bar
   const blink = on && Math.floor(t / 160) % 2;
   if (v.bar === 'full') { const lbH = cH + 2.2, a0 = c.ta * .5 + c.tb * .5; vQuad(g, [P(a0 - .06, -.62, cH), P(a0 + .06, -.62, cH), P(a0 + .06, .62, cH), P(a0 - .06, .62, cH)], '#111'); vQuad(g, [P(a0 - .06, -.6, lbH), P(a0 + .06, -.6, lbH), P(a0 + .06, 0, lbH), P(a0 - .06, 0, lbH)], blink ? '#ff3b3b' : on ? '#7a1a1a' : '#5a1616'); vQuad(g, [P(a0 - .06, 0, lbH), P(a0 + .06, 0, lbH), P(a0 + .06, .6, lbH), P(a0 - .06, .6, lbH)], on && !blink ? '#3b7bff' : '#16285e'); vQuad(g, [P(uE > 0 ? a0 + .06 : a0 - .06, -.6, cH), P(uE > 0 ? a0 + .06 : a0 - .06, .6, cH), P(uE > 0 ? a0 + .06 : a0 - .06, .6, lbH), P(uE > 0 ? a0 + .06 : a0 - .06, -.6, lbH)], '#2a2f37'); }
@@ -1095,8 +1101,29 @@ export function drawVehicle(g, sx, sy, dir, v, t, night, on) {
   if (!night) { g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = .8; const a = P(-1, vE, H), b = P(1, vE, H); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
 }
 const VCACHE = new Map();
+// pixel vehicles: the body is drawn at 3x, then turned into pixel art that matches the people (pixelize); the ground
+// shadow stays soft. Lights-on cars are cached too (two blink frames) instead of being drawn every frame.
+function vehiclePix(W, Hh, dir, v, night, on, blink) {
+  // only the vehicle's own box is drawn and read (it sits around the anchor, never the whole 150x120 canvas)
+  const k = 3, sc = v.scale || 1, x0 = Math.max(0, Math.floor(W / 2 - 26 * sc)), y0 = Math.max(0, Math.floor(Hh * .72 - 32 * sc)), w = Math.min(W - x0, Math.ceil(52 * sc)), h = Math.min(Hh - y0, Math.ceil(46 * sc));
+  const [bv, bg] = hiCanvas(w, h, k); drawVehicle(bg, W / 2 - x0, Hh * .72 - y0, dir, Object.assign({}, v, { noShadow: true }), blink ? 160 : 0, night, on);
+  const src = bg.getImageData(0, 0, w * k, h * k).data, { out } = pixelize(src, w, h, k);
+  const pc = document.createElement('canvas'); pc.width = w; pc.height = h; const pg = pc.getContext('2d'), im = pg.createImageData(w, h); out.forEach((c, i) => { if (c) im.data.set([c[0], c[1], c[2], 255], i * 4); }); pg.putImageData(im, 0, 0); pc.x0 = x0; pc.y0 = y0; return pc;
+}
+const VPX = new Map(), EMPTYC = typeof document !== 'undefined' ? document.createElement('canvas') : null; if (EMPTYC) { EMPTYC.width = 1; EMPTYC.height = 1; }
 function vehicleFast(g, sx, sy, dir, v, t, night, on) {
-  if (on) return drawVehicle(g, sx, sy, dir, v, t, night, on);
+  if (on && !PIXELFOLK) return drawVehicle(g, sx, sy, dir, v, t, night, on);
+  if (PIXELFOLK) { // the pixel body does not depend on zoom, so zooming never rebuilds it; only the soft shadow is per zoom
+    const blink = on ? Math.floor(t / 160) % 2 : 0; let k = 'px' + dir + '|' + (night ? 1 : 0) + '|' + (on ? 'on' + blink : ''); for (const f in v) k += '|' + f + '=' + v[f];
+    let pc = VPX.get(k); if (!pc) { if (VPX.size > 300) { let n = 50; for (const kk of VPX.keys()) { VPX.delete(kk); if (--n <= 0) break; } } pc = vehiclePix(Math.ceil(150 * (v.scale || 1)), Math.ceil(120 * (v.scale || 1)), dir, Object.assign({}, v, { noText: true }), night, on, blink) || EMPTYC; VPX.set(k, pc); }
+    const sk = 'vs' + dir + '|' + (v.kind || 'sedan') + '|' + (v.scale || 1) + '|' + Math.round(SUNLEN); let sh = VCACHE.get(sk); // a soft shadow looks the same at any zoom
+    if (!sh) { if (VCACHE.size > 260) { let n = 40; for (const kk of VCACHE.keys()) { VCACHE.delete(kk); if (--n <= 0) break; } } const sc = v.scale || 1, W = Math.ceil(150 * sc), Hh = Math.ceil(120 * sc), [cv, cg] = hiCanvas(W, Hh, 1.5); drawVehicleShadow(cg, W / 2, Hh * .72, dir, v); sh = trimSprite(cv); sh.ax = W / 2 - sh.ox; sh.ay = Hh * .72 - sh.oy; VCACHE.set(sk, sh); }
+    g.drawImage(sh, sx - sh.ax, sy - sh.ay, sh.lw, sh.lh);
+    if (pc.width > 1) { const sm = g.imageSmoothingEnabled, sc = v.scale || 1, W = Math.ceil(150 * sc), Hh = Math.ceil(120 * sc); if (sm) g.imageSmoothingEnabled = false; g.drawImage(pc, sx - W / 2 + pc.x0, sy - Hh * .72 + pc.y0, pc.width, pc.height); if (sm) g.imageSmoothingEnabled = true; }
+    if (v.text) { const tk = 'vt' + dir + '|' + v.text + '|' + (v.stripe || v.doors ? 1 : 0) + '|' + (v.kind || 'sedan') + '|' + (v.scale || 1) + '|' + RES; let tc = VCACHE.get(tk);
+      if (!tc) { const sc = v.scale || 1, W = Math.ceil(150 * sc), Hh = Math.ceil(120 * sc), [cv, cg] = hiCanvas(W, Hh, RES); drawVehicle(cg, W / 2, Hh * .72, dir, Object.assign({}, v, { onlyText: true, noShadow: true }), 0, night, on); tc = trimSprite(cv); tc.ax = W / 2 - tc.ox; tc.ay = Hh * .72 - tc.oy; VCACHE.set(tk, tc); }
+      g.drawImage(tc, sx - tc.ax, sy - tc.ay, tc.lw, tc.lh); }
+    return; }
   let k = dir + '|' + (night ? 1 : 0) + '|' + Math.round(SUNLEN); for (const f in v) k += '|' + f + '=' + v[f]; const base = 'v' + k; k += '|' + RES;
   let c = VCACHE.get(k) || reuse(base);
   if (!c) { if (VCACHE.size > 260) { let n = 40; for (const kk of VCACHE.keys()) { VCACHE.delete(kk); if (--n <= 0) break; } } const sc = v.scale || 1, W = Math.ceil(150 * sc), Hh = Math.ceil(120 * sc), [cv, cg] = hiCanvas(W, Hh, RES), [bv, bg] = hiCanvas(W, Hh, RES); drawVehicleShadow(cg, W / 2, Hh * .72, dir, v); drawVehicle(bg, W / 2, Hh * .72, dir, Object.assign({}, v, { noShadow: true }), 0, night, false); finishSprite(bv, { hiA: .32, loA: 0, inkA: .75 }); cg.drawImage(bv, 0, 0, bv.lw, bv.lh); c = trimSprite(cv); c.ax = W / 2 - c.ox; c.ay = Hh * .72 - c.oy; VCACHE.set(k, c); remember(base, c); }

@@ -48,6 +48,7 @@ function figure(D, v, mir, ph, mv) {
   const legs = [], hipY = -16.4 * legL - (B === 'tall' ? 1 : 0), TH = 7.4 * legL, SHN = 7.2 * legL;
   for (const [g, lx, s] of [['legL', 2.4 * bw, sw], ['legR', -2.4 * bw, -sw]]) {
     let a = s * .46 * (D.stride || 1), kb = mv ? Math.max(0, -s) * .95 + .1 : (D.knees || 0);
+    if (D.sit) { a = 1.35; kb = 1.35; } // seated (bikes, horses): thigh forward, shin straight down
     const kz = Math.sin(a) * TH, ky = hipY + Math.cos(a) * TH, a2 = a - kb, fz = kz + Math.sin(a2) * SHN; let fy = ky + Math.cos(a2) * SHN;
     const h = place(lx, 0), k = place(lx, kz), f = place(lx, fz);
     legs.push({ g, hx: h.x, hy: hipY, kx: k.x, ky, fx: f.x, fy, d: h.d + (fz) * ca * .01, fwd: place(0, 1).x }); }
@@ -367,7 +368,7 @@ export function fromLook(o) {
   const bare = (K && K.shorts) || (civ && top !== 'dress' && rr(7) < .12);
   const bwv = o.build === 'heavy' ? 1.16 : o.build === 'slim' ? .9 : civ ? .92 + rr(1) * .22 : 1;
   const D = { hair: HS[hs % 9], age: elder ? 'elder' : senior ? 'senior' : o.kid ? 'teen' : null, build: bwv > 1.08 ? 'heavy' : bwv < .95 ? 'slim' : 'avg', cols: { skin, hair, pants, shoe, top: shirt } };
-  if (o.kid) D.scale = .78; else if (AG === 'teen') D.scale = .94; if (o.s && o.s !== 1) D.scale = (D.scale || 1) * o.s;
+  if (o.kid && !o.s) D.scale = .78; else if (AG === 'teen') D.scale = .94; // o.s (overall size) is applied when the sprite is drawn, not here
   if (o.glasses) D.glasses = 'square';
   if (o.beard) D.beard = { full: 'full', mustache: 'stache', goatee: 'goatee' }[o.beard], D.cols.beard = o.beardCol || (senior && !o.hair ? '#e5e7eb' : hair);
   if (bare) D.shorts = 1;
@@ -382,9 +383,42 @@ export function fromLook(o) {
     if (acc === 'shopping') { D.prop = 'bag'; D.cols.bag = ['#f5f5f5', '#c0392b', '#2980b9', '#f5b800'][Math.floor(rr(8) * 4)]; }
     const hat = rr(9) < .14 ? 'cap' : rr(9) < .2 ? 'beanie' : rr(9) < .25 ? 'straw' : null; if (hat) { D.hat = { kind: hat }; D.cols.hat = ['#1f2937', '#b91c1c', '#1d4ed8', '#f5f5f5', '#166534'][Math.floor(rr(10) * 5)]; if (hat === 'straw') D.cols.hat = ['#f5e6c8', '#e9d5a1', '#fde68a', '#f5f5f5'][Math.floor(rr(15) * 4)]; D.cols.hat2 = shadeHex(D.cols.hat, .72); }
     if (elder && o.cane !== false) D.prop = D.prop || 'cane'; }
-  if (o.wave) D.pose = 'up';
+  if (o.wave) D.pose = 'up'; if (o.sit) D.sit = 1;
   return D;
 }
 function shadeHex(h, k) { const [r, g, b] = hx(h); const f = (v) => Math.max(0, Math.min(255, Math.round(k > 1 ? v + (255 - v) * (k - 1) : v * k))); return '#' + [f(r), f(g), f(b)].map((v) => v.toString(16).padStart(2, '0')).join(''); }
 // RGBA pixels for one pose, for an ImageData (also used by the worker)
 export function rgba(D, d, ph, mv, ss) { const k0 = SS; if (ss) SS = ss; let out; try { out = pixels(D, d, ph, mv); } finally { SS = k0; } const a = new Uint8ClampedArray(SW * SH * 4); out.forEach((c, k) => { if (c) { a[k * 4] = c[0]; a[k * 4 + 1] = c[1]; a[k * 4 + 2] = c[2]; a[k * 4 + 3] = 255; } }); return a; }
+
+// ---------- pixelize: turn a smooth drawing (vehicles, props) into pixel art that matches the people ----------
+// src: RGBA of the drawing at k times the target size. Each target pixel takes the commonest color of its block
+// (crisp edges, no blur) if at least half the block is covered; colors are grouped into a few materials, every pixel
+// snaps to its material's hue-shifted ramp, lone pixels are tidied, and the outline is darker on the bottom and right.
+export function pixelize(src, w, h, k, K = 12) {
+  const W2 = w * k, cols = new Array(w * h).fill(null), KS = new Int32Array(k * k), KN = new Int32Array(k * k), KR = new Float32Array(k * k * 3);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let nk = 0, cov = 0;
+    for (let j = 0; j < k; j++) for (let i = 0; i < k; i++) { const p = ((y * k + j) * W2 + x * k + i) * 4; if (src[p + 3] < 110) continue; cov++; const key = (src[p] >> 3) << 10 | (src[p + 1] >> 3) << 5 | (src[p + 2] >> 3); let e = 0; while (e < nk && KS[e] !== key) e++; if (e === nk) { KS[e] = key; KN[e] = 0; KR[e * 3] = KR[e * 3 + 1] = KR[e * 3 + 2] = 0; nk++; } KN[e]++; KR[e * 3] += src[p]; KR[e * 3 + 1] += src[p + 1]; KR[e * 3 + 2] += src[p + 2]; }
+    if (cov < k * k * .5) continue; let be = 0; for (let e = 1; e < nk; e++) if (KN[e] > KN[be]) be = e; const n = KN[be]; cols[y * w + x] = [KR[be * 3] / n, KR[be * 3 + 1] / n, KR[be * 3 + 2] / n]; }
+  const pts = []; cols.forEach((c, i) => { if (c) pts.push(i); }); if (!pts.length) return { cols, out: cols };
+  const L = (c) => .299 * c[0] + .587 * c[1] + .114 * c[2], d2 = (a, b) => 2 * (a[0] - b[0]) ** 2 + 4 * (a[1] - b[1]) ** 2 + 3 * (a[2] - b[2]) ** 2;
+  // work on the distinct colors (a few dozen), weighted by how many pixels use them
+  const UM = new Map(), U = [], uOf = new Int16Array(w * h).fill(-1);
+  for (const p of pts) { const c = cols[p], key = (c[0] >> 2) << 12 | (c[1] >> 2) << 6 | (c[2] >> 2); let u = UM.get(key); if (u == null) { u = U.length; UM.set(key, u); U.push({ c, n: 0 }); } U[u].n++; uOf[p] = u; }
+  // seeds: spread across brightness, then the most distinct leftover colors (light bars, tail lights, stripes keep their own material)
+  const KK = Math.min(K, U.length), byL = U.slice().sort((a, b) => L(a.c) - L(b.c)); let cen = []; const nL = Math.ceil(KK * .6); for (let i = 0; i < nL; i++) cen.push(byL[Math.floor((i + .5) / nL * byL.length)].c.slice());
+  while (cen.length < KK) { let bu = null, bd = -1; for (const u of U) { let m = 1e12; for (const c of cen) { const d = d2(u.c, c); if (d < m) m = d; } if (m > bd) { bd = m; bu = u; } } if (bd < 2500) break; cen.push(bu.c.slice()); }
+  const ul = new Int16Array(U.length);
+  for (let it = 0; it < 8; it++) { const acc = cen.map(() => [0, 0, 0, 0]); let moved = false; U.forEach((u, ui) => { let bi = 0, bd = 1e12; for (let i = 0; i < cen.length; i++) { const d = d2(u.c, cen[i]); if (d < bd) { bd = d; bi = i; } } if (ul[ui] !== bi) moved = true; ul[ui] = bi; const a = acc[bi]; a[0] += u.c[0] * u.n; a[1] += u.c[1] * u.n; a[2] += u.c[2] * u.n; a[3] += u.n; }); acc.forEach((a, i) => { if (a[3]) cen[i] = [a[0] / a[3], a[1] / a[3], a[2] / a[3]]; }); if (!moved && it) break; }
+  // each color snaps to the nearest step of its own material's ramp
+  const hexOf = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+  const R = cen.map((c) => ramp(hexOf(c))), ut = new Int8Array(U.length);
+  U.forEach((u, ui) => { const r = R[ul[ui]]; let bi = 1, bd = 1e12; for (let i = 1; i < 9; i++) { const d = d2(u.c, r[i]); if (d < bd) { bd = d; bi = i; } } ut[ui] = bi; });
+  const lab = new Int16Array(w * h).fill(-1), tone = new Int8Array(w * h); for (const p of pts) { lab[p] = ul[uOf[p]]; tone[p] = ut[uOf[p]]; }
+  const at = (x, y) => x >= 0 && y >= 0 && x < w && y < h && lab[y * w + x] >= 0;
+  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) { const p = y * w + x; if (lab[p] < 0) continue; const l0 = lab[p - 1], t0 = tone[p - 1]; if (l0 < 0 || lab[p + 1] !== l0 || lab[p - w] !== l0 || lab[p + w] !== l0 || tone[p + 1] !== t0 || tone[p - w] !== t0 || tone[p + w] !== t0) continue; if (lab[p] !== l0 || tone[p] !== t0) { lab[p] = l0; tone[p] = t0; } }
+  const out = new Array(w * h).fill(null);
+  for (const p of pts) { const x = p % w, y = (p / w) | 0, r = R[lab[p]]; let c = r[tone[p]];
+    if (!at(x + 1, y) || !at(x, y + 1)) c = r[0]; else if (!at(x - 1, y) || !at(x, y - 1)) c = r[Math.max(1, Math.min(3, tone[p] - 2))];
+    out[p] = c; }
+  return { out };
+}
