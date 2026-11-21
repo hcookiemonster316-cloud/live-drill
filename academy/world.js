@@ -686,10 +686,11 @@ export function personFast(g, sx, sy, o, t, key, lod) {
   // least-recently-used eviction: a crowd never empties the whole cache at once
   if (c) { if (++PHIT % 8 === 0) { PCACHE.delete(k); PCACHE.set(k, c); } }
   if (!c) c = reuse(base);
-  if (!c) { if (PCACHE.size > PCAP) { let n = 120; for (const kk of PCACHE.keys()) { PCACHE.delete(kk); if (--n <= 0) break; } } const [cv, cg] = hiCanvas(56, 84, sr); person(cg, 28, 74, Object.assign({}, o, { face: flip ? 1 : o.face, noShadow: true, glance: false, stride: mv ? ((fr + .5) / 8 * TAU - (o.ph || 0)) / 6.4 : null, moving: mv }), 0); c = cv; PCACHE.set(k, c); remember(base, c); }
+  if (!c) { if (PCACHE.size > PCAP) { let n = 120; for (const kk of PCACHE.keys()) { PCACHE.delete(kk); if (--n <= 0) break; } } const [cv, cg] = hiCanvas(56, 84, sr);
+    // the soft contact shadow is baked under the body, one pixel right of the feet as before: one stamp per person instead of two
+    if (!SHSPR) { const [sv, sg] = hiCanvas(24, 12, 2), gr = sg.createRadialGradient(12, 6, 0, 12, 6, 9); gr.addColorStop(0, 'rgba(0,0,0,.38)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); sg.fillStyle = gr; sg.beginPath(); sg.ellipse(12, 6, 9, 4, 0, 0, TAU); sg.fill(); SHSPR = sv; }
+    cg.drawImage(SHSPR, 29 - 12 * s, 74 - 6 * s, 24 * s, 12 * s); person(cg, 28, 74, Object.assign({}, o, { face: flip ? 1 : o.face, noShadow: true, glance: false, stride: mv ? ((fr + .5) / 8 * TAU - (o.ph || 0)) / 6.4 : null, moving: mv }), 0); c = cv; PCACHE.set(k, c); remember(base, c); }
   castShadow(g, sx, sy, 9 * s, .9 * s);
-  if (!SHSPR) { const [cv, cg] = hiCanvas(24, 12, 2), gr = cg.createRadialGradient(12, 6, 0, 12, 6, 9); gr.addColorStop(0, 'rgba(0,0,0,.38)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); cg.fillStyle = gr; cg.beginPath(); cg.ellipse(12, 6, 9, 4, 0, 0, TAU); cg.fill(); SHSPR = cv; }
-  g.drawImage(SHSPR, sx + 1 - 12 * s, sy - 6 * s, 24 * s, 12 * s);
   if (flip) { g.save(); g.translate(sx, 0); g.scale(-1, 1); g.drawImage(c, -28, sy - 74, c.lw, c.lh); g.restore(); } else g.drawImage(c, sx - 28, sy - 74, c.lw, c.lh);
 }
 export function person(g, sx, sy, o, t) {
