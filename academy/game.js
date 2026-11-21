@@ -335,7 +335,8 @@ function callCard() {
   const el = $('callCard'); if (!call) { el.hidden = true; return; }
   el.hidden = false; el.className = 'callCard p' + call.prio; if (call.q == null) { const qs = CALLER_SAYS[call.title]; call.q = qs ? qs[Math.floor(Math.random() * qs.length)] : ''; }
   el.innerHTML = '<div class="ccTop"><b>' + (call.prio === 1 ? 'PRIORITY 1' : call.prio === 2 ? 'PRIORITY 2' : 'ROUTINE') + '</b><span>' + esc(L.lessonName(call.les)) + '</span></div><div class="ccT">' + esc(call.title) + '</div><div class="ccW">' + esc(call.where) + '</div>' + (call.q && !call.accepted ? '<div class="ccQ">' + esc(call.q) + '</div>' : '') +
-    '<div class="ccB"><button type="button" id="ccGo">' + (call.accepted ? 'Navigate' : 'Respond') + '</button><button type="button" class="ghost" id="ccBk">' + (call.backup ? 'Code 4 · cancel backup' : 'Request backup') + '</button></div>' + (call.backup ? '<div class="ccBkS">' + bkStatus() + '</div>' : '');
+    '<div class="ccB"><button type="button" id="ccGo">' + (call.accepted ? 'Navigate' : 'Respond') + '</button>' + (!call.accepted && PASSED > 0 && hasSk('pat3') && EP.repOf(W.did).idx >= 2 ? '<button type="button" class="ghost" id="ccPass">Pass it on</button>' : '') + '<button type="button" class="ghost" id="ccBk">' + (call.backup ? 'Code 4 · cancel backup' : 'Request backup') + '</button></div>' + (call.backup ? '<div class="ccBkS">' + bkStatus() + '</div>' : '');
+  if ($('ccPass')) $('ccPass').onclick = () => { if (!call || call.accepted) return; PASSED--; radio(S.cs, 'Another unit can take ' + call.where + '. I\'ll take the next one.'); radio('Dispatch', 'Copy. Reassigning.'); call = null; callCard(); setTimeout(() => { if (!call) dispatchCall(); }, 2500); };
   $('ccGo').onclick = () => { if (!call) return; if (inside) exitBuilding(); if (!call.accepted) VAR.enRoute(call); call.accepted = true; if (net) net.status('call'); radio(S.cs, 'En route.'); goTo(call.x, call.y, () => {}); callCard(); };
   $('ccBk').onclick = () => { if (!call) return; /* the call went to another unit while this card was open */ if (call.backup) { bkCancel('Code 4. No further units needed.'); return; } const c0 = call; COOP.wantPicker((n) => { if (call !== c0) return; requestBackup(c0, n); radio(S.cs, 'Requesting ' + (n === 'any' ? 'backup' : COOP.wantLabel(n).replace(/^\S+ /, '') + ' unit') + ' at ' + c0.where + '.'); chirp(S.cs); callCard(); }); };
 }
@@ -401,6 +402,10 @@ function update(dt, now) {
   if (PUR) purTick(dt);
   if (!call && !scene && !S.x6 && !S.offDuty && !RIDING) { nextCall -= dt; if (nextCall <= 0) dispatchCall(); }
   if (call && clock - call.t0 > callWait() + BUFF.wait) { radio('Dispatch', S.cs + ', disregard; another unit took that call.'); if (call.backup && net) net.backup(null); call = null; callCard(); nextCall = 20; if (net) { net.status('patrol'); net.backup(null); } }
+  // Known on the Beat: a regular who knows you waves you over and points out something that's off nearby
+  if (hasSk('com2') && !inside && (WAVED._t = (WAVED._t || 0) + dt) > 1) { WAVED._t = 0; const r = regs.find((x) => !WAVED[x.n.id] && !x.n.cat && (S.npc[x.n.id] || 0) >= 2 && Math.hypot(x.x - P.x, x.y - P.y) < 5);
+    if (r) { WAVED[r.n.id] = 1; r.waveT = performance.now() + 2500; const o = observes.filter((q) => !q.seen).sort((a2, b2) => Math.hypot(a2.x - P.x, a2.y - P.y) - Math.hypot(b2.x - P.x, b2.y - P.y))[0];
+      if (o) { o.seen = true; toast(r.n.name + ' waves you over: "Officer, take a look over there."'); } else toast(r.n.name + ' waves: "Quiet one today, officer."'); } }
   // observation moments appear only up close
   observes.forEach((o) => { if (!o.seen && Math.hypot(o.x - P.x, o.y - P.y) < spotR()) { o.seen = true; toast((S.unit === 'k9' ? 'Your K9 alerts. ' : '') + 'Something\'s off: ' + o.text + '. Tap the ! to check it out.'); beep(880, .08, 'sine', .04); if (S.unit === 'k9') { beep(520, .07, 'square', .03, .1); beep(520, .07, 'square', .03, .22); } } });
   infos.forEach((i) => { if (i.cool > 0) i.cool -= dt; });
@@ -491,7 +496,7 @@ function render(now) { RNOW = now; LBLR.length = 0; frameStart(); spriteResTick(
   const NEAR_N = cw < 700 ? 10 : 18; // cw is innerWidth cached on resize: reading innerWidth here forced a layout flush every frame
   Object.keys(others).forEach((k) => { const o = others[k]; if ((o.n == null ? -1 : o.n) !== (inside ? inside.idx : -1)) return; const [sx, sy] = iso(o.rx, o.ry); if (!vis(sx, sy)) return; list.push({ d: o.rx + o.ry, f: () => { const ou = unitOf(o.u); if (o.v) vehicle(ctx, sx, sy, o.d || 0, o.v === 2 ? { kind: 'boat' } : ou.ride, now, NIGHT, o.st === 'call'); else { const ck = (o.f || '') + '|' + o.u; if (o._ck !== ck) { const tk = String(o.f || 'ostd').split(','), of = (tk.find((t) => /^o(std|pt|unit)$/.test(t)) || 'ostd').slice(1), lk = looks(tk); o._ck = ck; o._kit = kitWith(kitOf(of, o.u), o.f ? lk : {}); o._fl = Object.assign({}, outfitLook(of), lk); o._po = { kit: o._kit, s: 1 }; }
       const po = o._po; po.moving = o.moving; po.face = o.face || 1; po.back = o.back; po.stride = o.stride; po.skin = o.skin; if (o._sk !== o.skin || o._pkc !== ck) { o._sk = o.skin; o._pkc = ck; o._pk = 'o' + ck + (o.skin || ''); } personFast(ctx, sx, sy, po, now, o._pk, OCOUNT > 20); if (o.u === 'k9') dogFast(ctx, sx - 14, sy + 6, 1, o.moving, now); if (cam.z > .6 || DRAWN_OTHERS < 25) flair(o._fl, sx, sy, now, 1); } const mate = S.squad && o.g === S.squad.code; if (mate) { ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, 15, 7.5, 0, 0, Math.PI * 2); ctx.stroke(); } if (mate || o.nearRank < NEAR_N) { if (!o._lt || now > o._ltAt) { o._ltAt = now + 500; o._lt = (sprout(o) ? '🌱 ' : '') + (o.k ? '[' + o.k + '] ' : '') + ou.icon + ' ' + o.c + (o.sh && o.sh !== S.shift ? ' · ' + ({ day: 'Day', mid: 'Mid', night: 'Night' }[o.sh] || '') : ''); } label(sx, sy - (o.v ? 40 : 50), o._lt, '#9cc3ff'); } if (!(mate || o.nearRank < 8)) { /* bubbles only for the closest few */ } else if (o.say && performance.now() - o.sayAt < 7000) speech(sx, sy - (o.v ? 52 : 68), o.say.length > 34 ? o.say.slice(0, 32) + '…' : o.say); else if (o.q && now - o.qAt < 6000) speech(sx, sy - (o.v ? 52 : 68), QUICK[o.q.k] || ''); } }); });
-  if (!ATTRACT && !RIDING) { const [sx, sy] = iso(P.x, P.y); list.push({ d: P.x + P.y, f: () => { if (P.boat) vehicle(ctx, sx, sy, P.dir, { kind: 'boat' }, now, NIGHT, call && call.accepted); else if (P.inCar && RIDE() !== 'car') rideArt(ctx, sx, sy, P.dir || 0, RIDE(), now, !!(P.path && P.path.length), riderFn(now), (call && call.accepted) || STOPLIGHTS); else if (P.inCar) { FEEL.wetLights(ctx, sx, sy, now); const rl = FEEL.rollIn(ctx, sx, sy), dip = P.pitch || 0; if (dip) { ctx.save(); const f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][P.dir & 3]; ctx.translate(sx, sy); ctx.rotate(dip * .035 * (f[0] > 0 ? 1 : -1)); ctx.translate(-sx, -sy + Math.abs(dip) * .8); } vehicle(ctx, sx, sy, P.dir, LIFE.ride(U().ride), now, NIGHT, (call && call.accepted) || STOPLIGHTS); if (dip) ctx.restore(); if (rl) ctx.restore(); } else { /* your officer goes through the same cached, finished sprite pipeline as everyone else (ink, rim light, breathing) */ const kt = kitWith(myKit(), myLooks()), sk = S.skin || '#c68e63', kk = 'me|' + JSON.stringify(kt) + sk; personFast(ctx, sx, sy, { kit: kt, moving: P.moving, face: P.face, back: P.back, stride: P.stride, glance: false, skin: sk, s: 1.08 }, now, kk, false); } } }); }
+  if (!ATTRACT && !RIDING) { const [sx, sy] = iso(P.x, P.y); list.push({ d: P.x + P.y, f: () => { if (P.boat) vehicle(ctx, sx, sy, P.dir, { kind: 'boat' }, now, NIGHT, call && call.accepted); else if (P.inCar && RIDE() !== 'car') rideArt(ctx, sx, sy, P.dir || 0, RIDE(), now, !!(P.path && P.path.length), riderFn(now), (call && call.accepted) || STOPLIGHTS); else if (P.inCar) { FEEL.wetLights(ctx, sx, sy, now); const rl = FEEL.rollIn(ctx, sx, sy), dip = P.pitch || 0; if (dip) { ctx.save(); const f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][P.dir & 3]; ctx.translate(sx, sy); ctx.rotate(dip * .035 * (f[0] > 0 ? 1 : -1)); ctx.translate(-sx, -sy + Math.abs(dip) * .8); } vehicle(ctx, sx, sy, P.dir, rankLvl() >= 4 ? myCruiser() : LIFE.ride(U().ride), now, NIGHT, (call && call.accepted) || STOPLIGHTS); if (dip) ctx.restore(); if (rl) ctx.restore(); } else { /* your officer goes through the same cached, finished sprite pipeline as everyone else (ink, rim light, breathing) */ const { kt, sk, rk, kk } = meLook(now); personFast(ctx, sx, sy, { kit: kt, moving: P.moving, face: P.face, back: P.back, stride: P.stride, glance: false, skin: sk, s: 1.08, rank: rk }, now, kk, false); } } }); }
   liveDraw(list, vis, now); if (!ATTRACT) storyCast(list, vis, now);
   ambienceGround(); vfxGround(now, vis); if (!ATTRACT) trailDraw(now);
   list.sort((a, b) => a.d - b.d).forEach((e) => e.f());
@@ -546,7 +551,7 @@ function renderTop(now, z, tx, ty) {
   // markers drawn above the lighting so they stay readable
   ctx.setTransform(z, 0, 0, z, cv.width / 2 - cam.x * z, cv.height / 2 - cam.y * z);
   ringPlace(z, tx, ty);
-  if (!ATTRACT) { guideDraw(now, z); if (!inside) { EVT.draw(now); LIFE.draw(now); OFF.draw(now); ACAD.draw(now); POL.drawBarks(ctx); EP.clueDraw(now); MEM.draw(now); regs.forEach((r) => { if (OFF.arcReady(r.n.id)) { const [sx, sy] = iso(r.x, r.y); bubble(sx, sy - 92, '💛', '#f472b6', now); } }); } storyMarker(now); floatsDraw(now); pingsDraw(now); if (SELF_SAY.text && performance.now() - SELF_SAY.at < 6000) { const [sx, sy] = iso(P.x, P.y); speech(sx, sy - (P.inCar ? 52 : 70), SELF_SAY.text.length > 34 ? SELF_SAY.text.slice(0, 32) + '…' : SELF_SAY.text); } }
+  if (!ATTRACT) { routeDraw(now); guideDraw(now, z); if (!inside) { EVT.draw(now); LIFE.draw(now); OFF.draw(now); ACAD.draw(now); POL.drawBarks(ctx); EP.clueDraw(now); MEM.draw(now); regs.forEach((r) => { if (OFF.arcReady(r.n.id)) { const [sx, sy] = iso(r.x, r.y); bubble(sx, sy - 92, '💛', '#f472b6', now); } }); } storyMarker(now); floatsDraw(now); pingsDraw(now); if (SELF_SAY.text && performance.now() - SELF_SAY.at < 6000) { const [sx, sy] = iso(P.x, P.y); speech(sx, sy - (P.inCar ? 52 : 70), SELF_SAY.text.length > 34 ? SELF_SAY.text.slice(0, 32) + '…' : SELF_SAY.text); } }
   SPEC.draw(now);
   if (call) { const [sx, sy] = iso(call.x, call.y); ring(sx, sy, call.prio === 1 ? '#ff4d4d' : '#f5b800', now); bubble(sx, sy - 40, '📻', call.prio === 1 ? '#ff4d4d' : '#f5b800', now); label(sx, sy - 66, call.title, '#ffffff'); }
   infos.forEach((i) => { const [sx, sy] = iso(i.x, i.y); bubble(sx, sy - 30, '📖', i.cool > 0 ? '#6b7280' : '#8b5cf6', now); });
@@ -631,7 +636,7 @@ const condOK = (w) => w.slice(0, 5) === 'side:' ? sideClosed(sideQ(w.slice(5)) |
 function gossipLine() { if (!W || inside) return null; const hooks = SIDE.filter((q) => HOOKS[q.id] && sideAvail(q)).map((q) => HOOKS[q.id]), deeds = DEEDS.filter(([w, d]) => (d < 0 || d === W.did) && condOK(w)).map((x) => x[2]);
   if (hooks.length && (!deeds.length || Math.random() < .6)) return rnd(hooks); return deeds.length ? rnd(deeds) : null; }
 // patrol activities: traffic stops, welfare checks, warrants, transport and business checks, played step by step
-const VAR = installVariety({ S, L, CALLS, P, arcBias: (c) => SARC.bias(c), partnerStart: (k) => PART.startLine(k), partnerBenched: (k) => PART.benched(k), clock: () => clock, hourNow: () => hourNow(), night: () => isNight(hourNow()), cold: () => !!(FX && FX.cold), did: () => W.did, lessons: () => W.D.lessons,
+const VAR = installVariety({ S, L, CALLS, P, arcBias: (c) => SARC.bias(c), partnerStart: (k) => rankLine(k) || PART.startLine(k), partnerBenched: (k) => PART.benched(k), clock: () => clock, hourNow: () => hourNow(), night: () => isNight(hourNow()), cold: () => !!(FX && FX.cold), did: () => W.did, lessons: () => W.D.lessons,
   radio: (w, m) => radio(w, m), chirp: () => chirp(), toast: (t) => toast(t), dialogue: (...a) => dialogue(...a), sayAs: (...a) => sayAs(...a), award: (...a) => award(...a), stat: (...a) => stat(...a), saveS: () => saveS(),
   call: () => call, callCard: () => callCard(), landmark: () => { const ls = W.lots.map((l) => l.name || (LANDMARKS[l.kind] || {}).name).filter(Boolean); return ls.length ? rnd(ls) : 'the plaza'; },
   free: () => !!W && !inside && !scene && !call && !PUR && !storyBusy && !paused && $('dlg').hidden && $('modal').hidden && !ATTRACT && !OPSM.busy && !RIDING && !S.offDuty });
@@ -1272,6 +1277,10 @@ function dialogue(lines, done, opts) {
       plate.querySelector('b').textContent = c.name; plate.querySelector('small').textContent = q.act ? 'Your call' : L.lessonName(q.les != null ? q.les : W.D.lessons[0]) || '';
       body.innerHTML = '<div class="dlgTxt"><small class="dlgQs"></small><p class="dlgQ">' + esc(q.stem) + '</p>' + (q.multi ? '<em class="dlgHint">Select all that apply, then confirm.</em>' : '') + '<div class="dlgOpts q">' + q.opts.map((o, k) => '<button type="button" data-k="' + k + '" style="--d:' + (k * 50) + 'ms"><span class="kk">' + 'ABCDEF'[k] + '</span><span class="ot">' + esc(o) + '</span></button>').join('') + '</div>' + (q.multi ? '<div class="dlgConfirm"><button type="button" id="dlgOk" disabled>Confirm</button></div>' : '') + '</div>';
       setChoiceMode(true); log(c.name, q.stem, speakerStyle(sp, portraitLook(sp)).col);
+      // Field Notes: once a shift, cross out two wrong answers
+      if (hasSk('inv2') && !q.multi && !q.act && !S.fto && NOTEBK > 0 && q.opts.length >= 3) { const nb = document.createElement('button'); nb.type = 'button'; nb.className = 'dlgNotes'; nb.textContent = '📒 Check my notes'; body.querySelector('.dlgTxt').appendChild(nb);
+        nb.onclick = (e) => { e.stopPropagation(); NOTEBK--; nb.remove(); let cut = 0; body.querySelectorAll('.dlgOpts.q [data-k]').forEach((b) => { const k = +b.dataset.k; if (k !== q.c && cut < Math.min(2, q.opts.length - 2) && !b.disabled) { b.disabled = true; b.classList.add('no'); cut++; } }); toast('Your notes rule out ' + cut + ' answer' + (cut === 1 ? '' : 's') + '.'); }; }
+      if (q.timer && call && call.accepted && call.prio === 1 && hasSk('tac4')) q = Object.assign({}, q, { timer: 0 }); // Calm Under Pressure
       let tries = q.timer ? 1 : 0, qT = 0;
       if (q.timer) { const tb = document.createElement('div'); tb.className = 'dlgTimer'; tb.innerHTML = '<i style="animation-duration:' + q.timer + 's"></i>'; body.querySelector('.dlgTxt').prepend(tb); qT = setTimeout(() => { if (!picked.length) { picked = [-1]; finish(); } }, q.timer * 1000); }
       const finish = () => { clearTimeout(qT); const ans = q.multi ? picked.slice() : picked[0];
@@ -1554,6 +1563,14 @@ function guideTarget() {
   const g = W.gates.find((x) => x.to === d) || W.gates.find((x) => S.unlocked.includes(x.to)); if (!g) return null;
   return { x: g.x + .5, y: g.y + .5, ax: g.x + .5, ay: g.y + .5, side: true, lab: DISTRICTS[d].name };
 }
+// Shortcut Sense: your route shows on the street, a dotted line ahead of the car
+// pat2 (Know the Roads): your route as gold dots on the street. All dots go into one path and one fill, and dots
+// far off screen are skipped, so a long route costs about the same as a short one.
+function routeDraw(now) { if (!hasSk('pat2') || inside || !P.inCar || !P.path || P.path.length < 2) return;
+  const m = ctx.getTransform(), sc = Math.hypot(m.a, m.b) || 1, x0 = -m.e / sc - 40, y0 = -m.f / sc - 40, x1 = x0 + ctx.canvas.width / sc + 80, y1 = y0 + ctx.canvas.height / sc + 80;
+  const odd = Math.floor((now / 120) % 1 * 2); ctx.beginPath(); let n = 0;
+  for (let i = odd ? 1 : 0; i < P.path.length; i += 2) { const [sx, sy] = iso(P.path[i][0], P.path[i][1]); if (sx < x0 || sx > x1 || sy < y0 || sy > y1) continue; ctx.moveTo(sx + 3.2, sy); ctx.ellipse(sx, sy, 3.2, 1.6, 0, 0, Math.PI * 2); n++; }
+  if (n) { ctx.fillStyle = 'rgba(245,184,0,.55)'; ctx.fill(); } }
 function guideDraw(now, z) {
   if (scene || document.body.classList.contains('cine')) return; const G = guideTarget(); if (!G) return; const dist = Math.hypot(G.x - P.x, G.y - P.y); if (dist < 2) return;
   const col = G.side ? '56,189,248' : '245,184,0', [px, py] = iso(P.x, P.y), [ax, ay] = iso(G.ax, G.ay), ang = Math.atan2((ay - py) * 2, ax - px), pul = 1 + Math.sin(now / 220) * .08;
@@ -1606,7 +1623,8 @@ const LORE_DIST = {}; DISTRICTS.forEach((D) => { const put = (x) => { if (Array.
 
 // ---------- field abilities from the skill tree ----------
 let ABIL = {};
-function abilitiesInit() { ABIL = {}; SKILLS.forEach((k) => { if (k.active && hasSk(k.id)) ABIL[k.active.key] = { left: k.active.uses, icon: k.active.icon, name: k.name, until: 0 }; }); abilHud(); }
+let NOTEBK = 1, PASSED = 1, WAVED = {};
+function abilitiesInit() { ABIL = {}; NOTEBK = 1; PASSED = 1; WAVED = {}; SKILLS.forEach((k) => { if (k.active && hasSk(k.id)) ABIL[k.active.key] = { left: k.active.uses, icon: k.active.icon, name: k.name, until: 0 }; }); abilHud(); }
 function abilHud() {
   const el = $('abil'); if (!el) return; const keys = Object.keys(ABIL);
   el.hidden = !keys.length || !!inside && false; el.innerHTML = keys.map((k) => '<button type="button" data-ab="' + k + '" class="' + (ABIL[k].left ? '' : 'used') + (ABIL[k].until > clock ? ' on' : '') + '" title="' + esc(ABIL[k].name) + '"><span>' + ABIL[k].icon + '</span><em>' + ABIL[k].left + '</em></button>').join('');
@@ -1615,7 +1633,7 @@ function abilHud() {
 function useAbility(k) { stat('ab_' + k);
   const a = ABIL[k]; if (!a || !a.left || paused) return; a.left--;
   if (k === 'summon') { for (let i = 0; i < 2; i++) { const c = newCitizen(); const near = (inside ? W.walk : W.walk).filter((t) => Math.hypot(t[0] - P.x, t[1] - P.y) < 7 && Math.hypot(t[0] - P.x, t[1] - P.y) > 2); const t = near.length ? near[Math.floor(Math.random() * near.length)] : null; if (t) { c.x = t[0] + .5; c.y = t[1] + .5; } citizens.push(c); } radio(S.cs, 'Community Policing: a couple of locals want a word.'); }
-  if (k === 'code3') { a.until = clock + 180; BUFF.speedTo = Math.max(BUFF.speedTo, clock + 180); BUFF.speedMul = Math.max(BUFF.speedMul || 1, 1.35); BUFF.wait += 40; radio(S.cs, 'Code 3, lights and siren.'); if (S.sound) { beep(720, .4, 'sine', .02); beep(980, .4, 'sine', .02, .45); } }
+  if (k === 'code3') { const dur = hasSk('pat4') ? 360 : 180; a.until = clock + dur; BUFF.speedTo = Math.max(BUFF.speedTo, clock + dur); BUFF.speedMul = Math.max(BUFF.speedMul || 1, 1.35); BUFF.wait += 40; radio(S.cs, 'Code 3, lights and siren.'); if (S.sound) { beep(720, .4, 'sine', .02); beep(980, .4, 'sine', .02, .45); } }
   if (k === 'canvass') { const R2 = 13; observes.forEach((o) => { if (Math.hypot(o.x - P.x, o.y - P.y) < R2) o.seen = true; }); FX.caches.forEach((c) => { c.shown = Math.hypot(c.x - P.x, c.y - P.y) < R2; }); W.secrets.forEach((x) => { if (Math.hypot(x.x - P.x, x.y - P.y) < R2) x.shown = true; }); FX.pulse = { t: performance.now() }; radio(S.cs, 'Canvassing the area.'); beep(440, .3, 'sine', .04); }
   abilHud();
 }
@@ -1842,6 +1860,22 @@ function floatsDraw(now) {
     ctx.font = '700 10px Meridian,system-ui'; ctx.lineWidth = 3; ctx.strokeText(f.sub, sx, y + 13); ctx.fillStyle = '#e5e7eb'; ctx.fillText(f.sub, sx, y + 13); ctx.globalAlpha = 1; }
 }
 // the promotion ceremony
+// your rank as a number (0 Cadet ... 9 Graduate): it shows on your sleeve, your collar, your cap and your cruiser
+// your officer's look and sprite key, rebuilt four times a second instead of every frame (it reads the outfit, gear, events and season, then stringifies)
+let MELOOK = null, MELOOKT = -1e9;
+function meLook(now) { if (MELOOK && now - MELOOKT < 250 && now >= MELOOKT) return MELOOK; MELOOKT = now; const kt = kitWith(myKit(), myLooks()), sk = S.skin || '#c68e63', rk = rankLvl(); return (MELOOK = { kt, sk, rk, kk: 'me|' + JSON.stringify(kt) + sk + '|r' + rk }); }
+const RANK_XP = [0, 200, 600, 1200, 2000, 3000, 4200, 5600, 7200, 9000];
+function rankLvl() { return RANK_XP.filter((t) => (S.xp || 0) >= t).length - 1; }
+let MYCAR = null, MYCARK = null; // one object per ride, so the vehicle sprite cache keeps hitting
+function myCruiser() { const r = LIFE.ride(U().ride); if (MYCARK !== r) { MYCARK = r; MYCAR = Object.assign({}, r, { stripe: '#d4a017' }); } return MYCAR; }
+// the people you ride with notice: once after each promotion, your partner's first line is about it
+const RANK_LINES = {
+  walsh: ['Squad Leader, huh? Don\'t let it go to your head. Let it go to your paperwork.', 'Look at the stripes on you. Fine. You pick lunch today.', 'They\'re putting cadets behind you now. Drive like somebody\'s watching.', 'State certified. I still remember mine. I\'m proud of you, kid.'],
+  park: ['You got promoted? Okay. Okay! That\'s great. I\'m only a little jealous.', 'Can I ask you something about traffic stops? You\'re good at them.', 'Everybody in my class asks about you. I tell them you\'re nice. Mostly.', 'You\'re certified. Can I still ride with you sometimes?'],
+  castillo: ['New rank. Same rules. Watch the hands.', 'You\'re starting to drive like a cop. That\'s a compliment. Barely.', 'You call the approach today. Don\'t make me regret it.', 'I don\'t say this often. Good work. Now go do it again.']
+};
+function rankLine(k) { const lv = rankLvl(), L2 = RANK_LINES[k]; S.rankSeen = S.rankSeen || {}; if (!L2 || lv < 1 || (S.rankSeen[k] || 0) >= lv) return null; S.rankSeen[k] = lv; saveS(); return L2[lv >= 8 ? 3 : lv >= 5 ? 2 : lv >= 3 ? 1 : 0]; }
+const RANK_GOT = { 1: 'A gold chevron on your sleeve', 3: 'A second chevron on your sleeve', 4: 'A gold stripe on your cruiser', 5: 'A third chevron on your sleeve', 6: 'A gold pin on your collar', 8: 'A gold band on your cap' };
 function promotion(rank) {
   // two ranks at once (a big reward) play one after the other, never stacked on top of each other
   if (document.querySelector('.promo')) { setTimeout(() => promotion(rank), 900); return; }
@@ -1849,7 +1883,7 @@ function promotion(rank) {
   const lvl = [0, 200, 600, 1200, 2000, 3000, 4200, 5600, 7200, 9000].filter((t) => S.xp >= t).length, opened = SLOTS.filter((sl) => sl.need && S.xp >= sl.need && S.xp - sl.need < 400);
   const el = document.createElement('div'); el.className = 'promo';
   el.innerHTML = '<canvas class="rvFx"></canvas><div class="promoRays"></div><div class="promoBox"><div class="promoBadge"><svg viewBox="0 0 64 72"><defs><linearGradient id="pbG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#d49b00"/></linearGradient></defs><path d="M32 3l25 9v19c0 18-11 31-25 38C18 62 7 49 7 31V12z" fill="url(#pbG)" stroke="#7a5600" stroke-width="2"/><path d="M32 10l19 7v14c0 14-8 24-19 30-11-6-19-16-19-30V17z" fill="#13234a" stroke="#ffe27a" stroke-width="1.5"/><path d="M32 15l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4.1 5.8-.8z" fill="#ffe27a"/><text x="32" y="51" text-anchor="middle" font-family="Meridian,sans-serif" font-weight="800" font-size="17" fill="#fff">' + lvl + '</text></svg></div>' +
-    '<span class="promoKick">Promoted</span><h2>' + esc(rank) + '</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + '</p>' + '<p class="promoNew">+1 skill point · spend it in your Locker</p>' + (opened.length ? '<p class="promoNew">New equipment slot: ' + opened.map((x) => x.icon + ' ' + x.name).join(', ') + '</p>' : '') + '<p class="promoQ">"' + esc(['Stand where it counts.', 'Train like it matters. Because it will.', 'Slow is smooth. Smooth is fast.', 'Write it down while it is fresh.', 'Watch the hands.'][lvl % 5]) + '" · Sgt. Castillo</p><button type="button">Carry on</button></div>';
+    '<span class="promoKick">Promoted</span><h2>' + esc(rank) + '</h2><p>' + esc(S.cs) + ' · ' + esc(unitName(U())) + '</p>' + '<p class="promoNew">+1 skill point · spend it in your Locker</p>' + (RANK_GOT[rankLvl()] ? '<p class="promoNew">' + RANK_GOT[rankLvl()] + '</p>' : '') + '<p class="promoNew">Your partner will notice next shift</p>' + (opened.length ? '<p class="promoNew">New equipment slot: ' + opened.map((x) => x.icon + ' ' + x.name).join(', ') + '</p>' : '') + '<p class="promoQ">"' + esc(['Stand where it counts.', 'Train like it matters. Because it will.', 'Slow is smooth. Smooth is fast.', 'Write it down while it is fresh.', 'Watch the hands.'][lvl % 5]) + '" · Sgt. Castillo</p><button type="button">Carry on</button></div>';
   document.body.appendChild(el); paused = true;
   if (S.sound) [392, 523, 659, 784, 1047].forEach((f, i) => beep(f, .35, 'triangle', .05, i * .12));
   const fx = el.querySelector('canvas'), g = fx.getContext('2d'), d = Math.min(2, devicePixelRatio || 1); fx.width = innerWidth * d; fx.height = innerHeight * d; let ps = [];
@@ -1977,7 +2011,7 @@ function nearestLotTo(x, y) { let best = null, bd = 1e9; (inside ? inside.O.W : 
 function openCallScene(c) { openCallSceneQ(c); }
 function openCallSceneQ(c) {
   if (net) net.status('call'); paused = true;
-  const n = 3, qs = VAR.mixQs(c.les, L.pickFacts(S, [c.les], n)), fast = clock - c.t0 < 40 * (hasSk('pat2') ? 1.5 : 1), a = approachFor(c.les), cl = VAR.caller(c), cid = sayAs('caller', { name: cl[0], icon: cl[1], role: 'Caller · ' + c.where }), dsp = VAR.dispatcher();
+  const n = 3, qs = VAR.mixQs(c.les, L.pickFacts(S, [c.les], n)), fast = clock - c.t0 < 40, a = approachFor(c.les), cl = VAR.caller(c), cid = sayAs('caller', { name: cl[0], icon: cl[1], role: 'Caller · ' + c.where }), dsp = VAR.dispatcher();
   const lines = [['narr', c.title + '. ' + c.where + '.'], [dsp.id, '(over the radio) ' + VAR.pick('onScene', [S.cs + ', you\'re on scene. ', 'Showing you on scene, ' + S.cs + '. ', S.cs + ', you\'re out at ' + c.where + '. ']) + c.text]];
   const cover = c.cover || (COVER && Date.now() - COVER.t < 180000 ? COVER.c : null); c.coop = cover;
   if (cover) lines.push(['castillo', '(over the radio) ' + cover + ' is right behind you on this one.'], ['choice', [
@@ -1985,7 +2019,7 @@ function openCallSceneQ(c) {
     { t: 'Skip the radio, you can see each other', reply: [['narr', 'The two of you go to work. Dispatch still shows ' + cover + ' en route.'], ['castillo', '(over the radio) Dispatch can\'t see you. Tell them who\'s on scene.']] },
     { t: 'Wave them off to the next call holding', reply: [['narr', cover + ' pulls back out. You\'re on your own again.'], ['castillo', '(over the radio) They came to help. Use them, and tell dispatch they\'re there.']] }].sort(() => Math.random() - .5), 'Your backup just pulled in behind you.']);
   { const rv = EP.rivalCameo(); if (rv) lines.push(rv); const tr = NG.cameo(); if (tr) lines.push(tr); }
-  if (a) lines.push(['choice', a.opts, a.q]);
+  if (a) lines.push(['choice', hasSk('tac2') ? a.opts.concat([{ t: 'Stage a block away and wait for a second unit', eff: 'quiet', reply: [['velvet', '(over the radio) Copy. Second unit is two minutes out. Hold at the corner.'], ['castillo', '(over the radio) Good. Nobody walks into a call alone if they don\'t have to.']] }]) : a.opts, a.q]);
   if (/warrant|arrest/i.test(c.title)) arrestLines(c).forEach((x) => lines.push(x));
   if (c.open === 'assess') lines.push(['narr', 'You stop short of the door and take in the whole scene: exits, hands, who is watching.']); else if (c.open === 'id') lines.push(['narr', 'You ask for ID up front. The caller fumbles for a wallet, then hands it over.']);
   VAR.callerLines(c, cid).forEach((x) => lines.push(x)); MEM.callerLine(c, cid).forEach((x) => lines.push(x)); { const ov = SUBJ.open(c.les); if (ov) lines.push(ov); } VAR.complication(c, cid).forEach((x) => lines.push(x)); { const mg = VAR.sceneMini(c); if (mg) lines.push(mg); }
@@ -1998,7 +2032,7 @@ function openCallSceneQ(c) {
     if (c.sq) { try { c.sq(); } catch (e) {} } COOP.dgAdd(); if (LV.precinct()) COOP.dgAdd(); CITY.beatAdd('calls', 1); if (c.thread && c.threadOk) CITY.openCase(c.thread, c.where); const cov = COVER && COVER.uid ? COVER : null; COOP.coopEnd(); if (cov) setTimeout(() => COOP.commendPrompt(cov.uid, cov.c, 'your cover officer'), 6000); setTimeout(() => toast(COOP.dgLine()), 3500);
     paused = false; VAR.afterScene(c, res); const eff = (res.choices.find((o) => o.eff) || {}).eff; c.eff = eff; MEM.afterCall(c); PACE.afterCall(c); ECHO.afterCall(c, res); PART.afterCall(); if (eff) consequence(eff, c);
     const r = { right: res.right, n: res.n };
-    S.calls++; SS.calls++; NG.callCleared(); stat('p' + c.prio); if (inside) stat('inCall'); if (NIGHT) stat('nightCalls'); const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 && hasSk('tac2') ? 1.15 : 1) * (c.prio === 1 && hasSk('tac4') ? 1.25 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM * EP.callMult() * LV.mult() * NG.mult() * (hasSk('pat3') && EP.repOf(W.did).idx >= 2 ? 1.1 : 1), xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0) + (c.wrap === 'case' || c.wrap === 'resources' ? 10 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
+    S.calls++; SS.calls++; NG.callCleared(); stat('p' + c.prio); if (inside) stat('inCall'); if (NIGHT) stat('nightCalls'); const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 ? 1 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM * EP.callMult() * LV.mult() * NG.mult(), xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0) + (c.wrap === 'case' || c.wrap === 'resources' ? 10 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
     const coopOk = c.coop && res.choices.some((o) => o.ok), mrow = cov ? mentorBonus(cov.uid) : null, xpT = Math.round(xp * (coopOk ? 1.25 * (hasSk('pat4') ? 1.15 : 1) : 1) * (mrow ? 1.5 : 1)); if (FX.storm) stat('stormCall'); EP.squadCall(); if (c.coop) { stat('coop'); if (coopOk) stat('coopGood'); }
     const more = [mrow, c.posRow, PREM.threadDone(c), c.procOk != null ? ['🔗', 'Procedure', Math.round(c.procOk / 3 * 10), 10, c.procOk + ' of 3 arrest steps by the book'] : null].filter(Boolean); PREM.helped(c); PREM.seedThread(c);
     const report = (go) => (PREM.needsReport(c) ? PREM.report(c, (row) => go([row])) : go([]));

@@ -21,7 +21,7 @@ export function ramp(hex) { if (RAMPS.has(hex)) return RAMPS.get(hex); const [h,
 const mix = (a, b, k) => [Math.round(a[0] + (b[0] - a[0]) * k), Math.round(a[1] + (b[1] - a[1]) * k), Math.round(a[2] + (b[2] - a[2]) * k)];
 const band = (dot, gloss) => dot > .62 && gloss ? .9 : dot > .22 ? .68 : dot < -.72 ? .14 : dot < -.3 ? .27 : .47;
 const ANG = [0, Math.PI / 4, Math.PI / 2, Math.PI * 3 / 4, Math.PI];
-const DEF = { eye: '#2a1b1d', mouth: '#9a4f48', belt: '#1c1d22', buckle: '#c9b46a', badge: '#f2c94c', patch: '#f5b800', strip: '#e8edf2', metal: '#9aa3ad', dark: '#1b1d24', white: '#f1eee6', wood: '#8a5a2e', paper: '#f4efe2', red: '#c0392b', glass: '#2a3440', lens: '#a8c4d6' };
+const DEF = { chev: '#e3b341', eye: '#2a1b1d', mouth: '#9a4f48', belt: '#1c1d22', buckle: '#c9b46a', badge: '#f2c94c', patch: '#f5b800', strip: '#e8edf2', metal: '#9aa3ad', dark: '#1b1d24', white: '#f1eee6', wood: '#8a5a2e', paper: '#f4efe2', red: '#c0392b', glass: '#2a3440', lens: '#a8c4d6' };
 
 // ---------- one pose from one angle, as a list of flat shapes ----------
 const HELD = new Set(['coffee', 'pot', 'clipboard', 'books', 'laptop', 'tongs', 'ladle', 'spatula', 'medbag', 'football', 'binoculars', 'box', 'donuts', 'icecream', 'chess', 'gavel', 'mic', 'plant', 'phone', 'folder', 'tablet', 'basket', 'flashlight', 'gloves', 'wrench']);
@@ -81,6 +81,9 @@ function figure(D, v, mir, ph, mv) {
   const drawArm = (a, far) => { const dim = far ? -.14 : 0, sl = D.top && D.top.kind === 'tank' ? 0 : D.top && D.top.sleeve != null ? D.top.sleeve : 1, topM = D.top && D.top.kind === 'vest' ? 'skin' : 'top';
     const upM = (x, y) => (y - a.sy) / UP <= sl * 1.15 ? topM : 'skin';
     limb(a.g, a.sx, a.sy, a.ex, a.ey, 2.3 * bw, 1.95, sl >= 1 ? topM : upM, { dim }); limb(a.g, a.ex, a.ey, a.wx, a.wy, 1.9, 1.55, sl >= 1 ? topM : 'skin', { dim });
+    // rank chevrons on the sleeve, one to three gold bars just under the shoulder
+    if (D.chev && sl >= 1) { const dx = a.ex - a.sx, dy = a.ey - a.sy, AL = Math.hypot(dx, dy) || 1, ux = dx / AL, uy = dy / AL, R = 2.5 * bw;
+      for (let i = 0; i < D.chev; i++) { const u0 = 1.2 + i * 1.9, u1 = u0 + 1.05; put(a.g, (x, y) => { const u = (x - a.sx) * ux + (y - a.sy) * uy, w = (x - a.sx) * -uy + (y - a.sy) * ux; return u >= u0 && u <= u1 && Math.abs(w) <= R; }, [a.sx - AL - R, a.sy - AL - R, a.sx + AL + R, a.sy + AL + R], 'chev', () => .5 + dim); } }
     if (D.top && D.top.cuff && sl >= 1) limb(a.g, a.ex + (a.wx - a.ex) * .78, a.ey + (a.wy - a.ey) * .78, a.wx, a.wy, 1.7, 1.6, 'top2', { dim });
     const hxp = a.wx + Math.sin(a.fa) * 1.1 * a.fwd * .8, hyp = a.wy + Math.abs(Math.cos(a.fa)) * 1.1;
     if (a.pose === 'sling') { limb(a.g, a.sx * .4, a.sy - 1, a.wx + 1, a.wy + .6, .7, .7, 'sling', { f: .5 }); limb(a.g, a.ex, a.ey + .6, a.wx, a.wy + .8, 2.1, 2.1, 'sling'); }
@@ -130,6 +133,7 @@ function figure(D, v, mir, ph, mv) {
       if ((k === 'jacket' || k === 'coat' || k === 'labcoat' || k === 'cardigan' || k === 'blazer') && Math.abs(x - cx) < (k === 'cardigan' ? 1.4 : 2) - Math.max(0, yy + 23) * .25 && yy > -30.6) return 'top2';
       if (D.collar && Math.abs(x - cx) < .8 && yy > -31 && yy < -29.6) return 'white';
       if (D.badge && Math.abs(x - (cx + (mir ? 1 : 1) * 2.9 * bw * W)) < 1 && Math.abs(yy + 27) < 1.1) return 'badge';
+      if (D.pin && Math.abs(Math.abs(x - cx) - 2.4) < .65 && yy < -28.2 && yy > -29.6) return 'chev';
       if (D.nameplate && Math.abs(x - (cx - 2.9 * bw * W)) < 1.3 && Math.abs(yy + 27.2) < .45) return 'badge';
       if (D.stripe && Math.abs(yy + 25.5) < 1) return 'top2';
       if (D.logo && Math.abs(x - cx) < 1.6 && Math.abs(yy + 26) < 1.4) return 'logo';
@@ -323,7 +327,7 @@ function render(D, v, mir, ph, mv) {
       const ents = extra; for (const n of seen) { ents.push({ n, m: S[n].mat, c: cnt[n], sx: sxs[n], sy: sys[n] }); cnt[n] = 0; sxs[n] = 0; sys[n] = 0; }
       if (cov < NS * .45) continue;
       // the commonest shape wins; small accents (badges, patches, props) win with less coverage
-      let win = null, wn = -1; for (const e of ents) { const q = S[e.n], small = /badge|patch|buckle|lens|strip|logo|top2|lanyard|strap|red|white/.test(e.m) || q.g === 'prop'; const sc2 = small && e.c >= NS * .3 ? 1e3 + e.c + (q.g === 'prop' ? 50 : 0) : e.c; if (sc2 > wn) { wn = sc2; win = e; } }
+      let win = null, wn = -1; for (const e of ents) { const q = S[e.n], small = /badge|patch|buckle|lens|strip|logo|top2|lanyard|strap|red|white|chev/.test(e.m) || q.g === 'prop'; const sc2 = small && e.c >= NS * .3 ? 1e3 + e.c + (q.g === 'prop' ? 50 : 0) : e.c; if (sc2 > wn) { wn = sc2; win = e; } }
       const q = S[win.n]; px[y * SW + x] = { g: q.g, m: win.m, f: q.tone(win.sx / win.c, win.sy / win.c), d: q.layer }; } }
   const at = (x, y) => x < 0 || y < 0 || x >= SW || y >= SH ? null : px[y * SW + x];
   const CAST = { hair: ['head'], hat: ['head', 'hair'], head: ['neck', 'torso'], neck: ['torso'], torso: ['hips'], armR: ['torso', 'hips'], armL: ['torso', 'hips'], hips: ['legL', 'legR'] };
@@ -392,6 +396,8 @@ export function fromLook(o) {
     const hat = rr(9) < .14 ? 'cap' : rr(9) < .2 ? 'beanie' : rr(9) < .25 ? 'straw' : null; if (hat) { D.hat = { kind: hat }; D.cols.hat = ['#1f2937', '#b91c1c', '#1d4ed8', '#f5f5f5', '#166534'][Math.floor(rr(10) * 5)]; if (hat === 'straw') D.cols.hat = ['#f5e6c8', '#e9d5a1', '#fde68a', '#f5f5f5'][Math.floor(rr(15) * 4)]; D.cols.hat2 = shadeHex(D.cols.hat, .72); }
     if (elder && o.cane !== false) D.prop = D.prop || 'cane'; }
   if (o.wave) D.pose = 'up'; if (o.sit) D.sit = 1;
+  // rank you can see: chevrons (ranks 1, 3, 5), a collar pin (6) and a gold cap band (8)
+  if (o.rank) { D.chev = o.rank >= 5 ? 3 : o.rank >= 3 ? 2 : 1; if (o.rank >= 6) D.pin = 1; if (o.rank >= 8 && D.hat) { D.cols = D.cols || {}; D.cols.hat2 = '#b8892a'; } }
   return D;
 }
 function shadeHex(h, k) { const [r, g, b] = hx(h); const f = (v) => Math.max(0, Math.min(255, Math.round(k > 1 ? v + (255 - v) * (k - 1) : v * k))); return '#' + [f(r), f(g), f(b)].map((v) => v.toString(16).padStart(2, '0')).join(''); }
