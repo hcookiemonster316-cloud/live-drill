@@ -1736,7 +1736,9 @@ function moodNow() {
   if (P.boat) return 'water';
   const h = hourNow(); return h >= 19 || h < 6 ? 'night' : 'day';
 }
-function musicUpdate(dt) { musT -= dt; if (musT > 0) return; musT = .8; if (!S.sound) return; music.rain(FX.rain); music.start(moodNow()); }
+function musicUpdate(dt) { musT -= dt; if (musT > 0) return; musT = .8; if (!S.sound) return; music.rain(FX.rain); const md = moodNow(); music.start(md);
+  // the score leans in when things happen: soft on foot, fuller in the car, full on a call, in a story scene or a menu
+  if (music.intensity) music.intensity(md === 'title' || md === 'story' || md === 'side' || md === 'debrief' || (call && call.accepted) ? 1 : P.inCar || P.boat ? .75 : inside ? .6 : .5); }
 function titleScreen() {
   const t = $('title'); t.hidden = false;
   t.innerHTML = '<div class="tiBadge"><svg viewBox="0 0 64 72"><defs><linearGradient id="tiG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset=".5" stop-color="#f5b800"/><stop offset="1" stop-color="#a86f00"/></linearGradient></defs><path d="M32 3l25 9v19c0 18-11 31-25 38C18 62 7 49 7 31V12z" fill="url(#tiG)" stroke="#5c3d00" stroke-width="1.6"/><path d="M32 10l19 7v14c0 14-8 24-19 30-11-6-19-16-19-30V17z" fill="#0b1630" stroke="#ffe27a" stroke-width="1.2"/><path d="M32 17l3 6.2 6.8 1-4.9 4.8 1.2 6.8-6.1-3.2-6.1 3.2 1.2-6.8-4.9-4.8 6.8-1z" fill="#ffe27a"/><text x="32" y="52" text-anchor="middle" font-family="Meridian,sans-serif" font-weight="800" font-size="8" fill="#ffe27a" letter-spacing="1">PMPD</text></svg></div>' +

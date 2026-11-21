@@ -7,6 +7,7 @@ const NAMES = {}; for (const k in META) if (META[k].base) NAMES[META[k].base] = 
 const PRIORITY = { call: 1, urgent: 1, scene: 1, story: 1 }; // these cut in right away; calmer moods wait a little so the music doesn't jump around
 
 export function createScore(getCtx, synth) {
+  let inten = 1; function tone() { if (!lp) return; const a = ctx(), f = Math.min(rainy ? 5200 : 16000, 2400 * Math.pow(16000 / 2400, inten)); lp.frequency.setTargetAtTime(f, a.currentTime, .8); }
   let on = false, cur = null, vol = .7, rainy = false, master = null, lp = null, decks = [], live = -1, ready = false, failed = false, lastJump = 0, pending = null, playing = null, watch = 0;
   const ctx = () => getCtx(), idx = {}, bad = {};
   // the next track in this mood's rotation (each plays once, then the next one fades in)
@@ -54,10 +55,13 @@ export function createScore(getCtx, synth) {
     },
     pump() {},
     __seekEnd() { if (live < 0 || !playing) return; try { decks[live].el.currentTime = playing.start + playing.len - 3; } catch (e) {} }, // test hook
-    rain(v) { rainy = !!v; synth.rain(v); if (lp) { const a = ctx(); lp.frequency.setTargetAtTime(rainy ? 5200 : 16000, a.currentTime, .8); } },
-    volume(v) { vol = Math.max(0, Math.min(1, v)) * .85 + .0001; synth.volume(v); if (master) { const a = ctx(); master.gain.setTargetAtTime(vol, a.currentTime, .1); } },
+    rain(v) { rainy = !!v; synth.rain(v); tone(); },
+    // how present the score is: on foot it plays softer and duller, as if from a distance; in the car and on a call it
+    // opens up to full brightness. The same recording, altered live by what you're doing.
+    intensity(k) { if (Math.abs(k - inten) < .01) return; inten = k; tone(); if (master) { const a = ctx(); master.gain.setTargetAtTime(vol * (.72 + .28 * inten), a.currentTime, .6); } },
+    volume(v) { vol = Math.max(0, Math.min(1, v)) * .85 + .0001; synth.volume(v); if (master) { const a = ctx(); master.gain.setTargetAtTime(vol * (.72 + .28 * inten), a.currentTime, .1); } },
     sting(kind) { synth.sting && synth.sting(kind); if (!on || !ready || failed || !master) return; // a short bell figure over the recording
-      const a = ctx(), t = a.currentTime + .05, seq = { accept: [67, 71, 74, 79], done: [60, 64, 67, 72], promo: [55, 60, 64, 67, 72], fail: [64, 60] }[kind] || [72];
+      const a = ctx(), t = a.currentTime + .05, seq = { accept: [69, 72, 69], done: [69, 72, 69, 67, 62], promo: [69, 72, 69, 74, 72, 81], fail: [67, 62] }[kind] || [69]; // the Port Meridian hook
       seq.forEach((n, i) => { const o = a.createOscillator(), g = a.createGain(); o.type = 'triangle'; o.frequency.value = 440 * Math.pow(2, (n + 12 - 69) / 12); g.gain.setValueAtTime(.0001, t + i * .12); g.gain.exponentialRampToValueAtTime(.06, t + i * .12 + .01); g.gain.exponentialRampToValueAtTime(.0001, t + i * .12 + .7); o.connect(g); g.connect(master); o.start(t + i * .12); o.stop(t + i * .12 + .8); });
     },
     stop() { on = false; cur = null; clearTimeout(pending); synth.stop(); const a = ctx(); if (a && master) { decks.forEach((d) => { d.g.gain.cancelScheduledValues(a.currentTime); d.g.gain.setValueAtTime(d.g.gain.value, a.currentTime); d.g.gain.linearRampToValueAtTime(0, a.currentTime + 1.2); }); setTimeout(() => { if (!on) decks.forEach((d) => d.el.pause()); }, 1300); } live = -1; }
