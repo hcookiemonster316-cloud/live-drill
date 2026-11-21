@@ -1,6 +1,7 @@
 // The Patrol City soundtrack, volume three: a cop-show jazz-funk band (Rhodes, clavinet, wah guitar, finger bass,
 // horns, tenor sax, muted trumpet, vibes, a breakbeat kit) playing one theme, "Port Meridian". Every situation has two
-// arrangements of that theme (day patrol, night, indoors, story, side cases, en route, priority one, on scene,
+// arrangements; there are three themes: "Port Meridian" (the main theme), "End of Watch" (the heart) and "All Units"
+// (the action riff), each simple enough to hum. Arrangements of these themes (day patrol, night, indoors, story, side cases, en route, priority one, on scene,
 // debrief, neighbors, marine), and every signal in the game (call accepted, case closed, promotion) is a piece of its
 // hook, so players learn one tune and hear it everywhere. Each track has a form (intro, A, B, A again with a
 // countermelody, outro) and is rendered ahead of time to a small MP3 (music/<id>.mp3) by tools/render-score.js.
@@ -31,6 +32,10 @@ const JT = {
   bridge: '7:3 6:1 4:4 3:3 4:1 6:4 7:3 9:1 7:2 6:2 4:4 r:4',
   // the hook at half speed, for quiet scenes
   calm: '4:3 6:1 4:2 3:2 0:6 r:2 4:3 6:1 4:2 7:2 6:8',
+  // theme two, "End of Watch": the heart. It starts high and sighs down, then reaches back up (night, story, debrief)
+  heart: '7:1.5 6:.5 4:2 2:2 3:2 7:1.5 6:.5 4:2 6:1 7:1 9:2 9:1.5 7:.5 6:2 4:2 3:2 2:1 3:1 4:2 0:4',
+  // theme three, "All Units": the action riff, low and punchy, that kicks up at the end (calls and pursuits)
+  units: '0:.5 0:.5 3:.5 0:.5 4:1 r:.5 3:.5 6:.5 4:.5 3:.5 0:.5 r:2 0:.5 0:.5 3:.5 0:.5 4:1 r:.5 6:.5 7:1 6:.5 4:.5 r:2 7:.5 7:.5 6:.5 4:.5 6:1 r:.5 4:.5 3:.5 2:.5 3:.5 4:.5 r:2 0:.5 0:.5 3:.5 0:.5 4:1 r:.5 3:.5 0:2 r:2',
   // the hook in a hurry, for pursuits
   chaseB: '4:.75 6:.25 4:.5 3:.5 0:1 r:1 4:.75 6:.25 4:.5 7:.5 6:1 r:1 4:.75 6:.25 4:.5 3:.5 0:1 r:1 4:.75 6:.25 4:.5 7:.5 6:1 r:1 7:1 6:1 4:1 3:1 4:.75 6:.25 4:.5 3:.5 0:2 r:8'
 };
@@ -44,7 +49,7 @@ export const TRACKS = {
   // ---- title ----
   title_1: { name: 'Port Meridian (Main Title)', bpm: 84, root: 62, scale: 'dor', form: true, swing: .12, prog: JF.vamp, progB: JF.bridge, theme: JT.main, themeB: JT.bridge,
     band: { rhodes: { pat: 'funk', v: .03 }, wah: { v: .016 }, horns: { v: .018 }, bass: { pat: 'funk', v: .095 } }, drums: { pat: 'funk', v: .75 }, lead: { voice: 'horns', v: .03, oct: 12 }, leadB: { voice: 'sax', v: .042, oct: 0 }, counter: { voice: 'vibes', v: .02, oct: 12 } },
-  title_2: { name: 'Port Meridian (Locker Room)', bpm: 70, root: 62, scale: 'dor', form: true, swing: .2, prog: JF.night, progB: JF.bridge, theme: JT.main, themeB: JT.calm,
+  title_2: { name: 'Port Meridian (Locker Room)', bpm: 70, root: 62, scale: 'dor', form: true, swing: .2, prog: JF.night, progB: JF.bridge, theme: JT.heart, themeB: JT.calm,
     band: { rhodes: { pat: 'ballad', v: .036 }, bass: { pat: 'walk', v: .085 } }, drums: { pat: 'jazz', v: .55 }, lead: { voice: 'vibes', v: .034, oct: 12 }, leadB: { voice: 'mute', v: .03, oct: 12 } },
   // ---- day patrol ----
   day_1: { name: 'Day Watch', bpm: 96, root: 62, scale: 'dor', form: true, swing: .14, prog: JF.vamp, progB: JF.bridge, theme: JT.main, themeB: JT.bridge,
@@ -52,9 +57,9 @@ export const TRACKS = {
   day_2: { name: 'Coffee and a Cruiser', bpm: 104, root: 64, scale: 'dor', form: true, swing: .1, prog: JF.vamp, progB: JF.lift, theme: JT.main, themeB: JT.bridge,
     band: { clav: { v: .02 }, rhodes: { pat: 'push', v: .026 }, bass: { pat: 'funk', v: .095 } }, drums: { pat: 'lowride', v: .8 }, lead: { voice: 'flute', v: .04, oct: 12 }, leadB: { voice: 'mute', v: .034, oct: 12 }, counter: { voice: 'sax', v: .022, oct: 0 } },
   // ---- night patrol ----
-  night_1: { name: 'Night Shift', bpm: 74, root: 62, scale: 'dor', form: true, swing: .2, prog: JF.night, progB: JF.bridge, theme: JT.main, themeB: JT.bridge,
+  night_1: { name: 'Night Shift', bpm: 74, root: 62, scale: 'dor', form: true, swing: .2, prog: JF.night, progB: JF.bridge, theme: JT.heart, themeB: JT.calm,
     band: { rhodes: { pat: 'ballad', v: .034 }, vamp: { v: .012 }, bass: { pat: 'walk', v: .095 } }, drums: { pat: 'jazz', v: .75 }, drumsB: { pat: 'lowride', v: .6 }, lead: { voice: 'sax', v: .042, oct: 0 }, leadB: { voice: 'vibes', v: .03, oct: 12 }, counter: { voice: 'mute', v: .018, oct: 12 } },
-  night_2: { name: 'Streetlamps', bpm: 82, root: 60, scale: 'dor', form: true, swing: .16, prog: JF.night, progB: JF.lift, theme: JT.main, themeB: JT.calm,
+  night_2: { name: 'Streetlamps', bpm: 82, root: 60, scale: 'dor', form: true, swing: .16, prog: JF.night, progB: JF.lift, theme: JT.main, themeB: JT.heart,
     band: { rhodes: { pat: 'push', v: .028 }, wah: { v: .014 }, bass: { pat: 'funk', v: .085 } }, drums: { pat: 'lowride', v: .7 }, lead: { voice: 'mute', v: .034, oct: 12 }, leadB: { voice: 'sax', v: .04, oct: 0 } },
   // ---- indoors ----
   inside_1: { name: 'Front Desk', bpm: 80, root: 65, scale: 'dor', form: true, swing: .14, prog: JF.night, progB: JF.lift, theme: JT.main, themeB: JT.calm,
@@ -62,9 +67,9 @@ export const TRACKS = {
   inside_2: { name: 'Records Room', bpm: 70, root: 62, scale: 'dor', form: true, swing: .2, prog: JF.night, progB: JF.bridge, theme: JT.calm, themeB: JT.main,
     band: { rhodes: { pat: 'ballad', v: .03 }, bass: { pat: 'walk', v: .07 } }, drums: { pat: 'jazz', v: .4 }, lead: { voice: 'mute', v: .026, oct: 12, sparse: true } },
   // ---- story ----
-  story_1: { name: 'The Gray Sedan', bpm: 66, root: 62, scale: 'min', form: true, swing: .18, prog: JF.dark, progB: JF.chaseB, theme: JT.main, themeB: JT.calm,
+  story_1: { name: 'The Gray Sedan', bpm: 66, root: 62, scale: 'min', form: true, swing: .18, prog: JF.dark, progB: JF.chaseB, theme: JT.heart, themeB: JT.calm,
     band: { rhodes: { pat: 'ballad', v: .032 }, vamp: { v: .016 }, bass: { pat: 'walk', v: .08 } }, drums: { pat: 'jazz', v: .45 }, drone: { v: .02 }, lead: { voice: 'sax', v: .04, oct: 0 }, leadB: { voice: 'mute', v: .03, oct: 12 } },
-  story_2: { name: 'The Ledger', bpm: 60, root: 57, scale: 'min', form: true, swing: .2, prog: JF.dark, progB: JF.dark, theme: JT.calm, themeB: JT.main,
+  story_2: { name: 'The Ledger', bpm: 60, root: 57, scale: 'min', form: true, swing: .2, prog: JF.dark, progB: JF.dark, theme: JT.heart, themeB: JT.heart,
     band: { rhodes: { pat: 'ballad', v: .03 }, vamp: { v: .02 } }, drone: { v: .025 }, lead: { voice: 'vibes', v: .03, oct: 12, sparse: true }, leadB: { voice: 'sax', v: .036, oct: 0 } },
   // ---- side cases ----
   side_1: { name: 'Legwork', bpm: 100, root: 62, scale: 'dor', form: true, swing: .12, prog: JF.vamp, progB: JF.lift, theme: JT.main, themeB: JT.bridge,
@@ -72,22 +77,22 @@ export const TRACKS = {
   side_2: { name: 'Asking Around', bpm: 108, root: 67, scale: 'dor', form: true, swing: .1, prog: JF.vamp, progB: JF.bridge, theme: JT.main, themeB: JT.calm,
     band: { rhodes: { pat: 'funk', v: .028 }, clav: { v: .014 }, bass: { pat: 'funk', v: .09 } }, drums: { pat: 'funk', v: .7 }, lead: { voice: 'sax', v: .038, oct: -12 }, leadB: { voice: 'vibes', v: .028, oct: 12 } },
   // ---- en route ----
-  call_1: { name: 'Code 2', bpm: 116, root: 62, scale: 'min', form: true, swing: .06, prog: JF.chase, progB: JF.chaseB, theme: JT.main, themeB: JT.chaseB,
+  call_1: { name: 'Code 2', bpm: 116, root: 62, scale: 'min', form: true, swing: .06, prog: JF.chase, progB: JF.chaseB, theme: JT.units, themeB: JT.chaseB,
     band: { rhodes: { pat: 'push', v: .022 }, wah: { v: .022, busy: true }, bass: { pat: 'octaves', v: .095 } }, drums: { pat: 'funk', v: .85 }, lead: { voice: 'mute', v: .034, oct: 12 }, leadB: { voice: 'horns', v: .026, oct: 12 } },
   call_2: { name: 'Crosstown', bpm: 120, root: 64, scale: 'min', form: true, swing: .06, prog: JF.chase, progB: JF.chaseB, theme: JT.main, themeB: JT.chaseB,
     band: { clav: { v: .018 }, wah: { v: .018, busy: true }, bass: { pat: 'funk', v: .095 } }, drums: { pat: 'breaks', v: .85 }, lead: { voice: 'sax', v: .04, oct: 0 }, leadB: { voice: 'sax', v: .04, oct: 0 } },
   // ---- priority one ----
-  urgent_1: { name: 'All Units', bpm: 128, root: 62, scale: 'min', form: true, swing: .06, prog: JF.chase, progB: JF.chaseB, theme: JT.main, themeB: JT.chaseB,
+  urgent_1: { name: 'All Units', bpm: 128, root: 62, scale: 'min', form: true, swing: .06, prog: JF.chase, progB: JF.chaseB, theme: JT.units, themeB: JT.chaseB,
     band: { rhodes: { pat: 'push', v: .024 }, wah: { v: .024, busy: true }, horns: { v: .026 }, bass: { pat: 'octaves', v: .1 } }, drums: { pat: 'pursuit', v: .95 }, lead: { voice: 'horns', v: .03, oct: 12 }, leadB: { voice: 'horns', v: .03, oct: 12 } },
-  urgent_2: { name: 'Lights and Sirens', bpm: 136, root: 65, scale: 'min', form: true, swing: .04, prog: JF.chase, progB: JF.chaseB, theme: JT.chaseB, themeB: JT.main,
+  urgent_2: { name: 'Lights and Sirens', bpm: 136, root: 65, scale: 'min', form: true, swing: .04, prog: JF.chase, progB: JF.chaseB, theme: JT.chaseB, themeB: JT.units,
     band: { wah: { v: .024, busy: true }, horns: { v: .028 }, clav: { v: .016 }, bass: { pat: 'octaves', v: .1 } }, drums: { pat: 'pursuit', v: 1 }, lead: { voice: 'horns', v: .03, oct: 12 }, leadB: { voice: 'sax', v: .042, oct: 0 } },
   // ---- on scene ----
-  scene_1: { name: 'Contact', bpm: 84, root: 62, scale: 'min', form: true, swing: .1, prog: JF.dark, progB: JF.dark, theme: JT.calm, themeB: JT.calm,
+  scene_1: { name: 'Contact', bpm: 84, root: 62, scale: 'min', form: true, swing: .1, prog: JF.dark, progB: JF.dark, theme: JT.heart, themeB: JT.heart,
     band: { rhodes: { pat: 'ballad', v: .026 }, bass: { pat: 'walk', v: .07 } }, drone: { v: .025 }, lead: { voice: 'mute', v: .026, oct: 12, sparse: true } },
-  scene_2: { name: 'Hands Where I Can See Them', bpm: 90, root: 60, scale: 'min', form: true, swing: .1, prog: JF.dark, progB: JF.chaseB, theme: JT.calm, themeB: JT.main,
+  scene_2: { name: 'Hands Where I Can See Them', bpm: 90, root: 60, scale: 'min', form: true, swing: .1, prog: JF.dark, progB: JF.chaseB, theme: JT.calm, themeB: JT.units,
     band: { wah: { v: .012 }, bass: { pat: 'funk', v: .08 } }, drums: { pat: 'lowride', v: .5 }, drone: { v: .02 }, lead: { voice: 'vibes', v: .026, oct: 12, sparse: true }, leadB: { voice: 'sax', v: .034, oct: 0 } },
   // ---- debrief ----
-  debrief_1: { name: 'End of Watch', bpm: 72, root: 62, scale: 'dor', form: true, swing: .2, prog: JF.night, progB: JF.lift, theme: JT.main, themeB: JT.calm,
+  debrief_1: { name: 'End of Watch', bpm: 72, root: 62, scale: 'dor', form: true, swing: .2, prog: JF.night, progB: JF.lift, theme: JT.heart, themeB: JT.calm,
     band: { rhodes: { pat: 'ballad', v: .032 }, vamp: { v: .012 }, bass: { pat: 'walk', v: .08 } }, drums: { pat: 'jazz', v: .5 }, lead: { voice: 'sax', v: .04, oct: 0 }, leadB: { voice: 'vibes', v: .028, oct: 12 } },
   debrief_2: { name: 'Report Written', bpm: 86, root: 65, scale: 'dor', form: true, swing: .14, prog: JF.vamp, progB: JF.lift, theme: JT.main, themeB: JT.bridge,
     band: { rhodes: { pat: 'funk', v: .026 }, bass: { pat: 'funk', v: .085 } }, drums: { pat: 'lowride', v: .6 }, lead: { voice: 'vibes', v: .03, oct: 12 }, leadB: { voice: 'mute', v: .03, oct: 12 } },
@@ -99,7 +104,7 @@ export const TRACKS = {
   // ---- marine patrol ----
   water_1: { name: 'Marine Patrol', bpm: 86, root: 62, scale: 'mix', form: true, swing: .14, prog: JF.porch, progB: JF.lift, theme: JT.main, themeB: JT.calm,
     band: { rhodes: { pat: 'push', v: .024 }, bass: { pat: 'funk', v: .08 } }, drums: { pat: 'lowride', v: .6 }, lead: { voice: 'vibes', v: .032, oct: 12 }, leadB: { voice: 'flute', v: .036, oct: 12 } },
-  water_2: { name: 'Slow Wake', bpm: 74, root: 60, scale: 'dor', form: true, swing: .2, prog: JF.night, progB: JF.porch, theme: JT.calm, themeB: JT.main,
+  water_2: { name: 'Slow Wake', bpm: 74, root: 60, scale: 'dor', form: true, swing: .2, prog: JF.night, progB: JF.porch, theme: JT.heart, themeB: JT.main,
     band: { rhodes: { pat: 'ballad', v: .028 }, vamp: { v: .012 }, bass: { pat: 'walk', v: .07 } }, drums: { pat: 'jazz', v: .45 }, lead: { voice: 'flute', v: .036, oct: 12 }, leadB: { voice: 'sax', v: .034, oct: 0 } }
 };
 
