@@ -225,6 +225,11 @@ const GROUND = {
   civic: { walk: '#d9d3c4', plaza: '#e4ddcc', grass: '#5d8f4a' }
 };
 // every building leans toward its district's palette (40%), so a street reads as Central, Eastside or Riverside at a glance
+// the city is painted a little muted (16% toward gray), once, into building and ground sprites, so light bars, flares,
+// lit windows and people stand out on top of it without a full-screen blend every frame
+const MUTE = .16;
+function mute(c) { if (!/^#[0-9a-f]{6}$/i.test(c || '')) return c; const n = parseInt(c.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255, l = .3 * r + .59 * g + .11 * b;
+  return '#' + [r, g, b].map((v) => Math.round(v + (l - v) * MUTE).toString(16).padStart(2, '0')).join(''); }
 const hex2 = (c) => { const n = parseInt(c.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
 const blend = (c, t, f) => { if (!/^#[0-9a-f]{6}$/i.test(c || '')) return c; const a = hex2(c), b = hex2(t); return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * f).toString(16).padStart(2, '0')).join(''); };
 function B(W, x, y, w, d, h, o) { const pal = PAL[W.D.theme]; if (o && o.color && pal && !o.keepColor) o = Object.assign({}, o, { color: blend(o.color, pal[(x * 31 + y * 17) % pal.length], .4) });
@@ -348,7 +353,7 @@ export function drawGround(W, cx, cy) {
     poly(q.map(([u, v]) => at(x, y, u, v)), col);
   };
   const GD = GROUND[W.D.theme] || GROUND.downtown;
-  const BASE = { [T.ROAD]: '#3a3f46', [T.WALK]: GD.walk, [T.GRASS]: GD.grass, [T.PLAZA]: GD.plaza, [T.LOT]: '#454a52', [T.WATER]: '#25618a', [T.BLDG]: '#55585c', [T.FENCE]: '#7f8a6e', [T.SAND]: '#dcc893', [T.GRAVEL]: '#8d877c', [T.RAIL]: '#7a7266' };
+  const BASE = { [T.ROAD]: '#3a3f46', [T.WALK]: mute(GD.walk), [T.GRASS]: mute(GD.grass), [T.PLAZA]: mute(GD.plaza), [T.LOT]: '#454a52', [T.WATER]: '#25618a', [T.BLDG]: '#55585c', [T.FENCE]: '#7f8a6e', [T.SAND]: '#dcc893', [T.GRAVEL]: '#8d877c', [T.RAIL]: '#7a7266' };
   const isW = (x, y) => W.at(x, y) === T.WATER;
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     seed = (x * 73856093) ^ (y * 19349663) ^ (W.did * 83492791); R(); R();
@@ -455,7 +460,7 @@ export function drawBuilding(b, night, sun) {
   const up = (p, h) => [p[0], p[1] - h];
   // cast shadow on the ground toward the lower right
   if (sun && sun.len) { g.globalAlpha = sun.a; poly([Bp, C, Dp, [Dp[0] + sun.len, Dp[1] + sun.len * .5], [C[0] + sun.len, C[1] + sun.len * .5], [Bp[0] + sun.len, Bp[1] + sun.len * .5]], '#0b1220'); g.globalAlpha = 1; }
-  const base = b.color || '#999', left = shade(base, .78), right = shade(base, .62), top = shade(base, 1.08);
+  const base = mute(b.color || '#999'), left = shade(base, .78), right = shade(base, .62), top = shade(base, 1.08);
   const h = b.h;
   // walls
   poly([Dp, C, up(C, h), up(Dp, h)], left);
@@ -937,6 +942,16 @@ function boat(g, sx, sy, dir, t, on) {
   poly([P(-.4, .7, 5), P(.25, .7, 5), P(.15, .6, 12), P(-.35, .6, 12)], '#24323f');
   poly([P(-.35, -.6, 12), P(.15, -.6, 12), P(.15, .6, 12), P(-.35, .6, 12)], '#f2f2f2');
   const blink = on && Math.floor(t / 180) % 2; g.fillStyle = blink ? '#ff2d2d' : on ? '#2d6bff' : '#1a2f7a'; const q = P(-.1, 0, 14); g.fillRect(q[0] - 3, q[1] - 2, 6, 3);
+}
+
+// ---------- a cyclist on the street: the bike is a cached sprite (8 wheel positions per heading), the rider a cached person ----------
+const BIKEC = new Map();
+export function bikeFast(g, sx, sy, dir, t, moving, riderAt) {
+  const ph = moving ? Math.floor((((t / 60) % TAU) + TAU) % TAU / TAU * 8) : 0, k = (dir & 3) + '|' + ph + '|' + RES;
+  let c = BIKEC.get(k);
+  if (!c) { if (BIKEC.size > 96) BIKEC.clear(); const [cv, cg] = hiCanvas(64, 48, RES); rideArt0(cg, 32, 40, dir, 'bike', ph / 8 * TAU * 60, moving, () => {}, false); c = cv; BIKEC.set(k, c); }
+  g.drawImage(c, sx - 32, sy - 40, c.lw, c.lh);
+  const F = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][dir & 3]; riderAt(sx, sy - 9, { moving: false, face: F[0] > 0 ? 1 : -1, back: F[1] < 0, s: .92 });
 }
 
 // ---------- specialty rides: police motorcycle, patrol bicycle and the mounted unit's horse ----------
