@@ -10,13 +10,15 @@ const hx = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16, n >> 8 
 const toHsl = ([r, g, b]) => { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0, s = 0; const l = (mx + mn) / 2; if (mx !== mn) { const d = mx - mn; s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn); h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h /= 6; } return [h, s, l]; };
 const fromHsl = ([h, s, l]) => { h = ((h % 1) + 1) % 1; s = Math.max(0, Math.min(1, s)); l = Math.max(0, Math.min(1, l)); const f = (n) => { const k = (n + h * 12) % 12, a = s * Math.min(l, 1 - l); return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); }; return [f(0), f(8), f(4)]; };
 const toward = (h, t, a) => { let d = t - h; if (d > .5) d -= 1; if (d < -.5) d += 1; return h + Math.sign(d) * Math.min(Math.abs(d), a); };
-const RAMPS = new Map();
+const RAMPS = new Map(), INK = [22, 27, 46]; // #161b2e
 // a material's ramp: [outline, 8 steps from deep shadow to highlight]. Shadows shift hue (cool for cloth, purple-warm
 // for skin, wood and hair), lights lean yellow and lose saturation, the middle keeps the most saturation.
 export function ramp(hex) { if (RAMPS.has(hex)) return RAMPS.get(hex); const [h, s, l] = toHsl(hx(hex)), warm = s > .15 && (h < .14 || h > .93), lift = Math.min(1, .45 + l);
   const at = (f) => { if (f < .45) { const u = (.45 - f) / .45; return fromHsl([warm ? toward(h, .955, .045 * u) : toward(h, .68, .065 * u), warm ? s * (1 - .2 * u) : Math.min(1, s * (1 + .12 * u) + .05 * u), l * (1 - .55 * Math.pow(u, .9))]); }
     const u = (f - .45) / .55; return fromHsl([toward(h, .13, .045 * u), s * (1 - .42 * u), l + (1 - l) * .62 * Math.pow(u, 1.15) * lift]); };
-  const r = [fromHsl([warm ? toward(h, .95, .05) : toward(h, .68, .07), Math.min(.6, s * .85 + .16), Math.max(.055, l * .26)])]; for (let i = 0; i < 8; i++) r.push(at(i / 7)); RAMPS.set(hex, r); return r; }
+  // the outline: a deep blue-black ink (never true black), tinted a little by the material it wraps
+  const md = fromHsl([warm ? toward(h, .95, .05) : toward(h, .68, .07), Math.min(.6, s * .85 + .16), Math.max(.055, l * .26)]), r = [mix(INK, md, .22)]; for (let i = 0; i < 8; i++) r.push(at(i / 7)); r.lit = (t) => mix(INK, r[Math.max(1, Math.min(4, t - 2))], .5); RAMPS.set(hex, r); return r; }
+const mix = (a, b, k) => [Math.round(a[0] + (b[0] - a[0]) * k), Math.round(a[1] + (b[1] - a[1]) * k), Math.round(a[2] + (b[2] - a[2]) * k)];
 const band = (dot, gloss) => dot > .62 && gloss ? .9 : dot > .22 ? .68 : dot < -.72 ? .14 : dot < -.3 ? .27 : .47;
 const ANG = [0, Math.PI / 4, Math.PI / 2, Math.PI * 3 / 4, Math.PI];
 const DEF = { eye: '#2a1b1d', mouth: '#9a4f48', belt: '#1c1d22', buckle: '#c9b46a', badge: '#f2c94c', patch: '#f5b800', strip: '#e8edf2', metal: '#9aa3ad', dark: '#1b1d24', white: '#f1eee6', wood: '#8a5a2e', paper: '#f4efe2', red: '#c0392b', glass: '#2a3440', lens: '#a8c4d6' };
@@ -340,7 +342,7 @@ function paint(px, cols) {
     // a line where a part overlaps another part (arms over the body, legs over each other, held things)
     if (!SKIPCUT.has(c.g)) for (let i = 0; i < 4; i++) { const q = at(x + NBX[i], y + NBY[i]); if (!q || q.g === c.g || q.g === 'face' || q.d <= c.d) continue; const qa = q.g.charCodeAt(0) === 97 && q.g.startsWith('arm'), ca2 = c.g.charCodeAt(0) === 97 && c.g.startsWith('arm'); if (qa !== ca2 || (c.g.startsWith('leg') && q.g.startsWith('leg')) || q.g === 'prop') { t = Math.max(1, t - 2); break; } }
     let cl = R[t]; const eL = !at(x - 1, y), eR = !at(x + 1, y), eU = !at(x, y - 1), eD = !at(x, y + 1);
-    if (eR || eD) cl = R[0]; else if (eL || eU) cl = R[Math.max(1, Math.min(3, t - 3))];
+    if (eR || eD) cl = R[0]; else if (eL || eU) cl = R.lit(t);
     out[k] = cl; }
   return out;
 }
@@ -418,7 +420,7 @@ export function pixelize(src, w, h, k, K = 12) {
   for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) { const p = y * w + x; if (lab[p] < 0) continue; const l0 = lab[p - 1], t0 = tone[p - 1]; if (l0 < 0 || lab[p + 1] !== l0 || lab[p - w] !== l0 || lab[p + w] !== l0 || tone[p + 1] !== t0 || tone[p - w] !== t0 || tone[p + w] !== t0) continue; if (lab[p] !== l0 || tone[p] !== t0) { lab[p] = l0; tone[p] = t0; } }
   const out = new Array(w * h).fill(null);
   for (const p of pts) { const x = p % w, y = (p / w) | 0, r = R[lab[p]]; let c = r[tone[p]];
-    if (!at(x + 1, y) || !at(x, y + 1)) c = r[0]; else if (!at(x - 1, y) || !at(x, y - 1)) c = r[Math.max(1, Math.min(3, tone[p] - 2))];
+    if (!at(x + 1, y) || !at(x, y + 1)) c = r[0]; else if (!at(x - 1, y) || !at(x, y - 1)) c = r.lit(tone[p] + 1);
     out[p] = c; }
   return { out };
 }

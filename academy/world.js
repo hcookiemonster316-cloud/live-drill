@@ -659,11 +659,29 @@ function mini(g, tx, x, y, w, d, h, base, color) {
 
 // props are drawn once into a small cached sprite per look (trees sway by sliding the sprite); animated ones still draw live
 const PROPC = new Map(), PROP_STATIC = new Set(['hydrant', 'bin', 'bush', 'flowers', 'stall', 'cone', 'bench', 'pump', 'canopy', 'crate', 'scrap', 'hoop', 'lumberstack', 'lamp']);
+const PPX = new Map();
+// a prop drawn at 3x, its solid parts turned into pixel art and its see-through dark parts (ground shadows) kept soft
+function propPix(q, night) {
+  const k = 3, W = 120, Hh = 150, [bv, bg] = hiCanvas(W, Hh, k); drawProp(bg, q, 60, 130, 0, night);
+  const all = bg.getImageData(0, 0, W * k, Hh * k).data; let x0 = W, y0 = Hh, x1 = -1, y1 = -1;
+  for (let y = 0; y < Hh * k; y++) { const r = y * W * k; for (let x = 0; x < W * k; x++) if (all[(r + x) * 4 + 3] > 8) { const X = (x / k) | 0, Y = (y / k) | 0; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; } }
+  if (x1 < 0) return EMPTYC; const w = x1 - x0 + 1, h = y1 - y0 + 1, src = bg.getImageData(x0 * k, y0 * k, w * k, h * k), d = src.data, { out } = pixelize(d, w, h, k, 10);
+  // the soft layer: only faint, dark pixels (shadows), never the faint edges of the body itself
+  for (let i = 0; i < d.length; i += 4) { const a = d[i + 3]; if (a >= 110 || .299 * d[i] + .587 * d[i + 1] + .114 * d[i + 2] > 70) { d[i + 3] = 0; } }
+  const c = document.createElement('canvas'); c.width = w * k; c.height = h * k; const cg = c.getContext('2d'); cg.putImageData(src, 0, 0);
+  const pc = document.createElement('canvas'); pc.width = w; pc.height = h; const pg = pc.getContext('2d'), im = pg.createImageData(w, h); out.forEach((cl, i) => { if (cl) im.data.set([cl[0], cl[1], cl[2], 255], i * 4); }); pg.putImageData(im, 0, 0);
+  cg.imageSmoothingEnabled = false; cg.drawImage(pc, 0, 0, w * k, h * k); c.x0 = x0; c.y0 = y0; c.lw = w; c.lh = h; return c;
+}
 export function drawPropFast(g, p, sx, sy, t, night) {
   let key = null, ox = 0, q = p;
   if (p.t === 'tree' || p.t === 'palm') { const v = Math.floor(p.x * 7 + p.y * 13) & 3; key = p.t + '|' + v + '|' + (p.s || 1); ox = p.t === 'tree' ? Math.sin(t / 1100 + p.x * 3) * 1.2 : Math.sin(t / 900 + p.x) * .8; q = null; }
   else if (PROP_STATIC.has(p.t)) { key = p.t; if (p._pk == null) { let pk = ''; for (const k in p) if (k !== 'x' && k !== 'y' && k !== 't' && k !== 'on' && k[0] !== '_') pk += '|' + k + '=' + p[k]; p._pk = pk; } key += p._pk + (p.on ? '|on' : ''); }
   if (!key) return drawProp(g, p, sx, sy, t, night);
+  if (PIXELFOLK) { // pixel props: the body becomes pixel art like the people and cars, the soft ground shadow is kept
+    key += '|' + (night ? 1 : 0); let c = PPX.get(key);
+    if (!c) { if (PPX.size > 400) { let n = 60; for (const kk of PPX.keys()) { PPX.delete(kk); if (--n <= 0) break; } } if (!q) { q = {}; for (const k in p) if (k[0] !== '_') q[k] = p[k]; q.x = 0; q.y = Math.floor(p.x * 7 + p.y * 13) & 3; } c = propPix(q, night); PPX.set(key, c); }
+    if (c.width > 1) { const sm = g.imageSmoothingEnabled; if (sm) g.imageSmoothingEnabled = false; g.drawImage(c, sx - 60 + ox + c.x0, sy - 130 + c.y0, c.lw, c.lh); if (sm) g.imageSmoothingEnabled = true; }
+    return; }
   key += '|' + (night ? 1 : 0); const base = 'p' + key; key += '|' + RES; let c = PROPC.get(key) || reuse(base);
   if (!c) { if (PROPC.size > 500) PROPC.clear(); const [cv, cg] = hiCanvas(120, 150, RES); if (!q) { q = {}; for (const k in p) if (k[0] !== '_') q[k] = p[k]; q.x = 0; q.y = Math.floor(p.x * 7 + p.y * 13) & 3; } drawProp(cg, q, 60, 130, 0, night); c = trimSprite(cv); PROPC.set(key, c); remember(base, c); }
   g.drawImage(c, sx - 60 + ox + c.ox, sy - 130 + c.oy, c.lw, c.lh);
