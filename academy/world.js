@@ -600,8 +600,8 @@ export function drawBuilding(b, night, sun) {
   if (st === 'house') {
     const rh = 22, m1 = [(A[0] + Dp[0]) / 2, (A[1] + Dp[1]) / 2], m2 = [(Bp[0] + C[0]) / 2, (Bp[1] + C[1]) / 2];
     const roof = b.roof || '#7a5a3a';
-    poly([up(A, h), up(Bp, h), up(m2, h + rh), up(m1, h + rh)], shade(roof, .8));
-    poly([up(Dp, h), up(C, h), up(m2, h + rh), up(m1, h + rh)], roof);
+    poly([up(A, h), up(Bp, h), up(m2, h + rh), up(m1, h + rh)], shade(roof, night ? .56 : .8));
+    poly([up(Dp, h), up(C, h), up(m2, h + rh), up(m1, h + rh)], night ? shade(roof, .7) : roof);
     poly([up(C, h), up(Bp, h), up(m2, h + rh)], shade(base, .55));
     g.strokeStyle = 'rgba(0,0,0,.14)'; g.lineWidth = .7; for (let k = 1; k < 5; k++) { const f = k / 5, a1 = tx([Dp[0] + (m1[0] - Dp[0]) * f, Dp[1] + (m1[1] - Dp[1]) * f - h - rh * f]), b1 = tx([C[0] + (m2[0] - C[0]) * f, C[1] + (m2[1] - C[1]) * f - h - rh * f]); g.beginPath(); g.moveTo(a1[0], a1[1]); g.lineTo(b1[0], b1[1]); g.stroke(); }
     mini(g, tx, b.x + b.w * .7, b.y + b.d * .3, .35, .35, rh + 4, h, '#8a5a44');
@@ -609,7 +609,7 @@ export function drawBuilding(b, night, sun) {
     { const p0 = qa(Dp, C, .55), p1 = qa(Dp, C, .82), o3 = 6; poly([p0, p1, [p1[0] + o3, p1[1] + o3 * .5], [p0[0] + o3, p0[1] + o3 * .5]], '#cdbfa8'); [p0, p1].forEach((q) => { const a1 = tx([q[0] + o3 - .5, q[1] + o3 * .5]); g.fillStyle = '#f2efe8'; g.fillRect(a1[0] - .8, a1[1] - 14, 1.6, 14); }); poly([up(p0, 14), up(p1, 14), [p1[0] + o3, p1[1] + o3 * .5 - 14], [p0[0] + o3, p0[1] + o3 * .5 - 14]], shade(b.roof || '#7a5a3a', .9)); }
     { const d0 = [Dp[0] + (C[0] - Dp[0]) * .62, Dp[1] + (C[1] - Dp[1]) * .62], d1 = [Dp[0] + (C[0] - Dp[0]) * .74, Dp[1] + (C[1] - Dp[1]) * .74]; poly([d0, d1, up(d1, 14), up(d0, 14)], '#5b3a22'); poly([up(d0, 14), up(d1, 14), up(d1, 15.5), up(d0, 15.5)], '#f2efe8'); if (night) { const q = up([(d0[0] + d1[0]) / 2, (d0[1] + d1[1]) / 2], 18); winLit.push([q[0], q[1]]); } }
   } else {
-    { const r0 = tx(up(A, h)), r1 = tx(up(C, h)), rg = g.createLinearGradient(r0[0], r0[1], r1[0], r1[1]); rg.addColorStop(0, shade(st === 'stadium' ? '#3f8a3a' : top, 1.08)); rg.addColorStop(1, shade(st === 'stadium' ? '#3f8a3a' : top, .9)); poly([up(A, h), up(Bp, h), up(C, h), up(Dp, h)], rg); }
+    { const r0 = tx(up(A, h)), r1 = tx(up(C, h)), rg = g.createLinearGradient(r0[0], r0[1], r1[0], r1[1]); const rn = night ? .66 : 1; rg.addColorStop(0, shade(st === 'stadium' ? '#3f8a3a' : top, 1.08 * rn)); rg.addColorStop(1, shade(st === 'stadium' ? '#3f8a3a' : top, .9 * rn)); /* at night roofs step back so lit windows and streetlight pools lead the eye */ poly([up(A, h), up(Bp, h), up(C, h), up(Dp, h)], rg); }
     if (st !== 'stadium') { g.save(); poly([up(A, h), up(Bp, h), up(C, h), up(Dp, h)]); g.clip(); const n = Math.min(260, b.w * b.d * 10); for (let k = 0; k < n; k++) { const q = tx(up(iso(b.x + R() * b.w, b.y + R() * b.d), h)); g.fillStyle = R() < .5 ? 'rgba(0,0,0,.07)' : 'rgba(255,255,255,.07)'; g.fillRect(q[0], q[1], 1.2, 1.2); } g.restore();
       poly([up(A, h), up(Bp, h), up(Bp, h + 3), up(A, h + 3)], shade(base, .9)); poly([up(A, h), up(Dp, h), up(Dp, h + 3), up(A, h + 3)], shade(base, .8)); poly([up(Dp, h), up(C, h), up(C, h + 3), up(Dp, h + 3)], shade(base, 1.0)); poly([up(C, h), up(Bp, h), up(Bp, h + 3), up(C, h + 3)], shade(base, .82)); }
     if (st === 'stadium') { g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1.5; const m = [(A[0] + C[0]) / 2, (A[1] + C[1]) / 2 - h]; const q = tx(m); g.beginPath(); g.ellipse(q[0], q[1], 18, 9, 0, 0, Math.PI * 2); g.stroke(); poly([up([A[0], A[1] + 6], h + 1), up([Bp[0] - 12, Bp[1]], h + 1), up([C[0], C[1] - 6], h + 1), up([Dp[0] + 12, Dp[1]], h + 1)], null); }
@@ -896,8 +896,8 @@ export function dog(g, sx, sy, face, moving, t) {
 const DCACHE = new Map();
 export function dogFast(g, sx, sy, face, moving, t) {
   const f = face < 0 ? -1 : 1, per = moving ? 534 : 1005, n = moving ? 10 : 8, fr = Math.floor(((t % per) + per) % per / per * n), base = 'd' + f + '|' + (moving ? 1 : 0) + '|' + fr, k = base + '|' + RES;
-  let c = DCACHE.get(k) || reuse(base); if (!c) { if (DCACHE.size > 80) DCACHE.clear(); const [cv, cg] = hiCanvas(44, 34, RES), [bv, bg] = hiCanvas(44, 34, RES); cg.fillStyle = 'rgba(0,0,0,.25)'; cg.beginPath(); cg.ellipse(23, 29, 9, 3, 0, 0, Math.PI * 2); cg.fill(); bg.noShadow = true; dog(bg, 22, 28, f, moving, fr * per / n); finishSprite(bv, {}); cg.drawImage(bv, 0, 0, bv.lw, bv.lh); c = cv; DCACHE.set(k, c); remember(base, c); }
-  g.drawImage(c, sx - 22, sy - 28, c.lw, c.lh);
+  let c = DCACHE.get(k) || reuse(base); if (!c) { if (DCACHE.size > 80) DCACHE.clear(); const [cv, cg] = hiCanvas(44, 34, RES), [bv, bg] = hiCanvas(44, 34, RES); cg.fillStyle = 'rgba(0,0,0,.25)'; cg.beginPath(); cg.ellipse(23, 29, 9, 3, 0, 0, Math.PI * 2); cg.fill(); bg.noShadow = true; dog(bg, 22, 28, f, moving, fr * per / n); finishSprite(bv, {}); cg.drawImage(bv, 0, 0, bv.lw, bv.lh); c = trimSprite(cv); DCACHE.set(k, c); remember(base, c); }
+  g.drawImage(c, sx - 22 + c.ox, sy - 28 + c.oy, c.lw, c.lh);
 }
 
 // ---------- vehicles: one renderer for every car, truck, van and SUV ----------
