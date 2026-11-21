@@ -4,7 +4,7 @@
 //   v vault wall  B bed  p pew  r rack  x crate  C cell bars  S stool  b booth seat  P plant  u couch  V tv
 //   J judge's bench  R railing  a altar  M mailboxes  K forklift  E fire engine  A car on a lift  U storage door  Z stairs
 //   @ staff  ? citizen with a question  i study point  * secret spot  $ lost & found  o something's off
-import { N, TW, TH, T, iso, person, drawProp, vehicle, hiCanvas, GRES } from './world.js';
+import { N, TW, TH, T, iso, person, personFast, drawProp, vehicle, hiCanvas, GRES } from './world.js';
 
 const PLANS = {
   hq: { name: 'Patrol HQ', floor: 'tile', floor2: 'carpet', rug: '#1f3a6b', wall: '#3d4f7a', blurb: 'Locker room, the roll call briefing room, the watch commander\'s office and the front desk.', plan: [
@@ -702,6 +702,6 @@ export function drawFurn(g, p, sx, sy, t, wallCol) {
     case '{': shadow(g, sx, sy, 18); prism(g, sx, sy, .46, .36, 14, '#5b3a1e'); prism(g, sx, sy, .4, .3, 1, '#15803d', 14); g.fillStyle = '#fff'; g.beginPath(); g.arc(sx + 4, sy - 16, 1.8, 0, Math.PI * 2); g.fill(); g.fillStyle = '#dc2626'; g.beginPath(); g.arc(sx - 4, sy - 17, 1.8, 0, Math.PI * 2); g.fill(); return;
   }
 }
-export function staffDraw(g, s, t) { const [sx, sy] = iso(s.x, s.y); person(g, sx, sy, { kit: s.kit, skin: s.skin || '#c68e63', moving: false, face: -1 }, t); }
+export function staffDraw(g, s, t) { const [sx, sy] = iso(s.x, s.y); personFast(g, sx, sy, { kit: s.kit, skin: s.skin || '#c68e63', moving: false, face: -1 }, t, 'st' + JSON.stringify(s.kit) + (s.skin || '')); }
 const VSHIRT = ['#c0392b', '#2980b9', '#27ae60', '#f39c12', '#8e44ad', '#ecf0f1', '#16a085', '#d35400'], VSKIN = ['#f1c9a5', '#e0b48f', '#c68e63', '#a26a42', '#7a4b2a', '#5a3620'], VHAIR = ['#2b1d14', '#4a3020', '#8a5a2b', '#d8b46a', '#1a1a1a', '#9a9a9a'];
-export function visitorDraw(g, v, t) { const [sx, sy] = iso(v.x, v.y); person(g, sx, sy, { shirt: VSHIRT[v.seed % 8], pants: ['#3b4a5c', '#2c3e50', '#5d4037'][v.seed % 3], skin: VSKIN[v.seed % 6], hair: VHAIR[(v.seed >> 2) % 6], moving: false, ph: v.seed, face: v.seed % 2 ? 1 : -1 }, t); }
+export function visitorDraw(g, v, t) { const [sx, sy] = iso(v.x, v.y); personFast(g, sx, sy, { shirt: VSHIRT[v.seed % 8], pants: ['#3b4a5c', '#2c3e50', '#5d4037'][v.seed % 3], skin: VSKIN[v.seed % 6], hair: VHAIR[(v.seed >> 2) % 6], moving: false, ph: v.seed, face: v.seed % 2 ? 1 : -1 }, t, 'vi' + v.seed); }
