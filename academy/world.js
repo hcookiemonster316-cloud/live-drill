@@ -322,7 +322,11 @@ function fill(W, L, R) {
 export const CAR_COLORS = ['#c0392b', '#2c3e50', '#ecf0f1', '#7f8c8d', '#2980b9', '#27ae60', '#f39c12', '#8e44ad', '#34495e', '#d35400', '#bdc3c7', '#16a085'];
 
 // ---------- art ----------
-const shade0 = (hex, f) => { let r, g, b; hex = String(hex); if (hex[0] === '#') { const h6 = hex.length === 4 ? hex.replace(/^#(.)(.)(.)$/, '#$1$1$2$2$3$3') : hex, n = parseInt(h6.slice(1, 7), 16); r = n >> 16; g = (n >> 8) & 255; b = n & 255; } else { const m = hex.match(/\d+(\.\d+)?/g) || [128, 128, 128]; r = +m[0]; g = +m[1]; b = +m[2]; } r = Math.max(0, Math.min(255, Math.round(r * f))); g = Math.max(0, Math.min(255, Math.round(g * f))); b = Math.max(0, Math.min(255, Math.round(b * f))); return 'rgb(' + r + ',' + g + ',' + b + ')'; };
+const shade0 = (hex, f) => { let r, g, b; hex = String(hex); if (hex[0] === '#') { const h6 = hex.length === 4 ? hex.replace(/^#(.)(.)(.)$/, '#$1$1$2$2$3$3') : hex, n = parseInt(h6.slice(1, 7), 16); r = n >> 16; g = (n >> 8) & 255; b = n & 255; } else { const m = hex.match(/\d+(\.\d+)?/g) || [128, 128, 128]; r = +m[0]; g = +m[1]; b = +m[2]; } r *= f; g *= f; b *= f;
+  // hue shifting (art guide): a shadow isn't just darker, it leans cool and blue; a highlight leans warm, toward sunlight
+  if (f < 1) { const a = Math.min(.4, (1 - f) * .6); r *= 1 - .5 * a; g *= 1 - .25 * a; b *= 1 + .45 * a; }
+  else if (f > 1) { const a = Math.min(.3, (f - 1) * .4); r = r * (1 - a) + 255 * a; g = g * (1 - a) + 240 * a; b = b * (1 - a) + 205 * a; }
+  r = Math.max(0, Math.min(255, Math.round(r))); g = Math.max(0, Math.min(255, Math.round(g))); b = Math.max(0, Math.min(255, Math.round(b))); return 'rgb(' + r + ',' + g + ',' + b + ')'; };
 const SHADEC = new Map();
 // two-level cache (color, then factor): no key string is built per call, which matters when ground chunks are drawn (209 -> 45 ns a call)
 let SHADEN = 0;
@@ -448,6 +452,34 @@ let MISS = 0; const LASTC = new Map(); export function frameStart() { MISS = 0; 
 // a sprite cut down to the pixels it actually uses: the same picture at the same spot, but every stamp after that
 // copies a small rectangle instead of a mostly empty one (a hydrant in a 120 x 150 box is about 3% ink).
 // c.ox/c.oy are where the cut-out sits inside the original box, in logical pixels.
+// The finishing pass every character sprite gets once, when it's cached (art guide: one light, one line).
+// 1) Rim light: the key light comes from the upper left, so a thin warm edge lights the top-left contour and a thin cool
+//    edge darkens the bottom-right one. Shadows lean blue, highlights lean warm (hue shifting, not just darker/lighter).
+// 2) Silhouette: a one-pixel ink line in a deep blue-black (never pure black) around the whole figure, so a person
+//    reads against busy, muted streets at any zoom. Interior lines stay soft; only the outside edge gets the ink.
+const RIM = { hi: 'rgba(255,238,205,', lo: 'rgba(22,30,64,', ink: 'rgba(14,18,34,' };
+let FIN = null;
+function finCanvas(w, h) { if (!FIN || FIN.width < w || FIN.height < h) { FIN = document.createElement('canvas'); FIN.width = Math.max(w, FIN ? FIN.width : 0); FIN.height = Math.max(h, FIN ? FIN.height : 0); } const g = FIN.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.clearRect(0, 0, w, h); return g; }
+// one reusable canvas to draw a figure on before it's finished and stamped into its cached sprite (no new canvas per sprite)
+let FIG = null;
+function scratchFig(k) { const w = Math.ceil(56 * k), h = Math.ceil(84 * k); if (!FIG || FIG.width !== w || FIG.height !== h) { FIG = document.createElement('canvas'); FIG.width = w; FIG.height = h; } const g = FIG.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.clearRect(0, 0, w, h); g.setTransform(k, 0, 0, k, 0, 0); FIG.lw = w / k; FIG.lh = h / k; return FIG; }
+export function finishSprite(c, o) {
+  if (typeof document === 'undefined' || !c.width) return c; o = o || {};
+  const k = c.width / c.lw, d = Math.max(1, Math.round(k * .55)), g0 = c.getContext('2d'), pad = Math.max(2, Math.ceil(k * 1.2));
+  // work only on the part of the canvas the figure can occupy (o.box, logical px), padded for the outline
+  let X = 0, Y = 0, W = c.width, H = c.height;
+  if (o.box) { X = Math.max(0, Math.floor(o.box[0] * k) - pad); Y = Math.max(0, Math.floor(o.box[1] * k) - pad); W = Math.min(c.width, Math.ceil((o.box[0] + o.box[2]) * k) + pad) - X; H = Math.min(c.height, Math.ceil((o.box[1] + o.box[3]) * k) + pad) - Y; }
+  g0.save(); g0.setTransform(1, 0, 0, 1, 0, 0);
+  const src = (f, dx, dy) => f.drawImage(c, X, Y, W, H, dx, dy, W, H), put = (op) => { g0.globalCompositeOperation = op; g0.drawImage(FIN, 0, 0, W, H, X, Y, W, H); };
+  // an edge band = the sprite minus itself shifted toward the light (or away from it), tinted, laid on top of the sprite only
+  const band = (dx, dy, col, a) => { const f = finCanvas(W, H); src(f, 0, 0); f.globalCompositeOperation = 'destination-out'; src(f, dx, dy); f.globalCompositeOperation = 'source-in'; f.fillStyle = col + a + ')'; f.fillRect(0, 0, W, H); put('source-atop'); };
+  if (o.rim !== false) { band(d, d, RIM.hi, o.hiA != null ? o.hiA : o.night ? .22 : .5); if (o.loA !== 0) band(-d, -d, RIM.lo, o.loA || .42); }
+  if (o.ink !== false) { // the outline: the silhouette grown by one pixel, in ink, behind the figure
+    const f = finCanvas(W, H), r = Math.max(1, Math.round(k * .6));
+    for (const [dx, dy] of [[-r, 0], [r, 0], [0, -r], [0, r], [-r, -r], [r, -r], [-r, r], [r, r]]) src(f, dx, dy);
+    f.globalCompositeOperation = 'source-in'; f.fillStyle = RIM.ink + (o.inkA || .9) + ')'; f.fillRect(0, 0, W, H); put('destination-over'); }
+  g0.restore(); return c;
+}
 export function trimSprite(c) {
   if (typeof document === 'undefined' || !c.width || !c.height) { c.ox = 0; c.oy = 0; return c; }
   let d; try { d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; } catch (e) { c.ox = 0; c.oy = 0; return c; }
@@ -464,6 +496,9 @@ export function trimSprite(c) {
 function reuse(base) { return MISS >= 6 ? LASTC.get(base) : null; }
 function remember(base, c) { MISS++; if (LASTC.size > 4000) LASTC.clear(); LASTC.set(base, c); }
 let SUNLEN = 0; export function setSun(len) { SUNLEN = len || 0; }
+// the long sun shadow under people and cars: the same soft ellipse for every figure of a size at this sun angle, so it's
+// drawn once into a small cached sprite and stamped, instead of a rotated path fill per figure per frame
+const CSHC = new Map();
 function castShadow(g, sx, sy, w, k) { if (!SUNLEN) return; const L = SUNLEN * k; g.save(); g.translate(sx + L * .42, sy + L * .21); g.rotate(.46); g.fillStyle = 'rgba(10,16,30,.20)'; g.beginPath(); g.ellipse(0, 0, L * .5 + w * .4, w * .45, 0, 0, Math.PI * 2); g.fill(); g.restore(); }
 export function hiCanvas(w, h, k) { k = k || 1; const c = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(1, 1); c.width = Math.ceil(w * k); c.height = Math.ceil(h * k); c.lw = c.width / k; c.lh = c.height / k; const g = c.getContext('2d'); g.scale(k, k); return [c, g]; }
 export function drawBuilding(b, night, sun) {
@@ -693,9 +728,10 @@ const JACKETS = ['#2f3b4c', '#5a3e2b', '#3b5249', '#7a2e2e', '#1f2937', '#4b4f8a
 // a crowd-friendly person: each pose is drawn once into a small canvas and reused (8 walk frames per look and facing),
 // so sixty cadets on screen cost sixty image copies instead of sixty full drawings
 const PCACHE = new Map(), TAU = Math.PI * 2; let SHSPR = null;
-let PHIT = 0; const PCAP = navigator.deviceMemory && navigator.deviceMemory < 4 ? 700 : 1200;
+let PHIT = 0; const IDLE_T = 3200, PCAP = navigator.deviceMemory && navigator.deviceMemory < 4 ? 700 : 1200;
 export function personFast(g, sx, sy, o, t, key, lod) {
-  const s = o.s || 1, mv = !!o.moving, cyc = mv ? (o.stride != null ? o.stride * 6.4 : t / 95) + (o.ph || 0) : 0, fr0 = mv ? Math.floor((((cyc % TAU) + TAU) % TAU) / TAU * 8) : 0, fr = lod ? fr0 & 6 : fr0;
+  const s = o.s || 1, mv = !!o.moving, cyc = mv ? (o.stride != null ? o.stride * 6.4 : t / 95) + (o.ph || 0) : 0, fr0 = mv ? Math.floor((((cyc % TAU) + TAU) % TAU) / TAU * 8) : 8 + (Math.floor((t / IDLE_T + (o.ph || 0) * .7) * 4) & 3), fr = lod ? (mv ? fr0 & 6 : 8) : fr0;
+  // idle people breathe: four cached frames over a 3.2 s cycle (frames 8-11), each person on their own phase
   // in a crowd, people facing left are the right-facing sprite mirrored, and sprites are a little softer: half the sprites, half the memory
   let flip = lod && (o.face || 1) < 0, sr = lod ? Math.min(RES, 1.5) : RES, k = key + '|' + fr + '|' + (flip ? 1 : o.face || 1) + '|' + (mv && o.back ? 1 : 0) + '|' + (mv ? 1 : 0) + '|' + s, base = 'h' + k; k += '|' + sr;
   let c = PCACHE.get(k);
@@ -705,15 +741,17 @@ export function personFast(g, sx, sy, o, t, key, lod) {
   if (!c) { if (PCACHE.size > PCAP) { let n = 120; for (const kk of PCACHE.keys()) { PCACHE.delete(kk); if (--n <= 0) break; } } const [cv, cg] = hiCanvas(56, 84, sr);
     // the soft contact shadow is baked under the body, one pixel right of the feet as before: one stamp per person instead of two
     if (!SHSPR) { const [sv, sg] = hiCanvas(24, 12, 2), gr = sg.createRadialGradient(12, 6, 0, 12, 6, 9); gr.addColorStop(0, 'rgba(0,0,0,.38)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); sg.fillStyle = gr; sg.beginPath(); sg.ellipse(12, 6, 9, 4, 0, 0, TAU); sg.fill(); SHSPR = sv; }
-    cg.drawImage(SHSPR, 29 - 12 * s, 74 - 6 * s, 24 * s, 12 * s); person(cg, 28, 74, Object.assign({}, o, { face: flip ? 1 : o.face, noShadow: true, glance: false, stride: mv ? ((fr + .5) / 8 * TAU - (o.ph || 0)) / 6.4 : null, moving: mv }), 0); c = cv; PCACHE.set(k, c); remember(base, c); }
+    const fv = scratchFig(sr), fg = fv.getContext('2d'); person(fg, 28, 74, Object.assign({}, o, { face: flip ? 1 : o.face, noShadow: true, glance: false, stride: mv ? ((fr + .5) / 8 * TAU - (o.ph || 0)) / 6.4 : null, moving: mv, breath: mv ? 0 : (fr - 8) / 4 }), 0); finishSprite(fv, { rim: !lod, box: [28 - 19 * s, 74 - 56 * s, 38 * s, 62 * s] });
+    cg.drawImage(SHSPR, 29 - 12 * s, 74 - 6 * s, 24 * s, 12 * s); cg.drawImage(fv, 0, 0, fv.lw, fv.lh); c = trimSprite(cv); PCACHE.set(k, c); remember(base, c); }
   castShadow(g, sx, sy, 9 * s, .9 * s);
-  if (flip) { g.save(); g.translate(sx, 0); g.scale(-1, 1); g.drawImage(c, -28, sy - 74, c.lw, c.lh); g.restore(); } else g.drawImage(c, sx - 28, sy - 74, c.lw, c.lh);
+  if (flip) { g.save(); g.translate(sx, 0); g.scale(-1, 1); g.drawImage(c, -28 + c.ox, sy - 74 + c.oy, c.lw, c.lh); g.restore(); } else g.drawImage(c, sx - 28 + c.ox, sy - 74 + c.oy, c.lw, c.lh);
 }
 export function person(g, sx, sy, o, t) {
   // age, build and facial hair: a teenager is a little shorter, older people stoop a little and go gray, the oldest use a cane
   const AG = o.age, elder = AG === 'elder', senior = AG === 'senior' || elder;
   const s = o.s || (AG === 'teen' ? .94 : 1), ph = o.ph || 0, mv = !!o.moving, cyc = (o.stride != null ? o.stride * 6.4 : t / 95) + ph, walk = mv ? Math.sin(cyc) : 0;
-  const bob = mv ? (1 - Math.abs(Math.cos(cyc))) * 1.2 : Math.sin(t / 1100 + ph) * .3, back = !!o.back && mv;
+  // walking: the body pushes up quickly off each step and settles slowly (a bounce, not a sine wave); idle: a slow breath
+  const up = 1 - Math.abs(Math.cos(cyc)), bob = mv ? Math.pow(up, .6) * 1.3 : o.breath != null ? (1 - Math.cos(o.breath * TAU)) * .35 : Math.sin(t / 1100 + ph) * .3, back = !!o.back && mv;
   // idle: shift weight and glance around now and then
   const glance = !mv && o.glance !== false && Math.sin(t / 2300 + ph * 3.1) > .9 ? -1 : 1, face = (o.face || 1) * glance, lean = mv ? .5 * (o.face || 1) : Math.sin(t / 1700 + ph) * .25;
   const K = o.kit || (o.officer ? { shirt: '#22355e', pants: '#1b2a4a', hat: 'cap', hatCol: '#16213d', patch: '#f5b800' } : null);
@@ -735,7 +773,7 @@ export function person(g, sx, sy, o, t) {
   const shoe = K ? (K.boots || '#0b0b0b') : o.shoes || ['#16181d', '#f2f2f2', '#5d4037', '#16181d', '#b91c1c'][Math.floor(rr(6) * 5)];
   const bare = (K && K.shorts) || top === 'dress' || (civ && rr(7) < .12);
   const leg = (x, sw, back) => {
-    const lift = mv ? Math.max(0, Math.cos(cyc + (back ? Math.PI : 0)) * (x < 0 ? 1 : -1)) * 1.6 * s : 0, lx = sx + x * s * bw + sw * 1.8 * s * face, tp = Y - 12 * s, len = 11 * s - Math.max(0, -sw) * .6 * s - lift;
+    const lift = mv ? Math.max(0, Math.cos(cyc + (back ? Math.PI : 0)) * (x < 0 ? 1 : -1)) * 1.6 * s : 0, lx = sx + x * s * bw + sw * 1.8 * s * face, tp = Y - 12 * s, len = 11 * s - Math.max(0, -sw) * .6 * s - lift + (mv ? 0 : bob * s); // standing still, the feet stay planted while the chest rises
     if (bare) { RR(lx, tp + 3 * s, 3.3 * s, len - 3 * s, 1.2 * s, back ? shade(skin, .85) : skin, true); if (K && K.socks) { g.fillStyle = K.socks; g.fillRect(lx, tp + len - 2.6 * s, 3.3 * s, 1.5 * s); } }
     else RR(lx, tp, 3.6 * s, len, 1.4 * s, back ? shade(pants, .78) : pants, true);
     RR(lx - (face < 0 ? 1.4 * s : 0), tp + len - 1.2 * s, 4.8 * s, 2.4 * s, 1.1 * s, back ? shade(shoe, .8) : shoe, true);
@@ -771,7 +809,7 @@ export function person(g, sx, sy, o, t) {
   if (acc === 'backpack') { g.strokeStyle = shade(jacket, .9); g.lineWidth = 1.1 * s; g.beginPath(); g.moveTo(sx + face * -2.5 * s, Y - 24.5 * s); g.lineTo(sx + face * -2 * s, Y - 16 * s); g.stroke(); }
   if (K) {
     if (K.vest) { const vc = K.vest === true || K.vest === 'xxxl' ? '#d4ff3a' : K.vest, big = K.vest === 'xxxl', vg = g.createLinearGradient(sx - 6 * s, 0, sx + 6 * s, 0); vg.addColorStop(0, shade(vc, 1.05)); vg.addColorStop(1, shade(vc, .78)); RR(sx - (big ? 7.6 : 6.3) * s, Y - 23.4 * s, (big ? 15.2 : 12.6) * s, (big ? 13 : 10.8) * s, 2 * s, vg, true); g.fillStyle = 'rgba(255,255,255,.75)'; g.fillRect(sx - 6 * s, Y - 17 * s, 12 * s, 1 * s);
-      if (K.vestText) { g.fillStyle = K.vest === '#f97316' ? '#111' : '#fff'; g.font = '800 ' + 2.6 * s + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(K.vestText, sx, Y - 20 * s); } }
+      if (K.vestText) { g.fillStyle = K.vest === '#f97316' ? '#111' : '#fff'; g.font = '800 ' + 2.6 * s + 'px Meridian,system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(K.vestText, sx, Y - 20 * s); } }
     if (K.tie && !back) { g.fillStyle = K.tie; g.beginPath(); g.moveTo(sx - 1 * s, Y - 23.5 * s); g.lineTo(sx + 1 * s, Y - 23.5 * s); g.lineTo(sx + 1.4 * s, Y - 15 * s); g.lineTo(sx, Y - 13.5 * s); g.lineTo(sx - 1.4 * s, Y - 15 * s); g.fill(); }
     if (K.lanyard && !back) { g.strokeStyle = K.lanyard; g.lineWidth = 1 * s; g.beginPath(); g.moveTo(sx - 3 * s, Y - 24 * s); g.lineTo(sx, Y - 17 * s); g.lineTo(sx + 3 * s, Y - 24 * s); g.stroke(); g.fillStyle = '#fff'; g.fillRect(sx - 1.5 * s, Y - 17 * s, 3 * s, 3.4 * s); }
     RR(sx - 5.4 * s, Y - 13.4 * s, 10.8 * s, 2.2 * s, .6 * s, '#0e1014'); if (!back) { g.fillStyle = '#c9b46a'; g.fillRect(sx - .9 * s, Y - 13.2 * s, 1.8 * s, 1.8 * s); }
@@ -791,7 +829,7 @@ export function person(g, sx, sy, o, t) {
   g.fillStyle = shade(skin, .8); g.beginPath(); g.ellipse(sx - face * 4.4 * s, Y - 28.4 * s, 1.1 * s, 1.5 * s, 0, 0, Math.PI * 2); g.fill(); if (back) { g.beginPath(); g.ellipse(sx + face * 4.4 * s, Y - 28.4 * s, 1.1 * s, 1.5 * s, 0, 0, Math.PI * 2); g.fill(); }
   if (back) {}
   else if (acc === 'shades') { RR(sx + face * .2 * s - (face < 0 ? 4 * s : 0), Y - 29.2 * s, 4.4 * s, 1.6 * s, .6 * s, '#111'); }
-  else { g.fillStyle = '#1b1b1f'; g.beginPath(); g.arc(sx + face * 1.1 * s, Y - 28.1 * s, .5 * s, 0, Math.PI * 2); g.fill(); g.beginPath(); g.arc(sx + face * 3.4 * s, Y - 28.1 * s, .45 * s, 0, Math.PI * 2); g.fill(); }
+  else { g.fillStyle = '#1b1b1f'; g.beginPath(); g.ellipse(sx + face * 1.1 * s, Y - 28.2 * s, .55 * s, .85 * s, 0, 0, Math.PI * 2); g.fill(); g.beginPath(); g.ellipse(sx + face * 3.4 * s, Y - 28.2 * s, .5 * s, .8 * s, 0, 0, Math.PI * 2); g.fill(); } // eyes a touch taller than wide: they read as eyes at play zoom
   if (!back) { g.strokeStyle = shade(skin, .62); g.lineWidth = .6 * s; g.beginPath(); g.moveTo(sx + face * 4.6 * s, Y - 28.2 * s); g.lineTo(sx + face * 5 * s, Y - 26.8 * s); g.stroke();
   g.beginPath(); g.moveTo(sx + face * 1.6 * s, Y - 25.6 * s); g.lineTo(sx + face * 3.4 * s, Y - 25.8 * s); g.stroke(); }
   if (senior && !back) { g.strokeStyle = shade(skin, .7); g.lineWidth = .4 * s; g.beginPath(); g.moveTo(sx + face * 4.1 * s, Y - 29.6 * s); g.lineTo(sx + face * 4.9 * s, Y - 30.1 * s); g.moveTo(sx + face * 4.2 * s, Y - 27.4 * s); g.lineTo(sx + face * 4.9 * s, Y - 27.1 * s); g.stroke(); }
@@ -835,7 +873,7 @@ export function person(g, sx, sy, o, t) {
 export function dog(g, sx, sy, face, moving, t) {
   // a shepherd-type working dog: four-beat trot, wagging tail, ears up, tongue out on the move
   const f = face || 1, c = t / 85, OL = 'rgba(12,16,26,.5)', body = '#8b5a2b', saddle = '#2b1a0c', bob = moving ? Math.abs(Math.sin(c)) * 1 : Math.sin(t / 900) * .3;
-  g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 1, sy + 1, 9, 3, 0, 0, Math.PI * 2); g.fill();
+  if (!g.noShadow) { g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 1, sy + 1, 9, 3, 0, 0, Math.PI * 2); g.fill(); }
   const leg = (x, ph, near) => { const sw = moving ? Math.sin(c + ph) * 2.2 : 0, lift = moving ? Math.max(0, Math.cos(c + ph)) * 1.4 : 0; g.strokeStyle = near ? '#4a2f18' : '#3a2412'; g.lineWidth = 1.9; g.lineCap = 'round'; g.beginPath(); g.moveTo(sx + x * f, sy - 7 - bob); g.lineTo(sx + x * f + sw * f, sy - 1 - lift); g.stroke(); };
   leg(-5, Math.PI, false); leg(4.5, 0, false);
   const Y = sy - bob;
@@ -858,7 +896,7 @@ export function dog(g, sx, sy, face, moving, t) {
 const DCACHE = new Map();
 export function dogFast(g, sx, sy, face, moving, t) {
   const f = face < 0 ? -1 : 1, per = moving ? 534 : 1005, n = moving ? 10 : 8, fr = Math.floor(((t % per) + per) % per / per * n), base = 'd' + f + '|' + (moving ? 1 : 0) + '|' + fr, k = base + '|' + RES;
-  let c = DCACHE.get(k) || reuse(base); if (!c) { if (DCACHE.size > 80) DCACHE.clear(); const [cv, cg] = hiCanvas(44, 34, RES); dog(cg, 22, 28, f, moving, fr * per / n); c = cv; DCACHE.set(k, c); remember(base, c); }
+  let c = DCACHE.get(k) || reuse(base); if (!c) { if (DCACHE.size > 80) DCACHE.clear(); const [cv, cg] = hiCanvas(44, 34, RES), [bv, bg] = hiCanvas(44, 34, RES); cg.fillStyle = 'rgba(0,0,0,.25)'; cg.beginPath(); cg.ellipse(23, 29, 9, 3, 0, 0, Math.PI * 2); cg.fill(); bg.noShadow = true; dog(bg, 22, 28, f, moving, fr * per / n); finishSprite(bv, {}); cg.drawImage(bv, 0, 0, bv.lw, bv.lh); c = cv; DCACHE.set(k, c); remember(base, c); }
   g.drawImage(c, sx - 22, sy - 28, c.lw, c.lh);
 }
 
@@ -873,14 +911,22 @@ function rig(sx, sy, dir, s, hl, hw) {
 }
 function vQuad(g, pts, fill, line) { g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fillStyle = fill; g.fill(); if (line) { g.strokeStyle = line; g.lineWidth = .6; g.stroke(); } }
 function lerpP(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; }
+// a vehicle's ground shadows on their own, so the body can be outlined without outlining its shadow
+function drawVehicleShadow(g, sx, sy, dir, v) {
+  const s = v.scale || 1, kind = v.kind || 'sedan', hl = kind === 'van' || kind === 'armored' ? .44 : .41, R = rig(sx, sy, dir, s, hl, .2), c0 = R.P(0, 0, 0);
+  castShadow(g, sx, sy, 22 * s, .7 * s);
+  const sg = g.createRadialGradient(c0[0] + 2, c0[1] + 2, 2, c0[0] + 2, c0[1] + 2, 22 * s); sg.addColorStop(0, 'rgba(0,0,0,.42)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = sg; g.beginPath(); g.ellipse(c0[0] + 2, c0[1] + 2, 22 * s, 11 * s, 0, 0, Math.PI * 2); g.fill();
+}
 export function drawVehicle(g, sx, sy, dir, v, t, night, on) {
   const s = v.scale || 1, kind = v.kind || 'sedan', tall = { armored: 1.55, van: 1.45, suv: 1.2, truck: 1.15 }[kind] || 1;
   const hl = kind === 'van' || kind === 'armored' ? .44 : .41, hw = .2, H = 8.5 * tall, R = rig(sx, sy, dir, s, hl, hw), P = R.P, uE = R.uVis, vE = R.vVis;
   const body = v.body, sideCol = v.side || body, line = 'rgba(8,12,20,.45)';
-  castShadow(g, sx, sy, 22 * s, .7 * s);
+  const c0 = P(0, 0, 0);
+  if (!v.noShadow) { castShadow(g, sx, sy, 22 * s, .7 * s);
   // soft shadow
-  const c0 = P(0, 0, 0), sg = g.createRadialGradient(c0[0] + 2, c0[1] + 2, 2, c0[0] + 2, c0[1] + 2, 22 * s); sg.addColorStop(0, 'rgba(0,0,0,.42)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
-  g.fillStyle = sg; g.beginPath(); g.ellipse(c0[0] + 2, c0[1] + 2, 22 * s, 11 * s, 0, 0, Math.PI * 2); g.fill();
+  const sg = g.createRadialGradient(c0[0] + 2, c0[1] + 2, 2, c0[0] + 2, c0[1] + 2, 22 * s); sg.addColorStop(0, 'rgba(0,0,0,.42)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = sg; g.beginPath(); g.ellipse(c0[0] + 2, c0[1] + 2, 22 * s, 11 * s, 0, 0, Math.PI * 2); g.fill(); }
   // wheels on the visible side (drawn first so the body overlaps their tops)
   [-.62, .62].forEach((u) => { const w = P(u, vE * 1.02, 2.4); g.fillStyle = '#0d0f12'; g.beginPath(); g.ellipse(w[0], w[1], 3.3 * s, 2.6 * s, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#6b7280'; g.beginPath(); g.ellipse(w[0], w[1], 1.5 * s, 1.2 * s, 0, 0, Math.PI * 2); g.fill(); });
   // lower body: visible end and side, then the top
@@ -913,9 +959,9 @@ export function drawVehicle(g, sx, sy, dir, v, t, night, on) {
   if (kind === 'truck') { vQuad(g, [P(-1, -1, H), P(-.1, -1, H), P(-.1, 1, H), P(-1, 1, H)], '#0b2536'); const q = P(-.55, 0, H + 3); g.fillStyle = '#e2e8f0'; g.beginPath(); g.ellipse(q[0], q[1], 6 * s, 2.8 * s, 0, 0, Math.PI * 2); g.fill(); }
   if (kind === 'armored') { g.fillStyle = '#14180f'; for (let k = -2; k <= 1; k++) { const q = P(k * .3 + .1, vE, H * .7); g.fillRect(q[0] - 1.2 * s, q[1] - 1, 2.4 * s, 2.4 * s); } }
   // roof text (unit number)
-  if (v.roofText) { const q = P(c.ta * .4 + c.tb * .6, 0, cH + .2); g.save(); g.translate(q[0], q[1]); g.scale(1, .5); g.rotate(R.U[0] ? Math.PI / 4 : -Math.PI / 4); g.fillStyle = '#111'; g.font = '800 ' + 5 * s + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(v.roofText, 0, 0); g.restore(); }
+  if (v.roofText) { const q = P(c.ta * .4 + c.tb * .6, 0, cH + .2); g.save(); g.translate(q[0], q[1]); g.scale(1, .5); g.rotate(R.U[0] ? Math.PI / 4 : -Math.PI / 4); g.fillStyle = '#111'; g.font = '800 ' + 5 * s + 'px Meridian,system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(v.roofText, 0, 0); g.restore(); }
   // side text
-  if (v.text) { const q = P(-.05, vE, H * .52), a = P(-1, vE, 0), b = P(1, vE, 0); let ex = b[0] - a[0], ey = b[1] - a[1]; if (ex < 0) { ex = -ex; ey = -ey; } const L = Math.hypot(ex, ey); g.save(); g.translate(q[0], q[1]); g.transform(ex / L, ey / L, 0, 1, 0, 0); g.fillStyle = v.stripe || v.doors ? '#0b0b0b' : '#ffffff'; g.font = '800 ' + 3.6 * s + 'px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(v.text, 0, 0); g.restore(); }
+  if (v.text) { const q = P(-.05, vE, H * .52), a = P(-1, vE, 0), b = P(1, vE, 0); let ex = b[0] - a[0], ey = b[1] - a[1]; if (ex < 0) { ex = -ex; ey = -ey; } const L = Math.hypot(ex, ey); g.save(); g.translate(q[0], q[1]); g.transform(ex / L, ey / L, 0, 1, 0, 0); g.fillStyle = v.stripe || v.doors ? '#0b0b0b' : '#ffffff'; g.font = '800 ' + 3.6 * s + 'px Meridian,system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(v.text, 0, 0); g.restore(); }
   // light bar
   const blink = on && Math.floor(t / 160) % 2;
   if (v.bar === 'full') { const lbH = cH + 2.2, a0 = c.ta * .5 + c.tb * .5; vQuad(g, [P(a0 - .06, -.62, cH), P(a0 + .06, -.62, cH), P(a0 + .06, .62, cH), P(a0 - .06, .62, cH)], '#111'); vQuad(g, [P(a0 - .06, -.6, lbH), P(a0 + .06, -.6, lbH), P(a0 + .06, 0, lbH), P(a0 - .06, 0, lbH)], blink ? '#ff3b3b' : on ? '#7a1a1a' : '#5a1616'); vQuad(g, [P(a0 - .06, 0, lbH), P(a0 + .06, 0, lbH), P(a0 + .06, .6, lbH), P(a0 - .06, .6, lbH)], on && !blink ? '#3b7bff' : '#16285e'); vQuad(g, [P(uE > 0 ? a0 + .06 : a0 - .06, -.6, cH), P(uE > 0 ? a0 + .06 : a0 - .06, .6, cH), P(uE > 0 ? a0 + .06 : a0 - .06, .6, lbH), P(uE > 0 ? a0 + .06 : a0 - .06, -.6, lbH)], '#2a2f37'); }
@@ -933,7 +979,7 @@ function vehicleFast(g, sx, sy, dir, v, t, night, on) {
   if (on) return drawVehicle(g, sx, sy, dir, v, t, night, on);
   let k = dir + '|' + (night ? 1 : 0) + '|' + Math.round(SUNLEN); for (const f in v) k += '|' + f + '=' + v[f]; const base = 'v' + k; k += '|' + RES;
   let c = VCACHE.get(k) || reuse(base);
-  if (!c) { if (VCACHE.size > 260) { let n = 40; for (const kk of VCACHE.keys()) { VCACHE.delete(kk); if (--n <= 0) break; } } const sc = v.scale || 1, W = Math.ceil(150 * sc), Hh = Math.ceil(120 * sc), [cv, cg] = hiCanvas(W, Hh, RES); drawVehicle(cg, W / 2, Hh * .72, dir, v, 0, night, false); c = trimSprite(cv); c.ax = W / 2 - c.ox; c.ay = Hh * .72 - c.oy; VCACHE.set(k, c); remember(base, c); }
+  if (!c) { if (VCACHE.size > 260) { let n = 40; for (const kk of VCACHE.keys()) { VCACHE.delete(kk); if (--n <= 0) break; } } const sc = v.scale || 1, W = Math.ceil(150 * sc), Hh = Math.ceil(120 * sc), [cv, cg] = hiCanvas(W, Hh, RES), [bv, bg] = hiCanvas(W, Hh, RES); drawVehicleShadow(cg, W / 2, Hh * .72, dir, v); drawVehicle(bg, W / 2, Hh * .72, dir, Object.assign({}, v, { noShadow: true }), 0, night, false); finishSprite(bv, { hiA: .32, loA: 0, inkA: .75 }); cg.drawImage(bv, 0, 0, bv.lw, bv.lh); c = trimSprite(cv); c.ax = W / 2 - c.ox; c.ay = Hh * .72 - c.oy; VCACHE.set(k, c); remember(base, c); }
   g.drawImage(c, sx - c.ax, sy - c.ay, c.lw, c.lh);
 }
 export function car(g, sx, sy, dir, color, police, t, night, scale, bar) {
@@ -987,7 +1033,7 @@ function rideArt0(g, sx, sy, dir, kind, t, moving, rider, lights) {
     wheel(-8, 6, spin); wheel(8, 6, spin + 1);
     const [ax, ay] = at(-8, 6), [bx, by] = at(8, 6), [cx, cy] = at(0, 12), [hx, hy] = at(7, 17);
     g.strokeStyle = '#1e3a8a'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(ax, ay); g.lineTo(cx, cy); g.lineTo(bx, by); g.moveTo(cx, cy); g.lineTo(hx, hy); g.stroke();
-    g.fillStyle = '#111'; g.fillRect(hx - 3, hy - 1, 6, 2); const [px, py] = at(-7, 9); g.fillStyle = '#0f172a'; g.fillRect(px - 4, py - 4, 8, 5); g.fillStyle = '#f5b800'; g.font = '700 3.5px system-ui'; g.textAlign = 'center'; g.fillText('POLICE', px, py - .5);
+    g.fillStyle = '#111'; g.fillRect(hx - 3, hy - 1, 6, 2); const [px, py] = at(-7, 9); g.fillStyle = '#0f172a'; g.fillRect(px - 4, py - 4, 8, 5); g.fillStyle = '#f5b800'; g.font = '700 3.5px Meridian,system-ui'; g.textAlign = 'center'; g.fillText('POLICE', px, py - .5);
     rider(sx, sy - 9, { moving: false, face: fx > 0 ? 1 : -1, back, s: .92 });
   } else if (kind === 'moto') {
     wheel(-10, 6.5, spin); wheel(10, 6.5, spin + 1);
@@ -1004,7 +1050,7 @@ function rideArt0(g, sx, sy, dir, kind, t, moving, rider, lights) {
     const [nx, ny] = at(12, 24 - bob), [hx, hy] = at(16, 29 - bob); g.strokeStyle = body; g.lineWidth = 5; g.beginPath(); g.moveTo(...at(9, 20 - bob)); g.lineTo(nx, ny); g.stroke(); g.fillStyle = body; g.beginPath(); g.ellipse(hx, hy, 5, 3, Math.atan2(F[1] * .5, fx) + (fx > 0 ? .4 : -.4), 0, Math.PI * 2); g.fill(); g.stroke();
     g.fillStyle = dark; g.beginPath(); g.ellipse(nx - fx * 1.5, ny - 2, 2.2, 5, 0, 0, Math.PI * 2); g.fill();
     const [tx, ty] = at(-14, 18 - bob); g.strokeStyle = dark; g.lineWidth = 2.4; g.beginPath(); g.moveTo(tx, ty); g.quadraticCurveTo(tx - fx * 4, ty + 6, tx - fx * 2 + Math.sin(t / 300) * 1.5, ty + 11); g.stroke();
-    const [sx2, sy2] = at(-1, 23 - bob); g.fillStyle = '#1e3a8a'; g.fillRect(sx2 - 6, sy2 - 2, 12, 4); g.fillStyle = '#f5b800'; g.font = '700 3px system-ui'; g.textAlign = 'center'; g.fillText('POLICE', sx2, sy2 + 1);
+    const [sx2, sy2] = at(-1, 23 - bob); g.fillStyle = '#1e3a8a'; g.fillRect(sx2 - 6, sy2 - 2, 12, 4); g.fillStyle = '#f5b800'; g.font = '700 3px Meridian,system-ui'; g.textAlign = 'center'; g.fillText('POLICE', sx2, sy2 + 1);
     rider(sx, sy - 22 + bob, { moving: false, face: fx > 0 ? 1 : -1, back, s: .9 });
   }
 }

@@ -133,7 +133,7 @@ export function installRewards(H) {
     g.fillStyle = '#3f3a33'; g.fillRect(12, 20, 2.4, 19); g.fillRect(38, 20, 2.4, 19);
     g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 3; g.fillStyle = '#1f2937'; g.beginPath(); g.roundRect(2, 2, 48, 21, 3); g.fill(); g.shadowBlur = 0;
     g.strokeStyle = m.col; g.lineWidth = 1.2; g.beginPath(); g.roundRect(3.5, 3.5, 45, 18, 2); g.stroke();
-    g.textAlign = 'center'; g.fillStyle = m.col; g.font = '800 6.4px system-ui,sans-serif'; g.fillText(m.text, 26, 11.5, 42); g.fillStyle = '#e5e7eb'; g.font = '600 4.6px system-ui,sans-serif'; g.fillText(m.sub, 26, 18, 42);
+    g.textAlign = 'center'; g.fillStyle = m.col; g.font = '800 6.4px Meridian,system-ui,sans-serif'; g.fillText(m.text, 26, 11.5, 42); g.fillStyle = '#e5e7eb'; g.font = '600 4.6px Meridian,system-ui,sans-serif'; g.fillText(m.sub, 26, 18, 42);
     MSP[k] = c; return c; }
   let t = 0;
   function tick(dt) { t -= dt; if (t > 0) return; t = .25; overlookTick(); noteTick(); cacheTick(); }

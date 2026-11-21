@@ -86,7 +86,7 @@ export function installPremium(H) {
   let helpedV = 0;
   function helped(c) { if (!c.where || /^block |parking lot/.test(c.where)) return; helpedV++; S.helped[H.W().did + ':' + c.where] = Date.now(); const ks = Object.keys(S.helped); if (ks.length > 60) delete S.helped[ks.sort((a, b) => S.helped[a] - S.helped[b])[0]]; H.saveS(); }
   let SIGN = null;
-  function signSprite() { if (SIGN) return SIGN; const [c, g] = H.hiCanvas(34, 22, 2); g.fillStyle = '#fef3c7'; g.beginPath(); g.roundRect(2, 2, 30, 17, 3); g.fill(); g.strokeStyle = '#b45309'; g.lineWidth = 1; g.stroke(); g.fillStyle = '#b45309'; g.font = '800 6px system-ui,sans-serif'; g.textAlign = 'center'; g.fillText('THANK YOU', 17, 9.5); g.fillText('OFFICERS ♥', 17, 16); SIGN = c; return c; }
+  function signSprite() { if (SIGN) return SIGN; const [c, g] = H.hiCanvas(34, 22, 2); g.fillStyle = '#fef3c7'; g.beginPath(); g.roundRect(2, 2, 30, 17, 3); g.fill(); g.strokeStyle = '#b45309'; g.lineWidth = 1; g.stroke(); g.fillStyle = '#b45309'; g.font = '800 6px Meridian,system-ui,sans-serif'; g.textAlign = 'center'; g.fillText('THANK YOU', 17, 9.5); g.fillText('OFFICERS ♥', 17, 16); SIGN = c; return c; }
   // which lots have a sign is worked out every two seconds (and on a district change), not per lot per frame
   let signLots = [], signT = 0, signW = null, signN = -1;
   function drawSigns(list, vis, ctx) {
