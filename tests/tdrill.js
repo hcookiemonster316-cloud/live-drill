@@ -46,8 +46,14 @@ const OUT = process.argv[2] || 'tests/out';
     await a.evaluate(() => new Promise((done) => { const D = window.__pc.DRV; const tick = () => { const R = D.state; if (!R || R.paused) return requestAnimationFrame(tick); D.press({ gas: 1 }); if (R.t > 2.5) { D.press({ gas: 0 }); return done(); } requestAnimationFrame(tick); }; tick(); }));
     const st2 = await a.evaluate(() => { const R = window.__pc.DRV.state; return { s: R.at.s, high: R.high, lights: R.lights, actors: (R.actors || []).length }; }); await a.screenshot({ path: OUT + '/drill_' + id + '.png' }); console.log(id, JSON.stringify(st2));
     if (!(st2.s > 1)) fails.push(id + ' did not move'); if (id === 'night' && !st2.high) fails.push('high beams did not toggle'); if (id === 'emerg' && (!st2.lights || !st2.actors)) fails.push('lights or traffic missing on Code 3'); }
+  // the pursuit drill: it opens with lights on and a gap meter, a call-out cue arrives, and ending it by policy finishes the run
+  await a.evaluate(() => window.__pc.DRV.open('pursuit')); await a.waitForSelector('#drGo'); await a.click('#drGo');
+  const pu = await a.evaluate(() => new Promise((done) => { const D = window.__pc.DRV; let cued = false; const tick = () => { const R = D.state; if (!R) return done({ err: 'closed' }); if (R.done) return done({ end: R.pur.end, cued, cues: R.pur.cues, calls: R.pur.calls }); if (R.paused) { const d = document.querySelector('#drDec:not([hidden]) [data-k]'); if (d) [...document.querySelectorAll('#drDec [data-k]')].find((x) => /Terminate/.test(x.textContent)).click(); return requestAnimationFrame(tick); }
+      if (R.pur.cue) { cued = true; const i = R.pur.cue.opts.findIndex((o) => o[1]); document.querySelector('#drCue [data-c="' + i + '"]').click(); } D.press(R.pur.term ? { brk: 1 } : { gas: R.pur.gapS > 6 ? 1 : 0 }); requestAnimationFrame(tick); }; tick(); }));
+  console.log('pursuit', JSON.stringify(pu)); await a.screenshot({ path: OUT + '/drill_pursuit_result.png' });
+  if (pu.end !== 'term' || !pu.cued || pu.calls < 1) fails.push('pursuit drill: ' + JSON.stringify(pu));
   // leaving the course gives the city back
-  await a.click('#drX'); await a.waitForTimeout(300); const after = await a.evaluate(() => ({ open: !!document.getElementById('drill'), paused: window.__pc.dbg().paused, facts: Object.keys(window.__pc.S.facts || {}).length }));
+  await a.evaluate(() => document.getElementById('drX').click()); await a.waitForTimeout(300); const after = await a.evaluate(() => ({ open: !!document.getElementById('drill'), paused: window.__pc.dbg().paused, facts: Object.keys(window.__pc.S.facts || {}).length }));
   console.log('after', JSON.stringify(after));
   if (!/Gold|Silver|Bronze/.test(r1.head) && !/Gold|Silver|Bronze/.test(r2.head)) fails.push('no drill finished with a medal'); // a scripted driver on a loaded machine can miss one, never both
   if (after.open || after.paused) fails.push('course did not close cleanly');

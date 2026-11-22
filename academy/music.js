@@ -33,6 +33,7 @@ function sectionView(m, sec) { let c = VIEW.get(m); if (!c) { c = {}; VIEW.set(m
     else if (ty === 'hits') { v.band = { horns: B.horns || { v: .02 }, bass: bb ? { pat: 'whole', v: bb.v } : undefined }; v.drums = m.drums ? { pat: m.drums.pat, v: m.drums.v * .6 } : null; }
     else if (ty === 'motif') { v.band = { rhodes: { pat: 'ballad', v: ((B.rhodes || {}).v || .026) * .9 }, vamp: B.vamp }; v.drums = null; v.lead = Object.assign({}, m.lead || { voice: 'vibes', v: .03, oct: 12 }, { sparse: false }); const key = sec === 'intro' ? '_evIn' : '_evOut'; v.ev = m[key] || (m[key] = parseTheme(sec === 'intro' ? m.introTheme || MOTIF_IN : m.outroTheme || MOTIF_OUT)); } }
   if (sec === 'B') { v.prog = m.progB || m.prog; v.ev = m.themeB ? (m._evB || (m._evB = parseTheme(m.themeB))) : v.ev; if (m.leadB) v.lead = m.leadB; if (m.drumsB !== undefined) v.drums = m.drumsB; if (m.keysB) v.keys = m.keysB; }
+  if (sec === 'A' && m.themeA1) v.ev = m._evA1 || (m._evA1 = parseTheme(m.themeA1)); // a hint of the hook first; the full tune comes back in A2
   if (sec === 'A2') { v.counter = m.counter || null; if (m.strings2) v.strings = m.strings2; }
   return (c[sec] = v); }
 
@@ -74,8 +75,10 @@ export function createMusic(getCtx) {
   function buildBus(a) {
     master = a.createGain(); master.gain.value = vol;
     lowpass = a.createBiquadFilter(); lowpass.type = 'lowpass'; lowpass.frequency.value = 9000;
-    const cmp = a.createDynamicsCompressor(); cmp.threshold.value = -18; cmp.ratio.value = 3.5; cmp.attack.value = .012; cmp.release.value = .3;
-    master.connect(lowpass); lowpass.connect(cmp); cmp.connect(a.destination);
+    const cmp = a.createDynamicsCompressor(); cmp.threshold.value = -20; cmp.knee.value = 12; cmp.ratio.value = 2.5; cmp.attack.value = .02; cmp.release.value = .35;
+    // a warm master: a little body around 200 Hz and a softer top above 6 kHz, so long sessions stay easy on the ear
+    const warm = a.createBiquadFilter(), soft = a.createBiquadFilter(); warm.type = 'lowshelf'; warm.frequency.value = 200; warm.gain.value = 1.5; soft.type = 'highshelf'; soft.frequency.value = 6000; soft.gain.value = -3;
+    master.connect(lowpass); lowpass.connect(warm); warm.connect(soft); soft.connect(cmp); cmp.connect(a.destination);
     // reverb: a generated stereo hall tail
     const len = a.sampleRate * 2.6, ir = a.createBuffer(2, len, a.sampleRate);
     for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
@@ -121,13 +124,13 @@ export function createMusic(getCtx) {
       const o = osc('sawtooth', f), o2 = osc('sawtooth', f * 1.003); o.connect(bp); o2.connect(bp); oscs = [o, o2]; env(.002, v, Math.min(.3, dur + .04)); send(.15); }
     else if (kind === 'fbass') { const b = lp(700, 1.6); b.frequency.setValueAtTime(dur < .2 ? 1800 : 1200, t); b.frequency.exponentialRampToValueAtTime(320, t + .2); const o = osc('sine', f), o2 = osc('sawtooth', f), g2 = a.createGain(); g2.gain.value = .45; o.connect(b); o2.connect(g2); g2.connect(b); oscs = [o, o2]; env(.004, v, .14, .6); }
     else if (kind === 'horns') { // trumpet, tenor and trombone in unison and octave: a bright attack that settles, with a short fall-off
-      const b = lp(900, 1.4); b.frequency.setValueAtTime(700, t); b.frequency.linearRampToValueAtTime(3400, t + .03); b.frequency.setTargetAtTime(1600, t + .05, .15);
+      const b = lp(900, 1.4); b.frequency.setValueAtTime(700, t); b.frequency.linearRampToValueAtTime(2700, t + .035); b.frequency.setTargetAtTime(1400, t + .05, .16);
       [[1, -8], [1, 8], [.5, 0]].forEach(([k, d]) => { const o = osc('sawtooth', f * k, d); if (dur < .3) o.frequency.setTargetAtTime(f * k * .94, t + dur * .9, .05); o.connect(b); oscs.push(o); }); env(.018, v, .18, .75); send(.3); }
-    else if (kind === 'sax') { const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1150; bp.Q.value = 1.1; bp.connect(lp(2900));
+    else if (kind === 'sax') { const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1150; bp.Q.value = 1.1; bp.connect(lp(2500));
       const o = osc('sawtooth', f), vib = osc('sine', 5.3), vg = a.createGain(); vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(14, t + .35); vib.connect(vg); vg.connect(o.detune); o.connect(bp);
-      const br = a.createBufferSource(), bf = a.createBiquadFilter(), bg = a.createGain(); br.buffer = noiseBuf(a); bf.type = 'bandpass'; bf.frequency.value = f * 3; bf.Q.value = 2; bg.gain.value = .12; br.connect(bf); bf.connect(bg); bg.connect(bp); oscs = [o, vib, br]; env(.04, v, .25, .8); send(.32); send(.25, true); }
-    else if (kind === 'mute') { // trumpet with a harmon mute: thin, buzzy, cool
-      const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1900; bp.Q.value = 3.5; bp.connect(lp(4200)); const o = osc('square', f), o2 = osc('sawtooth', f, 5), vib = osc('sine', 5.6), vg = a.createGain(); vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(10, t + .3); vib.connect(vg); vg.connect(o.detune); o.connect(bp); o2.connect(bp); oscs = [o, o2, vib]; env(.025, v, .2, .78); send(.35); send(.3, true); }
+      const br = a.createBufferSource(), bf = a.createBiquadFilter(), bg = a.createGain(); br.buffer = noiseBuf(a); bf.type = 'bandpass'; bf.frequency.value = f * 3; bf.Q.value = 2; bg.gain.value = .07; br.connect(bf); bf.connect(bg); bg.connect(bp); oscs = [o, vib, br]; env(.04, v, .25, .8); send(.32); send(.25, true); }
+    else if (kind === 'mute') { // trumpet with a harmon mute: cool and close, rounded off so it never buzzes in the ear
+      const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 1.6; bp.connect(lp(3000)); const o = osc('triangle', f), o2 = osc('sawtooth', f, 4), vib = osc('sine', 5.6), vg = a.createGain(); vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(10, t + .3); vib.connect(vg); vg.connect(o.detune); o.connect(bp); o2.connect(bp); oscs = [o, o2, vib]; env(.025, v, .2, .78); send(.35); send(.3, true); }
     oscs.forEach((o) => { o.start(t); o.stop(endT + .1); });
     return { g, end: endT };
   }
@@ -138,7 +141,7 @@ export function createMusic(getCtx) {
     if (p) { p.pan.value = kind === 'hat' || kind === 'shaker' ? .25 : kind === 'tom' ? -.2 : 0; g.connect(p); p.connect(L.bus); } else g.connect(L.bus);
     if (kind === 'kick' || kind === 'tom') { const o = a.createOscillator(); o.frequency.setValueAtTime(kind === 'kick' ? 95 : 170, t); o.frequency.exponentialRampToValueAtTime(kind === 'kick' ? 44 : 95, t + .18); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v * (kind === 'kick' ? .3 : .16), t + .008); g.gain.exponentialRampToValueAtTime(.0001, t + .36); o.connect(g); o.start(t); o.stop(t + .4); return; }
     const src = a.createBufferSource(), f = a.createBiquadFilter(); src.buffer = noiseBuf(a); src.connect(f); f.connect(g);
-    const peak = { snare: .09, brush: .045, hat: .03, open: .025, shaker: .022, rim: .05, ride: .022, clap: .07 }[kind] * v, att = { snare: .006, brush: .02, hat: .003, open: .004, shaker: .012, rim: .002, ride: .002, clap: .004 }[kind], rel = { snare: .17, brush: .22, hat: .045, open: .22, shaker: .07, rim: .03, ride: .55, clap: .12 }[kind];
+    const peak = { snare: .09, brush: .045, hat: .021, open: .017, shaker: .016, rim: .04, ride: .016, clap: .06 }[kind] * v /* cymbals kept gentle: the top end should never tire the ear */, att = { snare: .006, brush: .02, hat: .003, open: .004, shaker: .012, rim: .002, ride: .002, clap: .004 }[kind], rel = { snare: .17, brush: .22, hat: .045, open: .22, shaker: .07, rim: .03, ride: .55, clap: .12 }[kind];
     f.type = kind === 'hat' || kind === 'open' || kind === 'ride' ? 'highpass' : 'bandpass'; f.frequency.value = { snare: 1900, brush: 2600, hat: 8200, open: 7600, shaker: 6200, rim: 2400, ride: 5200, clap: 1300 }[kind]; f.Q.value = kind === 'rim' ? 6 : .8;
     g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(.0002, peak), t + att); g.gain.exponentialRampToValueAtTime(.0001, t + att + rel);
     src.start(t, Math.random() * .5); src.stop(t + att + rel + .05);
@@ -210,7 +213,7 @@ export function createMusic(getCtx) {
     // the theme, on the lead instrument
     if (m.lead && (m0.form || (bar % 16) >= m.lead.from)) { const b8 = (rb % 8) * 4 + beat, ev = m.ev || THEME_EV; ev.forEach((e) => { if (e.b >= b8 - 1e-4 && e.b < b8 + .25 - 1e-4 && (!m.lead.sparse || e.l >= 2 || ((bar * 7 + Math.round(e.b * 12) * 13) % 3) > 0)) { const nx = ev[ev.indexOf(e) + 1], room = nx && nx.b > e.b ? nx.b - e.b : e.l, nd = spb * 4 * Math.min(e.l, room) * (e.l < .5 ? .88 : .94), tn = tStraight + (e.b - b8) * 4 * spb; /* the melody is one voice: it plays straight (triplets and dotted notes as written, not swung), each note ends before the next one starts */
           if (L.lastLead && L.lastLead.end > tn) { try { const lg = L.lastLead.g.gain; lg.cancelScheduledValues(tn); lg.setTargetAtTime(.0001, tn - .004, .012); } catch (er) {} } /* cut the last note's tail as the next one speaks, so nothing smears */
-          L.route = 'lead'; L.lastLead = voice(L, m.lead.voice, noteOf(m, e.d, m.lead.oct) + (e.acc || 0), tn, nd, m.lead.v, .05); L.route = 'band'; if (m.counter) voice(L, m.counter.voice, noteOf(m, e.d - 2, m.counter.oct || 0), tn, nd, m.counter.v * .85, -.3); L.route = null; if (L.bandBus) { const gb = L.bandBus.gain; gb.setTargetAtTime(BANDX * DUCK, tn, .025); gb.setTargetAtTime(BANDX, tn + Math.max(.08, nd * .85), .18); } } }); }
+          L.route = 'lead'; L.lastLead = voice(L, m.lead.voice, noteOf(m, e.d, m.lead.oct) + (e.acc || 0), tn, nd, m.lead.v, .05); L.route = 'band'; if (m.counter) { const ln = noteOf(m, e.d, m.counter.oct || 0) + (e.acc || 0); let best = -1; for (const c0 of ch) for (let o = -24; o <= 12; o += 12) { const c1 = c0 + o; if (c1 <= ln - 3 && c1 > best) best = c1; } if (best < 0) best = ln - 4; voice(L, m.counter.voice, best, tn, nd, m.counter.v * .85, -.3); } /* the harmony line always lands on a chord tone */ L.route = null; if (L.bandBus) { const gb = L.bandBus.gain; gb.setTargetAtTime(BANDX * DUCK, tn, .025); gb.setTargetAtTime(BANDX, tn + Math.max(.08, nd * .85), .18); } } }); }
     // drums, with a fill on the last bar of every eight
     if (m.drums) { const pat = DRUMS[m.drums.pat], hit = pat[s], dv = m.drums.v, swing = (m.drums.pat === 'brush' || m.drums.pat === 'shuffle') && s % 2 ? spb * .28 : 0;
       if (bar % 8 === 7 && s >= 12 && (m.drums.pat === 'drive' || m.drums.pat === 'pop' || m.drums.pat === 'pulse' || m.drums.pat === 'march' || m.drums.pat === 'half')) drum(L, s % 2 ? 'snare' : 'tom', t, dv * .8);
