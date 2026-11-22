@@ -126,5 +126,11 @@ export const META = {}; for (const k in TRACKS) META[k] = { name: TRACKS[k].name
 // which tracks play for each situation, in rotation
 export const ROTATION = {};
 for (const k in BASE) ROTATION[k] = Object.keys(TRACKS).filter((t) => t.indexOf(k + '_') === 0);
+// what each situation can play: its own arrangements first, plus related ones that fit the same feeling, so a long patrol
+// hears a wide rotation instead of two tracks back and forth (each kept to its mood: no pursuit music on a quiet street)
+const KIN = { title: ['day_1', 'night_1'], day: ['side_1', 'friend_2', 'debrief_2', 'title_1'], night: ['water_2', 'title_2', 'story_1'], inside: ['friend_1', 'debrief_1'],
+  story: ['night_1', 'inside_2'], side: ['day_2', 'friend_2', 'day_1'], call: ['urgent_1'], urgent: ['call_1'], scene: ['inside_2'], debrief: ['title_2', 'friend_1'],
+  friend: ['day_2', 'water_1', 'debrief_2'], water: ['friend_1', 'night_2', 'day_2'] };
+export const POOLS = {}; for (const k in ROTATION) POOLS[k] = ROTATION[k].concat((KIN[k] || []).filter((id) => TRACKS[id] && ROTATION[k].indexOf(id) < 0));
 // how long each composed track runs before the next one: 32 bars, plus a short reverb tail
 export const trackLen = (m) => 32 * 4 * 60 / m.bpm;

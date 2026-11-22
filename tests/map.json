@@ -104,7 +104,11 @@
    "tdecor"
   ],
   "score.js": [
+   "t77",
    "tmood"
+  ],
+  "scoredata.js": [
+   "t77"
   ],
   "shiftarc.js": [
    "tarc"

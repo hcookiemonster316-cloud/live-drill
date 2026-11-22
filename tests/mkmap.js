@@ -14,7 +14,7 @@ const EXTRA = {
   't91': ['decide.js', 'vodata.js'], 't93': ['decide.js', 'ch5data.js'], 'tvo': ['vodata.js', 'learn.js'], 'tsq': ['together.js', 'learn.js'],
   'tpart': ['partners.js', 'variety.js'], 'tmood': ['mood.js', 'music.js', 'score.js'], 'tdecor': ['rewards.js', 'interiors.js'], 'tbike': ['world.js'],
   'thands': ['handson.js'], 'treport': ['handson.js', 'polish.js'], 'techo': ['echoes.js'], 'tways': ['ways.js', 'sidequests.js'], 'tspecial': ['special.js'],
-  'tarc': ['shiftarc.js'], 'tready': ['path.js', 'learn.js'], 'tunlock': ['vodata.js', 'learn.js'], 'tdrill': ['drills.js', 'world.js', 'feel.js']
+  'tarc': ['shiftarc.js'], 'tready': ['path.js', 'learn.js'], 'tunlock': ['vodata.js', 'learn.js'], 'tdrill': ['drills.js', 'world.js', 'feel.js'], 't77': ['score.js', 'scoredata.js']
 };
 const files = fs.readdirSync(__dirname).filter((f) => /^t[0-9a-z]+\.js$/.test(f) && f !== 'mkmap.js');
 const map = {};

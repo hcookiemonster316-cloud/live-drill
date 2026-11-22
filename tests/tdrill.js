@@ -27,6 +27,7 @@ const OUT = process.argv[2] || 'tests/out';
         if (s >= 19.3) k.gas = s > 20 + Math.PI * 2.5 - .6 ? 1 : mph < 20 ? 1 : 0; }
       D.press(k); requestAnimationFrame(tick); }; requestAnimationFrame(tick); }), mode);
 
+  const fails = [];
   // 1) threshold stop: build to 35, brake hard at the light and steer into the open lane, hold the pedal
   await a.click('[data-drill="brake"]'); await a.waitForSelector('#drGo'); await a.screenshot({ path: OUT + '/drill_brake_brief.png' }); await a.click('#drGo');
   await autopilot('brake'); const r1 = await result('brake');
@@ -40,10 +41,14 @@ const OUT = process.argv[2] || 'tests/out';
   await a.evaluate(() => window.__pc.DRV.open('back')); await a.waitForSelector('#drGo'); await a.click('#drGo'); await a.evaluate(() => new Promise((done) => { const D = window.__pc.DRV; const tick = () => { const R = D.state; if (!R || R.paused) return requestAnimationFrame(tick); D.press({ gas: R.t < 1.6 ? 1 : 0 }); if (R.t > 1.8) { D.press({ gas: 0 }); return done(); } requestAnimationFrame(tick); }; tick(); })); await a.screenshot({ path: OUT + '/drill_back.png' }); /* by game time, so a slow machine still backs up */
   const back = await st(); console.log('backing moved', back.s.toFixed(2), 'mph', back.mph.toFixed(1));
 
+  // the night road and Code 3: they load, draw their road, darkness and other cars, and the toggles work
+  for (const id of ['night', 'emerg']) { await a.evaluate((id) => window.__pc.DRV.open(id), id); await a.waitForSelector('#drGo'); await a.click('#drGo'); await a.keyboard.press(id === 'night' ? 'h' : 'l');
+    await a.evaluate(() => new Promise((done) => { const D = window.__pc.DRV; const tick = () => { const R = D.state; if (!R || R.paused) return requestAnimationFrame(tick); D.press({ gas: 1 }); if (R.t > 2.5) { D.press({ gas: 0 }); return done(); } requestAnimationFrame(tick); }; tick(); }));
+    const st2 = await a.evaluate(() => { const R = window.__pc.DRV.state; return { s: R.at.s, high: R.high, lights: R.lights, actors: (R.actors || []).length }; }); await a.screenshot({ path: OUT + '/drill_' + id + '.png' }); console.log(id, JSON.stringify(st2));
+    if (!(st2.s > 1)) fails.push(id + ' did not move'); if (id === 'night' && !st2.high) fails.push('high beams did not toggle'); if (id === 'emerg' && (!st2.lights || !st2.actors)) fails.push('lights or traffic missing on Code 3'); }
   // leaving the course gives the city back
   await a.click('#drX'); await a.waitForTimeout(300); const after = await a.evaluate(() => ({ open: !!document.getElementById('drill'), paused: window.__pc.dbg().paused, facts: Object.keys(window.__pc.S.facts || {}).length }));
   console.log('after', JSON.stringify(after));
-  const fails = [];
   if (!/Gold|Silver|Bronze/.test(r1.head) && !/Gold|Silver|Bronze/.test(r2.head)) fails.push('no drill finished with a medal'); // a scripted driver on a loaded machine can miss one, never both
   if (after.open || after.paused) fails.push('course did not close cleanly');
   if (!(back.s > .3)) fails.push('backing did not move along the course');
