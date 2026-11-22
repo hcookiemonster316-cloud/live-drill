@@ -1,3 +1,4 @@
+import { MORE } from './voacts.js'; // more scene decisions, so most of the chapter can be met as a decision
 // Vehicle Operations (FBRTP High Liability, Chapter 1): the chapter Patrol City teaches now.
 // Lesson numbers are positions in vo.json's lessons list:
 // 0 = 1.1 Vehicle Inspection · 1 = 2.1 Hazard Detection · 2 = 2.2 Road and Weather · 3 = 2.3 Proactive Measures
@@ -178,6 +179,7 @@ export const ACTS = [
   [11, 'Setting up a roadblock for the pursuit.', 'Where both directions can see it clearly', ['Just over the hill so he can\'t turn off', 'Right around the curve to surprise him', 'Inside the intersection to stop all cars'], /good roadblock site can be seen clearly from both directions/i,
     'He sees it from far off and stops.', 'He crests the hill with no time to stop.']
 ];
+ACTS.push(...MORE);
 
 // what dispatch sends you to on the last shift (the final exam), by the lesson of each stage's first question
 export const CALLFOR = [

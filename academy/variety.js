@@ -293,13 +293,17 @@ export function installVariety(H) {
     "Things are getting heated at a civil standby.": ["Apart, they both calm down, and the exchange finishes without a scene.", "It turns into a shoving match while you're standing right there."],
     "A loose dog is growling at you from a yard.": ["Animal control has it on a catchpole in fifteen minutes.", "It lunges as you step toward the gate."]
   };
-  function decisionQ(les, avoid) { const d = DALL().filter((x) => x[0] === les && !(avoid && avoid.has(x[1]))); if (!d.length) return null; const X = pick('dec_' + les, d);
+  // a decision for this lesson; given a fact's text, one that tests that very fact when there is one (so dispatch's
+  // aim at your weakest facts survives the swap from quiz to decision)
+  const DEC_BY = new Map();
+  function decisionsFor(txt) { if (!txt) return []; let l = DEC_BY.get(txt); if (!l) { l = DALL().filter((x) => x[4].test(txt)); DEC_BY.set(txt, l); } return l; }
+  function decisionQ(les, avoid, txt) { const own = decisionsFor(txt).filter((x) => !(avoid && avoid.has(x[1]))); const d = own.length ? own : DALL().filter((x) => x[0] === les && !(avoid && avoid.has(x[1]))); if (!d.length) return null; const X = own.length ? own[Math.random() * own.length | 0] : pick('dec_' + les, d);
     const o = OUT[X[1]] || []; return mkQ(les, X[1], X[2], X[3], X[4], 'dec', [X[5] || o[0] || null, X[6] || o[1] || null]); }
   // most fact checks become decisions in the moment: each question in a set is swapped, about two times in three, for a
   // decision from the same lesson (never the same decision or the same fact twice in one set). Exams stay straight tests.
   function actify(qs, share) {
     if (!qs || !qs.length) return qs; const seen = new Set(), fids = new Set(qs.map((q) => q && q.fid)), sh = share == null ? .67 : share;
-    return qs.map((q) => { if (!q || q.act || Math.random() > sh) return q; const d = decisionQ(q.les, seen); if (!d || (d.fid && fids.has(d.fid) && d.fid !== q.fid)) return q; seen.add(d.stem); fids.add(d.fid); return d; });
+    return qs.map((q) => { if (!q || q.act) return q; const own = decisionsFor(factText(q.fid)).length > 0; if (Math.random() > (own ? Math.max(sh, .85) : sh)) return q; const d = decisionQ(q.les, seen, factText(q.fid)); if (!d || (d.fid && fids.has(d.fid) && d.fid !== q.fid)) return q; seen.add(d.stem); fids.add(d.fid); return d; });
   }
   const PHON = { A: 'Alpha', B: 'Bravo', C: 'Charlie', D: 'Delta', E: 'Echo', F: 'Foxtrot', G: 'Golf', H: 'Hotel', I: 'India', J: 'Juliet', K: 'Kilo', L: 'Lima', M: 'Mike', N: 'November', O: 'Oscar', P: 'Papa', Q: 'Quebec', R: 'Romeo', S: 'Sierra', T: 'Tango', U: 'Uniform', V: 'Victor', W: 'Whiskey', X: 'X-ray', Y: 'Yankee', Z: 'Zulu' };
   const NUMW = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];

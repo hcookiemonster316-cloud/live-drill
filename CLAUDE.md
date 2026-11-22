@@ -1,6 +1,7 @@
 # Patrol City (academy/) — working rules
 
 Standing rules from the owner:
+- **Fun comes first.** The game has to be very fun and hold players' attention (owner's call, 2026-11-22). Judge every feature by that: learning should be play, not interrupt it, and a feature that teaches but bores gets reworked or cut.
 - **Every feature ships with an optimization pass.** New features must leave the game at least as fast as before: measure before/after, and pair each feature with a speed-up (cache it, draw it once, move it off the main thread, or do it less often). Never trade visual quality for speed.
 - **Don't break the game.** Before pushing: syntax-check every touched module with `node --input-type=module --check < file.js` (plain `node --check` misses errors here), run `tests/run.sh changed` (only the tests that exercise what changed; core files add the quick set), and look at screenshots of anything visual. If it passes, push live. The full regression suite then runs on GitHub (`.github/workflows/regression.yml`, 8 machines, about 5 minutes); check its result and fix anything it finds (owner's call, 2026-11-21, replacing the local full run).
 - PvP and co-op are training scenarios with sim rounds only, never live fire. Don't reward bad habits or illegal activity; pursuits, arrests and use of force follow policy (reward terminating risky pursuits, safe distance, radio discipline, de-escalation).
