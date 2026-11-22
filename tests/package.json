@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "description": "Patrol City regression tests (tests/run.sh). Installed by .github/workflows/regression.yml.",
+  "dependencies": { "playwright": "^1.49.0" }
+}

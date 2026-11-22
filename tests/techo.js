@@ -1,0 +1,24 @@
+// echoes: three road hazards drawn in the world, coned once reported, fixed after the repair time, kept across a reload
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const a = await b.newPage({ viewport: { width: 900, height: 700 } }); const errs = []; a.on('pageerror', (e) => errs.push(e.message + ' ' + (e.stack || '').split('\n')[1]));
+  await a.goto('http://localhost:8765/academy/?mock&skiptitle');
+  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ ch: 'vo', cs: '1-Adam-12', home: 0, unlocked: [0], shift: 'night', unit: 'patrol', sound: false, seenIntro: 1, seenCine: 1, tutDone: 1, cfg: { autoQ: false } })));
+  await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.click('#mDone').catch(() => {}); await a.waitForFunction(() => window.__pc && window.__pc.W, null, { timeout: 20000 }); await a.waitForTimeout(5000); await a.mouse.click(450, 350); await a.waitForTimeout(1200);
+  const close = () => a.evaluate(() => { document.querySelectorAll('#modal:not([hidden]) #mClose,#modal:not([hidden]) #mDone').forEach((x) => x.click()); [...document.querySelectorAll('button')].filter((x) => /back to patrol|keep patrolling/i.test(x.innerText) && x.offsetParent).forEach((x) => x.click()); document.querySelectorAll('.tCard').forEach((x) => x.click()); });
+  await close();
+  await a.evaluate(() => { const pc = window.__pc, P = pc.P, obs = pc.observes; obs.length = 0;
+    const W = pc.W; const road = (x, y) => { for (let r = 1; r < 9; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (W.at(x + dx, y + dy) === 1) return [x + dx + .5, y + dy + .5]; return [x + 1.5, y + .5]; };
+    const r0 = road(Math.floor(P.x) + 1, Math.floor(P.y)); obs.push({ x: r0[0], y: r0[1], les: 2, text: 'A pothole has opened up in the right lane', kind: 'door', fix: 'pothole', seen: true });
+    obs.push({ x: P.x - 1.5, y: P.y + 1, les: 9, text: 'A streetlight is out over the crosswalk', kind: 'door', fix: 'light', seen: true });
+    obs.push({ x: P.x + .5, y: P.y + 2.2, les: 3, text: 'A stop sign is knocked flat at the corner', kind: 'door', fix: 'sign', seen: true }); });
+  await a.waitForTimeout(700); await close(); await a.evaluate(() => { const pc = window.__pc; if (pc.cam) pc.cam.z = 3.2; }); await a.waitForTimeout(400); await a.screenshot({ path: 'techo_0.png', clip: { x: 250, y: 200, width: 400, height: 300 } });
+  await a.evaluate(() => { const pc = window.__pc; pc.observes.slice().forEach((o) => pc.ECHO.report(o)); pc.observes.length = 0; });
+  await a.waitForTimeout(2500); await close(); await a.evaluate(() => { const pc = window.__pc; if (pc.cam) pc.cam.z = 3.2; }); await a.waitForTimeout(400); await a.screenshot({ path: 'techo_1.png', clip: { x: 250, y: 200, width: 400, height: 300 } });
+  console.log('reported:', await a.evaluate(() => JSON.stringify(window.__pc.ECHO.fixes.map((f) => [f.k, !!f.done, f.where]))), '|', await a.evaluate(() => (document.getElementById('radio') || {}).innerText.replace(/\s+/g, ' ').slice(-120)));
+  await a.evaluate(() => { window.__pc.ECHO.fixes.forEach((f) => { f.t = 299; }); });
+  await a.waitForTimeout(2600); await close();
+  console.log('fixed:', await a.evaluate(() => JSON.stringify(window.__pc.ECHO.fixes.map((f) => [f.k, !!f.done]))), '|', await a.evaluate(() => (document.getElementById('radio') || {}).innerText.replace(/\s+/g, ' ').slice(-140)));
+  await a.waitForTimeout(800); await close(); await a.evaluate(() => { const pc = window.__pc; if (pc.cam) pc.cam.z = 3.2; }); await a.waitForTimeout(400); await a.screenshot({ path: 'techo_2.png', clip: { x: 250, y: 200, width: 400, height: 300 } });
+  await a.evaluate(() => window.__pc.saveS && window.__pc.saveS()); await a.waitForTimeout(500);
+  console.log('saved:', await a.evaluate(() => (JSON.parse(localStorage.getItem('patrolcity:v1')).fixes || []).length));
+  console.log(errs.length ? errs.slice(0, 3) : 'no errors'); await b.close(); })();

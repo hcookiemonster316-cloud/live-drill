@@ -1,0 +1,141 @@
+{
+ "note": "Built by tests/mkmap.js. Module -> regression tests that exercise it. Core files (see run.sh) always add the quick set.",
+ "map": {
+  "calendar.js": [
+   "t97"
+  ],
+  "ch5data.js": [
+   "t93"
+  ],
+  "city.js": [
+   "t70"
+  ],
+  "coop.js": [
+   "t65"
+  ],
+  "decide.js": [
+   "t91",
+   "t93"
+  ],
+  "deesc.js": [
+   "t81"
+  ],
+  "echoes.js": [
+   "tdecor",
+   "techo"
+  ],
+  "epic.js": [
+   "t51",
+   "t60"
+  ],
+  "finale.js": [
+   "t95",
+   "t98"
+  ],
+  "groups.js": [
+   "t98"
+  ],
+  "handson.js": [
+   "thands",
+   "treport"
+  ],
+  "interiors.js": [
+   "tdecor"
+  ],
+  "learn.js": [
+   "tready",
+   "tsq",
+   "tunlock",
+   "tvo"
+  ],
+  "learnflow.js": [
+   "t87",
+   "t88"
+  ],
+  "lives.js": [
+   "t82"
+  ],
+  "memory.js": [
+   "t94",
+   "t95",
+   "t98",
+   "tarc"
+  ],
+  "mood.js": [
+   "tmood"
+  ],
+  "music.js": [
+   "tmood"
+  ],
+  "pacing.js": [
+   "t101"
+  ],
+  "partners.js": [
+   "tpart"
+  ],
+  "path.js": [
+   "t101",
+   "t99",
+   "tready"
+  ],
+  "patrolops.js": [
+   "t85"
+  ],
+  "polish.js": [
+   "t79",
+   "treport"
+  ],
+  "premium.js": [
+   "t63",
+   "t73"
+  ],
+  "rewards.js": [
+   "t68",
+   "t70",
+   "t74",
+   "t75",
+   "t76",
+   "tdecor"
+  ],
+  "score.js": [
+   "tmood"
+  ],
+  "shiftarc.js": [
+   "tarc"
+  ],
+  "sidequests.js": [
+   "tways"
+  ],
+  "special.js": [
+   "tspecial"
+  ],
+  "subjects.js": [
+   "t96"
+  ],
+  "together.js": [
+   "tsq"
+  ],
+  "variety.js": [
+   "t89",
+   "t90",
+   "t91",
+   "t93",
+   "t96",
+   "tarc",
+   "tpart",
+   "tvo",
+   "tways"
+  ],
+  "vodata.js": [
+   "t91",
+   "tunlock",
+   "tvo"
+  ],
+  "ways.js": [
+   "tways"
+  ],
+  "world.js": [
+   "tbike"
+  ]
+ }
+}

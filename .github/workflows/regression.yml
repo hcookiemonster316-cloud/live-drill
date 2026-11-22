@@ -1,0 +1,49 @@
+# Runs the full regression suite on every push to main, split across 8 machines at once (about 5 minutes instead of
+# 25 on one machine). Each machine runs its share with tests/run.sh; a failing shard uploads its screenshots and log.
+name: Regression tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'academy/**'
+      - 'tests/**'
+      - 'vo.json'
+      - '.github/workflows/regression.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright and Chromium
+        working-directory: tests
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Run shard ${{ matrix.shard }} of 8
+        env:
+          SHARD: ${{ matrix.shard }}/8
+          JOBS: 2
+          FAST: 1 # full-length pauses here: 8 machines make up the time, and nothing flakes on a short wait
+        run: tests/run.sh full
+      - name: Keep screenshots and the log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shard-${{ matrix.shard }}
+          path: tests/out/
+          retention-days: 7

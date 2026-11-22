@@ -30,22 +30,36 @@ export function installFinale(H) {
     ['castillo', 'Here\'s how tonight works. Every call is a stage, three questions each. That\'s every fact in the chapter, all ' + N + ', across ' + n + ' calls. You need eighty-five percent to graduate. You can step away between calls whenever you need to. Your spot and your score save.'],
     ['castillo', 'And cadet? The people out there know it\'s your last night. You\'ll see.'],
     ['choice', [{ t: 'Let\'s roll.', reply: [] }, { t: 'Give me a second.', reply: [['castillo', 'Take two. Then we roll.']] }], 'Last shift']];
-  // the ending: the score decides whether you graduate, the people you helped decide what that looks like
-  function ending(r) {
-    const pct = Math.round(r.right / Math.max(1, r.n) * 100), pass = r.right / Math.max(1, r.n) >= .85, h = helpers(), tier = h.length >= 8 ? 'city' : h.length >= 3 ? 'block' : 'quiet';
-    S.ending = { pass, tier, pct, helped: h.length, at: Date.now() };
-    const T = {
-      city: pass ? ['THE CITY SHOWS UP', 'Graduation day, and the bleachers are full.', 'You passed with ' + pct + '%. When they call your name, the people you helped are on their feet. That\'s the part nobody can study for.']
-        : ['NOT YET · BUT THEY CAME ANYWAY', pct + '%. Not this time.', 'You need 85%. The people you helped still showed up at HQ to tell you to try again. They know who you are already.'],
-      block: pass ? ['GRADUATED', 'Graduation day. A few familiar faces in the crowd.', 'You passed with ' + pct + '%. The people you helped are there, cheering a little too loudly. Keep building that.']
-        : ['NOT YET', pct + '%. Not this time.', 'You need 85%. A few people you helped sent messages anyway. Review your weakest facts and come back.'],
-      quiet: pass ? ['GRADUATED · BY THE BOOK', 'Graduation day. A quiet ceremony.', 'You passed with ' + pct + '%. You know the chapter. The city doesn\'t know you yet. That part of the job starts on your first real shift.']
-        : ['NOT YET', pct + '%. Not this time.', 'You need 85%. Run the fact drills in any district, help the people on your beat, and come back.']
-    }[tier];
-    const who = h.slice(0, 8).map((p) => '<li class="memRow good"><i>' + p.icon + '</i><span><b>' + H.esc(p.name) + '</b> · ' + H.esc(p.why) + '</span></li>').join('');
-    return { pass, pct, tier, html: '<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + T[0] + '</b><h2>' + H.esc(T[1]) + '</h2><p>' + H.esc(T[2]) + '</p></div>' +
-      '<div class="finRow"><div><b>' + r.right + ' of ' + r.n + '</b><small>What you learned</small></div><div><b>' + h.length + '</b><small>People you helped</small></div></div>' +
-      (who ? '<p class="finLbl">' + (pass ? 'Who came to your graduation' : 'Who came by anyway') + '</p><ul class="memList">' + who + '</ul>' : '<p class="finLbl">Nobody you helped on patrol is there yet. Calls, promises and friendships on your beat change that.</p>') };
+  // how you worked: clean pursuit endings, talk-downs, by-the-book arrests and reports, good co-op calls against the
+  // pursuits you kept going, the talk-downs that went wrong and the co-op calls you ran badly
+  function conduct() {
+    const t = S.stat || {}, good = (t.pursuitSafe || 0) + (t.deescWin || 0) + (t.arrestClean || 0) + (t.reportPerfect || 0) + (t.coopGood || 0);
+    const bad = Math.max(0, (t.pursuits || 0) - (t.pursuitSafe || 0)) + Math.max(0, (t.deesc || 0) - (t.deescWin || 0)) + Math.max(0, (t.coop || 0) - (t.coopGood || 0));
+    return { good, bad, clean: bad * 2 <= good };
   }
-  return { kick, beat, intro, ending, helpers, clock };
+  // the ending: the score decides whether you graduate; the people you helped (trust) and how you worked (conduct)
+  // decide which of four graduations you get
+  const ENDS = {
+    asked: ['THE OFFICER THEY ASKED FOR', 'Graduation day, and the bleachers are full.', 'You passed with {pct}%. When they call your name, the people you helped are on their feet, and two community groups have already asked the chief for you on their beat. Castillo shakes your hand: "Clean work and a city that trusts you. That\'s the whole job. Most people take ten years."'],
+    liked: ['LIKED, AND STILL LEARNING', 'Graduation day. Your people are in the crowd.', 'You passed with {pct}%. The people you helped cheer loudest of anyone. Castillo hands you your certificate and a folder: "They love you out there. Now let\'s make sure the paperwork, the pursuits and the talk-downs match the person they think you are." You start with an extra month riding with an FTO.'],
+    book: ['BY THE BOOK', 'Graduation day. A quiet ceremony.', 'You passed with {pct}%. Your record is spotless: clean endings, clean arrests, reports that match the video. The city doesn\'t know you yet. Castillo: "You do everything right. Now go let them see it. Get out of the car and learn some names."'],
+    second: ['A SECOND LOOK', 'Graduation day. You walk the stage.', 'You passed with {pct}%. You know the chapter, but your calls tell a different story: pursuits that ran too long, talk-downs that went wrong. Castillo signs you off to an extended field training program. "Knowing it isn\'t doing it. You\'ll get there. I\'ll be in the passenger seat."']
+  };
+  const FAIL = {
+    city: ['NOT YET · BUT THEY CAME ANYWAY', '{pct}%. Not this time.', 'You need 85%. The people you helped still showed up at HQ to tell you to try again. They know who you are already.'],
+    block: ['NOT YET', '{pct}%. Not this time.', 'You need 85%. A few people you helped sent messages anyway. Review your weakest facts and come back.'],
+    quiet: ['NOT YET', '{pct}%. Not this time.', 'You need 85%. Run the fact drills in any district, help the people on your beat, and come back.']
+  };
+  function ending(r) {
+    const pct = Math.round(r.right / Math.max(1, r.n) * 100), pass = r.right / Math.max(1, r.n) >= .85, h = helpers(), tier = h.length >= 8 ? 'city' : h.length >= 3 ? 'block' : 'quiet', cd = conduct();
+    const key = !pass ? null : tier !== 'quiet' ? (cd.clean ? 'asked' : 'liked') : (cd.clean ? 'book' : 'second');
+    S.ending = { pass, tier, pct, helped: h.length, conduct: cd, k: key, at: Date.now() }; if (key) { S.endingsSeen = S.endingsSeen || {}; S.endingsSeen[key] = 1; }
+    const T = (key ? ENDS[key] : FAIL[tier]).map((x) => x.replace('{pct}', pct)), seen = Object.keys(S.endingsSeen || {}).length;
+    const who = h.slice(0, 8).map((p) => '<li class="memRow good"><i>' + p.icon + '</i><span><b>' + H.esc(p.name) + '</b> · ' + H.esc(p.why) + '</span></li>').join('');
+    return { pass, pct, tier, key, html: '<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + T[0] + '</b><h2>' + H.esc(T[1]) + '</h2><p>' + H.esc(T[2]) + '</p></div>' +
+      '<div class="finRow"><div><b>' + r.right + ' of ' + r.n + '</b><small>What you learned</small></div><div><b>' + h.length + '</b><small>People you helped</small></div><div><b>' + cd.good + ' / ' + cd.bad + '</b><small>Calls by the book / to talk about</small></div></div>' +
+      (who ? '<p class="finLbl">' + (pass ? 'Who came to your graduation' : 'Who came by anyway') + '</p><ul class="memList">' + who + '</ul>' : '<p class="finLbl">Nobody you helped on patrol is there yet. Calls, promises and friendships on your beat change that.</p>') +
+      (pass ? '<p class="finLbl">Graduation endings found: ' + seen + ' of 4. Trust and how you work decide which one you get.</p>' : '') };
+  }
+  return { kick, beat, intro, ending, helpers, clock, conduct };
 }

@@ -23,25 +23,33 @@ export function installEpic(H) {
     el.onclick = close;
   }
 
-  // ================= 1. opening cinematic =================
+  // ================= 1. the opening image (Phase 4, item 14) =================
+  // One shot, no cuts: dawn over Port Meridian, the camera high above your officer outside Patrol HQ, cranes down and
+  // pushes in while day shift comes on the air, and lands exactly on the play camera. The city keeps moving the whole
+  // time. Any key, tap or click hands you control on the spot; the shot never cuts away and never comes back.
   let cine = null;
   function intro() {
     const W = H.W; if (!W || W.did !== 0) { S.seenCine = 1; return; }
-    const names = ['Bayfront Tower', 'Night Owl Diner', 'Founders Park', 'Central Library'], pts = names.map((n) => W.lots.find((l) => (l.name || '').indexOf(n) >= 0)).filter(Boolean).map((l) => H.iso(l.door[0], l.door[1]));
-    const P = H.P, pz = H.iso(P.x, P.y); pts.push(pz); if (pts.length < 3) { S.seenCine = 1; return; }
-    busy = true; H.pause(true); const cam = H.cam, z0 = cam.z; cam.free = true;
-    const el = document.createElement('div'); el.className = 'introCine'; el.innerHTML = '<div class="tcBar t"></div><div class="tcBar b"></div><div class="icRadio"></div><div class="icTitle"><small>PORT MERIDIAN, FLORIDA · 0600 HOURS</small><h1>PATROL CITY</h1><p>Every call is a lesson.</p></div><button type="button" class="icSkip">Skip ▸</button>';
+    const P = H.P, pz = H.iso(P.x, P.y), cam = H.cam, z0 = cam.z;
+    busy = true; cam.free = true;
+    const el = document.createElement('div'); el.className = 'introCine'; el.innerHTML = '<div class="tcBar t"></div><div class="tcBar b"></div><div class="icRadio"></div><div class="icTitle"><small>PORT MERIDIAN, FLORIDA · 0600 HOURS</small><h1>PATROL CITY</h1><p>Every call is a lesson.</p></div><div class="icHint">Move or tap to take the wheel</div>';
     document.body.appendChild(el); document.body.classList.add('introOn'); requestAnimationFrame(() => el.classList.add('on'));
-    const radio = el.querySelector('.icRadio'), lines = [['Dispatch', 'Good morning, Port Meridian. All units, day shift is on the air.'], ['2-Baker-14', 'Baker-14, ten-eight. Coffee in hand.'], ['Dispatch', 'Copy. Heads up, everybody, we\'ve got a new cadet on the street today.'], ['Sgt. Castillo', 'That one\'s mine. Go easy on them, Velvet.'], ['Dispatch', 'I always do, Sergeant. Welcome to Port Meridian, cadet.']];
-    lines.forEach((l, k) => setTimeout(() => { if (!cine) return; radio.innerHTML = '<div><b>' + esc(l[0]) + ':</b> ' + esc(l[1]) + '</div>'; radio.classList.remove('in'); void radio.offsetWidth; radio.classList.add('in'); H.chirp(); }, 1600 + k * 4200));
-    cine = { t: 0, dur: 24, pts, z0, el }; H.setMood('title');
-    const end = () => { if (!cine) return; const c = cine; cine = null; S.seenCine = 1; H.saveS(); c.el.classList.add('out'); cam.free = false; H.setMood(null); setTimeout(() => { c.el.remove(); document.body.classList.remove('introOn'); busy = false; H.pause(false); }, 700); };
-    el.querySelector('.icSkip').onclick = (e) => { e.stopPropagation(); end(); }; cine.end = end;
+    const radio = el.querySelector('.icRadio'), lines = [['Dispatch', 'Good morning, Port Meridian. All units, day shift is on the air.'], ['Dispatch', 'Heads up, everybody: we\'ve got a new cadet on the street today.'], ['Sgt. Castillo', 'That one\'s mine. Go easy on them, Velvet.'], ['Dispatch', 'I always do, Sergeant. Welcome to Port Meridian, cadet.']];
+    lines.forEach((l, k) => setTimeout(() => { if (!cine) return; radio.innerHTML = '<div><b>' + esc(l[0]) + ':</b> ' + esc(l[1]) + '</div>'; radio.classList.remove('in'); void radio.offsetWidth; radio.classList.add('in'); H.chirp(); }, 1400 + k * 3000));
+    cine = { t: 0, t0: performance.now(), dur: 13, from: [pz[0] + 40, pz[1] - 190, z0 * .46], to: [pz[0], pz[1], z0], el }; H.setMood('title');
+    const end = () => { if (!cine) return; const c = cine; cine = null; S.seenCine = 1; H.saveS(); removeEventListener('keydown', take, true); removeEventListener('pointerdown', take, true);
+      c.el.classList.add('out'); cam.free = false; busy = false; H.setMood(null); setTimeout(() => { c.el.remove(); document.body.classList.remove('introOn'); }, 700); };
+    // the first input is yours: it ends the shot where it is, and a movement key goes straight to your officer
+    const take = (e) => { if (e.type === 'keydown' && /^(Shift|Control|Alt|Meta|Tab)$/.test(e.key)) return; end(); };
+    addEventListener('keydown', take, true); addEventListener('pointerdown', take, true); cine.end = end;
   }
   function cineTick(dt) {
-    if (!cine) return; cine.t += dt; const c = cine, u = Math.min(1, c.t / c.dur), seg = u * (c.pts.length - 1), i = Math.min(c.pts.length - 2, Math.floor(seg)), f = seg - i, e = f * f * (3 - 2 * f);
-    const a = c.pts[i], b = c.pts[i + 1]; H.cam.x = a[0] + (b[0] - a[0]) * e; H.cam.y = a[1] - 30 + (b[1] - a[1]) * e; H.cam.z = c.z0 * (u < .85 ? .62 + u * .2 : .79 + (u - .85) / .15 * (1 - .79));
-    if (u > .82 && !c.title) { c.title = 1; c.el.classList.add('title'); H.sting('card'); } if (u >= 1 && !c.done) { c.done = 1; setTimeout(() => c.end && c.end(), 2200); }
+    if (!cine) return; const c = cine; c.t = (performance.now() - c.t0) / 1000; // wall time, so a slow first frame never stretches the shot
+    const u = Math.min(1, c.t / c.dur), e = 1 - Math.pow(1 - u, 3), P = H.iso(H.P.x, H.P.y);
+    c.to[0] = P[0]; c.to[1] = P[1]; // ends exactly on the play camera, even if the officer has moved
+    H.cam.x = c.from[0] + (c.to[0] - c.from[0]) * e; H.cam.y = c.from[1] + (c.to[1] - c.from[1]) * e; H.cam.z = c.from[2] + (c.to[2] - c.from[2]) * e;
+    if (u > .06 && !c.title) { c.title = 1; c.el.classList.add('title'); H.sting('card'); } if (u > .62 && !c.lift) { c.lift = 1; c.el.classList.add('lift'); }
+    if (u >= 1) c.end && c.end();
   }
 
   // ================= 3. sky: moon, stars; 2. weather: heat haze and wind debris =================

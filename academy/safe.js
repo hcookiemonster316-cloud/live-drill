@@ -55,8 +55,20 @@ export function installSafe(H) {
   addEventListener('online', onlineCheck); addEventListener('offline', onlineCheck); setTimeout(onlineCheck, 2000);
 
   // ================= 14. problem reports =================
-  const ERRS = []; addEventListener('error', (e) => { ERRS.push((e.message || '') + ' @ ' + (e.filename || '').split('/').pop() + ':' + e.lineno); if (ERRS.length > 20) ERRS.shift(); });
-  addEventListener('unhandledrejection', (e) => { ERRS.push('promise: ' + String(e.reason && e.reason.message || e.reason).slice(0, 160)); if (ERRS.length > 20) ERRS.shift(); });
+  const ERRS = []; addEventListener('error', (e) => { const f = e.filename || ''; ERRS.push((e.message || '') + ' @ ' + f.split('/').pop() + ':' + e.lineno); if (ERRS.length > 20) ERRS.shift(); if (!f || f.indexOf(location.origin) === 0) quiet((e.message || 'error') + ' @ ' + f.split('/').pop() + ':' + e.lineno + ':' + (e.colno || 0), e.error && e.error.stack); });
+  addEventListener('unhandledrejection', (e) => { const m = 'promise: ' + String(e.reason && e.reason.message || e.reason).slice(0, 160); ERRS.push(m); if (ERRS.length > 20) ERRS.shift(); quiet(m, e.reason && e.reason.stack); });
+  // quiet error reports (Phase 4, item 15): a script error is sent on its own, without a screenshot or anything the
+  // player typed, at most three different errors a session, each one at most once a day per device, a few seconds
+  // after it happens so it never lands in the middle of a frame
+  const QSENT = new Set(); let qN = 0;
+  function quiet(sig, stack) {
+    if (qN >= 3 || QSENT.has(sig) || /[?&]mock\b/.test(location.search)) return; QSENT.add(sig);
+    let seen = {}; try { seen = JSON.parse(localStorage.getItem('patrolcity:errsent') || '{}'); } catch (e) {} const day = new Date().toISOString().slice(0, 10);
+    if (seen[sig] === day) return; qN++; seen[sig] = day; const keys = Object.keys(seen); if (keys.length > 30) delete seen[keys[0]]; try { localStorage.setItem('patrolcity:errsent', JSON.stringify(seen)); } catch (e) {}
+    setTimeout(() => { const net = H.net(); if (!net || !navigator.onLine) return;
+      const st = JSON.stringify({ v: H.version, d: H.W ? H.W.did : null, inside: !!H.inside, ua: navigator.userAgent.slice(0, 120), scr: innerWidth + 'x' + innerHeight, stack: String(stack || '').slice(0, 1500), recent: ERRS.slice(-5) });
+      try { net.gset('mmo/bugs/' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), { m: sig.slice(0, 2000), k: 'auto', c: (S.cs || 'cadet').slice(0, 20), t: Date.now(), s: st.slice(0, 12000), u: String(net.uid || '').slice(0, 128) }); } catch (e) {} }, 4000);
+  }
   function reportPanel(back) {
     let shot = ''; try { const cv = H.$('view'), t = document.createElement('canvas'), k = 480 / Math.max(cv.width, cv.height); t.width = Math.round(cv.width * k); t.height = Math.round(cv.height * k); t.getContext('2d').drawImage(cv, 0, 0, t.width, t.height); shot = t.toDataURL('image/jpeg', .6); } catch (e) {}
     const el = H.fe(); el.hidden = false; el.className = 'fe menuBg';
