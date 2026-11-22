@@ -697,7 +697,10 @@ body.cine .offHud,body.photo .offHud,body.attract .offHud{display:none!important
 
 /* rides, event gear, trust map, daily chip */
 .rides{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.rides>button,.evGear{display:grid;justify-items:start;gap:3px;padding:10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:inherit;text-align:left;cursor:pointer}
-.rides>button span,.evGear>span{font-size:1.6rem}.rides>button.on{border-color:#f5b800;background:rgba(245,184,0,.12)}.rides>button.locked,.evGear.locked{opacity:.55;cursor:default}.rides small,.evGear small{color:var(--g3);font-size:.72rem}
+.rides>button span,.evGear>span{font-size:1.6rem}.rides>button.on{border-color:#f5b800;background:rgba(245,184,0,.12)}
+.drillGo,.drillList>button{display:grid;grid-template-columns:auto 1fr auto;align-items:center;column-gap:10px;width:100%;margin-top:10px;padding:12px;border-radius:12px;background:rgba(245,184,0,.08);border:1px solid rgba(245,184,0,.35);color:inherit;text-align:left;cursor:pointer}
+.drillGo span,.drillList>button span{grid-row:span 2;font-size:1.6rem}.drillGo small,.drillList>button small{grid-column:2;opacity:.75}.drillList>button em{grid-row:1/span 2;grid-column:3;font-style:normal;font-size:.85rem;opacity:.9}
+.drillList{display:grid;gap:8px}.drillList>button{margin-top:0;background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1)}.rides>button.locked,.evGear.locked{opacity:.55;cursor:default}.rides small,.evGear small{color:var(--g3);font-size:.72rem}
 .evGear div{display:flex;gap:6px;margin-top:4px}.evGear button{padding:5px 8px;border-radius:8px;border:0;background:#f5b800;color:var(--deep);font-weight:800;font-size:.72rem;cursor:pointer}
 .tmGrid{display:grid;grid-template-columns:repeat(13,1fr);gap:2px;margin:8px 0;padding:6px;border-radius:12px;background:#0b1220}
 .tmCell{aspect-ratio:1;border:0;border-radius:3px;padding:0;background:linear-gradient(var(--t),var(--t)),var(--z);cursor:pointer}.tmCell.here{outline:2px solid #f5b800;outline-offset:1px}

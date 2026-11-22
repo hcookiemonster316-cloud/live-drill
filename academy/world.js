@@ -1078,7 +1078,7 @@ export function dogFast(g, sx, sy, face, moving, t, st) {
 // ---------- vehicles: one renderer for every car, truck, van and SUV ----------
 // local coordinates: u runs nose (+1) to tail (-1), v runs across, h is height in px. dir 0..3 = +x, +y, -x, -y.
 function rig(sx, sy, dir, s, hl, hw) {
-  const U = [[1, 0], [0, 1], [-1, 0], [0, -1]][dir & 3], V = [-U[1], U[0]];
+  const U = dir === (dir | 0) ? [[1, 0], [0, 1], [-1, 0], [0, -1]][dir & 3] : [Math.cos(dir * Math.PI / 2), Math.sin(dir * Math.PI / 2)], V = [-U[1], U[0]]; // a fractional dir is a free heading (the driving course)
   const P = (u, v, h) => { const wx = U[0] * u * hl + V[0] * v * hw, wy = U[1] * u * hl + V[1] * v * hw; return [sx + (wx - wy) * 32 * s, sy + (wx + wy) * 16 * s - h * s]; };
   // which faces point toward the camera: exactly one end and one side
   const uVis = U[0] + U[1] > 0 ? 1 : -1, vVis = V[0] + V[1] > 0 ? 1 : -1;

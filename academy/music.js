@@ -5,6 +5,7 @@
 // marimba, bells, brass, lead and bass, with a soft drum kit, stereo placement, reverb and delay.
 
 import { TRACKS } from './scoredata.js';
+const LEADX = 1.7, BANDX = .82, DUCK = .72; // melody up, band down a touch, and the band ducks under each melody note
 const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
 const SCALES = { maj: [0, 2, 4, 5, 7, 9, 11], min: [0, 2, 3, 5, 7, 8, 10], dor: [0, 2, 3, 5, 7, 9, 10], mix: [0, 2, 4, 5, 7, 9, 10] };
 // the theme: scale degree and length in beats ('r' is a rest). Two four-bar phrases.
@@ -13,7 +14,8 @@ const THEME = [[2, 1], [4, 1], [5, 2], [4, 1], [2, 1], [1, 2], [0, 1], [1, 1], [
 const THEME_EV = (() => { let b = 0; return THEME.map(([d, l]) => { const e = { b, d, l }; b += l; return e; }).filter((e) => e.d !== 'r'); })();
 
 // themes written as "degree:beats" pairs ('r' rests), eight bars long; parsed once
-export function parseTheme(str) { let b = 0; const out = []; str.trim().split(/\s+/).forEach((tok) => { const [d, l] = tok.split(':'), len = +l; if (d !== 'r' && b < 32) out.push({ b, d: +d, l: Math.min(len, 32 - b) }); b += len; }); return out; }
+// a note is degree:length; lengths can be fractions (1/3 for triplets), and a degree can carry # or b (a chromatic step)
+export function parseTheme(str) { let b = 0; const out = []; str.trim().split(/\s+/).forEach((tok) => { const [d, l] = tok.split(':'), fr = l.split('/'), len = fr.length > 1 ? +fr[0] / +fr[1] : +l, acc = /#$/.test(d) ? 1 : /b$/.test(d) ? -1 : 0; if (d !== 'r' && b < 32 - 1e-6) out.push({ b, d: parseInt(d, 10), acc, l: Math.min(len, 32 - b) }); b += len; }); return out; }
 // a composed track runs intro (4 bars) · A (8) · B (8) · A again, fuller (8) · outro (4) = 32 bars, then the next track plays
 function sectionOf(bar) { const k = bar % 32; return k < 4 ? 'intro' : k < 12 ? 'A' : k < 20 ? 'B' : k < 28 ? 'A2' : 'outro'; }
 const VIEW = new WeakMap();
@@ -75,7 +77,8 @@ export function createMusic(getCtx) {
   // ---- instruments: each call schedules one note ----
   function voice(L, kind, m, t, dur, v, pan) {
     const a = ctx(), f = hz(m), g = a.createGain(), p = a.createStereoPanner ? a.createStereoPanner() : null; let endT = t + dur;
-    if (p) { p.pan.value = pan || 0; g.connect(p); p.connect(L.bus); } else g.connect(L.bus);
+    const dest = (L.route === 'lead' && L.leadBus) || (L.route === 'band' && L.bandBus) || L.bus; // the melody gets its own lane in the mix
+    if (p) { p.pan.value = pan || 0; g.connect(p); p.connect(dest); } else g.connect(dest);
     const send = (amt, toDelay) => { const s = a.createGain(); s.gain.value = amt; g.connect(s); s.connect(toDelay ? dly : wet); };
     const env = (att, peak, rel, sus) => { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + att); if (sus != null) { g.gain.setTargetAtTime(peak * sus, t + att, rel * .4); g.gain.setTargetAtTime(.0001, t + dur, rel / 3); endT = t + dur + rel * 1.5; } else { g.gain.exponentialRampToValueAtTime(.0001, t + att + rel); endT = t + att + rel + .05; } };
     const osc = (type, freq, det) => { const o = a.createOscillator(); o.type = type; o.frequency.value = freq; if (det) o.detune.value = det; return o; };
@@ -158,12 +161,15 @@ export function createMusic(getCtx) {
     if (m0.swing && s % 2) t += m0.swing * spb; // the band swings its sixteenths
     const m = m0.form ? sectionView(m0, sec) : m0, rb = m0.form ? (bar - (sec === 'B' ? 12 : sec === 'A2' ? 20 : 4) + 64) : bar;
     const deg = m.prog[rb % m.prog.length], ch = chordOf(m, deg, m.keys && m.keys.sev);
+    L.route = 'band';
     // pad and strings: held chords
     if (s === 0 && m.pad) ch.slice(0, 3).forEach((n, i) => voice(L, 'pad', n, t, spb * 16, m.pad.v, i === 0 ? -.4 : i === 1 ? .4 : 0));
     if (s === 0 && m.strings) { voice(L, 'strings', ch[2] + 12, t, spb * 16, m.strings.v, .3); voice(L, 'strings', ch[0], t, spb * 16, m.strings.v * .8, -.3); }
     if (s === 0 && m.drone && bar % 2 === 0) voice(L, 'drone', m.root - 24, t, spb * 32, m.drone.v, 0);
+    L.route = null;
     // bass lines
     if (m.bass) { const r = ch[0] - 24, b = m.bass, P = { whole: { 0: 0 }, half: { 0: 0, 8: 7 }, walk: { 0: 0, 4: 7, 8: 12, 12: 10 }, syncop: { 0: 0, 6: 0, 10: 7, 14: 12 }, eighths: { 0: 0, 2: 0, 4: 0, 6: 0, 8: 0, 10: 0, 12: 7, 14: 0 }, bounce: { 0: 0, 3: 0, 8: 7, 11: 7 }, march: { 0: 0, 4: 7, 8: 0, 12: 7 }, root5: { 0: 0, 6: 7, 8: 12, 14: 7 }, drive: { 0: 0, 1: 0, 2: 12, 3: 0, 4: 0, 5: 0, 6: 12, 7: 0, 8: 0, 9: 0, 10: 12, 11: 0, 12: 7, 13: 7, 14: 12, 15: 7 } }[b.pat] || {}; if (P[s] != null) { const len = b.pat === 'whole' ? 15 : b.pat === 'half' ? 7 : b.pat === 'drive' ? .9 : b.pat === 'eighths' ? 1.6 : 3; voice(L, 'bass', r + P[s], t, spb * len, b.v, 0); } }
+    L.route = 'band';
     // keys parts
     [m.keys, m.keys2].forEach((k, ki) => { if (!k) return; const pan = ki ? .35 : -.25, v = k.v;
       if (k.pat === 'arp8' && s % 2 === 0) { const seq = [0, 1, 2, 3, 2, 1, 2, 1], n = ch[seq[(s / 2) % 8] % ch.length] + (seq[(s / 2) % 8] === 3 ? 12 : 0) + 12; voice(L, k.voice, n, t, spb * 2.5, v, pan); }
@@ -183,13 +189,15 @@ export function createMusic(getCtx) {
       if (B.clav && [0, 3, 4, 7, 10, 12, 14].includes(s)) { const riff = { 0: 0, 3: 2, 4: 1, 7: 3, 10: 0, 12: 2, 14: 3 }[s]; voice(L, 'clav', J[riff] + (s >= 10 ? 12 : 0), t, spb * .8, B.clav.v, .2); }
       if (B.horns) { const H = B.horns, on = bar % 2 ? [10, 11] : [0, 6]; if (on.includes(s)) J.slice(0, 3).forEach((n) => voice(L, 'horns', n + 12, t, spb * (s === 10 ? .6 : 1.4), H.v, 0)); }
       if (B.vamp && s === 0) J.forEach((n, i) => voice(L, 'pad', n, t, spb * 16, B.vamp.v, i % 2 ? .3 : -.3));
+      L.route = null; // the bass stays out of the ducked lane, it is the floor
       // finger bass: a funk line with octave pops, or a walking jazz line that leads into the next chord
       if (B.bass) { const r = chordOf(m, deg)[0] - 24, bv = B.bass.v;
         if (B.bass.pat === 'funk') { const P = { 0: [0, 1.6], 3: [12, .4], 6: [0, .8], 7: [10, .5], 10: [0, .6], 11: [12, .4], 14: [7, .8] }[s]; if (P) voice(L, 'fbass', r + P[0], t, spb * P[1], bv * (s === 0 ? 1.1 : .85), 0); }
         else if (B.bass.pat === 'walk' && s % 4 === 0) { const c = chordOf(m, deg, true), nr = chordOf(m, nx)[0] - 24, q = s / 4, n = q === 0 ? r : q === 1 ? c[1] - 24 : q === 2 ? c[2] - 24 : nr + ((rb * 5) % 2 ? 1 : -1); voice(L, 'fbass', n, t, spb * 3.6, bv, 0); }
         else if (B.bass.pat === 'octaves' && s % 2 === 0) voice(L, 'fbass', r + (s % 4 ? 12 : 0), t, spb * .9, bv * (s % 4 ? .7 : 1), 0); } }
+    L.route = null;
     // the theme, on the lead instrument
-    if (m.lead && (m0.form || (bar % 16) >= m.lead.from)) { const b8 = (rb % 8) * 4 + beat, ev = m.ev || THEME_EV; ev.forEach((e) => { if (Math.abs(e.b - b8) < .01 && (!m.lead.sparse || e.l >= 2 || ((bar * 7 + e.b * 13) % 3) > 0)) { voice(L, m.lead.voice, noteOf(m, e.d, m.lead.oct), t, spb * 4 * e.l * .95, m.lead.v, .1); if (m.counter) voice(L, m.counter.voice, noteOf(m, e.d - 2, m.counter.oct || 0), t, spb * 4 * e.l * .95, m.counter.v, -.3); } }); }
+    if (m.lead && (m0.form || (bar % 16) >= m.lead.from)) { const b8 = (rb % 8) * 4 + beat, ev = m.ev || THEME_EV; ev.forEach((e) => { if (e.b >= b8 - 1e-4 && e.b < b8 + .25 - 1e-4 && (!m.lead.sparse || e.l >= 2 || ((bar * 7 + Math.round(e.b * 12) * 13) % 3) > 0)) { const nd = spb * 4 * e.l * .95, tn = t + (e.b - b8) * 4 * spb; /* notes between sixteenths (triplets) land at their own time */ L.route = 'lead'; voice(L, m.lead.voice, noteOf(m, e.d, m.lead.oct) + (e.acc || 0), tn, nd, m.lead.v, .05); L.route = 'band'; if (m.counter) voice(L, m.counter.voice, noteOf(m, e.d - 2, m.counter.oct || 0), tn, nd, m.counter.v * .85, -.3); L.route = null; if (L.bandBus) { const gb = L.bandBus.gain; gb.setTargetAtTime(BANDX * DUCK, tn, .025); gb.setTargetAtTime(BANDX, tn + Math.max(.08, nd * .85), .18); } } }); }
     // drums, with a fill on the last bar of every eight
     if (m.drums) { const pat = DRUMS[m.drums.pat], hit = pat[s], dv = m.drums.v, swing = (m.drums.pat === 'brush' || m.drums.pat === 'shuffle') && s % 2 ? spb * .28 : 0;
       if (bar % 8 === 7 && s >= 12 && (m.drums.pat === 'drive' || m.drums.pat === 'pop' || m.drums.pat === 'pulse' || m.drums.pat === 'march' || m.drums.pat === 'half')) drum(L, s % 2 ? 'snare' : 'tom', t, dv * .8);
@@ -197,7 +205,12 @@ export function createMusic(getCtx) {
   }
   function layer(id, at) {
     const a = ctx(), m = MOODS[id], bus = a.createGain(), start = at || a.currentTime + .08; bus.gain.setValueAtTime(0, a.currentTime); bus.gain.setValueAtTime(0, start); bus.gain.linearRampToValueAtTime(1, start + 1.6); bus.connect(master);
-    return { id, m, bus, step: 0, nextT: start, alive: true };
+    // the mix: the melody sits on top. Its lane gets a little presence around 3 kHz; the band's lane is carved out of that
+    // same range and dips under each melody note (a gentle duck), so the tune always reads over Rhodes, wah and horns
+    const lead = a.createGain(), pres = a.createBiquadFilter(), band = a.createGain(), carve = a.createBiquadFilter();
+    pres.type = 'peaking'; pres.frequency.value = 2800; pres.Q.value = .8; pres.gain.value = 3.5; lead.gain.value = LEADX; lead.connect(pres); pres.connect(bus);
+    carve.type = 'peaking'; carve.frequency.value = 2400; carve.Q.value = .9; carve.gain.value = -4; band.gain.value = BANDX; band.connect(carve); carve.connect(bus);
+    return { id, m, bus, leadBus: lead, bandBus: band, step: 0, nextT: start, alive: true };
   }
   function play(L, horizon) { const a = ctx(), spb = 60 / L.m.bpm / 4, until = horizon != null ? horizon : a.currentTime + .3; while (L.nextT < until) { if (L.alive || L.nextT < L.dieAt) playStep(L, L.nextT, spb); L.nextT += spb; L.step++; } }
   let layers = [];
@@ -225,8 +238,8 @@ export function createMusic(getCtx) {
     // short fanfares over the score, voiced on brass and bells
     sting(kind) {
       if (!on) return; const a = ctx(), t = a.currentTime + .05, L = { bus: master };
-      // every signal is a piece of the Port Meridian hook (A-C-A-G-D), so players learn one tune and hear it everywhere
-      const seq = { accept: [[69, 0], [72, .13], [69, .26]], done: [[69, 0], [72, .12], [69, .24], [67, .36], [62, .52], [74, .52]], promo: [[69, 0], [72, .18], [69, .36], [74, .54], [72, .74], [62, 1], [69, 1], [72, 1], [76, 1]], fail: [[67, 0], [62, .24]], p1: [[74, 0], [74, .1], [72, .2], [74, .3], [69, .48]], grade: [[69, 0], [72, .12], [74, .26]], gradeS: [[69, 0], [72, .1], [69, .2], [74, .32], [78, .46], [81, .46]], card: [[50, 0], [57, 0], [62, .3], [69, .3], [72, .6], [76, .6]], set: [[69, 0], [72, .08], [74, .16], [81, .26]] }[kind] || [];
+      // every signal is a piece of the Port Meridian hook (A, up to D, the C-D-C turn, A, then G-A E D), so players learn one tune and hear it everywhere
+      const seq = { accept: [[69, 0], [74, .12], [72, .2]], done: [[69, 0], [74, .12], [72, .2], [69, .3], [64, .46], [65, .6], [62, .7], [74, .7]], promo: [[69, 0], [74, .16], [72, .26], [69, .38], [76, .56], [74, .7], [62, .9], [69, .9], [77, .9]], fail: [[64, 0], [62, .26]], p1: [[74, 0], [74, .1], [72, .2], [74, .3], [69, .48]], grade: [[69, 0], [72, .12], [74, .26]], gradeS: [[69, 0], [72, .1], [69, .2], [74, .32], [78, .46], [81, .46]], card: [[50, 0], [57, 0], [62, .3], [69, .3], [72, .6], [76, .6]], set: [[69, 0], [72, .08], [74, .16], [81, .26]] }[kind] || [];
       seq.forEach(([n, d]) => { voice(L, kind === 'fail' ? 'mute' : 'horns', n, t + d, kind === 'promo' ? 1.4 : .7, .04, 0); voice(L, 'rhodes', n, t + d, .9, .03, 0); });
     },
     stop() { if (!on) return; on = false; const a = ctx(), g0 = master; try { g0.gain.cancelScheduledValues(a.currentTime); g0.gain.setValueAtTime(g0.gain.value, a.currentTime); g0.gain.linearRampToValueAtTime(0, a.currentTime + 1.2); } catch (e) {} setTimeout(() => { clearInterval(timer); try { g0.disconnect(); } catch (e) {} }, 1300); layers = []; cur = null; }

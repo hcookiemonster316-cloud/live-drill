@@ -28,7 +28,7 @@ export function installFeel(H) {
   function faces(dt) { fT -= dt; if (fT > 0) return; fT = .25; const P = H.P; for (const r of H.regs) { const d = Math.hypot(r.x - P.x, r.y - P.y); if (d < 3.4 && !r.moving) r.face = P.x < r.x ? -1 : 1; } }
   // ---------- the cruiser: lean into turns, lights on wet roads ----------
   let roll = 0, lastDir = null;
-  function rollIn(g, sx, sy) { const P = H.P; if (lastDir != null && P.dir !== lastDir && P.moving) roll = (((P.dir - lastDir + 6) % 4) - 2 > 0 ? 1 : -1) * .07; lastDir = P.dir; roll *= .9; if (Math.abs(roll) < .002 || S.cfg.motion === false) return false; g.save(); g.translate(sx, sy); g.rotate(roll); g.translate(-sx, -sy); return true; }
+  function rollIn(g, sx, sy) { const P = H.P; if (lastDir != null && P.dir !== lastDir && P.moving) roll = (((P.dir - lastDir + 6) % 4) - 2 > 0 ? 1 : -1) * .055 * Math.min(1.5, .5 + (P.vel || 3) / 5) * (H.tall ? H.tall() : 1); /* the body rolls more the faster you turn, and more in a tall vehicle */ lastDir = P.dir; roll *= .9; if (Math.abs(roll) < .002 || S.cfg.motion === false) return false; g.save(); g.translate(sx, sy); g.rotate(roll); g.translate(-sx, -sy); return true; }
   function wetLights(g, sx, sy, now) {
     if (!H.wet() || !H.lightsOn()) return; const ph = Math.floor(now / 160) % 2, a = .35;
     g.save(); g.globalCompositeOperation = 'lighter';

@@ -26,23 +26,29 @@ const T = {
 
 // the main theme, "Port Meridian": a hook that climbs the minor pentatonic and falls back, then a bridge that reaches up
 const JT = {
-  // the hook is one two-bar idea, A-C-A-G-D, heard three times with a different ending, then resolved: easy to hum
-  main: '4:1.5 6:.5 4:1 3:1 0:2 r:2 4:1.5 6:.5 4:1 7:1 6:2 r:2 7:1 6:1 4:1 3:1 4:2 r:2 4:1.5 6:.5 4:1 3:1 0:4',
+  // the hook, "Port Meridian": a long A that leaps up to D and spins a quick C-D-C triplet turn, then a dotted G-A that
+  // drops to E and settles on D. The call comes back and climbs (C-D, F, E-D) to the peak, a held high A that tumbles
+  // down; a B-C lean, a chromatic G# that pulls into A; a low run up from C with a triplet fall (G-F-E), and home through
+  // a low B to D. Dotted rhythms, triplets, long holds and quick pickups across an octave and a half: still hummable in
+  // two-bar breaths, but nothing else in the game sounds like it.
+  main: '4:3/2 7:1/2 6:1/3 7:1/3 6:1/3 4:1 3:3/4 4:1/4 1:1 0:2 4:3/2 7:1/2 6:1/3 7:1/3 6:1/3 4:1/2 5:1/2 6:3/4 7:1/4 9:3/2 8:1/2 7:1 11:3/2 10:1/2 9:1/2 8:1/2 7:1 5:3/4 6:1/4 4:1 3#:1/2 4:3/2 -1:1/2 0:1/2 2:1/2 4:1/2 3:1/3 2:1/3 1:1/3 2:1 1:3/2 -2:1/2 0:2',
   // the bridge reaches up in long notes, then falls back to the hook's last note
   bridge: '7:3 6:1 4:4 3:3 4:1 6:4 7:3 9:1 7:2 6:2 4:4 r:4',
   // the hook at half speed, for quiet scenes
-  calm: '4:3 6:1 4:2 3:2 0:6 r:2 4:3 6:1 4:2 7:2 6:8',
+  calm: '4:3 7:1 6:2/3 7:2/3 6:2/3 4:2 3:3/2 4:1/2 1:2 0:4 4:3 7:1 6:2/3 7:2/3 6:2/3 4:1 5:1 6:3/2 7:1/2 9:3 8:1 7:2',
   // theme two, "End of Watch": the heart. It starts high and sighs down, then reaches back up (night, story, debrief)
   heart: '7:1.5 6:.5 4:2 2:2 3:2 7:1.5 6:.5 4:2 6:1 7:1 9:2 9:1.5 7:.5 6:2 4:2 3:2 2:1 3:1 4:2 0:4',
   // theme three, "All Units": the action riff, low and punchy, that kicks up at the end (calls and pursuits)
   units: '0:.5 0:.5 3:.5 0:.5 4:1 r:.5 3:.5 6:.5 4:.5 3:.5 0:.5 r:2 0:.5 0:.5 3:.5 0:.5 4:1 r:.5 6:.5 7:1 6:.5 4:.5 r:2 7:.5 7:.5 6:.5 4:.5 6:1 r:.5 4:.5 3:.5 2:.5 3:.5 4:.5 r:2 0:.5 0:.5 3:.5 0:.5 4:1 r:.5 3:.5 0:2 r:2',
   // altered versions for what's happening: just the opening idea with space around it (tension, waiting), the heart
   // theme broken off the same way, and the action riff slowed to half speed (a standoff)
-  frag: '4:1.5 6:.5 4:1 3:1 0:2 r:10 4:1.5 6:.5 4:1 7:1 6:2 r:10',
+  frag: '4:3/2 7:1/2 6:1/3 7:1/3 6:1/3 4:1 3:3/4 4:1/4 1:1 0:2 r:8 4:3/2 7:1/2 6:1/3 7:1/3 6:1/3 4:1/2 5:1/2 6:3/4 7:1/4 9:3/2 8:1/2 7:1 r:8',
   heartFrag: '7:1.5 6:.5 4:2 2:2 3:2 r:8 7:1.5 6:.5 4:2 6:1 7:1 9:2 r:8',
   unitsHalf: '0:1 0:1 3:1 0:1 4:2 r:1 3:1 6:1 4:1 3:1 0:1 r:4 0:1 0:1 3:1 0:1 4:2 r:1 3:1 0:4 r:4',
-  // the hook in a hurry, for pursuits
-  chaseB: '4:.75 6:.25 4:.5 3:.5 0:1 r:1 4:.75 6:.25 4:.5 7:.5 6:1 r:1 4:.75 6:.25 4:.5 3:.5 0:1 r:1 4:.75 6:.25 4:.5 7:.5 6:1 r:1 7:1 6:1 4:1 3:1 4:.75 6:.25 4:.5 3:.5 0:2 r:8'
+  // the hook in a hurry, for pursuits. At speed the ornaments would smear, so this is the tune's skeleton: the same
+  // shape and the same peak without the triplet turns and dotted pickups (the main version carries those at walking
+  // tempo, and the half-speed version lets them breathe), so the melody sounds right fast, slow and in between
+  chaseB: '4:3/4 7:1/4 6:1/2 4:1/2 3:1/2 1:1/2 0:1 4:3/4 7:1/4 6:1/2 5:1/2 6:1/2 9:3/4 8:1/4 7:1/2 11:1 9:1/2 7:1/2 5:1/2 4:1/2 3#:1/2 4:1/2 -1:1/2 2:1/2 4:1/2 2:1/2 1:1 0:1 4:3/4 7:1/4 6:1/2 4:1/2 3:1/2 1:1/2 0:1 4:3/4 7:1/4 6:1/2 5:1/2 6:1/2 9:3/4 8:1/4 7:1/2 r:8'
 };
 const JF = { vamp: [0, 3, 0, 3, 0, 3, 6, 4], bridge: [2, 3, 6, 0, 2, 3, 4, 4], lift: [3, 4, 2, 5, 3, 4, 6, 4], night: [0, 3, 1, 4, 0, 3, 6, 4], dark: [0, 5, 3, 4, 0, 5, 6, 4], porch: [0, 3, 6, 3, 0, 3, 4, 4], chase: [0, 0, 5, 6, 0, 0, 3, 4], chaseB: [5, 6, 0, 0, 5, 6, 4, 4] };
 const P = { // a few chord progressions, as scale degrees, one per bar

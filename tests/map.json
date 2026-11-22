@@ -20,6 +20,9 @@
   "deesc.js": [
    "t81"
   ],
+  "drills.js": [
+   "tdrill"
+  ],
   "echoes.js": [
    "tdecor",
    "techo"
@@ -27,6 +30,9 @@
   "epic.js": [
    "t51",
    "t60"
+  ],
+  "feel.js": [
+   "tdrill"
   ],
   "finale.js": [
    "t95",
@@ -135,7 +141,8 @@
    "tways"
   ],
   "world.js": [
-   "tbike"
+   "tbike",
+   "tdrill"
   ]
  }
 }
