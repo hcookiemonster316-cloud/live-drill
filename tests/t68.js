@@ -14,6 +14,8 @@ const { chromium, devices } = require('playwright');
   if (!got) { got = await a.evaluate(() => { const pc = window.__pc; pc.dropCall && pc.dropCall(); for (let k = 0; k < 30 && !pc.PUR; k++) { const W = pc.W, l = W.lots[(k * 7) % W.lots.length]; const c = { x: l.door[0] + .5, y: l.door[1] + .5, where: 'Main and 3rd', title: 'Red light runner', pursuit: true, accepted: true }; pc.P.x = c.x; pc.P.y = c.y; pc.purStart(c); } return !!pc.PUR; }); console.log('pursuit forced', got); } // the dispatcher may not roll a pursuit; start one directly
   if (got) {
     await a.evaluate(() => { const pc = window.__pc; if (pc.call) { pc.call.accepted = true; pc.P.x = pc.call.x + 1; pc.P.y = pc.call.y; pc.P.path = []; } }); await a.waitForTimeout(1200);
+    if (!(await a.evaluate(() => !!window.__pc.PUR))) await a.evaluate(() => { const pc = window.__pc; pc.dropCall && pc.dropCall(); for (let k = 0; k < 30 && !pc.PUR; k++) { const l = pc.W.lots[(k * 7) % pc.W.lots.length]; const c = { x: l.door[0] + .5, y: l.door[1] + .5, where: 'Main and 3rd', title: 'Red light runner', pursuit: true, accepted: true }; pc.P.x = c.x; pc.P.y = c.y; pc.purStart(c); } }); // not in the car yet: start it directly
+    await a.waitForTimeout(600);
     console.log('PUR started', await a.evaluate(() => !!window.__pc.PUR), await a.evaluate(() => (document.getElementById('purHud') || {}).innerText.replace(/\n+/g, ' | ')));
     // key the mic: unit, in pursuit, where, direction, car
     await a.screenshot({ path: 'pu_radio.png' });
