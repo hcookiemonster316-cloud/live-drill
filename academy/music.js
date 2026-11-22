@@ -119,6 +119,7 @@ export function createMusic(getCtx) {
     else if (kind === 'mute') { // trumpet with a harmon mute: thin, buzzy, cool
       const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1900; bp.Q.value = 3.5; bp.connect(lp(4200)); const o = osc('square', f), o2 = osc('sawtooth', f, 5), vib = osc('sine', 5.6), vg = a.createGain(); vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(10, t + .3); vib.connect(vg); vg.connect(o.detune); o.connect(bp); o2.connect(bp); oscs = [o, o2, vib]; env(.025, v, .2, .78); send(.35); send(.3, true); }
     oscs.forEach((o) => { o.start(t); o.stop(endT + .1); });
+    return { g, end: endT };
   }
   function drum(L, kind, t, v) {
     const a = ctx(), g = a.createGain(), p = a.createStereoPanner ? a.createStereoPanner() : null;
@@ -158,7 +159,7 @@ export function createMusic(getCtx) {
   const noteOf = (m, d, oct) => { const sc = SCALES[m.scale]; return m.root + (oct || 0) + sc[((d % 7) + 7) % 7] + 12 * Math.floor(d / 7); };
   function playStep(L, t, spb) {
     const m0 = L.m, bar = Math.floor(L.step / 16), s = L.step % 16, beat = s / 4, sec = m0.form ? sectionOf(bar) : 'A';
-    if (m0.swing && s % 2) t += m0.swing * spb; // the band swings its sixteenths
+    const tStraight = t; if (m0.swing && s % 2) t += m0.swing * spb; // the band swings its sixteenths; the melody keeps its own written rhythm
     const m = m0.form ? sectionView(m0, sec) : m0, rb = m0.form ? (bar - (sec === 'B' ? 12 : sec === 'A2' ? 20 : 4) + 64) : bar;
     const deg = m.prog[rb % m.prog.length], ch = chordOf(m, deg, m.keys && m.keys.sev);
     L.route = 'band';
@@ -197,7 +198,9 @@ export function createMusic(getCtx) {
         else if (B.bass.pat === 'octaves' && s % 2 === 0) voice(L, 'fbass', r + (s % 4 ? 12 : 0), t, spb * .9, bv * (s % 4 ? .7 : 1), 0); } }
     L.route = null;
     // the theme, on the lead instrument
-    if (m.lead && (m0.form || (bar % 16) >= m.lead.from)) { const b8 = (rb % 8) * 4 + beat, ev = m.ev || THEME_EV; ev.forEach((e) => { if (e.b >= b8 - 1e-4 && e.b < b8 + .25 - 1e-4 && (!m.lead.sparse || e.l >= 2 || ((bar * 7 + Math.round(e.b * 12) * 13) % 3) > 0)) { const nd = spb * 4 * e.l * .95, tn = t + (e.b - b8) * 4 * spb; /* notes between sixteenths (triplets) land at their own time */ L.route = 'lead'; voice(L, m.lead.voice, noteOf(m, e.d, m.lead.oct) + (e.acc || 0), tn, nd, m.lead.v, .05); L.route = 'band'; if (m.counter) voice(L, m.counter.voice, noteOf(m, e.d - 2, m.counter.oct || 0), tn, nd, m.counter.v * .85, -.3); L.route = null; if (L.bandBus) { const gb = L.bandBus.gain; gb.setTargetAtTime(BANDX * DUCK, tn, .025); gb.setTargetAtTime(BANDX, tn + Math.max(.08, nd * .85), .18); } } }); }
+    if (m.lead && (m0.form || (bar % 16) >= m.lead.from)) { const b8 = (rb % 8) * 4 + beat, ev = m.ev || THEME_EV; ev.forEach((e) => { if (e.b >= b8 - 1e-4 && e.b < b8 + .25 - 1e-4 && (!m.lead.sparse || e.l >= 2 || ((bar * 7 + Math.round(e.b * 12) * 13) % 3) > 0)) { const nx = ev[ev.indexOf(e) + 1], room = nx && nx.b > e.b ? nx.b - e.b : e.l, nd = spb * 4 * Math.min(e.l, room) * (e.l < .5 ? .88 : .94), tn = tStraight + (e.b - b8) * 4 * spb; /* the melody is one voice: it plays straight (triplets and dotted notes as written, not swung), each note ends before the next one starts */
+          if (L.lastLead && L.lastLead.end > tn) { try { const lg = L.lastLead.g.gain; lg.cancelScheduledValues(tn); lg.setTargetAtTime(.0001, tn - .004, .012); } catch (er) {} } /* cut the last note's tail as the next one speaks, so nothing smears */
+          L.route = 'lead'; L.lastLead = voice(L, m.lead.voice, noteOf(m, e.d, m.lead.oct) + (e.acc || 0), tn, nd, m.lead.v, .05); L.route = 'band'; if (m.counter) voice(L, m.counter.voice, noteOf(m, e.d - 2, m.counter.oct || 0), tn, nd, m.counter.v * .85, -.3); L.route = null; if (L.bandBus) { const gb = L.bandBus.gain; gb.setTargetAtTime(BANDX * DUCK, tn, .025); gb.setTargetAtTime(BANDX, tn + Math.max(.08, nd * .85), .18); } } }); }
     // drums, with a fill on the last bar of every eight
     if (m.drums) { const pat = DRUMS[m.drums.pat], hit = pat[s], dv = m.drums.v, swing = (m.drums.pat === 'brush' || m.drums.pat === 'shuffle') && s % 2 ? spb * .28 : 0;
       if (bar % 8 === 7 && s >= 12 && (m.drums.pat === 'drive' || m.drums.pat === 'pop' || m.drums.pat === 'pulse' || m.drums.pat === 'march' || m.drums.pat === 'half')) drum(L, s % 2 ? 'snare' : 'tom', t, dv * .8);
