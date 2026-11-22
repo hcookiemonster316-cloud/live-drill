@@ -121,7 +121,7 @@ const NODS = { walsh: ['That\'s it.', 'Huh. Textbook.', 'Good. I can stop worryi
 function nod(text, who) { let el = document.getElementById('nod'); if (!el) { el = document.createElement('div'); el.id = 'nod'; document.body.appendChild(el); } el.innerHTML = '<b>' + esc(who) + '</b> ' + esc(text); el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 2200); }
 const good = () => { const streak = typeof COMBO === 'number' ? COMBO : 0; if (S.sound && music && music.sting) music.sting(streak >= 3 ? 'grade' : 'accept'); else { beep(660, .12, 'triangle', .05); beep(880, .18, 'triangle', .05, .1); }
   if (S.cfg && S.cfg.motion !== false) PUNCHT = .45;
-  const now = performance.now(); if (now - NODT > 9000 || streak === 3 || streak === 5) { NODT = now; const pt = VAR && VAR.partner ? VAR.partner() : null, key = pt && NODS[pt.k] ? pt.k : 'castillo', who = pt && pt.p ? pt.p.name.replace(/^Ofc\. /, '') : 'Sgt. Castillo', L0 = NODS[key];
+  const now = performance.now(); if (now - NODT > 9000 || streak === 3 || streak === 5) { NODT = now; const pt = VAR && VAR.partner ? VAR.partner() : null, key = pt && NODS[pt.k] ? pt.k : 'castillo', who = pt && pt.p && pt.p.name ? pt.p.name.replace(/^Ofc\. /, '') : 'Sgt. Castillo', L0 = NODS[key];
     nod(streak >= 3 ? streak + ' in a row. ' + L0[(Math.random() * L0.length) | 0] : L0[(Math.random() * L0.length) | 0], who); } };
 const bad = () => { beep(392, .14, 'triangle', .035); beep(330, .22, 'triangle', .03, .12); };
 let sirenT = 0;
@@ -325,6 +325,9 @@ function newPed0() { const s = nearTile(W.walk, 22), h = typeof hourNow === 'fun
 function newCar() { const roads = [], c0 = focus(); for (let i = 0; i < 120; i++) { const x = Math.floor(c0[0] + (Math.random() - .5) * 44), y = Math.floor(c0[1] + (Math.random() - .5) * 44); if (roadPass(x, y)) { roads.push([x, y]); break; } } const s = roads[0] || [0, 0]; const c = { x: s[0] + .5, y: s[1] + .5, path: [], sp: 2.6 + Math.random() * 1.6, color: rnd(CAR_COLORS), dir: 0 };
   if (!traffic.some((t) => t.bus) && !inside) Object.assign(c, { bus: true, sp: 2.1, v: { kind: 'van', body: '#f59e0b', side: '#f59e0b', text: 'ROUTE 9', scale: 1.35 } });
   else if (Math.random() < .14) Object.assign(c, { v: { kind: 'van', body: rnd(['#f5f5f5', '#78350f', '#1d4ed8']), side: '#f5f5f5', text: rnd(['PARCEL', 'FRESH', 'EXPRESS']) }, sp: 2.4 });
+  // every driver reacts to a siren their own way: most pull right, some freeze in the lane, a few never hear it
+  // (radio up, windows shut), and now and then one panics and stops dead in the middle of the road
+  const r = Math.random(); c.temper = r < .72 ? 'pull' : r < .86 ? 'freeze' : r < .95 ? 'deaf' : 'panic';
   return c; }
 function newCitizen() { const s = nearTile(W.walk, 26); return { x: s[0] + .5, y: s[1] + .5, skin: rnd(SKIN), shirt: rnd(SHIRT), hair: rnd(HAIR), ph: Math.random() * 9, face: -1, les: rnd(W.D.lessons) }; }
 function newObserve() { const did = W.did, ls = W.D.lessons.filter((l) => OBSERVE[l]); const les = rnd(ls.length ? ls : W.D.lessons); const o = rnd(OBSERVE[les] || [['Something looks out of place', 'door']]); let s = nearTile(W.walk, 30); if (o[2] === 'pothole') s = nearest(s[0], s[1], roadPass) || s; return { x: s[0] + .5, y: s[1] + .5, les, text: o[0], kind: o[1], fix: o[2] || null, seen: false, t0: performance.now() }; void did; }
@@ -404,10 +407,10 @@ function update(dt, now) {
   if (paused) return;
   clock += dt * .75; // one real second is 45 game seconds; a 12-hour shift takes 16 minutes
   { const hr = Math.floor(hourNow()); if (hr !== sprHour) { sprHour = hr; const was = NIGHT; relightSprites(); if (was !== NIGHT && NIGHT && !inside) LIFE.nightLamps(); if (was !== NIGHT) radio('Dispatch', NIGHT ? 'All units, sunset. Lights on.' : 'All units, sunrise.'); } }
-  const st = ST(), sp = P.boat ? 8 * (1 + gp('drive') / 100) : P.inCar ? (call && call.accepted ? 6.6 : 4.8) * U().ride.speed * (.88 + st.res * .06) * (1 + gp('drive') / 100) * LIFE.carMult() * RIDES[RIDE()].sp * (RIDE() === 'horse' && CITY ? CITY.animalMult() : 1) : (2.9 + st.res * .2) * (1 + gp('speed') / 100); const spB = sp * (clock < BUFF.speedTo ? (BUFF.speedMul || 1.25) : 1) * SPEC.speedMul(P.x, P.y, P.inCar);
+  const st = ST(), sp = P.boat ? 8 * (1 + gp('drive') / 100) : P.inCar ? (call && call.accepted ? 6.6 : 4.8) * U().ride.speed * (.88 + st.res * .06) * (1 + gp('drive') / 100) * LIFE.carMult() * RIDES[RIDE()].sp * (RIDE() === 'horse' && CITY ? CITY.animalMult() : 1) : (2.9 + st.res * .2) * (1 + gp('speed') / 100); const spB = sp * (clock < BUFF.speedTo ? (BUFF.speedMul || 1.25) : 1) * SPEC.speedMul(P.x, P.y, P.inCar) * (P.inCar && FX.fog ? .8 : 1); /* fog: slow down to what you can see */
   // the cruiser has weight: speed builds over a second, bleeds off near the stop, and the nose dips when braking
-  let spW = spB; if (P.inCar && !P.boat && S.cfg.motion !== false) { const left = P.path.length ? Math.hypot(P.path[P.path.length - 1][0] - P.x, P.path[P.path.length - 1][1] - P.y) + (P.path.length - 1) * .7 : 0, corner = P.path.length > 1 && (() => { const a = P.path[0], b = P.path[1], d0 = Math.hypot(a[0] - P.x, a[1] - P.y); if (d0 > 1.7 || d0 < .05) return false; const h0 = Math.atan2(a[1] - P.y, a[0] - P.x), h1 = Math.atan2(b[1] - a[1], b[0] - a[0]); return Math.abs(Math.atan2(Math.sin(h1 - h0), Math.cos(h1 - h0))) > .6; })(), want = P.path.length ? spB * Math.min(corner ? (FX.rain || FX.storm ? .5 : .66) : 1, Math.min(1, Math.max(.32, left / 3.2))) : 0, v0 = P.vel || 0; /* brake before the turn, slower still when the road is wet */
-    P.vel = v0 + (want - v0) * (1 - Math.exp(-dt * (want > v0 ? 1.9 : 4.5))); spW = Math.max(.9, P.vel); P.pitch = (P.pitch || 0) * Math.exp(-dt * 5) + Math.max(-1, Math.min(1, (v0 - P.vel) / Math.max(dt, .001) / 9)) * (1 - Math.exp(-dt * 5)); } else { P.vel = 0; P.pitch = 0; }
+  let spW = spB; if (P.inCar && !P.boat && S.cfg.motion !== false) { let left = P.path.length ? Math.hypot(P.path[P.path.length - 1][0] - P.x, P.path[P.path.length - 1][1] - P.y) + (P.path.length - 1) * .7 : 0, corner = P.path.length > 1 && (() => { const a = P.path[0], b = P.path[1], d0 = Math.hypot(a[0] - P.x, a[1] - P.y); if (d0 > 1.7 || d0 < .05) return false; const h0 = Math.atan2(a[1] - P.y, a[0] - P.x), h1 = Math.atan2(b[1] - a[1], b[0] - a[0]); return Math.abs(Math.atan2(Math.sin(h1 - h0), Math.cos(h1 - h0))) > .6; })(), want = P.path.length ? spB * Math.min(corner ? (FX.rain || FX.storm ? .5 : .66) : 1, Math.min(1, Math.max(.32, left / 3.2))) : 0, v0 = P.vel || 0; /* brake before the turn, slower still when the road is wet */
+    { const f = FW[P.dir] || FW[0]; for (const o of traffic) { if (!o.blocking || !(o.yieldT > 0)) continue; const rx = o.x - P.x, ry = o.y - P.y, al = rx * f[0] + ry * f[1], sd = Math.abs(rx * f[1] - ry * f[0]); if (al > 0 && al < 2.2 && sd < .7) { want = Math.min(want, 1.2); break; } } } P.vel = v0 + (want - v0) * (1 - Math.exp(-dt * (want > v0 ? 1.9 : 4.5))); spW = Math.max(.9, P.vel); P.pitch = (P.pitch || 0) * Math.exp(-dt * 5) + Math.max(-1, Math.min(1, (v0 - P.vel) / Math.max(dt, .001) / 9)) * (1 - Math.exp(-dt * 5)); } else { P.vel = 0; P.pitch = 0; }
   if (PUR && PUR.sus) spW *= PUR.mode * (Math.hypot(PUR.sus.x - P.x, PUR.sus.y - P.y) < 2.2 ? .7 : 1);
   if (P.path.length) { const done = stepAlong(P, dt, spW); if (done && P.onArrive) { const f = P.onArrive; P.onArrive = null; f(); } }
   else P.moving = false;
@@ -418,9 +421,14 @@ function update(dt, now) {
   { const f = focus(); peds.forEach((p, k) => { if (Math.hypot(p.x - f[0], p.y - f[1]) > 30) peds[k] = newPed(); }); traffic.forEach((c, k) => { if (Math.hypot(c.x - f[0], c.y - f[1]) > 34) traffic[k] = newCar(); }); }
   peds.forEach((p) => { if (p.wait > 0) { p.wait -= dt; p.moving = false; return; } if (!p.path.length) { const t = nearTile(W.walk, 24); const path = Math.hypot(t[0] - p.x, t[1] - p.y) < 16 ? astar(p.x, p.y, t[0], t[1], pedPass, true) : null; if (path) p.path = path; else p.wait = 1; return; } if (stepAlong(p, dt, p.sp)) p.wait = 1 + Math.random() * 4; });
   const lights = P.inCar && call && call.accepted && !inside; TRF = (TRF + 1) % 3; const fv = focus();
-  traffic.forEach((c, ci) => { if (lights && !c.yieldT && Math.hypot(c.x - P.x, c.y - P.y) < 5.5) { c.yieldT = 2.6; c.yieldK = 0; } if (c.yieldT > 0) { c.yieldT -= dt; c.yieldK = Math.min(1, (c.yieldK || 0) + dt * 2.5); c.moving = false; if (c.yieldT <= 0) { c.yieldT = 0; c.yieldK = 0; } return; }
+  const sceneAt = scene || (call && call.accepted && Math.hypot(call.x - P.x, call.y - P.y) < 4) ? [P.x, P.y] : null;
+  traffic.forEach((c, ci) => { const dme = Math.hypot(c.x - P.x, c.y - P.y);
+    if (lights && !c.yieldT && dme < (c.temper === 'deaf' ? 1.6 : 5.5)) { c.yieldT = c.temper === 'freeze' ? 3.4 : c.temper === 'panic' ? 2.2 : 2.6; c.yieldK = 0; c.yieldHow = c.temper; trafficMoment(c); }
+    if (c.yieldT > 0) { c.yieldT -= dt; c.yieldK = c.yieldHow === 'pull' || c.yieldHow === 'deaf' ? Math.min(1, (c.yieldK || 0) + dt * 2.5) : 0; c.moving = false; if (c.yieldT <= 0) { c.yieldT = 0; c.yieldK = 0; } return; }
+    // a marked car nearby makes drivers ease off; a scene makes them slow down and look
+    c.spMul = (P.inCar && !lights && dme < 4 ? .7 : sceneAt && Math.hypot(c.x - sceneAt[0], c.y - sceneAt[1]) < 6 ? .45 : 1) * (FX.fog ? .8 : FX.rain ? .88 : 1); // weather slows everyone
     if (Math.abs(c.x - fv[0]) + Math.abs(c.y - fv[1]) > 22 && ci % 3 !== TRF) return; const cdt = Math.abs(c.x - fv[0]) + Math.abs(c.y - fv[1]) > 22 ? dt * 3 : dt;
-    if (c.stopped) return; if (c.stopT > 0) { c.stopT -= cdt; c.moving = false; return; } if (!c.path.length) { if (c.bus && !c.stopT0) { c.stopT = 3.5; c.stopT0 = 1; return; } c.stopT0 = 0; if ((c.retryT -= cdt) > 0) return; c.retryT = 1.2; for (let k = 0; k < 6; k++) { const x = Math.floor(c.x + (Math.random() - .5) * 40), y = Math.floor(c.y + (Math.random() - .5) * 40); if (roadPass(x, y)) { const p = roadRoute(c, x, y); if (p && p.length > 3) { c.path = p; break; } } } return; } if (carAhead(c)) { c.waitT = (c.waitT || 0) + cdt; if (c.waitT < 2.5) { c.moving = false; return; } } else c.waitT = 0; stepAlong(c, cdt, c.sp); });
+    if (c.stopped) return; if (c.stopT > 0) { c.stopT -= cdt; c.moving = false; return; } if (!c.path.length) { if (c.bus && !c.stopT0) { c.stopT = 3.5; c.stopT0 = 1; return; } c.stopT0 = 0; if ((c.retryT -= cdt) > 0) return; c.retryT = 1.2; for (let k = 0; k < 6; k++) { const x = Math.floor(c.x + (Math.random() - .5) * 40), y = Math.floor(c.y + (Math.random() - .5) * 40); if (roadPass(x, y)) { const p = roadRoute(c, x, y); if (p && p.length > 3) { c.path = p; break; } } } return; } if (carAhead(c)) { c.waitT = (c.waitT || 0) + cdt; if (c.waitT < 2.5) { c.moving = false; return; } } else c.waitT = 0; stepAlong(c, cdt, c.sp * (c.spMul || 1)); });
   // arrive on a call
   if (call && call.pursuit && call.accepted && P.inCar && !PUR && !inside && Math.hypot(call.x - P.x, call.y - P.y) < 5) purStart(call);
   else if (call && !inside && Math.hypot(call.x - P.x, call.y - P.y) < 1.7 && !scene && !heldByLeave() && !RING && !PUR) ringOpen(call);
@@ -526,6 +534,8 @@ function render(now) { RNOW = now; LBLR.length = 0; frameStart(); spriteResTick(
   ambienceGround(); vfxGround(now, vis); if (!ATTRACT) trailDraw(now);
   list.sort((a, b) => a.d - b.d).forEach((e) => e.f());
   ambienceWorld(now); sirenWash(now);
+  // fog: you see what is near you and the city fades to gray beyond it, a little further from the car than on foot
+  if (FX.fog && !inside) { const [fx, fy] = iso(P.x, P.y), r0 = P.inCar ? 95 : 72, gr = ctx.createRadialGradient(fx, fy - 10, r0, fx, fy - 10, r0 + 250); gr.addColorStop(0, 'rgba(205,212,222,0)'); gr.addColorStop(1, 'rgba(205,212,222,' + (.55 + .35 * FX.fog).toFixed(2) + ')'); ctx.fillStyle = gr; ctx.fillRect(fx - 4000, fy - 4000, 8000, 8000); }
   // player ghost outline so you never lose yourself behind a building
   { const [sx, sy] = iso(P.x, P.y); ctx.globalAlpha = .35; ctx.strokeStyle = '#f5b800'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, 13, 6.5, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
   if (P.path.length) { const [tx, ty] = P.path[P.path.length - 1], [sx, sy] = iso(tx, ty); ctx.strokeStyle = 'rgba(245,184,0,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, 10 + Math.sin(now / 150) * 2, 5, 0, 0, Math.PI * 2); ctx.stroke(); }
@@ -759,6 +769,14 @@ const MG = createMiniGames({ get net() { return net; }, now: () => N0(), esc: (x
 // cars keep right; a car yielding to lights and sirens eases further over to the curb
 // following distance: wait for the car ahead in the same lane, and for anyone already in the intersection in front of us
 const FW = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+// what you see when a driver reacts badly to your lights: a frozen or panicked driver in your way slows you down until
+// you go around, and a driver who never heard the siren is the chapter's lesson in the street (a siren is not a shield)
+let TRAFT = 0;
+function trafficMoment(c) { if (!P.inCar) return; const f = FW[P.dir] || FW[0], rx = c.x - P.x, ry = c.y - P.y, ahead = rx * f[0] + ry * f[1] > 0;
+  if (c.temper === 'pull' || !ahead) return; c.blocking = c.temper !== 'deaf'; const now = performance.now(); if (now - TRAFT < 20000) return; TRAFT = now;
+  if (c.temper === 'deaf') { toast('That driver never heard you. Windows up, radio on. A siren is not a shield.'); const f2 = L.factList([10]).find((x) => /siren is not a protective shield/i.test(x.text)); if (f2 && (P.vel || 0) < 3.5) L.record(S, { id: 'street:siren', fid: f2.id, les: 10 }, true); }
+  else if (c.temper === 'freeze') toast('Driver froze in your lane. Ease around them, slow and wide.');
+  else toast('That driver panicked and stopped dead. Give them room, then go around.'); }
 function carAhead(c) { const f = FW[c.dir] || FW[0]; for (const o of traffic) { if (o === c) continue; const rx = o.x - c.x, ry = o.y - c.y, along = rx * f[0] + ry * f[1], side = Math.abs(rx * f[1] - ry * f[0]);
   if (along > .2 && along < 1.25 && side < .6 && (o.dir === c.dir || Math.floor(o.x) % 11 <= 1 && Math.floor(o.y) % 11 <= 1)) return true; } return false; }
 function laneOff(c) { const k = .05 + (c.yieldK || 0) * .3; return [[0, k], [-k, 0], [0, -k], [k, 0]][c.dir] || [0, 0]; }
@@ -841,7 +859,7 @@ function revealAround(cx, cy, r) {
 function liveInit() {
   const h = hourNow(), night = isNight(h), R2 = Math.random;
   FX = { rain: R2() < .25, drops: [], birds: [], events: [], train: null, trainT: 25 + R2() * 30, sail: null, caches: [], disc: {} };
-  { const wx = S.seenCine ? EVT.weather() : { rain: false, storm: false, wind: .15, cold: false }; /* the opening image is a clear dawn */ if (!S.seenCine) FX.rain = false; FX.rain = wx.rain; FX.storm = wx.storm; FX.wind = wx.wind; FX.cold = wx.cold; if (wx.storm) setTimeout(() => { radio('Dispatch', 'All units, tropical storm conditions in ' + W.D.name + '. Expect trees down, flooding and signals out.'); banner('🌀', 'Tropical storm', 'Heavy rain and wind this shift. Storm calls take priority.'); }, 3000); else if (wx.fog) setTimeout(() => radio('Dispatch', 'Heads up: dense fog this morning. Use your low beams.'), 2600); else if (wx.cold) setTimeout(() => radio('Dispatch', 'Cold snap tonight. Check on anyone sleeping outside.'), 2600); }
+  { const wx = S.seenCine ? EVT.weather() : { rain: false, storm: false, wind: .15, cold: false }; /* the opening image is a clear dawn */ if (!S.seenCine) FX.rain = false; FX.rain = wx.rain; FX.storm = wx.storm; FX.wind = wx.wind; FX.cold = wx.cold; FX.fog = wx.fog || 0; if (wx.storm) setTimeout(() => { radio('Dispatch', 'All units, tropical storm conditions in ' + W.D.name + '. Expect trees down, flooding and signals out.'); banner('🌀', 'Tropical storm', 'Heavy rain and wind this shift. Storm calls take priority.'); }, 3000); else if (wx.fog) setTimeout(() => radio('Dispatch', 'Heads up: dense fog this morning. Use your low beams.'), 2600); else if (wx.cold) setTimeout(() => radio('Dispatch', 'Cold snap tonight. Check on anyone sleeping outside.'), 2600); }
   BUFF.speedTo = -1; BUFF.speedMul = 0; BUFF.light = 1; BUFF.wait = 0;
   if (FX.rain && !FX.storm) setTimeout(() => radio('Dispatch', 'All units, rain moving through ' + W.D.name + '. Drive careful.'), 2500);
   // birds on open ground, scattering when you get close
@@ -859,7 +877,7 @@ function liveInit() {
   for (let i = 0; i < 3; i++) { const c = open[Math.floor(R2() * open.length)]; if (Math.hypot(c[0] - P.x, c[1] - P.y) > 8) FX.caches.push({ x: c[0] + .5, y: c[1] + .5 }); }
 }
 function liveUpdate(dt) {
-  revealAround(P.x, P.y, (P.inCar || P.boat ? 6.5 : 5.5) + gp('explore'));
+  revealAround(P.x, P.y, (P.inCar || P.boat ? 6.5 : 5.5) * (FX.fog ? .7 : 1) + gp('explore'));
   // first look at a landmark, the promenade or a secret spot
   W.lots.forEach((l) => { if (!l.name) return; const k = W.did + ':' + l.name; if (S.disc[k] || Math.hypot(l.door[0] - P.x, l.door[1] - P.y) > 4.5) return; S.disc[k] = 1; if (l.gen) { saveS(); ord('place'); FLOATS.push({ x: P.x, y: P.y, t: performance.now(), text: l.name, sub: 'new place' }); return; } saveS(); ord('place'); banner('📍', 'Discovered: ' + l.name, (LANDMARKS[l.kind] || {}).note || W.D.name); award(10, 'new place'); });
   if (W.promenade) { const k = W.did + ':prom'; if (!S.disc[k] && Math.hypot(W.promenade.x + 1 - P.x, W.promenade.y + 4 - P.y) < 4) { S.disc[k] = 1; saveS(); banner('📍', 'Discovered: ' + W.promenade.name, 'Walk only. No cars, all vibes.'); award(10, 'new place'); } }
