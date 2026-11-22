@@ -41,6 +41,9 @@ case "$MODE" in
 esac
 if [ -n "$SHARD" ]; then I=${SHARD%/*}; N=${SHARD#*/}; LIST=$(echo $LIST | tr ' ' '\n' | awk -v i="$I" -v n="$N" 'NR % n == i - 1' | tr '\n' ' '); fi
 PORT=${PORT:-8765}; ROOT=${ROOT:-$REPO}; JOBS=${JOBS:-2}
+# every module must parse before anything runs: one bad line stops the whole game from loading
+BADJS=""; for f in "$REPO"/academy/*.js; do node --input-type=module --check < "$f" >/dev/null 2>&1 || BADJS="$BADJS $(basename "$f")"; done
+if [ -n "$BADJS" ]; then echo "SYNTAX ERROR in:$BADJS (the game will not load)"; exit 1; fi
 OUTD="$T/out"; mkdir -p "$OUTD/undefined"; OUT="$OUTD/result_${MODE}${SHARD:+_${SHARD/\//of}}.txt"
 if [ -z "$NOSERVER" ]; then (cd "$ROOT" && exec python3 -m http.server "$PORT" >/dev/null 2>&1) & SRV=$!; fi
 node "$T/pwserver.js" > "$OUTD/.pw_ws" & PWS=$!
