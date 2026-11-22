@@ -340,7 +340,7 @@ export const CH = 16;
 // ground chunks are big canvases (about 8 MB each at full resolution); when the game drops an old chunk its canvas is
 // kept and reused for the next chunk of the same size instead of allocating a new one
 const GPOOL = [];
-export function recycleGround(c) { if (c && c.canvas && GPOOL.length < 6 && GPOOL.indexOf(c.canvas) < 0) GPOOL.push(c.canvas); }
+export function recycleGround(c) { if (c && c.canvas && !c.canvas.getContext) { if (c.canvas.close) c.canvas.close(); return; } /* a bitmap from the ground worker: free it */ if (c && c.canvas && GPOOL.length < 6 && GPOOL.indexOf(c.canvas) < 0) GPOOL.push(c.canvas); }
 function groundCanvas(w, h, k) { const W2 = Math.ceil(w * k), H2 = Math.ceil(h * k), i = GPOOL.findIndex((c) => c.width === W2 && c.height === H2); if (i < 0) return hiCanvas(w, h, k);
   const c = GPOOL.splice(i, 1)[0], g = c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.filter = 'none'; g.clearRect(0, 0, c.width, c.height); g.scale(k, k); return [c, g]; }
 export function drawGround(W, cx, cy) {
@@ -353,6 +353,9 @@ export function drawGround(W, cx, cy) {
   const poly = (pts, f) => { g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fillStyle = f; g.fill(); };
   const seg = (a, b, col, wd) => { g.strokeStyle = col; g.lineWidth = wd; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); };
   const tile = (x, y) => [at(x, y, 0, 0), at(x, y, 1, 0), at(x, y, 1, 1), at(x, y, 0, 1)];
+  // n speckles in a tile, two tones, as two filled paths instead of n fillRects (same random sequence, same dots)
+  const speck = (x, y, n, sz, ca, cb, pa) => { const A = [], B = []; for (let i = 0; i < n; i++) { const p = at(x, y, R(), R()); (R() < pa ? A : B).push(p); }
+    for (const [L, c] of [[A, ca], [B, cb]]) { if (!L.length) continue; g.beginPath(); for (const p of L) g.rect(p[0], p[1], sz, sz); g.fillStyle = c; g.fill(); } };
   const band = (x, y, side, f, col) => { // a strip along one edge of the tile, f = depth (0..1)
     const q = side === 0 ? [[0, 0], [1, 0], [1, f], [0, f]] : side === 1 ? [[1, 0], [1, 1], [1 - f, 1], [1 - f, 0]] : side === 2 ? [[0, 1], [1, 1], [1, 1 - f], [0, 1 - f]] : [[0, 0], [0, 1], [f, 1], [f, 0]];
     poly(q.map(([u, v]) => at(x, y, u, v)), col);
@@ -368,7 +371,7 @@ export function drawGround(W, cx, cy) {
     poly(P4, fc); g.strokeStyle = fc; g.lineWidth = .8; g.stroke(); // stroke hides hairline seams between tiles
     if (v === T.ROAD || v === T.LOT) {
       // aggregate speckle, tyre wear, the odd crack, patch or oil stain
-      for (let i = 0; i < 16; i++) { const p = at(x, y, R(), R()); g.fillStyle = R() < .5 ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.12)'; g.fillRect(p[0], p[1], 1.2, 1.2); }
+      speck(x, y, 16, 1.2, 'rgba(255,255,255,.07)', 'rgba(0,0,0,.12)', .5);
       const rr = isRoadLine(y), rc = isRoadLine(x);
       if (v === T.ROAD && rr !== rc) { // lane wear: two darker wheel paths per lane
         [.3, .7].forEach((t0) => { const a = rr ? at(x, y, 0, t0) : at(x, y, t0, 0), b = rr ? at(x, y, 1, t0) : at(x, y, t0, 1); seg(a, b, 'rgba(0,0,0,.09)', 4); });
@@ -397,7 +400,7 @@ export function drawGround(W, cx, cy) {
       // concrete slabs: two per tile, seams in the joints, a little staining
       seg(at(x, y, .5, 0), at(x, y, .5, 1), 'rgba(0,0,0,.10)', .9); seg(at(x, y, 0, .5), at(x, y, 1, .5), 'rgba(0,0,0,.10)', .9);
       seg(at(x, y, .51, 0), at(x, y, .51, 1), 'rgba(255,255,255,.18)', .6);
-      for (let i = 0; i < 8; i++) { const p = at(x, y, R(), R()); g.fillStyle = R() < .5 ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.12)'; g.fillRect(p[0], p[1], 1.4, 1.4); }
+      speck(x, y, 8, 1.4, 'rgba(0,0,0,.06)', 'rgba(255,255,255,.12)', .5);
       if (R() < .12) { const p = at(x, y, .2 + R() * .6, .2 + R() * .6); g.fillStyle = 'rgba(60,50,40,.10)'; g.beginPath(); g.ellipse(p[0], p[1], 5 + R() * 4, 2.5 + R() * 2, 0, 0, Math.PI * 2); g.fill(); }
     } else if (v === T.PLAZA) {
       // pavers in a running bond with mortar joints
@@ -407,7 +410,8 @@ export function drawGround(W, cx, cy) {
     } else if (v === T.GRASS) {
       // mottled lawn with blades, clover and the occasional flower
       for (let i = 0; i < 3; i++) { const p = at(x, y, R(), R()); g.fillStyle = R() < .5 ? 'rgba(30,60,20,.14)' : 'rgba(150,190,90,.12)'; g.beginPath(); g.ellipse(p[0], p[1], 6 + R() * 8, 3 + R() * 4, 0, 0, Math.PI * 2); g.fill(); }
-      g.lineWidth = .8; for (let i = 0; i < 22; i++) { const p = at(x, y, R(), R()), l = 1.5 + R() * 2.2; g.strokeStyle = R() < .55 ? 'rgba(25,55,18,.5)' : 'rgba(170,215,110,.45)'; g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(p[0] + (R() - .5) * 1.4, p[1] - l); g.stroke(); }
+      { g.lineWidth = .8; const A = [], B = []; for (let i = 0; i < 22; i++) { const p = at(x, y, R(), R()), l = 1.5 + R() * 2.2, dk = R() < .55; (dk ? A : B).push([p[0], p[1], p[0] + (R() - .5) * 1.4, p[1] - l]); } // blades as two stroked paths, not 22
+        for (const [L, c] of [[A, 'rgba(25,55,18,.5)'], [B, 'rgba(170,215,110,.45)']]) { if (!L.length) continue; g.beginPath(); for (const b of L) { g.moveTo(b[0], b[1]); g.lineTo(b[2], b[3]); } g.strokeStyle = c; g.stroke(); } }
       if (R() < .14) { const p = at(x, y, .2 + R() * .6, .2 + R() * .6), fc = ['#fff8e1', '#ffd54f', '#f8bbd0', '#e1bee7'][Math.floor(R() * 4)]; for (let f = 0; f < 3; f++) { g.fillStyle = fc; g.beginPath(); g.arc(p[0] + (R() - .5) * 8, p[1] + (R() - .5) * 4, 1.1, 0, Math.PI * 2); g.fill(); } }
     } else if (v === T.WATER) {
       const gw = g.createRadialGradient(mx, my, 2, mx, my, 40); gw.addColorStop(0, 'rgba(255,255,255,.06)'); gw.addColorStop(1, 'rgba(0,20,40,.12)'); poly(P4, gw);

@@ -200,13 +200,25 @@ function groundChunk(W, cx, cy) {
     if (!on) { g.save(); g.setTransform(k, 0, 0, k, 0, 0); on = true; } g.drawImage(MANHOLE || (MANHOLE = manholeSprite()), lx, ly, 20, 11); }
   if (on) g.restore(); return c;
 }
+// ground chunks are painted by a worker (groundw.js) ahead of the camera and arrive as bitmaps; the main thread only
+// paints one itself when a chunk is needed on screen and nobody is painting it yet
+let GW = null, GWN = 0; const GWJ = new Map();
+try { if (typeof OffscreenCanvas !== 'undefined' && !/[?&]noworker\b/.test(location.search)) { GW = new Worker(new URL('./groundw.js', import.meta.url), { type: 'module' }); GW.onmessage = gwDone; GW.onerror = () => { GW = null; GWJ.clear(); }; } } catch (e) { GW = null; }
+function gwAsk(cx, cy) { const k = cx + ',' + cy; if (!GW || !W || W.inside || GWJ.has(k) || GWJ.size >= 3) return false; GWJ.set(k, { did: W.did, gres: GRES, G }); GW.postMessage({ id: ++GWN, did: W.did, cx, cy, gres: GRES }); return true; }
+function gwDone(e) {
+  const d = e.data, k = d.cx + ',' + d.cy, j = GWJ.get(k); GWJ.delete(k);
+  if (d.fail) { GW = null; GWJ.clear(); return; } // the device can't paint off the main thread: everything goes back to the old way
+  if (!j || !G || j.G !== G || d.gres !== GRES || !W || W.did !== d.did || G.chunks.has(k)) { if (d.bmp && d.bmp.close) d.bmp.close(); }
+  else { d.bmp.lw = d.lw; d.bmp.lh = d.lh; G.chunks.set(k, { canvas: d.bmp, ox: d.ox, oy: d.oy, used: performance.now() }); G.ver = (G.ver || 0) + 1; }
+  if (G && !G.idle) { G.idle = 1; idleSoon(groundAhead); }
+}
 // draw the chunks covering an iso rectangle into g (whose transform is already set); returns false if a chunk was missing
 let gMade = 0;
 function chunksInto(g, ix0, iy0, ix1, iy1, now) {
   const [cx0, cx1, cy0, cy1] = chunkRange(ix0 - 80, iy0 - 80, ix1 + 80, iy1 + 80); let whole = true;
   for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
     const k = cx + ',' + cy; let c = G.chunks.get(k);
-    if (!c) { if (gMade >= 1 && G.chunks.size > 4) { G.miss = 1; whole = false; continue; } c = groundChunk(W, cx, cy); G.chunks.set(k, c); G.ver = (G.ver || 0) + 1; gMade++; }
+    if (!c) { if ((gMade >= 1 || GWJ.has(k)) && G.chunks.size > 4) { G.miss = 1; whole = false; continue; } c = groundChunk(W, cx, cy); G.chunks.set(k, c); G.ver = (G.ver || 0) + 1; gMade++; }
     c.used = now; g.drawImage(c.canvas, -c.ox, -c.oy, c.canvas.lw, c.canvas.lh);
   }
   return whole;
@@ -262,6 +274,7 @@ function groundAhead(dl) {
   const ccx = (cx0 + cx1) / 2 + Math.sign(vx + vy * 2) * .8, ccy = (cy0 + cy1) / 2 + Math.sign(vy * 2 - vx) * .8, want = [];
   for (let cy = Math.max(0, cy0 - 2); cy <= Math.min(M2, cy1 + 2); cy++) for (let cx = Math.max(0, cx0 - 2); cx <= Math.min(M2, cx1 + 2); cx++) if (!G.chunks.has(cx + ',' + cy)) want.push([Math.hypot(cx - ccx, cy - ccy), cx, cy]);
   want.sort((a, b) => a[0] - b[0]);
+  if (GW && !W.inside) { for (const [, cx, cy] of want) if (!gwAsk(cx, cy) && GWJ.size >= 3) break; return; } // the worker paints them; gwDone asks for more
   let built = 0; for (const [, cx, cy] of want) { if (built && (dl.timeRemaining() < 8 || performance.now() - t0 > 10)) break; const c2 = groundChunk(W, cx, cy); c2.used = performance.now(); G.chunks.set(cx + ',' + cy, c2); G.ver = (G.ver || 0) + 1; built++; if (built >= 2) break; }
   if (want.length > built) { G.idle = 1; idleSoon(groundAhead); }
 }
