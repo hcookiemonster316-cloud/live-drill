@@ -2,7 +2,8 @@
 // to small MP3s. Each mood rotates through its tracks with crossfades. Until the first file has loaded (or if files
 // can't load), the same synth plays the score live instead.
 import { META, ROTATION, trackLen } from './scoredata.js';
-const FILE = 'music/title_1.mp3'; // loaded first; once it can play, the file score takes over from the live synth
+const MV = '?v=4'; // bump when the soundtrack is re-rendered, so returning players hear the new files right away
+const FILE = 'music/title_1.mp3' + MV; // loaded first; once it can play, the file score takes over from the live synth
 const NAMES = {}; for (const k in META) if (META[k].base) NAMES[META[k].base] = META[k].name;
 const PRIORITY = { call: 1, urgent: 1, scene: 1, story: 1 }; // these cut in right away; calmer moods wait a little so the music doesn't jump around
 
@@ -13,7 +14,7 @@ export function createScore(getCtx, synth) {
   // the next track in this mood's rotation (each plays once, then the next one fades in)
   function entry(mood) { const list = (ROTATION[mood] || ROTATION.day).filter((id) => !bad[id]); if (!list.length) { failed = true; if (on && cur) synth.start(cur); return null; }
     const k = idx[mood] == null ? 0 : (idx[mood] + 1) % list.length; idx[mood] = k; const id = list[k];
-    return { id, src: 'music/' + id + '.mp3', start: 0, len: trackLen(META[id]) + 1.2, mood, name: META[id].name }; }
+    return { id, src: 'music/' + id + '.mp3' + MV, start: 0, len: trackLen(META[id]) + 1.2, mood, name: META[id].name }; }
   function graph() {
     const a = ctx(); if (!a || master) return !!master;
     master = a.createGain(); master.gain.value = vol; lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = rainy ? 5200 : 16000; lp.connect(master); master.connect(a.destination);
