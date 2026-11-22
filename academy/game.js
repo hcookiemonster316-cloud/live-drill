@@ -1775,7 +1775,7 @@ function moodNow() {
   if (P.boat) return 'water';
   const h = hourNow(); return h >= 19 || h < 6 ? 'night' : 'day';
 }
-function musicUpdate(dt) { musT -= dt; if (musT > 0) return; musT = .8; if (!S.sound) return; music.rain(FX.rain); const md = moodNow(); music.start(md);
+function musicUpdate(dt) { musT -= dt; if (musT > 0) return; musT = .8; if (!S.sound) return; music.rain(FX.rain); if (music.context && !inside) music.context({ d: W && W.did, u: S.unit, s: S.shift }); const md = moodNow(); music.start(md);
   // the score leans in when things happen: soft on foot, fuller in the car, full on a call, in a story scene or a menu
   if (music.intensity) music.intensity(md === 'title' || md === 'story' || md === 'side' || md === 'debrief' || (call && call.accepted) ? 1 : P.inCar || P.boat ? .75 : inside ? .6 : .5); }
 function titleScreen() {

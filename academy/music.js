@@ -5,6 +5,8 @@
 // marimba, bells, brass, lead and bass, with a soft drum kit, stereo placement, reverb and delay.
 
 import { TRACKS } from './scoredata.js';
+// the hook's opening motif, for intros (heard in the intro's last two bars) and outros (slowed, then it rings out)
+const MOTIF_IN = 'r:16 4:3/2 7:1/2 6:1/3 7:1/3 6:1/3 4:1 r:4 4:3/2 7:1/2 6:1/3 7:1/3 6:1/3 4:1 1:4', MOTIF_OUT = '4:3 7:1 6:2/3 7:2/3 6:2/3 4:2 0:8 r:16';
 const LEADX = 1.7, BANDX = .82, DUCK = .72; // melody up, band down a touch, and the band ducks under each melody note
 const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
 const SCALES = { maj: [0, 2, 4, 5, 7, 9, 11], min: [0, 2, 3, 5, 7, 8, 10], dor: [0, 2, 3, 5, 7, 9, 10], mix: [0, 2, 4, 5, 7, 9, 10] };
@@ -21,7 +23,15 @@ function sectionOf(bar) { const k = bar % 32; return k < 4 ? 'intro' : k < 12 ? 
 const VIEW = new WeakMap();
 function sectionView(m, sec) { let c = VIEW.get(m); if (!c) { c = {}; VIEW.set(m, c); } if (c[sec]) return c[sec];
   const v = Object.assign({}, m); v.ev = m._evA || (m._evA = parseTheme(m.theme)); v.counter = null;
-  if (sec === 'intro' || sec === 'outro') { v.drums = null; v.lead = null; v.keys2 = null; v.bass = m.bass && { pat: 'whole', v: m.bass.v * .8 }; }
+  if (sec === 'intro' || sec === 'outro') { v.drums = null; v.lead = null; v.keys2 = null; v.bass = m.bass && { pat: 'whole', v: m.bass.v * .8 };
+    // intros and outros come in kinds, so tracks don't all start and end alike: the band alone ('band'), a drum break
+    // ('drums'), the bass line with a light kit ('bass'), horn hits over the groove ('hits'), or the hook's motif played
+    // alone over soft keys ('motif'; the intro states it in its last two bars, the outro lets it ring out slowly)
+    const ty = (sec === 'intro' ? m.intro : m.outro) || 'band', B = m.band || {}, bb = B.bass;
+    if (ty === 'drums') { v.band = bb ? { bass: { pat: 'whole', v: bb.v * .7 } } : null; v.keys = null; v.pad = null; v.strings = null; v.drone = null; v.drums = m.drums || { pat: 'funk', v: .7 }; }
+    else if (ty === 'bass') { v.band = bb ? { bass: bb } : null; v.keys = null; v.pad = null; v.strings = null; v.drums = m.drums ? { pat: m.drums.pat === 'brush' || m.drums.pat === 'jazz' ? m.drums.pat : 'soft', v: m.drums.v * .45 } : null; }
+    else if (ty === 'hits') { v.band = { horns: B.horns || { v: .02 }, bass: bb ? { pat: 'whole', v: bb.v } : undefined }; v.drums = m.drums ? { pat: m.drums.pat, v: m.drums.v * .6 } : null; }
+    else if (ty === 'motif') { v.band = { rhodes: { pat: 'ballad', v: ((B.rhodes || {}).v || .026) * .9 }, vamp: B.vamp }; v.drums = null; v.lead = Object.assign({}, m.lead || { voice: 'vibes', v: .03, oct: 12 }, { sparse: false }); const key = sec === 'intro' ? '_evIn' : '_evOut'; v.ev = m[key] || (m[key] = parseTheme(sec === 'intro' ? m.introTheme || MOTIF_IN : m.outroTheme || MOTIF_OUT)); } }
   if (sec === 'B') { v.prog = m.progB || m.prog; v.ev = m.themeB ? (m._evB || (m._evB = parseTheme(m.themeB))) : v.ev; if (m.leadB) v.lead = m.leadB; if (m.drumsB !== undefined) v.drums = m.drumsB; if (m.keysB) v.keys = m.keysB; }
   if (sec === 'A2') { v.counter = m.counter || null; if (m.strings2) v.strings = m.strings2; }
   return (c[sec] = v); }

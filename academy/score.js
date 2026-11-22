@@ -1,8 +1,8 @@
 // The Patrol City score: every track was composed for this game and rendered from its own synth engine (music.js)
 // to small MP3s. Each mood rotates through its tracks with crossfades. Until the first file has loaded (or if files
 // can't load), the same synth plays the score live instead.
-import { META, ROTATION, POOLS, trackLen } from './scoredata.js';
-const MV = '?v=5'; // bump when the soundtrack is re-rendered, so returning players hear the new files right away
+import { META, ROTATION, POOLS, CONTEXT, TRACKS, trackLen } from './scoredata.js';
+const MV = '?v=6'; // bump when the soundtrack is re-rendered, so returning players hear the new files right away
 const FILE = 'music/title_1.mp3' + MV; // loaded first; once it can play, the file score takes over from the live synth
 const NAMES = {}; for (const k in META) if (META[k].base) NAMES[META[k].base] = META[k].name;
 const PRIORITY = { call: 1, urgent: 1, scene: 1, story: 1 }; // these cut in right away; calmer moods wait a little so the music doesn't jump around
@@ -16,7 +16,13 @@ export function createScore(getCtx, synth) {
   // The mood's own main arrangement opens the bag the first time, so each situation still announces itself.
   // Leave a mood and come back within three minutes, and its track picks up where it left off instead of starting over.
   const bags = {}, opened = {}, plan = {}, hist = [], resume = {}, lastOf = {};
-  const pool = (mood) => (POOLS[mood] || POOLS.day).filter((id) => !bad[id]);
+  // where you are, your unit and your shift add their own arrangements: the district's and the shift's on patrol, the unit's
+  // on patrol, calls and side cases; each is in the bag twice, and arriving somewhere new plays its theme next
+  let here = { d: null, u: null, s: null };
+  const extra = (mood) => { const o = [], add = (id) => { if (id && TRACKS[id]) o.push(id, id); };
+    if (mood === 'day' || mood === 'night') { add(CONTEXT.district(here.d)); add(CONTEXT.shift(here.s)); add(CONTEXT.unit(here.u)); }
+    else if (mood === 'call' || mood === 'side') add(CONTEXT.unit(here.u)); else if (mood === 'water' && here.u === 'marine') add(CONTEXT.unit('marine')); return o; };
+  const pool = (mood) => (POOLS[mood] || POOLS.day).concat(extra(mood)).filter((id) => !bad[id]);
   function draw(mood) { const P = pool(mood); if (!P.length) return null; let b = bags[mood];
     if (!b || !b.length) { b = P.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } if (!opened[mood]) { opened[mood] = 1; const own = (ROTATION[mood] || [])[0]; if (own && b.indexOf(own) > 0) { b.splice(b.indexOf(own), 1); b.unshift(own); } } bags[mood] = b; }
     const recent = hist.slice(-Math.min(3, P.length - 1)); let k = b.findIndex((id) => recent.indexOf(id) < 0); if (k < 0) k = 0; return b.splice(k, 1)[0]; }
@@ -59,6 +65,9 @@ export function createScore(getCtx, synth) {
       if (live >= 0 && decks[live].el.paused && ready) { const p = decks[live].el.play(); if (p && p.catch) p.catch(() => {}); }
       api.set(mood || cur || 'title');
     },
+    context(c) { const nd = c.d != null && c.d !== here.d, nu = c.u !== here.u, ns = c.s !== here.s; if (!nd && !nu && !ns) return; here = { d: c.d, u: c.u, s: c.s };
+      for (const k in bags) delete bags[k]; // rebuild the bags with the new arrangements in them
+      const lead = nd ? CONTEXT.district(c.d) : nu ? CONTEXT.unit(c.u) : CONTEXT.shift(c.s); if (lead && TRACKS[lead]) { plan.day = plan.night = lead; } if (nd && on && ready && !failed && (cur === 'day' || cur === 'night') && performance.now() - lastJump > 15000) jump(cur); }, // a new district's theme fades in on arrival
     set(mood) {
       if (!on || mood === cur) return; cur = mood;
       if (!ready || failed) { synth.set ? synth.set(mood) : synth.start(mood); return; }
@@ -66,6 +75,8 @@ export function createScore(getCtx, synth) {
       if (!wait) jump(mood); else pending = setTimeout(() => { if (on && cur === mood) jump(mood); }, wait);
     },
     pump() {},
+    __pick(mood) { const e = entry(mood); if (e) playing = e; return e && e.id; }, // test hook: the next pick without playing it
+    get __rot() { return { plan: Object.assign({}, plan), hist: hist.slice(), here, bags: JSON.parse(JSON.stringify(bags)), playing: playing && playing.id }; }, // test hook
     __seekEnd() { if (live < 0 || !playing) return; try { decks[live].el.currentTime = playing.start + playing.len - 3; } catch (e) {} }, // test hook
     rain(v) { rainy = !!v; synth.rain(v); tone(); },
     // how present the score is: on foot it plays softer and duller, as if from a distance; in the car and on a call it
