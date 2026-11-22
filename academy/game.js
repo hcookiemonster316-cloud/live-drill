@@ -14,6 +14,7 @@ import { installWays, SIGNATURE, SIG_CAST } from './ways.js';
 import { installSpecial } from './special.js';
 import { FOLK } from './folkcast.js';
 import { installUiStage } from './uistage.js';
+import { installTogether } from './together.js';
 import { sprite as folkSpriteOf, fromLook as folkFromLookG, SW as FSW, SH as FSH, OX as FOX, OY as FOY } from './pixelfolk.js';
 import { momentArt } from './moments.js';
 import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
@@ -415,7 +416,7 @@ function update(dt, now) {
   if ((P.inCar || P.boat) && call && call.accepted) { sirenT -= dt; if (sirenT <= 0) { sirenT = .9; beep(720, .42, 'sine', .018); beep(980, .42, 'sine', .018, .45); } }
   if (net && now - moveSent > 120) { moveSent = now; net.move(P.x, P.y, P.boat ? 2 : P.inCar ? 1 : 0, P.dir); }
   liveUpdate(dt);
-  LIFE.update(dt); UIS.tick(dt); SPEC.tick(dt, P.x, P.y); OFF.tick(dt); ACAD.tick(dt); EVT.dailyTick(dt); storyUpdate(dt); objectiveHud(); trackerHud(dt); trailUpdate(dt); loreCheck(dt); tipsUpdate(dt); musicUpdate(dt); trophyCheck(dt); squadTick(dt); factWatch(); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
+  LIFE.update(dt); UIS.tick(dt); TG.tick(dt); SPEC.tick(dt, P.x, P.y); OFF.tick(dt); ACAD.tick(dt); EVT.dailyTick(dt); storyUpdate(dt); objectiveHud(); trackerHud(dt); trailUpdate(dt); loreCheck(dt); tipsUpdate(dt); musicUpdate(dt); trophyCheck(dt); squadTick(dt); factWatch(); lampT -= dt; if (lampT <= 0) { lampT = 4; lampsUpdate(); }
   if (inside && !P.path.length && Math.hypot(W.door[0] - P.x, W.door[1] - P.y) < .45) exitBuilding();
   hudClock();
   if (clock >= SHIFT_MIN && !scene) endOfWatch();
@@ -706,6 +707,8 @@ const EP = installEpic({ S, comfort: () => PREM, NPCS, esc: (x) => esc(x), $: (i
   cine: () => document.body.classList.contains('cine'), pause: (on) => { paused = on; }, hour: () => hourNow(), iso: (x, y) => iso(x, y), dname: (d) => DISTRICTS[d].name, loreDist: (n) => LORE_DIST[n], loreAt: (n) => { const e = LORE.find((x) => x.when === 'visit:' + n); return e ? e.id : null; },
   radio: (w, m) => radio(w, m), chirp: (w) => chirp(w), wx: () => Object.assign({ label: '' }, EVT.WX || {}, { rain: FX.rain, storm: FX.storm, wind: FX.wind || 0, cold: FX.cold, fog: FX.fog || 0 }), sparkle: (x, y, now, c) => sparkle(x, y, now, c),
   dialogue: (l, d, o) => dialogue(l, d, o), week: () => ACAD.week(), weekKey: () => EVT.weekKey ? EVT.weekKey() : '', net: () => net, hasSkill: (id) => hasSk(id), ready: () => !ATTRACT && !looting && !loreBusy && !storyBusy && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !document.querySelector('.lorePop, .tCard') && !paused && !scene });
+const TG = installTogether({ S, esc: (x) => esc(x), L, weekKey: weekKeyFn, net: () => net, myUid: () => myUid, squad: () => COMMS.squad, toast: (t) => toast(t), award: (x, w) => award(x, w), saveS: () => saveS(), stagedRun: (k, c) => stagedRun(k, c), openModal: (h) => openModal(h), closeModal: () => closeModal(),
+  refresh: () => { if (!$('quick').hidden && COMMS.tab === 's') commsPanel(); }, closePanels: () => { $('quick').hidden = true; } });
 const UIS = installUiStage({ S, saveS: () => saveS(), relayout: () => placeOrders(), toast: (t) => toast(t), esc: (x) => esc(x), call: () => call, nextStep: () => PATH.nextStep() });
 const ON = installOnboard({ S, CHAPTERS, esc: (x) => esc(x), get P() { return P; }, get W() { return W; }, storyBusy: () => storyBusy, dlgOpen: () => !$('dlg').hidden, call: () => call, forceCall: () => { if (!call) nextCall = Math.min(nextCall, 2); },
   ready: () => !ATTRACT && !looting && !loreBusy && !storyBusy && !scene && !paused && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !EP.busy && !!S.seenCine && !document.querySelector('.lorePop, .tCard'),
@@ -1142,7 +1145,7 @@ function cineCam(dt) {
 }
 function zoomTarget() { return CINE.on ? CINE.z : cam.zUser; }
 function scoreAnswer(q, ans, retry) {
-  const ok = L.isRight(q, ans); L.record(S, q, ok); SS.answered++; if (LF) LF.answered();
+  const ok = L.isRight(q, ans); L.record(S, q, ok); SS.answered++; if (ok) TG.bump('r'); if (LF) LF.answered();
   if (ok && retry) { SS.right++; stat('right'); stat('retryRight'); COMBO = 0; good(); }
   else if (ok) { SS.right++; stat('right'); S.bestCombo = Math.max(S.bestCombo || 0, COMBO + 1); COMBO++; bestCombo = Math.max(bestCombo, COMBO); ord('right'); if (COMBO === 5) ord('streak'); good(); } else { COMBO = 0; bad(); }
   comboHud(); return ok;
@@ -2018,6 +2021,7 @@ function openCallSceneQ(c) {
     { t: 'Tell dispatch you\'re both on scene', ok: 1, reply: [['narr', 'Dispatch logs both units. Everybody knows where the two of you are.'], ['castillo', '(over the radio) Good. Stay in contact the whole time.']] },
     { t: 'Skip the radio, you can see each other', reply: [['narr', 'The two of you go to work. Dispatch still shows ' + cover + ' en route.'], ['castillo', '(over the radio) Dispatch can\'t see you. Tell them who\'s on scene.']] },
     { t: 'Wave them off to the next call holding', reply: [['narr', cover + ' pulls back out. You\'re on your own again.'], ['castillo', '(over the radio) They came to help. Use them, and tell dispatch they\'re there.']] }].sort(() => Math.random() - .5), 'Your backup just pulled in behind you.']);
+  if (cover) { c.job = TG.jobFor(c.title, true); TG.jobLines(c.job, 'castillo').forEach((x) => lines.push(x)); } // two officers, two jobs (item 12)
   { const rv = EP.rivalCameo(); if (rv) lines.push(rv); const tr = NG.cameo(); if (tr) lines.push(tr); }
   if (a) lines.push(['choice', hasSk('tac2') ? a.opts.concat([{ t: 'Stage a block away and wait for a second unit', eff: 'quiet', reply: [['velvet', '(over the radio) Copy. Second unit is two minutes out. Hold at the corner.'], ['castillo', '(over the radio) Good. Nobody walks into a call alone if they don\'t have to.']] }]) : a.opts, a.q]);
   if (/warrant|arrest/i.test(c.title)) arrestLines(c).forEach((x) => lines.push(x));
@@ -2032,7 +2036,7 @@ function openCallSceneQ(c) {
     if (c.sq) { try { c.sq(); } catch (e) {} } COOP.dgAdd(); if (LV.precinct()) COOP.dgAdd(); CITY.beatAdd('calls', 1); if (c.thread && c.threadOk) CITY.openCase(c.thread, c.where); const cov = COVER && COVER.uid ? COVER : null; COOP.coopEnd(); if (cov) setTimeout(() => COOP.commendPrompt(cov.uid, cov.c, 'your cover officer'), 6000); setTimeout(() => toast(COOP.dgLine()), 3500);
     paused = false; VAR.afterScene(c, res); const eff = (res.choices.find((o) => o.eff) || {}).eff; c.eff = eff; MEM.afterCall(c); PACE.afterCall(c); ECHO.afterCall(c, res); PART.afterCall(); if (eff) consequence(eff, c);
     const r = { right: res.right, n: res.n };
-    S.calls++; SS.calls++; NG.callCleared(); stat('p' + c.prio); if (inside) stat('inCall'); if (NIGHT) stat('nightCalls'); const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 ? 1 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM * EP.callMult() * LV.mult() * NG.mult(), xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0) + (c.wrap === 'case' || c.wrap === 'resources' ? 10 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
+    S.calls++; SS.calls++; TG.bump('c'); NG.callCleared(); stat('p' + c.prio); if (inside) stat('inCall'); if (NIGHT) stat('nightCalls'); const effM = (APPROACH_BONUS[c.eff] || 1) * ((APPROACH_BONUS[c.eff] || 1) > 1 ? 1 : 1); ord('call'); if (c.prio === 1) ord('pri1'); const mult = callMult(c) * effM * EP.callMult() * LV.mult() * NG.mult(), xp = Math.round((r.right * 25 + (fast ? 15 : 0) + (r.right === r.n ? 20 : 0) + (c.wrap === 'case' || c.wrap === 'resources' ? 10 : 0)) * mult); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] || 50) + (r.right - (r.n - r.right)) * (S.unit === 'brt' && (c.les === 9 || c.les === 10) ? 2 : 1)));
     const coopOk = c.coop && res.choices.some((o) => o.ok), mrow = cov ? mentorBonus(cov.uid) : null, xpT = Math.round(xp * (coopOk ? 1.25 * (hasSk('pat4') ? 1.15 : 1) : 1) * (mrow ? 1.5 : 1)); if (FX.storm) stat('stormCall'); EP.squadCall(); if (c.coop) { stat('coop'); if (coopOk) stat('coopGood'); }
     const more = [mrow, c.posRow, PREM.threadDone(c), c.procOk != null ? ['🔗', 'Procedure', Math.round(c.procOk / 3 * 10), 10, c.procOk + ' of 3 arrest steps by the book'] : null].filter(Boolean); PREM.helped(c); PREM.seedThread(c);
     const report = (go) => (PREM.needsReport(c) ? PREM.report(c, (row) => go([row])) : go([]));
@@ -2081,15 +2085,16 @@ function infoPoint(i) {
 }
 function backupScene(uid, o) {
   const ls = W.D.lessons, qs = VAR.actify(L.pickFacts(S, ls, 2)), id = sayAs('mate', { name: o.c, icon: (unitOf(o.u) || {}).icon || '🚓', role: 'Cadet requesting backup' });
-  if (net) net.assist(uid); stat('assists'); if (S.squad && others[uid] && others[uid].g === S.squad.code) stat('sqAssist'); COOP.coopStart(uid, 'cover'); COOP.ptAdd(uid, 10);
+  if (net) net.assist(uid); stat('assists'); if (S.squad && others[uid] && others[uid].g === S.squad.code) { stat('sqAssist'); TG.bump('b'); } COOP.coopStart(uid, 'cover'); COOP.ptAdd(uid, 10);
   dialogue([[id, '(over the radio) ' + S.cs + ', glad you\'re here. ' + (o.b.l || 'Need a second set of eyes.')], ['choice', [
     { t: 'Leave a real gap behind them and stay on the air', ok: 1, reply: [[id, 'Copy, I see you back there. Talk to me the whole way.']] },
     { t: 'Tuck in right on their bumper to clear traffic', reply: [[id, 'Back off! Nobody ahead can see your lights behind mine.'], ['castillo', '(over the radio) Leave a proper gap behind other emergency vehicles. Six seconds when you run with other units.']] },
     { t: 'Go quiet on the radio until you get there', reply: [[id, 'Where are you? I can\'t plan if I can\'t hear you.'], ['castillo', '(over the radio) Stay in contact with dispatch and the other units the whole way in.']] }].sort(() => Math.random() - .5), 'You\'re the second unit rolling to their call. How do you run it?'],
     ['narr', 'Two units on one call: leave a real gap behind the lead car and stay on the radio the whole way. Training call, sim rules.'],
+    ...TG.jobLines(TG.jobFor(o.b.l, false), 'castillo'),
     ['q', qs[0], id], ['q', qs[1], 'castillo']], (r) => { if (net) net.assist(null); COOP.coopEnd(); setTimeout(() => { COOP.commendPrompt(uid, o.c, 'you backed them up'); if (COOP.aid) COOP.aidDone(); }, 2500); stat('coop'); const ok = r.choices.some((x) => x.ok); if (ok) stat('coopGood');
       const mrow = mentorBonus(uid), bxp = Math.round((20 + r.right * 15) * (ok ? 1.25 : 1) * (mrow ? 1.5 : 1));
-      POL.debrief({ extra: mrow ? [mrow] : [], title: 'Backup: ' + (o.b.l || 'second unit'), where: W.D.name, prio: 2, right: r.right, n: r.n, fast: true, resp: 0, approach: ok ? 'good' : null, wrap: 'case', calm: ok, qs: r.qs || [], coop: ok ? o.c : null, xp: bxp, role: 'Backup unit' }, () => { closeModal(); award(bxp, mrow ? 'co-op backup + mentoring' : 'co-op backup'); });
+      POL.debrief({ extra: mrow ? [mrow] : [], title: 'Backup: ' + (o.b.l || 'second unit'), where: W.D.name, prio: 2, right: r.right, n: r.n, fast: true, resp: 0, approach: ok ? 'good' : null, wrap: 'case', calm: ok, qs: r.qs || [], coop: ok ? o.c : null, xp: bxp, role: 'Backup unit · ' + TG.jobName(TG.jobFor(o.b.l, false)) }, () => { closeModal(); award(bxp, mrow ? 'co-op backup + mentoring' : 'co-op backup'); });
     }, { focus: [o.b.x, o.b.y], kicker: 'CO-OP TRAINING · BACKUP UNIT' });
 }
 
@@ -2131,8 +2136,8 @@ function stagedRun(key, cfg) {
     const i = run.stage, k = Math.min(per, cfg.total - i * per), qs = cfg.pick(k, i, run); paused = true;
     const lines = (first ? cfg.intro(run, stages) : []).concat(cfg.beat ? cfg.beat(i, stages, qs) : []).concat(qs.map((q, j) => ['q', q, cfg.speakers[(i * per + j) % cfg.speakers.length]]));
     dialogue(lines, (r) => {
-      run.right += r.right; run.n += r.n; run.stage++; saveS();
-      if (run.stage >= stages) { delete S.runs[key]; saveS(); paused = false; cfg.done({ right: run.right, n: run.n }); return; }
+      if (cfg.onStage) cfg.onStage(r, run.stage, run); run.right += r.right; run.n += r.n; run.stage++; saveS();
+      if (run.stage >= stages) { delete S.runs[key]; saveS(); paused = false; cfg.done({ right: run.right, n: run.n }, run); return; }
       dialogue([['choice', [{ t: 'Keep going: stage ' + (run.stage + 1) + ' of ' + stages, go: 1, reply: [] }, { t: 'Step away for now (progress is saved)', reply: [] }], run.right + ' of ' + run.n + ' by the book so far']], (r2) => {
         if (r2.choices[0] && r2.choices[0].go) stage(false); else { paused = false; toast('💾 Saved at stage ' + (run.stage + 1) + ' of ' + stages + '. Pick it up anytime.'); }
       }, { focus: [P.x, P.y], kicker: kick(run.stage), noFollow: true, onLeave: () => { leaveDefault(); } });
@@ -2315,13 +2320,16 @@ function badge() {
 // ---- squads ----
 function squadListen(code) {
   if (COMMS.sqStop) COMMS.sqStop(); if (COMMS.sqChatStop) COMMS.sqChatStop(); COMMS.sq = { list: [], seen: new Set() };
-  COMMS.sqStop = net.listen('mmo/sq/' + code, (v) => {
+  // two small listeners (squad info and members) instead of the whole squad tree, which also holds every day's chat and the weekly records
+  const part = {}, onSq = (v) => {
     const i = v.i, m = v.m || {};
     if (!i || !m[myUid]) { if (S.squad && S.squad.code === code && COMMS.squad) { toast('You are no longer in ' + (S.squad.name || 'your squad') + '.'); squadDrop(); } else if (!i) squadDrop(); return; }
     const first = !COMMS.squad; COMMS.squad = { code, i, m }; S.squad = { code, name: i.n, tag: i.g, lead: i.l === myUid }; saveS(); net.squadTag(code, i.g); if (first) COOP.squadWatch();
     if (first) radio('[' + i.g + '] Squad', 'Squad channel open. ' + Object.keys(m).length + ' member' + (Object.keys(m).length === 1 ? '' : 's') + '.');
     if (!$('quick').hidden && (COMMS.tab === 's' || COMMS.tab === 'p')) commsPanel();
-  });
+  }, both = () => { if ('i' in part && 'm' in part) onSq(part); };
+  const s1 = net.listen('mmo/sq/' + code + '/i', (v) => { part.i = v && v.n ? v : null; both(); }), s2 = net.listen('mmo/sq/' + code + '/m', (v) => { part.m = v || {}; both(); });
+  COMMS.sqStop = () => { s1(); s2(); };
   COMMS.sqChatStop = net.listen(net.sqChatPath(code), (all) => chanIn('s', all), 60);
   net.sqBeat(code, meInfo());
 }
@@ -2388,7 +2396,7 @@ function commsPanel() {
       body = '<div class="sqHead"><div><b>' + esc(S.squad.name) + ' <em>[' + esc(S.squad.tag) + ']</em></b><small>Code <code id="sqCode">' + esc(S.squad.code) + '</code> <button type="button" class="ghost tiny" id="sqCopy">Copy</button></small></div><button type="button" class="ghost tiny" id="sqLeave">Leave</button></div>' +
         '<div class="sqMem">' + Object.keys(mem).map((u) => { const m = mem[u], on = N0() - (m.t || 0) < 90000, here = others[u], isLead = sq.i.l === u; return '<div class="sqRow' + (u === myUid ? ' me' : '') + '"><span><i class="dot' + (on ? ' on' : '') + '"></i><b>' + (isLead ? '⭐ ' : '') + esc(m.c) + '</b><small>' + esc(unitName(UNITS.find((x) => x.id === m.u) || UNITS[0])) + ' · ' + esc(m.r || '') + ' · ' + (on ? esc((DISTRICTS[m.d] || {}).name || '') + (m.st === 'call' ? ' · on a call' : '') : 'offline') + '</small></span>' +
           (u === myUid ? '' : '<button type="button" class="ghost tiny" data-dm="' + esc(u) + '" data-c="' + esc(m.c) + '">✉️</button>' + (here ? '<button type="button" class="ghost tiny" data-loc="' + esc(u) + '">📍</button>' : on && m.d !== W.did && S.unlocked.includes(m.d) ? '<button type="button" class="ghost tiny" data-go="' + m.d + '">Go</button>' : '') + (lead ? '<button type="button" class="ghost tiny" data-kick="' + esc(u) + '">✕</button>' : '')) + '</div>'; }).join('') + (Object.keys(mem).length < MAXSQ ? '<p class="sqHint">' + (MAXSQ - Object.keys(mem).length) + ' open spot' + (MAXSQ - Object.keys(mem).length === 1 ? '' : 's') + '. Invite cadets from People, or share the code.</p>' : '') + '</div>' +
-        '<div class="chList short" id="chList">' + msgRows(COMMS.sq.list.slice(-40), 'Squad channel. Only your squad can see this.') + '</div><div class="chQuick"><button type="button" id="sqPing">📍 Share my location</button><button type="button" id="sqRally">🚓 Rally on me</button></div>';
+        TG.panel() + '<div class="chList short" id="chList">' + msgRows(COMMS.sq.list.slice(-40), 'Squad channel. Only your squad can see this.') + '</div><div class="chQuick"><button type="button" id="sqPing">📍 Share my location</button><button type="button" id="sqRally">🚓 Rally on me</button></div>';
       form = sendForm('Message your squad…');
     }
   }
@@ -2420,6 +2428,7 @@ function commsPanel() {
   q.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { q.hidden = true; travel(+b.dataset.go); });
   if ($('sqMake')) $('sqMake').onsubmit = (e) => { e.preventDefault(); squadCreate($('sqName').value); };
   if ($('sqJoinF')) $('sqJoinF').onsubmit = (e) => { e.preventDefault(); squadJoin($('sqCodeIn').value); };
+  TG.bind(q);
   if ($('sqLeave')) $('sqLeave').onclick = (e) => { if (!confirmLite(e.target, 'Leave squad?')) return; squadLeave(); };
   if ($('sqCopy')) $('sqCopy').onclick = () => { try { navigator.clipboard.writeText(S.squad.code); toast('Squad code copied: ' + S.squad.code); } catch (e) { toast('Squad code: ' + S.squad.code); } };
   if ($('sqPing')) $('sqPing').onclick = () => { const lot = nearestLot(); net.post(net.sqChatPath(S.squad.code), { c: S.cs, m: '📍 ' + (lot ? 'near ' + lot : 'here') + ', ' + W.D.name + '.', d: W.did }); stat('sqPing'); };
@@ -2682,7 +2691,7 @@ function rollCall() {
 // ---------- front end: studio boot, main menu, settings, pause, loading, trophies, photo mode, credits ----------
 // Meridian Forge is the game's fictional in-world studio (it belongs to the Port Meridian setting).
 const STUDIO = { name: 'MERIDIAN FORGE', sub: 'INTERACTIVE', engine: 'SENTRY ENGINE', ver: 'v1.5.0' };
-S.cfg = Object.assign({ music: .8, sfx: .8, quality: 'high', shake: true, text: 'normal', motion: true, autoQ: true }, S.cfg || {});
+S.cfg = Object.assign({ music: .8, sfx: .8, quality: 'high', shake: true, text: 'normal', motion: !(typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches), autoQ: true }, S.cfg || {}); // a device set to reduce motion starts with Reduced
 const fe = () => $('fe');
 function feSound(kind) { if (!S.sound) return; if (kind === 'move') beep(880, .03, 'triangle', .02); else if (kind === 'ok') { beep(660, .06, 'triangle', .04); beep(990, .09, 'triangle', .035, .05); } else if (kind === 'back') beep(440, .07, 'triangle', .035); }
 // low boom and shimmer for the studio logo
@@ -3044,7 +3053,7 @@ function lockedScreen() {
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); MG.watch(W.did); EVT.watch(); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { get LF() { learnFlowInit(); return LF; }, SARC, HANDS, ECHO, MOOD, PART, SPEC, WAYS, get free() { return streetFree(); }, get paused() { return paused; }, get observes() { return observes; }, get FX() { return FX; }, VAR, dialogue: (...x) => dialogue(...x), MEM, FIN, SUBJ, CAL, GRP, PATH, PACE, eachVisProp: (...a) => eachVisProp(...a), POLB: () => POL.barks, get curCall() { return call; }, dropCall: () => { call = null; callCard(); }, openCallScene: (c) => openCallSceneQ(c), L, OPSM, dispatchCall: () => dispatchCall(), DE, LV, gossip: () => gossipLine(), POL, EP, award: (n, w) => award(n, w), SAFE, ON, playStep: (st) => playStep(st), activeQ: () => activeQ(), SIDE, CHAPTERS, get storyBusy() { return storyBusy; }, chapterDone: (i) => chapterDone(CHAPTERS[i]), travel: (d, t) => travel(d, t), openCall: () => { call.accepted = true; openCallScene(call); }, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, chapterExam, PREM, COOP, REW, get CITY() { return CITY; }, get PUR() { return PUR; }, profileCard: (u, c) => profileCard(u, c), get myUid() { return myUid; }, get RIDING() { return RIDING; }, get LEFT() { return LEFT; }, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { get LF() { learnFlowInit(); return LF; }, TG, SARC, HANDS, ECHO, MOOD, PART, SPEC, WAYS, get free() { return streetFree(); }, get paused() { return paused; }, get observes() { return observes; }, get FX() { return FX; }, VAR, dialogue: (...x) => dialogue(...x), MEM, FIN, SUBJ, CAL, GRP, PATH, PACE, eachVisProp: (...a) => eachVisProp(...a), POLB: () => POL.barks, get curCall() { return call; }, dropCall: () => { call = null; callCard(); }, openCallScene: (c) => openCallSceneQ(c), L, OPSM, dispatchCall: () => dispatchCall(), DE, LV, gossip: () => gossipLine(), POL, EP, award: (n, w) => award(n, w), SAFE, ON, playStep: (st) => playStep(st), activeQ: () => activeQ(), SIDE, CHAPTERS, get storyBusy() { return storyBusy; }, chapterDone: (i) => chapterDone(CHAPTERS[i]), travel: (d, t) => travel(d, t), openCall: () => { call.accepted = true; openCallScene(call); }, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, chapterExam, PREM, COOP, REW, get CITY() { return CITY; }, get PUR() { return PUR; }, profileCard: (u, c) => profileCard(u, c), get myUid() { return myUid; }, get RIDING() { return RIDING; }, get LEFT() { return LEFT; }, districtBoard, goTo, load, get others() { return others; } };
 
 // repeat visits open from the device's cache (skipped in tests so they always run the files on disk)
 if ('serviceWorker' in navigator && !/[?&](mock|skiptitle)\b/.test(location.search) && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

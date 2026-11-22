@@ -155,6 +155,8 @@ export function installPolish(H) {
     if (S.cfg.tsize === 'large') b.classList.add('ts-l'); if (S.cfg.tsize === 'xl') b.classList.add('ts-xl');
     if (S.cfg.cmode && S.cfg.cmode !== 'none') b.classList.add('cm-' + S.cfg.cmode);
     if (S.cfg.font === 'readable') { b.classList.add('fontA');  }
+    // Reduced motion also stills the interface: pulses, slides and bouncing markers stop, and transitions are instant
+    b.classList.toggle('calm', S.cfg.motion === false);
     if (!document.getElementById('cbSvg')) { const d = document.createElement('div'); d.id = 'cbSvg'; d.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden'; d.innerHTML = '<svg><filter id="cb-deut"><feColorMatrix type="matrix" values="1 0 0 0 0  -0.438 1.438 0 0 0  0.262 -0.562 1.3 0 0  0 0 0 1 0"/></filter><filter id="cb-prot"><feColorMatrix type="matrix" values="1 0 0 0 0  -0.255 1.255 0 0 0  0.303 -0.545 1.242 0 0  0 0 0 1 0"/></filter><filter id="cb-trit"><feColorMatrix type="matrix" values="1.05 -0.382 0.332 0 0  0 1.234 -0.234 0 0  0 0 1 0 0  0 0 0 1 0"/></filter></svg>'; document.body.appendChild(d); }
   }
   // the colour modes daltonize the world view: colours a player can't tell apart are shifted into ones they can

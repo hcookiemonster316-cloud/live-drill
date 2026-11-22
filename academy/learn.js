@@ -89,6 +89,10 @@ export function factQFixed(fid, qi, r) {
 }
 // for a host picking a round: facts (open ones first) with a single-answer question each, as [fid, poolIndex]
 export function pickFactIds(S, lessons, n) { const done = S.facts || {}, all = shuffle(factList(lessons)); all.sort((a, b) => (done[a.id] ? 1 : 0) - (done[b.id] ? 1 : 0)); return all.slice(0, n).map((f) => { const ok = f.qs.filter((k) => POOL[k] && !Array.isArray(POOL[k][2])); const from = ok.length ? ok : f.qs; return [f.id, from[Math.floor(Math.random() * from.length)]]; }); }
+// a study group's sim exam: the same n facts and questions for every member, picked from a shared seed (squad code + week)
+export function seedRand(str) { let h = 2166136261; for (const ch of String(str)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } let s = h >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
+export function groupExamIds(seed, n) { const r = seedRand(seed), all = FACTS.filter((f) => f.qs.some((k) => POOL[k] && !Array.isArray(POOL[k][2]))); for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+  return all.slice(0, n).map((f) => { const ok = f.qs.filter((k) => POOL[k] && !Array.isArray(POOL[k][2])); return [f.id, ok[Math.floor(r() * ok.length)]]; }); }
 // the full chapter test: every fact, each once, in a shuffled order kept with the saved run
 export const examOrder = () => shuffle(FACTS.map((f) => f.id));
 export function examQs(ids) { return ids.map((id) => FACT_BY_ID.get(id)).filter(Boolean).map(factQuestion); }
