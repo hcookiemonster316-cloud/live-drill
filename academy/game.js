@@ -15,6 +15,7 @@ import { installSpecial } from './special.js';
 import { FOLK } from './folkcast.js';
 import { installUiStage } from './uistage.js';
 import { installTogether } from './together.js';
+import { installClock } from './clockwork.js';
 import { sprite as folkSpriteOf, fromLook as folkFromLookG, SW as FSW, SH as FSH, OX as FOX, OY as FOY } from './pixelfolk.js';
 import { momentArt } from './moments.js';
 import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
@@ -298,8 +299,9 @@ function load(did) {
   P.x = W.spawn[0] + .5; P.y = W.spawn[1] + .5; P.path = []; P.inCar = false;
   pcar = W.carSpot ? { x: W.carSpot[0], y: W.carSpot[1], dir: 0, bar: false } : null; setTimeout(() => { LIFE.setup(); OFF.setup(); ACAD.setup(); EVT.setup(); }, 0);
   const h0 = hourNow(), busy = isNight(h0) ? (h0 >= 18.75 && h0 < 22 ? .6 : .38) : 1;
-  peds = []; for (let i = 0; i < Math.round(30 * busy); i++) peds.push(newPed());
-  traffic = []; for (let i = 0; i < Math.round(11 * busy) + 2; i++) traffic.push(newCar());
+  const ck = CLOCK.traffic(did, h0), cp = CLOCK.people(did, h0); RHY = { busy, did };
+  peds = []; for (let i = 0; i < Math.round(30 * busy * cp); i++) peds.push(newPed());
+  traffic = []; for (let i = 0; i < Math.round(11 * busy * ck) + 2; i++) traffic.push(newCar());
   citizens = []; infos = []; observes = []; call = null; nextCall = 12;
   W.lots.forEach((l) => { const lm = LANDMARKS[l.kind]; if (lm && lm.info != null && DISTRICTS[did].lessons.indexOf(lm.info) >= 0 && !infos.some((i) => i.kind === l.kind)) infos.push({ x: l.info[0] + .5, y: l.info[1] + .5, les: lm.info, name: lm.name, kind: l.kind, cool: 0 }); });
   const tr = S.trust[did] == null ? 50 : S.trust[did];
@@ -336,7 +338,7 @@ function newObserve() { const did = W.did, ls = W.D.lessons.filter((l) => OBSERV
 function dispatchCall() {
   if (SPEC.holdCalls()) { nextCall = 6; return; } // a special shift holds routine calls until its stops are done (special.js)
   { const hd = VAR.hold(); if (hd) { nextCall = hd; return; } }
-  const fav = U().fav.filter((l) => W.D.lessons.indexOf(l) >= 0 && !L.mastery(S, l).done), les = fav.length && Math.random() < .3 ? fav[Math.floor(Math.random() * fav.length)] : L.weakest(S, W.did), list = CALLS[les] || [['Assist a citizen', 3, 'any', 'Citizen flagging down an officer.']]; let c = NG.remix(EVT.stormCall() || EP.wxCall() || VAR.pickCall(list));
+  const fav = U().fav.filter((l) => W.D.lessons.indexOf(l) >= 0 && !L.mastery(S, l).done), les = fav.length && Math.random() < .3 ? fav[Math.floor(Math.random() * fav.length)] : L.weakest(S, W.did), list = CALLS[les] || [['Assist a citizen', 3, 'any', 'Citizen flagging down an officer.']]; const rc = CLOCK.call(W.did, hourNow()), rcOk = rc && W.D.lessons.indexOf(rc.les0) >= 0; let c = NG.remix(EVT.stormCall() || EP.wxCall() || (rcOk ? rc : null) || VAR.pickCall(list)); if (rcOk && c && c[0] === rc[0]) c.les0 = rc.les0; // the hour's own calls
   const th = PREM.threadCall(); if (th) c = th.c;
   const pur = !th && pcar && !inside && !P.boat && c[1] !== 1 && Math.random() < .12 * SARC.pursuitMult() && S.cfg.pursuits !== false; if (!pur && !th) { const sc = CITY.seasonCall(); if (sc) c = sc; }
   if (pur) c = ['Vehicle fails to stop for a red light', 1, 'any', 'Driver ran the light on Main and won\'t pull over. Your call how this goes. Policy first.'];
@@ -406,7 +408,7 @@ let last = performance.now(), moveSent = 0;
 function update(dt, now) {
   if (paused) return;
   clock += dt * .75; // one real second is 45 game seconds; a 12-hour shift takes 16 minutes
-  { const hr = Math.floor(hourNow()); if (hr !== sprHour) { sprHour = hr; const was = NIGHT; relightSprites(); if (was !== NIGHT && NIGHT && !inside) LIFE.nightLamps(); if (was !== NIGHT) radio('Dispatch', NIGHT ? 'All units, sunset. Lights on.' : 'All units, sunrise.'); } }
+  rhythmTick(); { const hr = Math.floor(hourNow()); if (hr !== sprHour) { sprHour = hr; const was = NIGHT; relightSprites(); if (was !== NIGHT && NIGHT && !inside) LIFE.nightLamps(); if (was !== NIGHT) radio('Dispatch', NIGHT ? 'All units, sunset. Lights on.' : 'All units, sunrise.'); } }
   const st = ST(), sp = P.boat ? 8 * (1 + gp('drive') / 100) : P.inCar ? (call && call.accepted ? 6.6 : 4.8) * U().ride.speed * (.88 + st.res * .06) * (1 + gp('drive') / 100) * LIFE.carMult() * RIDES[RIDE()].sp * (RIDE() === 'horse' && CITY ? CITY.animalMult() : 1) : (2.9 + st.res * .2) * (1 + gp('speed') / 100); const spB = sp * (clock < BUFF.speedTo ? (BUFF.speedMul || 1.25) : 1) * SPEC.speedMul(P.x, P.y, P.inCar) * (P.inCar && FX.fog ? .8 : 1); /* fog: slow down to what you can see */
   // the cruiser has weight: speed builds over a second, bleeds off near the stop, and the nose dips when braking
   let spW = spB; if (P.inCar && !P.boat && S.cfg.motion !== false) { let left = P.path.length ? Math.hypot(P.path[P.path.length - 1][0] - P.x, P.path[P.path.length - 1][1] - P.y) + (P.path.length - 1) * .7 : 0, corner = P.path.length > 1 && (() => { const a = P.path[0], b = P.path[1], d0 = Math.hypot(a[0] - P.x, a[1] - P.y); if (d0 > 1.7 || d0 < .05) return false; const h0 = Math.atan2(a[1] - P.y, a[0] - P.x), h1 = Math.atan2(b[1] - a[1], b[0] - a[0]); return Math.abs(Math.atan2(Math.sin(h1 - h0), Math.cos(h1 - h0))) > .6; })(), want = P.path.length ? spB * Math.min(corner ? (FX.rain || FX.storm ? .5 : .66) : 1, Math.min(1, Math.max(.32, left / 3.2))) : 0, v0 = P.vel || 0; /* brake before the turn, slower still when the road is wet */
@@ -677,6 +679,12 @@ const condOK = (w) => w.slice(0, 5) === 'side:' ? sideClosed(sideQ(w.slice(5)) |
 function gossipLine() { if (!W || inside) return null; const hooks = SIDE.filter((q) => HOOKS[q.id] && sideAvail(q)).map((q) => HOOKS[q.id]), deeds = DEEDS.filter(([w, d]) => (d < 0 || d === W.did) && condOK(w)).map((x) => x[2]);
   if (hooks.length && (!deeds.length || Math.random() < .6)) return rnd(hooks); return deeds.length ? rnd(deeds) : null; }
 // patrol activities: traffic stops, welfare checks, warrants, transport and business checks, played step by step
+// each district's daily rhythm (clockwork.js): how busy the streets are, what the radio says, and the calls that fit the hour
+const CLOCK = installClock({ radio: (w, m) => radio(w, m) }); let RHY = null, RHYK = -1;
+function rhythmTick() { if (!RHY || inside || !W) return; const h = hourNow(), k = Math.floor(h * 2); if (k === RHYK) return; RHYK = k; CLOCK.tick(W.did, h);
+  const want = Math.round(11 * RHY.busy * CLOCK.traffic(W.did, h)) + 2, wp = Math.round(30 * RHY.busy * CLOCK.people(W.did, h)); // the street fills and empties with the rhythm
+  while (traffic.length < want) traffic.push(newCar()); if (traffic.length > want) traffic = traffic.filter((c, i) => c.bk || i < want);
+  while (peds.length < wp) peds.push(newPed()); if (peds.length > wp) peds.length = wp; }
 const VAR = installVariety({ S, L, CALLS, P, trustAt: (x, y, n) => { const bx = Math.floor((x - 2) / 11), by = Math.floor((y - 2) / 11); if (bx < 0 || by < 0 || bx > 12 || by > 12) return; S.btrust = S.btrust || {}; const d = (S.btrust[W.did] = S.btrust[W.did] || {}), k = bx + ',' + by; d[k] = Math.max(-10, Math.min(10, (d[k] || 0) + n)); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] == null ? 50 : S.trust[W.did]) + n * .5)); saveS(); }, arcBias: (c) => SARC.bias(c), partnerStart: (k) => rankLine(k) || PART.startLine(k), partnerBenched: (k) => PART.benched(k), clock: () => clock, hourNow: () => hourNow(), night: () => isNight(hourNow()), cold: () => !!(FX && FX.cold), did: () => W.did, lessons: () => W.D.lessons,
   radio: (w, m) => radio(w, m), chirp: () => chirp(), toast: (t) => toast(t), dialogue: (...a) => dialogue(...a), sayAs: (...a) => sayAs(...a), award: (...a) => award(...a), stat: (...a) => stat(...a), saveS: () => saveS(),
   call: () => call, callCard: () => callCard(), landmark: () => { const ls = W.lots.map((l) => l.name || (LANDMARKS[l.kind] || {}).name).filter(Boolean); return ls.length ? rnd(ls) : 'the plaza'; },
