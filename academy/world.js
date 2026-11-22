@@ -1009,34 +1009,65 @@ export function person(g, sx, sy, o, t) {
   g.restore(); g.restore(); g.restore();
 }
 
-// a working dog that trots beside its handler
-export function dog(g, sx, sy, face, moving, t) {
+// a working dog that trots beside its handler. st: '' standing or trotting, 'sit' (the handler has stopped),
+// 'alert' (a call is waiting: head up, ears tall, tail high and quick)
+export function dog(g, sx, sy, face, moving, t, st) {
   // a shepherd-type working dog: four-beat trot, wagging tail, ears up, tongue out on the move
-  const f = face || 1, c = t / 85, OL = 'rgba(12,16,26,.5)', body = '#8b5a2b', saddle = '#2b1a0c', bob = moving ? Math.abs(Math.sin(c)) * 1 : Math.sin(t / 900) * .3;
+  const f = face || 1, c = t / 85, OL = 'rgba(12,16,26,.5)', body = '#8b5a2b', saddle = '#2b1a0c', sit = st === 'sit' && !moving, alert = st === 'alert' && !moving;
+  const bob = moving ? Math.abs(Math.sin(c)) * 1 : Math.sin(t / 900) * .3;
   if (!g.noShadow) { g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 1, sy + 1, 9, 3, 0, 0, Math.PI * 2); g.fill(); }
+  const head = (hx, hy, ear) => {
+    g.fillStyle = body; g.beginPath(); g.ellipse(hx, hy, 3.4, 3, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = OL; g.lineWidth = .7; g.stroke();
+    g.fillStyle = saddle; g.beginPath(); g.ellipse(hx + f * 3, hy + .9, 2.4, 1.5, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#111'; g.beginPath(); g.arc(hx + f * 5, hy + .4, .8, 0, Math.PI * 2); g.fill();
+    g.fillStyle = saddle; [-1.3, .9].forEach((o, i) => { g.beginPath(); g.moveTo(hx + f * (o - 1), hy - 2); g.lineTo(hx + f * (o - .2), hy - 6.2 - ear + i * .4); g.lineTo(hx + f * (o + .9), hy - 2); g.closePath(); g.fill(); });
+    g.fillStyle = '#111'; g.beginPath(); g.arc(hx + f * 1.4, hy - .8, .55, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#c0392b'; g.fillRect(hx - f * 2.6 - (f < 0 ? 1.6 : 0), hy + 1.2, 1.6, 2.2);
+  };
+  if (sit) {
+    // sitting: haunches down, front legs straight, tail sweeping slowly along the ground
+    const Y = sy, wag = Math.sin(t / 420) * 1.6;
+    g.strokeStyle = body; g.lineWidth = 2.2; g.lineCap = 'round'; g.beginPath(); g.moveTo(sx - f * 6, Y - 3); g.quadraticCurveTo(sx - f * 10, Y - 1, sx - f * 13, Y - 1.2 + wag * .4); g.stroke();
+    const leg = (x, near) => { g.strokeStyle = near ? '#4a2f18' : '#3a2412'; g.lineWidth = 1.9; g.beginPath(); g.moveTo(sx + x * f, Y - 9); g.lineTo(sx + (x + .4) * f, Y - 1); g.stroke(); };
+    leg(4.6, false);
+    const hg = g.createLinearGradient(0, Y - 10, 0, Y); hg.addColorStop(0, '#a46a35'); hg.addColorStop(1, '#6e4520');
+    g.fillStyle = hg; g.beginPath(); g.ellipse(sx - f * 3.6, Y - 4.6, 4.6, 4.2, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = OL; g.lineWidth = .7; g.stroke();
+    g.save(); g.translate(sx + f * .6, Y - 9.4); g.rotate(-f * .62); g.fillStyle = hg; g.beginPath(); g.ellipse(0, 0, 6.6, 3.5, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = saddle; g.beginPath(); g.ellipse(-f * 1, -1.6, 4.4, 1.8, 0, 0, Math.PI * 2); g.fill(); g.restore();
+    g.fillStyle = '#4a2f18'; g.beginPath(); g.ellipse(sx - f * 1.2, Y - .9, 2, .9, 0, 0, Math.PI * 2); g.fill();
+    leg(3.4, true); head(sx + f * 5.6, Y - 15.6, .4); return;
+  }
   const leg = (x, ph, near) => { const sw = moving ? Math.sin(c + ph) * 2.2 : 0, lift = moving ? Math.max(0, Math.cos(c + ph)) * 1.4 : 0; g.strokeStyle = near ? '#4a2f18' : '#3a2412'; g.lineWidth = 1.9; g.lineCap = 'round'; g.beginPath(); g.moveTo(sx + x * f, sy - 7 - bob); g.lineTo(sx + x * f + sw * f, sy - 1 - lift); g.stroke(); };
   leg(-5, Math.PI, false); leg(4.5, 0, false);
   const Y = sy - bob;
-  // tail
-  const wag = Math.sin(t / (moving ? 90 : 160)) * 3; g.strokeStyle = body; g.lineWidth = 2.2; g.lineCap = 'round'; g.beginPath(); g.moveTo(sx - f * 8, Y - 8.5); g.quadraticCurveTo(sx - f * 12, Y - 10 + wag * .3, sx - f * 13, Y - 6 + wag); g.stroke();
+  // tail: high and quick when alert
+  const wag = Math.sin(t / (moving ? 90 : alert ? 70 : 160)) * 3, tl = alert ? -5 : 0; g.strokeStyle = body; g.lineWidth = 2.2; g.lineCap = 'round'; g.beginPath(); g.moveTo(sx - f * 8, Y - 8.5); g.quadraticCurveTo(sx - f * 12, Y - 10 + tl + wag * .3, sx - f * 13, Y - 6 + tl * 1.6 + wag); g.stroke();
   // body with a dark saddle
   const bg = g.createLinearGradient(0, Y - 11, 0, Y - 4); bg.addColorStop(0, '#a46a35'); bg.addColorStop(1, '#6e4520');
   g.fillStyle = bg; g.beginPath(); g.ellipse(sx, Y - 7.5, 8.5, 3.8, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = OL; g.lineWidth = .7; g.stroke();
   g.fillStyle = saddle; g.beginPath(); g.ellipse(sx - f * 1.2, Y - 9.4, 5.2, 2.1, 0, 0, Math.PI * 2); g.fill();
   leg(-3.5, Math.PI * .5, true); leg(6, Math.PI * 1.5, true);
-  // head, muzzle, ears, eye, collar, tongue
-  const hx = sx + f * 8.2, hy = Y - 11.5; g.fillStyle = body; g.beginPath(); g.ellipse(hx, hy, 3.4, 3, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = OL; g.stroke();
-  g.fillStyle = saddle; g.beginPath(); g.ellipse(hx + f * 3, hy + .9, 2.4, 1.5, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#111'; g.beginPath(); g.arc(hx + f * 5, hy + .4, .8, 0, Math.PI * 2); g.fill();
-  g.fillStyle = saddle; [-1.3, .9].forEach((o, i) => { g.beginPath(); g.moveTo(hx + f * (o - 1), hy - 2); g.lineTo(hx + f * (o - .2), hy - 6.2 + i * .4); g.lineTo(hx + f * (o + .9), hy - 2); g.closePath(); g.fill(); });
-  g.fillStyle = '#111'; g.beginPath(); g.arc(hx + f * 1.4, hy - .8, .55, 0, Math.PI * 2); g.fill();
-  g.fillStyle = '#c0392b'; g.fillRect(hx - f * 2.6 - (f < 0 ? 1.6 : 0), hy + 1.2, 1.6, 2.2);
+  // head (up and ears tall when alert), tongue out on the move
+  const hx = sx + f * 8.2, hy = Y - 11.5 - (alert ? 1.8 : 0); head(hx, hy, alert ? 1.6 : 0);
   if (moving) { g.fillStyle = '#e57373'; g.beginPath(); g.ellipse(hx + f * 3.4, hy + 2.6, .9, 1.4, 0, 0, Math.PI * 2); g.fill(); }
 }
 // dogs are drawn once per animation frame and stamped (a trot is 10 frames, standing is 8)
 const DCACHE = new Map();
-export function dogFast(g, sx, sy, face, moving, t) {
-  const f = face < 0 ? -1 : 1, per = moving ? 534 : 1005, n = moving ? 10 : 8, fr = Math.floor(((t % per) + per) % per / per * n), base = 'd' + f + '|' + (moving ? 1 : 0) + '|' + fr, k = base + '|' + RES;
-  let c = DCACHE.get(k) || reuse(base); if (!c) { if (DCACHE.size > 80) DCACHE.clear(); const [cv, cg] = hiCanvas(44, 34, RES), [bv, bg] = hiCanvas(44, 34, RES); cg.fillStyle = 'rgba(0,0,0,.25)'; cg.beginPath(); cg.ellipse(23, 29, 9, 3, 0, 0, Math.PI * 2); cg.fill(); bg.noShadow = true; dog(bg, 22, 28, f, moving, fr * per / n); finishSprite(bv, {}); cg.drawImage(bv, 0, 0, bv.lw, bv.lh); c = trimSprite(cv); DCACHE.set(k, c); remember(base, c); }
+const DPX = new Map();
+function dogPix(f, moving, t, st) {
+  const k = 3, w = 44, h = 34, [bv, bg] = hiCanvas(w, h, k); bg.noShadow = true; dog(bg, 22, 28, f, moving, t, st);
+  const src = bg.getImageData(0, 0, w * k, h * k).data, { out } = pixelize(src, w, h, k);
+  let x0 = w, y0 = h, x1 = -1, y1 = -1; out.forEach((c, i) => { if (!c) return; const x = i % w, y = (i / w) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; });
+  if (x1 < 0) return Object.assign(document.createElement('canvas'), { x0: 0, y0: 0 });
+  const pc = document.createElement('canvas'); pc.width = x1 - x0 + 1; pc.height = y1 - y0 + 1; const pg = pc.getContext('2d'), im = pg.createImageData(pc.width, pc.height);
+  out.forEach((c, i) => { if (!c) return; const x = i % w - x0, y = ((i / w) | 0) - y0; im.data.set([c[0], c[1], c[2], 255], (y * pc.width + x) * 4); }); pg.putImageData(im, 0, 0); pc.x0 = x0; pc.y0 = y0; return pc;
+}
+export function dogFast(g, sx, sy, face, moving, t, st) {
+  st = moving ? '' : st || ''; const f = face < 0 ? -1 : 1, per = moving ? 534 : st === 'alert' ? 440 : st === 'sit' ? 2600 : 1005, n = moving ? 10 : 8, fr = Math.floor(((t % per) + per) % per / per * n), base = 'd' + f + '|' + (moving ? 1 : 0) + '|' + st + '|' + fr, k = base + '|' + RES;
+  if (PIXELFOLK) { // the same pixel look as the people: drawn once per frame and pose at 3x, then pixelized; zoom never rebuilds it
+    let c = DPX.get(base); if (!c) { if (DPX.size > 120) DPX.clear(); c = dogPix(f, moving, fr * per / n, st); DPX.set(base, c); }
+    castShadow(g, sx, sy, 9, .9); g.fillStyle = 'rgba(10,16,30,.26)'; g.beginPath(); g.ellipse(sx + 1, sy + .5, 9, 2.8, 0, 0, Math.PI * 2); g.fill(); const sm = g.imageSmoothingEnabled; if (sm) g.imageSmoothingEnabled = false; g.drawImage(c, sx - 22 + c.x0, sy - 28 + c.y0); if (sm) g.imageSmoothingEnabled = true; return;
+  }
+  let c = DCACHE.get(k) || reuse(base); if (!c) { if (DCACHE.size > 80) DCACHE.clear(); const [cv, cg] = hiCanvas(44, 34, RES), [bv, bg] = hiCanvas(44, 34, RES); cg.fillStyle = 'rgba(0,0,0,.25)'; cg.beginPath(); cg.ellipse(23, 29, 9, 3, 0, 0, Math.PI * 2); cg.fill(); bg.noShadow = true; dog(bg, 22, 28, f, moving, fr * per / n, st); finishSprite(bv, {}); cg.drawImage(bv, 0, 0, bv.lw, bv.lh); c = trimSprite(cv); DCACHE.set(k, c); remember(base, c); }
   g.drawImage(c, sx - 22 + c.ox, sy - 28 + c.oy, c.lw, c.lh);
 }
 

@@ -21,7 +21,7 @@ export function ramp(hex) { if (RAMPS.has(hex)) return RAMPS.get(hex); const [h,
 const mix = (a, b, k) => [Math.round(a[0] + (b[0] - a[0]) * k), Math.round(a[1] + (b[1] - a[1]) * k), Math.round(a[2] + (b[2] - a[2]) * k)];
 const band = (dot, gloss) => dot > .62 && gloss ? .9 : dot > .22 ? .68 : dot < -.72 ? .14 : dot < -.3 ? .27 : .47;
 const ANG = [0, Math.PI / 4, Math.PI / 2, Math.PI * 3 / 4, Math.PI];
-const DEF = { chev: '#e3b341', eye: '#2a1b1d', mouth: '#9a4f48', belt: '#1c1d22', buckle: '#c9b46a', badge: '#f2c94c', patch: '#f5b800', strip: '#e8edf2', metal: '#9aa3ad', dark: '#1b1d24', white: '#f1eee6', wood: '#8a5a2e', paper: '#f4efe2', red: '#c0392b', glass: '#2a3440', lens: '#a8c4d6' };
+const DEF = { chev: '#e3b341', card: '#b98a52', book2: '#2f5d8a', book3: '#c9a227', prop2: '#d9822b', eye: '#2a1b1d', mouth: '#9a4f48', belt: '#1c1d22', buckle: '#c9b46a', badge: '#f2c94c', patch: '#f5b800', strip: '#e8edf2', metal: '#9aa3ad', dark: '#1b1d24', white: '#f1eee6', wood: '#8a5a2e', paper: '#f4efe2', red: '#c0392b', glass: '#2a3440', lens: '#a8c4d6' };
 
 // ---------- one pose from one angle, as a list of flat shapes ----------
 const HELD = new Set(['coffee', 'pot', 'clipboard', 'books', 'laptop', 'tongs', 'ladle', 'spatula', 'medbag', 'football', 'binoculars', 'box', 'donuts', 'icecream', 'chess', 'gavel', 'mic', 'plant', 'phone', 'folder', 'tablet', 'basket', 'flashlight', 'gloves', 'wrench']);
@@ -71,7 +71,7 @@ function figure(D, v, mir, ph, mv) {
     if (pose === 'up') { // a wave: the arm goes out and up to the side, the hand swings between two frames
       const sg = Math.sign(lx), P0 = place(lx, 0), P1 = place(lx + sg * 5.4, 2), P2 = place(lx + sg * (D.wavePh ? 10.6 : 7.6), 3);
       return { sx: P0.x, sy: armY, ex: P1.x, ey: armY - .6, wx: P2.x, wy: armY - 7.2, d: P0.d, hd: P2.d + 2, fa: Math.PI, fwd: place(0, 1).x }; }
-    if (pose === 'hold') { th = .25; bend = 1.45; } else if (pose === 'up') { th = 2.6; bend = D.wavePh ? .75 : -.25; } else if (pose === 'carry') { th = .05; bend = .25; out = .6; } else if (pose === 'hip') { th = -.1; bend = 1.4; out = 2.6; } else if (pose === 'sling') { th = .1; bend = 1.6; } else if (pose === 'raise') { th = .9; bend = .9; out = 1.2; } else if (pose === 'cross') { th = .35; bend = 1.7; out = -2; }
+    if (pose === 'hold') { th = .25; bend = 1.45; } else if (pose === 'up') { th = 2.6; bend = D.wavePh ? .75 : -.25; } else if (pose === 'carry') { th = .05; bend = .25; out = .6; } else if (pose === 'hip') { th = -.1; bend = 1.4; out = 2.6; } else if (pose === 'sling') { th = .1; bend = 1.6; } else if (pose === 'raise') { th = .9; bend = .9; out = 1.2; } else if (pose === 'mic') { th = .3; bend = 2.75; out = -.7; } else if (pose === 'cross') { th = .35; bend = 1.7; out = -2; }
     const sh3 = [lx, 0], el3 = [lx + Math.sign(lx) * (.5 + out * .5), Math.sin(th) * UP], wr3 = [lx + Math.sign(lx) * (.8 + out) * (pose === 'cross' ? -1 : 1) + (pose === 'cross' ? -Math.sign(lx) * 4 : 0), el3[1] + Math.sin(th + bend) * FO];
     const P0 = place(...sh3), P1 = place(...el3), P2 = place(...wr3);
     return { sx: P0.x, sy: armY, ex: P1.x, ey: armY + Math.cos(th) * UP, wx: P2.x, wy: armY + Math.cos(th) * UP + Math.cos(th + bend) * FO, d: P0.d, hd: P2.d, fa: th + bend, fwd: place(0, 1).x }; };
@@ -388,7 +388,9 @@ export function fromLook(o) {
     const cop = !!(K.patch && !K.plain && !K.shorts && !K.apron); if (cop) { D.badge = 1; D.holster = 1; D.radio = 1; } if (K.patch === '#ffffff') { D.collar = 1; D.top.kind = 'shirt'; }
     if (K.vest) { D.vest = 1; D.cols.vest = K.vest === true || K.vest === 'xxxl' ? '#d4ff3a' : K.vest; } if (K.apron) { D.apron = 1; D.cols.apron = K.apron; } if (K.tie) { D.tie = 1; D.cols.tie = K.tie; D.top.kind = 'shirt'; } if (K.lanyard) { D.lanyard = 1; D.cols.lanyard = K.lanyard; }
     if (K.boots) D.boots = 1; if (K.camelbak) { D.pack = 1; D.cols.pack = '#1f2937'; }
-    const hk = K.hat; if (hk && hk !== 'none') { const m = { cap: 'cap', campaign: 'campaign', helmet: 'hardhat', headset: 'headset', boonie: 'bucket', sweatband: 'band' }[hk] || 'cap'; D.hat = { kind: m, badge: hk === 'cap' && cop }; D.cols.hat = K.hatCol || (hk === 'helmet' ? '#f5d000' : hk === 'campaign' ? '#6b4a2a' : '#1b2746'); D.cols.hat2 = shadeHex(D.cols.hat, .7); } }
+    // each unit's signature shape, so units tell apart in black silhouette too (Phase 4, item 13)
+    const sl = K.sil; if (sl) { if (sl.pack) { D.pack = 1; D.cols.pack = sl.pack; } if (sl.boots) D.boots = 1; if (sl.prop && !o.prop && !(o.pet && sl.prop === 'leash')) D.prop = sl.prop; /* your own K-9 walks free beside you, so no empty leash */ if (sl.coat) { D.top.kind = 'coat'; D.cols.coat = sl.coat; } if (sl.pose && !o.wave) D.pose = sl.pose; if (sl.build) D.build = sl.build; if (sl.shorts) D.shorts = 1; if (sl.bag) { D.bag = 1; D.cols.strap = sl.bag; } }
+    const hk = K.hat; if (hk && hk !== 'none') { const m = { cap: 'cap', campaign: 'campaign', helmet: 'hardhat', headset: 'headset', boonie: 'bucket', sweatband: 'band' }[hk] || 'cap'; D.hat = { kind: (K.sil && K.sil.hat) || m, badge: hk === 'cap' && cop }; D.cols.hat = K.hatCol || (hk === 'helmet' ? '#f5d000' : hk === 'campaign' ? '#6b4a2a' : '#1b2746'); D.cols.hat2 = shadeHex(D.cols.hat, .7); } }
   else { const tk = { tee: { kind: 'tee', sleeve: .42 }, dress: { kind: 'dress', sleeve: .42 }, tank: { kind: 'tank' }, jacket: { kind: 'jacket' }, hoodie: { kind: 'hoodie' }, button: { kind: 'shirt' } }[top];
     D.top = tk; if (top === 'jacket') { D.cols.top = jacket; D.cols.top2 = shirt; } if (top === 'hoodie') { D.cols.top = shadeHex(shirt, .85); if (rr(11) < .4) D.hood = 1; } if (top === 'button') D.placket = 1, D.cols.top2 = shadeHex(shirt, .8);
     if (acc === 'backpack') { D.pack = 1; D.cols.pack = shadeHex(jacket, 1.25); } if (acc === 'bag') { D.bag = 1; D.cols.strap = '#3b2a1c'; } if (acc === 'phone') D.prop = 'phone'; if (acc === 'coffee') D.prop = 'coffee'; if (acc === 'shades') D.glasses = 'shades';
@@ -396,6 +398,7 @@ export function fromLook(o) {
     const hat = rr(9) < .14 ? 'cap' : rr(9) < .2 ? 'beanie' : rr(9) < .25 ? 'straw' : null; if (hat) { D.hat = { kind: hat }; D.cols.hat = ['#1f2937', '#b91c1c', '#1d4ed8', '#f5f5f5', '#166534'][Math.floor(rr(10) * 5)]; if (hat === 'straw') D.cols.hat = ['#f5e6c8', '#e9d5a1', '#fde68a', '#f5f5f5'][Math.floor(rr(15) * 4)]; D.cols.hat2 = shadeHex(D.cols.hat, .72); }
     if (elder && o.cane !== false) D.prop = D.prop || 'cane'; }
   if (o.wave) D.pose = 'up'; if (o.sit) D.sit = 1;
+  if (o.mic) { D.pose = 'mic'; delete D.prop; } // a hand to the shoulder mic while you talk on the radio
   // rank you can see: chevrons (ranks 1, 3, 5), a collar pin (6) and a gold cap band (8)
   if (o.rank) { D.chev = o.rank >= 5 ? 3 : o.rank >= 3 ? 2 : 1; if (o.rank >= 6) D.pin = 1; if (o.rank >= 8 && D.hat) { D.cols = D.cols || {}; D.cols.hat2 = '#b8892a'; } }
   return D;

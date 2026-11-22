@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Patrol City Art Guide</title>
+<style>
+@font-face{font-family:'Meridian';font-weight:700;font-display:swap;src:url(fonts/meridian-700.woff) format('woff')}
+@font-face{font-family:'Meridian';font-weight:800 900;font-display:swap;src:url(fonts/meridian-800.woff) format('woff')}
+@font-face{font-family:'Meridian Text';font-weight:300 500;font-display:swap;src:url(fonts/meridian-text-400.woff) format('woff')}
+:root{--navy:#0b1630;--navy2:#13244a;--gold:#f5b800;--side:#38bdf8;--study:#8b5cf6;--ok:#22c55e;--bad:#f43f5e;--ink:#eef2fa;--g1:#e8eef8;--g2:#cbd5e1;--g3:#9fb0c8;--g4:#64748b;--deep:#161b2e;--t-fast:.12s;--t-base:.24s;--t-slow:.42s;--pop:cubic-bezier(.2,1.3,.4,1)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--navy);color:var(--g1);font:400 15px/1.55 'Meridian Text',system-ui,sans-serif}
+main{max-width:1080px;margin:0 auto;padding:28px 16px 80px}
+h1,h2,h3{font-family:'Meridian',system-ui,sans-serif;font-weight:800;margin:0}
+h1{font-size:34px;color:var(--gold)}h2{font-size:22px;margin:44px 0 6px;color:#fff}h3{font-size:15px;margin:18px 0 6px;color:var(--g2)}
+p{margin:6px 0;max-width:72ch;color:var(--g2)}.lead{font-size:17px;color:var(--g1)}
+.rule{border-left:3px solid var(--gold);padding:4px 12px;margin:10px 0;background:rgba(245,184,0,.06);border-radius:0 8px 8px 0}
+.sw{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}.sw div{width:118px;font-size:12px;color:var(--g2)}.sw i{display:block;height:46px;border-radius:8px;margin-bottom:4px;border:1px solid rgba(255,255,255,.12)}
+.sw code{color:var(--g3)}canvas{image-rendering:pixelated;max-width:100%;background:#4a5a4a;border-radius:10px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.card{background:var(--navy2);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
+table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;vertical-align:top}th{color:var(--g3);font-weight:500}
+.demo{display:inline-block;padding:8px 14px;border-radius:10px;background:var(--gold);color:var(--deep);font-family:'Meridian';font-weight:700;cursor:pointer;transition:transform var(--t-base) var(--pop)}.demo:hover{transform:scale(1.08)}
+.pass{color:var(--ok)}.fail{color:var(--bad)}
+@media (prefers-reduced-motion:reduce){.demo{transition:none}}
+</style></head>
+<body><main>
+<h1>Patrol City art guide</h1>
+<p class="lead">One page for how the game looks and moves. Every screen and sprite should follow it. Everything here is drawn live from the game's own code, so the page can't drift from the game.</p>
+
+<h2>1. Palette</h2>
+<p>The city stays muted so the things that matter pop: light bars, the gold guide arrow, lit windows. Gold means "you, or your next step". Blue means a side case. Purple means study. Green and red mean right and wrong, nothing else.</p>
+<div class="sw" id="ui"></div>
+<h3>Greys and ink</h3>
+<p>Three greys cover every piece of secondary text: g1 for body text on dark, g2 for supporting text, g3 for hints and labels. Shadows and dark text use the deep ink, never pure black.</p>
+<div class="sw" id="greys"></div>
+<h3>Material ramps</h3>
+<p>Each material on a sprite gets a hue-shifted ramp: shadows lean cool and blue, highlights lean warm. One ramp has an outline step and eight shades.</p>
+<canvas id="ramps" width="1040" height="150"></canvas>
+
+<h2>2. Line weight and outline</h2>
+<div class="rule">Outlines are one pixel of deep blue-black (<code>#161b2e</code>) mixed 22% with the material's darkest shade, so a red coat gets a dark red-black edge. Lit edges get a softer outline. Never use true black.</div>
+<p>Buildings and streets stay smooth (HD-2D): only people, animals, vehicles and props are pixel art. People are drawn at 48 by 64 pixels, cars and props are pixelized from smooth drawings, and every one gets the same outline rule.</p>
+
+<h2>3. Light</h2>
+<div class="rule">The key light comes from the upper left. Shapes get flat cel bands toward and away from it, with no soft gradients on sprites. Cast shadows fall down and to the right and follow the time of day. A contact shadow sits under every person, dog and car.</div>
+<canvas id="light" width="1040" height="190"></canvas>
+
+<h2>4. Type</h2>
+<p>Two of the game's own fonts, made with <code>tools/makefont.py</code>. Nothing comes from outside the game.</p>
+<div class="grid2">
+<div class="card"><h3>Meridian (headings, buttons, numbers)</h3><div style="font-family:'Meridian';font-weight:800;font-size:30px;color:#fff">Field Training Officer</div><div style="font-family:'Meridian';font-weight:700;font-size:18px;color:var(--gold)">STAGE 2 OF 5 · 10 / 15</div></div>
+<div class="card"><h3>Meridian Text (dialogue, body, hints)</h3><div style="font-size:16px;color:var(--g1)">Dispatch: 1-Adam-12, respond to a traffic hazard at Harbor and 3rd.</div><div style="font-size:13px;color:var(--g3)">Hints and labels use g3 at 13 px or larger.</div></div>
+</div>
+<table style="margin-top:12px"><tr><th>Use</th><th>Font</th><th>Size</th></tr><tr><td>Screen titles</td><td>Meridian 800</td><td>28 to 34 px</td></tr><tr><td>Card titles, buttons</td><td>Meridian 700</td><td>16 to 20 px</td></tr><tr><td>Kickers (small caps line over a title)</td><td>Meridian 700, letter-spaced, gold</td><td>11 to 12 px</td></tr><tr><td>Dialogue and body</td><td>Meridian Text</td><td>15 to 17 px</td></tr><tr><td>Hints</td><td>Meridian Text, g3</td><td>13 px minimum</td></tr></table>
+
+<h2>5. Motion</h2>
+<div class="rule">Three speeds: fast (0.12 s) for taps and hovers, base (0.24 s) for cards and panels, slow (0.42 s) for promotions and story moments. Things that pop in overshoot a little (the <code>--pop</code> curve). When the player turns on Reduced motion, or their device asks for it, interface animations stop and the camera holds still.</div>
+<p><span class="demo">Hover me: base speed, pop curve</span></p>
+<h3>Small gestures</h3>
+<table><tr><th>Who</th><th>Gesture</th><th>When</th></tr>
+<tr><td>Your officer</td><td>Hand to the shoulder mic</td><td>When you talk on the radio, or dispatch calls your number</td></tr>
+<tr><td>Radio button</td><td>A short blue blink</td><td>Every new radio line</td></tr>
+<tr><td>Patrol car</td><td>Nose dips under braking, squats when you pull away, settles when you get in, rocks when the door shuts</td><td>Driving, getting in and out</td></tr>
+<tr><td>K-9</td><td>Trots at your side, sits when you stop, stands alert with ears up and tail high when a call is waiting</td><td>Always, for the K-9 unit</td></tr>
+<tr><td>Regulars</td><td>Wave you over</td><td>With the Known on the Beat skill</td></tr></table>
+<canvas id="dogs" width="1040" height="120" style="margin-top:10px"></canvas>
+
+<h2>6. Silhouettes</h2>
+<div class="rule">Every unit and every regular must read as a solid black shape. Each one has a signature element (a hat, a held prop, a coat, a pose) that changes its outline, not just its colour. The check counts pixels that differ between two silhouettes across the front, three-quarter and side views. Pairs under 60 count as look-alikes and get redesigned.</div>
+<h3>Units</h3>
+<canvas id="units" width="1040" height="250"></canvas>
+<p id="unitPairs"></p>
+<h3>Regulars and named characters</h3>
+<canvas id="folk" width="1040" height="10"></canvas>
+<p id="folkPairs"></p>
+</main>
+<script type="module">
+import { sprite, mask, fromLook, ramp, SW, SH } from './pixelfolk.js';
+import { UNITS } from './data.js';
+import { FOLK } from './folkcast.js';
+import { dogFast, setRes } from './world.js';
+const $ = (id) => document.getElementById(id);
+const swatch = (el, list) => { el.innerHTML = list.map(([n, c, d]) => '<div><i style="background:' + c + '"></i><b>' + n + '</b><br><code>' + c + '</code>' + (d ? '<br>' + d : '') + '</div>').join(''); };
+swatch($('ui'), [['Navy', '#0b1630', 'screens'], ['Navy 2', '#13244a', 'cards'], ['Gold', '#f5b800', 'you, next step'], ['Side case', '#38bdf8', 'blue !'], ['Study', '#8b5cf6', 'facts'], ['Right', '#22c55e', ''], ['Wrong', '#f43f5e', '']]);
+swatch($('greys'), [['g1', '#e8eef8', 'body text'], ['g2', '#cbd5e1', 'supporting'], ['g3', '#9fb0c8', 'hints'], ['g4', '#64748b', 'disabled'], ['Deep ink', '#161b2e', 'outlines, shadows']]);
+// ramps
+{ const g = $('ramps').getContext('2d'); g.font = '12px system-ui'; [['Uniform navy', '#22355e'], ['Skin', '#c68e63'], ['Coat red', '#c0392b'], ['Vest orange', '#f97316'], ['Gold', '#d4a017'], ['Teal', '#14b8a6']].forEach(([n, c], i) => {
+  let R; try { R = ramp(c); } catch (e) { R = null; } const x0 = 10 + (i % 3) * 345, y0 = 10 + Math.floor(i / 3) * 70; g.fillStyle = '#e8eef8'; g.fillText(n, x0, y0 + 10);
+  (R || [c]).forEach((col, k) => { g.fillStyle = typeof col === 'string' ? col : 'rgb(' + col.join(',') + ')'; g.fillRect(x0 + k * 34, y0 + 18, 32, 32); }); }); }
+// light: one character in five views, so the light and shadows can be compared
+const drawSpr = (g, D, d, x, y, k) => { g.imageSmoothingEnabled = false; g.drawImage(sprite(D, d), x, y, SW * k, SH * k); };
+{ const g = $('light').getContext('2d'), D = FOLK[Object.keys(FOLK)[0]]; [0, 1, 2, 3, 4].forEach((d, i) => drawSpr(g, D, d, 20 + i * 130, 10, 2.6));
+  g.fillStyle = '#fff3b0'; g.beginPath(); g.arc(760, 40, 18, 0, 7); g.fill(); g.strokeStyle = '#fff3b0'; g.lineWidth = 3; g.beginPath(); g.moveTo(780, 58); g.lineTo(860, 130); g.stroke(); g.font = '13px system-ui'; g.fillStyle = '#e8eef8'; g.fillText('key light: upper left', 800, 40); g.fillText('shadows fall down-right', 870, 140); }
+// dogs
+{ setRes(2); const g = $('dogs').getContext('2d'); g.scale(2, 2); [['', true], ['', false], ['sit', false], ['alert', false]].forEach(([st, mv], i) => { dogFast(g, 40 + i * 120, 48, 1, mv, 200, st); g.fillStyle = '#e8eef8'; g.font = '8px system-ui'; g.fillText(mv ? 'trot' : st || 'stand', 30 + i * 120, 58); }); }
+// silhouettes
+const sil = (D, d) => { const m = mask(D, d), c = document.createElement('canvas'); c.width = SW; c.height = SH; const cg = c.getContext('2d'), im = cg.createImageData(SW, SH); m.forEach((v, k) => { if (v) im.data.set([22, 27, 46, 255], k * 4); }); cg.putImageData(im, 0, 0); return c; };
+function closest(list) { const M = list.map(([id, D]) => [id, [0, 1, 2].map((d) => mask(D, d))]), out = [];
+  for (let a = 0; a < M.length; a++) for (let b = a + 1; b < M.length; b++) { let X = 0; for (let d = 0; d < 3; d++) { const A = M[a][1][d], B = M[b][1][d]; for (let k = 0; k < A.length; k++) if (A[k] !== B[k]) X++; } out.push([X, M[a][0], M[b][0]]); }
+  return out.sort((x, y) => x[0] - y[0]); }
+const pairLine = (P) => P.slice(0, 5).map(([x, a, b]) => '<span class="' + (x >= 60 ? 'pass' : 'fail') + '">' + a + ' / ' + b + ': ' + x + '</span>').join(' · ');
+{ const U = UNITS.map((u) => [u.name, fromLook({ kit: u.kit, skin: '#c68e63', ph: 1 })]), g = $('units').getContext('2d'); g.imageSmoothingEnabled = false; g.font = '12px system-ui';
+  U.forEach(([n, D], i) => { const x = 10 + i * 114; drawSpr(g, D, 0, x, 6, 1.6); g.drawImage(sil(D, 0), x + 30, 110, SW * 1.6, SH * 1.6); g.fillStyle = '#e8eef8'; g.fillText(n.split(' ')[0], x, 240); });
+  $('unitPairs').innerHTML = 'Closest pairs: ' + pairLine(closest(U)); }
+{ const ids = Object.keys(FOLK), per = 13, cv = $('folk'), rows = Math.ceil(ids.length / per); cv.height = rows * 104 + 10; const g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+  ids.forEach((id, i) => { const x = 10 + (i % per) * 79, y = 6 + Math.floor(i / per) * 104; g.drawImage(sil(FOLK[id], 0), x, y, SW * 1.5, SH * 1.5); });
+  $('folkPairs').innerHTML = ids.length + ' designs. Closest pairs: ' + pairLine(closest(ids.map((id) => [id, FOLK[id]]))); }
+</script>
+</body></html>
