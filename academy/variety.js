@@ -234,15 +234,21 @@ export function installVariety(H) {
 
   // ---------- two calls at once ----------
   const OUTCOME = ["cleared it. Report taken, nobody hurt.", "cleared it. Turned out to be nothing.", "cleared it. One in custody.", "cleared it. Gone on arrival.", "cleared it. Handled with a warning.", "cleared it. Parties separated for the night."];
-  function wantPair() { return heat() < 2.5 && Math.random() < .14; }
+  function wantPair() { return heat() < 2.5 && Math.random() < .22; }
   function offerPair(a, b, choose) {
     const D = dispatcher(), other = UNITS();
     H.dialogue([[D.id, '(over the radio) ' + fill(pick('pair_' + D.k, D.d.pair), { cs: S.cs, other })], ['choice', [
-      { t: a.title + ' at ' + a.where, fx: () => { choose(a, b); } }, { t: b.title + ' at ' + b.where, fx: () => { choose(b, a); } }], 'Two calls holding']],
+      { t: PL(a) + a.title + ' at ' + a.where, fx: () => { choose(a, b); } }, { t: PL(b) + b.title + ' at ' + b.where, fx: () => { choose(b, a); } }], 'Two calls holding']],
     null, { kicker: 'TWO CALLS HOLDING', noLeave: true });
     return other;
   }
-  function otherOutcome(c, unit) { setTimeout(() => { H.radio(dispatcher().label, unit + ' ' + rnd(OUTCOME).replace(/^cleared it/, 'cleared the ' + c.title.toLowerCase())); }, 70000 + Math.random() * 60000); }
+  const PL = (c) => (c.prio === 1 ? 'Priority 1 · ' : c.prio === 2 ? 'Priority 2 · ' : 'Routine · ');
+  // the call you didn't take still happens: if you took the routine one while a priority call waited, the other unit
+  // got there late and you hear about it (and the block remembers); if you took the urgent one, it worked out
+  const LATE = ["got there late. The victim had already left in a friend's car, no statement.", "got there late. The suspect was gone and the caller is upset nobody came sooner.", "got there late. The man needed an ambulance by then. He's at County, stable."];
+  function otherOutcome(c, unit, mine) { const late = mine && c.prio < mine.prio; setTimeout(() => { H.radio(dispatcher().label, unit + ' ' + (late ? rnd(LATE).replace(/^got there late/, 'got to the ' + c.title.toLowerCase() + ' late') : rnd(OUTCOME).replace(/^cleared it/, 'cleared the ' + c.title.toLowerCase())));
+      if (late) { if (H.trustAt) H.trustAt(c.x, c.y, -2); setTimeout(() => H.radio('Sgt. Castillo', "(over the radio) The higher priority goes first. Every time. We'll talk about it at end of watch."), 4000); }
+      else if (mine && mine.prio < c.prio) setTimeout(() => H.radio('Sgt. Castillo', '(over the radio) Right call taking the priority one.'), 3500); }, 35000 + Math.random() * 25000); }
 
   // ---------- facts behind the new shapes ----------
   const fidFor = (re, les) => { const list = L.factList(les != null ? [les] : L.allLessons()); const f = list.find((x) => re.test(x.text)); return f ? f.id : null; };
