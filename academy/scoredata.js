@@ -65,6 +65,32 @@ const SUB = {
   inH: 'r:16 7:3/2 6:1/2 4:2 r:4 7:3/2 6:1/2 4:1 6:1 7:4',
   outH: '7:3 6:1 4:4 3:4 0:4 r:16'
 };
+// more melodies: every district, unit and shift, and the second arrangement of several situations, has a tune of its own.
+// The hook still opens or closes most of them (intros, outros, B sections), so the score stays one family.
+const MEL = {
+  founders: '0:1 4:1 7:3/2 6:1/2 5:1 4:1 2:2 3:1 5:1 8:3/2 7:1/2 6:3 r:1 7:1/2 8:1/2 9:1 7:1 5:1 6:1/2 7:1/2 8:1 6:1 4:1 5:1 3:1 4:1/2 2:1/2 1:1 0:3 r:1',
+  cornerstore: 'r:1/2 2:1/2 3:1/2 4:1 2:1/2 0:1 2:1/2 3:1/2 2:1/2 0:1/2 -1:1 0:1 r:1/2 2:1/2 3:1/2 4:1 6:1/2 7:1 6:1/2 4:1/2 3:1 4:2 7:1 6:1/2 4:1/2 6:1 4:1 3:1/2 4:1/2 3:1/2 2:1/2 0:2 2:1 3:1 4:1/2 6:1/2 4:1 2:1/2 0:1/2 0:3',
+  riverpark: '2:1 4:1 9:2 8:1 7:1 4:2 5:1 6:1 7:3/2 4:1/2 5:4 2:1 4:1 9:3/2 11:1/2 10:1 9:1 7:2 8:1/2 7:1/2 6:1 5:1 3:1 4:4',
+  railyard: '0:3/4 0:1/4 3:1 2:1/2 0:1/2 -1:1 0:3/4 0:1/4 3:1 5:1 4:1 0:3/4 0:1/4 3:1 2:1/2 0:1/2 -2:1 -1:2 r:2 7:1 6:1 5:1/2 4:1/2 3:1 4:1 2:1 3:2 5:1/2 4:1/2 3:1/2 2:1/2 1:1 2:1 0:4',
+  darkroad: '4:2 3:1 2:1 1:3 r:1 4:3/2 5:1/2 6:1 4:1 7:4 6:1 5#:1 6:2 4:2 2:2 3:1 2:1/2 1:1/2 -1:2 0:4',
+  stackup: '0:1/2 0:1/2 0:1/2 3:1/2 4:2 3:1/2 3:1/2 3:1/2 2:1/2 0:2 0:1/2 0:1/2 0:1/2 3:1/2 4:1 6:1 7:3 r:1 7:1/2 6:1/2 4:1 6:1/2 4:1/2 3:1 4:1/2 3:1/2 2:1 3:2 2:1/2 3:1/2 4:1/2 6:1/2 7:1 6:1 7:4',
+  gooddog: '4:1/2 6:1/2 7:1/2 6:1/2 4:1 2:1 3:1/2 4:1/2 2:1/2 1:1/2 0:2 4:1/2 6:1/2 7:1/2 9:1/2 8:1 7:1 6:2 r:2 7:1/2 7:1/2 6:1/2 4:1/2 6:1/2 6:1/2 4:1/2 2:1/2 3:1/2 3:1/2 2:1/2 0:1/2 2:2 4:1/2 2:1/2 4:1/2 6:1/2 7:1 9:1 7:4',
+  talkdown: '7:3 6:1 4:2 5:2 6:3 4:1 2:4 3:2 4:1 5:1 6:2 7:2 5:3/2 4:1/2 3:1 1:1 0:4',
+  channel: '0:3/2 2:1/2 4:1 7:1 6:3/2 4:1/2 5:2 4:3/2 2:1/2 0:1 2:1 1:3 r:1 0:3/2 2:1/2 4:1 7:1 9:3/2 8:1/2 7:2 6:1 4:1 5:1 1:1 0:4',
+  checkin: '2:1 3:1 4:2 4:1 5:1 4:2 7:1 6:1 5:1 4:1 3:3 r:1 2:1 3:1 4:3/2 2:1/2 1:1 2:1 0:2 4:1 5:1 6:1 5:1 4:4',
+  overpass: '4:1 4:1/2 5:1/2 7:1 4:1 6:1 5:1 4:2 2:1 2:1/2 3:1/2 4:1 2:1 1:2 0:2 7:1 7:1/2 8:1/2 9:1 7:1 6:1 5:1 4:2 5:1/2 4:1/2 2:1 3:1 1:1 0:4',
+  coldcase: 'r:1 0:1/2 2:1/2 3:2 r:1 2:1/2 3:1/2 5:2 4:1 3:1 2:1 1:1 2:3 r:1 7:3/2 6:1/2 5:1 4:1 3:3/2 2:1/2 1:2 0:1 1:1 2:1 -1:1 0:4',
+  hallpass: '0:1/2 2:1/2 4:1/2 2:1/2 4:1 7:1 5:1/2 4:1/2 2:1 0:2 1:1/2 3:1/2 5:1/2 3:1/2 5:1 8:1 7:2 r:2 7:1/2 5:1/2 7:1/2 9:1/2 8:1 7:1 5:1/2 4:1/2 2:1/2 4:1/2 5:2 4:1/2 2:1/2 1:1/2 2:1/2 4:1 1:1 0:4',
+  firstlight: '0:2 4:2 7:3 6:1 5:1 4:1 3:1 4:1 2:4 0:1 2:1 4:1 7:1 9:2 8:1 7:1 5:1 6:1 4:1 2:1 0:4',
+  swingshift: '4:1/2 3:1/2 2:1/2 0:1/2 2:1 4:1 6:3/2 4:1/2 3:2 2:1/2 3:1/2 4:1/2 6:1/2 7:1 6:1 4:3 r:1 7:1/2 6:1/2 4:1/2 3:1/2 4:1 6:1 7:3/2 9:1/2 7:2 6:1/2 4:1/2 3:1/2 2:1/2 1:1 2:1 0:4',
+  graveyard: '4:3 2:1 3:2 1:2 0:3/2 1:1/2 2:1 4:1 3:4 6:3 5:1 4:2 2:2 3:1 2:1 1:1 -1:1 0:4',
+  coffee: '7:1/2 6:1/2 4:1 2:1/2 4:1/2 6:1 7:1 9:1 7:2 6:1/2 4:1/2 2:1 1:1/2 2:1/2 4:1 2:2 r:2 0:1/2 2:1/2 4:1/2 6:1/2 7:1 6:1 4:1/2 6:1/2 4:1/2 2:1/2 4:2 6:1/2 7:1/2 6:1/2 4:1/2 2:1 1:1 0:4',
+  streetlamps: '2:3/2 4:1/2 5:2 4:1 2:1 0:2 2:3/2 4:1/2 7:2 6:3 r:1 5:1 6:1 7:1 9:1 8:2 7:2 6:1 5:1 4:1 2:1 0:4',
+  records: 'r:2 4:1 3:1 2:2 r:2 r:2 5:1 4:1 3:2 r:2 2:1 3:1 4:1 6:1 5:3 r:1 4:1 3:1 2:1 1:1 0:4',
+  legwork: '0:1/2 r:1/2 2:1/2 r:1/2 3:1/2 4:3/2 3:1/2 2:1/2 0:1 -1:2 0:1/2 r:1/2 2:1/2 r:1/2 3:1/2 6:3/2 4:3 r:1 7:1/2 6:1/2 4:1/2 3:1/2 4:1/2 6:1/2 7:1 6:2 4:2 3:1/2 2:1/2 0:1/2 2:1/2 3:1 1:1 0:4',
+  porch: '4:1 5:1 7:3/2 5:1/2 4:1 2:1 4:2 5:1 7:1 9:3/2 7:1/2 7:4 9:1 8:1 7:1 5:1 6:1 5:1 4:2 2:1 4:1 5:1 1:1 0:4',
+  harbor: '0:1 4:1 2:1/2 4:1/2 7:1 6:2 4:2 5:1 7:1 4:1/2 2:1/2 4:1 3:4 4:1 7:1 9:1/2 7:1/2 11:1 9:2 7:2 8:1 7:1 6:1 4:1 7:4'
+};
 const JF = { vamp: [0, 3, 0, 3, 0, 3, 6, 4], bridge: [2, 3, 6, 0, 2, 3, 4, 4], lift: [3, 4, 2, 5, 3, 4, 6, 4], night: [0, 3, 1, 4, 0, 3, 6, 4], dark: [0, 5, 3, 4, 0, 5, 6, 4], porch: [0, 3, 6, 3, 0, 3, 4, 4], chase: [0, 0, 5, 6, 0, 0, 3, 4], chaseB: [5, 6, 0, 0, 5, 6, 4, 4] };
 const P = { // a few chord progressions, as scale degrees, one per bar
   pop: [0, 4, 5, 3, 0, 4, 3, 4], lift: [3, 4, 0, 5, 3, 4, 1, 4], doo: [0, 5, 3, 4, 0, 5, 3, 4], minor: [0, 5, 2, 6, 0, 5, 3, 4], mdrive: [0, 6, 5, 6, 0, 6, 3, 4],
@@ -80,17 +106,17 @@ export const TRACKS = {
   // ---- day patrol ----
   day_1: { name: 'Day Watch', bpm: 96, root: 62, scale: 'dor', form: true, themeA1: JT.frag, intro: 'hits', outro: 'motif', outroTheme: SUB.outM, swing: .14, prog: JF.vamp, progB: JF.bridge, theme: JT.main, themeB: JT.bridge,
     band: { rhodes: { pat: 'funk', v: .032 }, wah: { v: .02, busy: true }, clav: { v: .016 }, bass: { pat: 'funk', v: .1 } }, drums: { pat: 'funk', v: .85 }, lead: { voice: 'mute', v: .036, oct: 12 }, leadB: { voice: 'sax', v: .04, oct: 0 }, counter: { voice: 'vibes', v: .02, oct: 12 } },
-  day_2: { name: 'Coffee and a Cruiser', bpm: 104, root: 64, scale: 'dor', form: true, themeA1: JT.frag, intro: 'bass', outro: 'drums', swing: .1, prog: JF.vamp, progB: JF.lift, theme: JT.main, themeB: JT.bridge,
+  day_2: { name: 'Coffee and a Cruiser', bpm: 104, root: 64, scale: 'dor', form: true, intro: 'bass', outro: 'drums', swing: .1, prog: JF.vamp, progB: JF.lift, theme: MEL.coffee, themeB: JT.main,
     band: { clav: { v: .02 }, rhodes: { pat: 'push', v: .026 }, bass: { pat: 'funk', v: .095 } }, drums: { pat: 'lowride', v: .8 }, lead: { voice: 'flute', v: .04, oct: 12 }, leadB: { voice: 'mute', v: .034, oct: 12 }, counter: { voice: 'sax', v: .022, oct: 0 } },
   // ---- night patrol ----
   night_1: { name: 'Night Shift', bpm: 74, root: 62, scale: 'dor', form: true, intro: 'motif', introTheme: SUB.inH, outro: 'band', swing: .2, prog: JF.night, progB: JF.bridge, theme: JT.heart, themeB: JT.calm,
     band: { rhodes: { pat: 'ballad', v: .034 }, vamp: { v: .012 }, bass: { pat: 'walk', v: .095 } }, drums: { pat: 'jazz', v: .75 }, drumsB: { pat: 'lowride', v: .6 }, lead: { voice: 'sax', v: .042, oct: 0 }, leadB: { voice: 'vibes', v: .03, oct: 12 }, counter: { voice: 'mute', v: .018, oct: 12 } },
-  night_2: { name: 'Streetlamps', bpm: 82, root: 60, scale: 'dor', form: true, themeA1: JT.frag, intro: 'drums', outro: 'motif', outroTheme: SUB.outM, swing: .16, prog: JF.night, progB: JF.lift, theme: JT.main, themeB: JT.heart,
+  night_2: { name: 'Streetlamps', bpm: 82, root: 60, scale: 'dor', form: true, intro: 'drums', outro: 'motif', outroTheme: SUB.outM, swing: .16, prog: JF.night, progB: JF.lift, theme: MEL.streetlamps, themeB: JT.heart,
     band: { rhodes: { pat: 'push', v: .028 }, wah: { v: .014 }, bass: { pat: 'funk', v: .085 } }, drums: { pat: 'lowride', v: .7 }, lead: { voice: 'mute', v: .034, oct: 12 }, leadB: { voice: 'sax', v: .04, oct: 0 } },
   // ---- indoors ----
   inside_1: { name: 'Front Desk', bpm: 80, root: 65, scale: 'dor', form: true, themeA1: JT.frag, intro: 'band', outro: 'motif', outroTheme: SUB.outM, swing: .14, prog: JF.night, progB: JF.lift, theme: JT.main, themeB: JT.calm,
     band: { rhodes: { pat: 'push', v: .026 }, bass: { pat: 'walk', v: .075 } }, drums: { pat: 'brush', v: .45 }, lead: { voice: 'vibes', v: .028, oct: 12, sparse: true }, leadB: { voice: 'vibes', v: .028, oct: 12 } },
-  inside_2: { name: 'Records Room', bpm: 70, root: 62, scale: 'dor', form: true, intro: 'motif', introTheme: SUB.inM, outro: 'band', swing: .2, prog: JF.night, progB: JF.bridge, theme: JT.frag, themeB: JT.main,
+  inside_2: { name: 'Records Room', bpm: 70, root: 62, scale: 'dor', form: true, intro: 'motif', introTheme: SUB.inM, outro: 'band', swing: .2, prog: JF.night, progB: JF.bridge, theme: MEL.records, themeB: JT.frag,
     band: { rhodes: { pat: 'ballad', v: .03 }, bass: { pat: 'walk', v: .07 } }, drums: { pat: 'jazz', v: .4 }, lead: { voice: 'mute', v: .026, oct: 12, sparse: true } },
   // ---- story ----
   story_1: { name: 'The Gray Sedan', bpm: 66, root: 62, scale: 'min', form: true, intro: 'motif', introTheme: SUB.inH, outro: 'band', swing: .18, prog: JF.dark, progB: JF.chaseB, theme: JT.heart, themeB: JT.calm,
@@ -100,7 +126,7 @@ export const TRACKS = {
   // ---- side cases ----
   side_1: { name: 'Legwork', bpm: 100, root: 62, scale: 'dor', form: true, themeA1: JT.frag, intro: 'bass', outro: 'hits', swing: .12, prog: JF.vamp, progB: JF.lift, theme: JT.main, themeB: JT.bridge,
     band: { clav: { v: .018 }, wah: { v: .016 }, bass: { pat: 'funk', v: .095 } }, drums: { pat: 'breaks', v: .75 }, lead: { voice: 'mute', v: .032, oct: 12 }, leadB: { voice: 'flute', v: .036, oct: 12 } },
-  side_2: { name: 'Asking Around', bpm: 108, root: 67, scale: 'dor', form: true, themeA1: JT.frag, intro: 'drums', outro: 'motif', outroTheme: SUB.outM, swing: .1, prog: JF.vamp, progB: JF.bridge, theme: JT.main, themeB: JT.calm,
+  side_2: { name: 'Asking Around', bpm: 108, root: 67, scale: 'dor', form: true, intro: 'drums', outro: 'motif', outroTheme: SUB.outM, swing: .1, prog: JF.vamp, progB: JF.bridge, theme: MEL.legwork, themeB: JT.main,
     band: { rhodes: { pat: 'funk', v: .028 }, clav: { v: .014 }, bass: { pat: 'funk', v: .09 } }, drums: { pat: 'funk', v: .7 }, lead: { voice: 'sax', v: .038, oct: -12 }, leadB: { voice: 'vibes', v: .028, oct: 12 } },
   // ---- en route ----
   call_1: { name: 'Code 2', bpm: 116, root: 62, scale: 'min', form: true, intro: 'drums', outro: 'hits', swing: .06, prog: JF.chase, progB: JF.chaseB, theme: JT.units, themeB: JT.chaseB,
@@ -123,49 +149,49 @@ export const TRACKS = {
   debrief_2: { name: 'Report Written', bpm: 86, root: 65, scale: 'maj', form: true, themeA1: JT.frag, intro: 'hits', outro: 'motif', outroTheme: SUB.outM, swing: .14, prog: JF.vamp, progB: JF.lift, theme: JT.main, themeB: JT.bridge,
     band: { rhodes: { pat: 'funk', v: .026 }, bass: { pat: 'funk', v: .085 } }, drums: { pat: 'lowride', v: .6 }, lead: { voice: 'vibes', v: .03, oct: 12 }, leadB: { voice: 'mute', v: .03, oct: 12 } },
   // ---- neighbors and friends ----
-  friend_1: { name: 'Porch Light', bpm: 84, root: 65, scale: 'mix', form: true, intro: 'motif', introTheme: SUB.inM, outro: 'band', swing: .16, prog: JF.porch, progB: JF.lift, theme: JT.heart, themeB: JT.main,
+  friend_1: { name: 'Porch Light', bpm: 84, root: 65, scale: 'mix', form: true, intro: 'motif', introTheme: SUB.inM, outro: 'band', swing: .16, prog: JF.porch, progB: JF.lift, theme: MEL.porch, themeB: JT.heart,
     band: { rhodes: { pat: 'push', v: .028 }, bass: { pat: 'walk', v: .08 } }, drums: { pat: 'brush', v: .5 }, lead: { voice: 'flute', v: .038, oct: 12 }, leadB: { voice: 'vibes', v: .028, oct: 12 } },
   friend_2: { name: 'Saturday at the Plaza', bpm: 102, root: 67, scale: 'mix', form: true, themeA1: JT.frag, intro: 'bass', outro: 'motif', outroTheme: SUB.outM, swing: .12, prog: JF.porch, progB: JF.lift, theme: JT.main, themeB: JT.bridge,
     band: { clav: { v: .016 }, rhodes: { pat: 'funk', v: .024 }, horns: { v: .016 }, bass: { pat: 'funk', v: .09 } }, drums: { pat: 'lowride', v: .75 }, lead: { voice: 'mute', v: .034, oct: 12 }, leadB: { voice: 'flute', v: .036, oct: 12 } },
   // ---- marine patrol ----
-  water_1: { name: 'Marine Patrol', bpm: 86, root: 62, scale: 'mix', form: true, themeA1: JT.frag, intro: 'drums', outro: 'motif', outroTheme: SUB.outM, swing: .14, prog: JF.porch, progB: JF.lift, theme: JT.main, themeB: JT.calm,
+  water_1: { name: 'Marine Patrol', bpm: 86, root: 62, scale: 'mix', form: true, intro: 'drums', outro: 'motif', outroTheme: SUB.outM, swing: .14, prog: JF.porch, progB: JF.lift, theme: MEL.harbor, themeB: JT.main,
     band: { rhodes: { pat: 'push', v: .024 }, bass: { pat: 'funk', v: .08 } }, drums: { pat: 'lowride', v: .6 }, lead: { voice: 'vibes', v: .032, oct: 12 }, leadB: { voice: 'flute', v: .036, oct: 12 } },
   water_2: { name: 'Slow Wake', bpm: 74, root: 60, scale: 'dor', form: true, intro: 'band', outro: 'motif', outroTheme: SUB.outH, swing: .2, prog: JF.night, progB: JF.porch, theme: JT.heart, themeB: JT.main,
     band: { rhodes: { pat: 'ballad', v: .028 }, vamp: { v: .012 }, bass: { pat: 'walk', v: .07 } }, drums: { pat: 'jazz', v: .45 }, lead: { voice: 'flute', v: .036, oct: 12 }, leadB: { voice: 'sax', v: .034, oct: 0 } },
   // ---- districts: each place has its own arrangement of the hook (heard first when you arrive) ----
-  dist_0: { name: 'Founders Square (Central)', bpm: 104, root: 65, scale: 'mix', form: true, swing: .1, prog: JF.vamp, progB: JF.lift, theme: SUB.square, themeB: JT.bridge, intro: 'hits', outro: 'motif',
+  dist_0: { name: 'Founders Square (Central)', bpm: 104, root: 65, scale: 'mix', form: true, swing: .1, prog: JF.vamp, progB: JF.lift, theme: MEL.founders, themeB: JT.main, intro: 'hits', outro: 'motif',
     band: { rhodes: { pat: 'funk', v: .026 }, horns: { v: .02 }, clav: { v: .014 }, bass: { pat: 'funk', v: .095 } }, drums: { pat: 'funk', v: .8 }, lead: { voice: 'horns', v: .03, oct: 12 }, leadB: { voice: 'sax', v: .04, oct: 0 }, counter: { voice: 'vibes', v: .018, oct: 12 } },
-  dist_1: { name: 'Corner Store Shuffle (Eastside)', bpm: 96, root: 62, scale: 'dor', form: true, themeA1: JT.frag, swing: .22, prog: JF.night, progB: JF.vamp, theme: SUB.corner, themeB: JT.main, intro: 'bass', outro: 'drums',
+  dist_1: { name: 'Corner Store Shuffle (Eastside)', bpm: 96, root: 62, scale: 'dor', form: true, swing: .22, prog: JF.night, progB: JF.vamp, theme: MEL.cornerstore, themeB: JT.main, intro: 'bass', outro: 'drums',
     band: { clav: { v: .02 }, wah: { v: .018, busy: true }, bass: { pat: 'funk', v: .1 } }, drums: { pat: 'shuffle', v: .8 }, lead: { voice: 'sax', v: .042, oct: 0 }, leadB: { voice: 'mute', v: .034, oct: 12 } },
-  dist_2: { name: 'River Park (Riverside)', bpm: 84, root: 67, scale: 'mix', form: true, swing: .16, prog: JF.porch, progB: JF.lift, theme: JT.heart, themeB: SUB.tideline, intro: 'motif', introTheme: SUB.inM, outro: 'motif', outroTheme: SUB.outH,
+  dist_2: { name: 'River Park (Riverside)', bpm: 84, root: 67, scale: 'mix', form: true, swing: .16, prog: JF.porch, progB: JF.lift, theme: MEL.riverpark, themeB: JT.heart, intro: 'motif', introTheme: SUB.inM, outro: 'motif', outroTheme: SUB.outH,
     band: { rhodes: { pat: 'push', v: .026 }, bass: { pat: 'walk', v: .075 } }, drums: { pat: 'brush', v: .5 }, lead: { voice: 'flute', v: .04, oct: 12 }, leadB: { voice: 'vibes', v: .03, oct: 12 } },
-  dist_3: { name: 'Rail Yard (Industrial Park)', bpm: 92, root: 62, scale: 'min', form: true, swing: .06, prog: JF.chase, progB: JF.dark, theme: JT.unitsHalf, themeB: SUB.rail, intro: 'drums', outro: 'bass',
+  dist_3: { name: 'Rail Yard (Industrial Park)', bpm: 92, root: 62, scale: 'min', form: true, swing: .06, prog: JF.chase, progB: JF.dark, theme: MEL.railyard, themeB: JT.units, intro: 'drums', outro: 'bass',
     band: { wah: { v: .016 }, horns: { v: .016 }, bass: { pat: 'octaves', v: .1 } }, drums: { pat: 'half', v: .85 }, drone: { v: .016 }, lead: { voice: 'horns', v: .03, oct: 12 }, leadB: { voice: 'sax', v: .04, oct: 0 } },
-  dist_4: { name: 'Long Dark Road (Justice Row)', bpm: 68, root: 60, scale: 'min', form: true, swing: .2, prog: JF.dark, progB: JF.night, theme: SUB.longroad, themeB: JT.heartFrag, intro: 'motif', introTheme: SUB.inM, outro: 'band',
+  dist_4: { name: 'Long Dark Road (Justice Row)', bpm: 68, root: 60, scale: 'min', form: true, swing: .2, prog: JF.dark, progB: JF.night, theme: MEL.darkroad, themeB: JT.heartFrag, intro: 'motif', introTheme: SUB.inM, outro: 'band',
     band: { rhodes: { pat: 'ballad', v: .03 }, vamp: { v: .014 }, bass: { pat: 'walk', v: .075 } }, drums: { pat: 'jazz', v: .5 }, drone: { v: .018 }, lead: { voice: 'mute', v: .034, oct: 12 }, leadB: { voice: 'sax', v: .038, oct: 0 } },
   // ---- units: your unit's arrangement joins the patrol, call and side-case rotation ----
-  unit_swat: { name: 'Stack Up (SWAT)', bpm: 124, root: 62, scale: 'min', form: true, swing: .04, prog: JF.chase, progB: JF.chaseB, theme: JT.units, themeB: SUB.rail, intro: 'drums', outro: 'hits',
+  unit_swat: { name: 'Stack Up (SWAT)', bpm: 124, root: 62, scale: 'min', form: true, swing: .04, prog: JF.chase, progB: JF.chaseB, theme: MEL.stackup, themeB: JT.units, intro: 'drums', outro: 'hits',
     band: { horns: { v: .024 }, wah: { v: .016 }, bass: { pat: 'octaves', v: .1 } }, drums: { pat: 'march', v: .9 }, lead: { voice: 'horns', v: .03, oct: 12 }, leadB: { voice: 'horns', v: .03, oct: 12 } },
-  unit_k9: { name: 'Good Dog (K9)', bpm: 112, root: 64, scale: 'dor', form: true, themeA1: JT.frag, swing: .12, prog: JF.vamp, progB: JF.lift, theme: SUB.bounce, themeB: JT.main, intro: 'bass', outro: 'motif',
+  unit_k9: { name: 'Good Dog (K9)', bpm: 112, root: 64, scale: 'dor', form: true, swing: .12, prog: JF.vamp, progB: JF.lift, theme: MEL.gooddog, themeB: JT.main, intro: 'bass', outro: 'motif',
     band: { clav: { v: .018 }, rhodes: { pat: 'push', v: .022 }, bass: { pat: 'funk', v: .095 } }, drums: { pat: 'breaks', v: .8 }, lead: { voice: 'flute', v: .04, oct: 12 }, leadB: { voice: 'mute', v: .032, oct: 12 } },
-  unit_neg: { name: 'Talk Me Through It (Negotiator)', bpm: 64, root: 62, scale: 'dor', form: true, swing: .2, prog: JF.night, progB: JF.porch, theme: JT.heart, themeB: JT.calm, intro: 'motif', introTheme: SUB.inH, outro: 'motif', outroTheme: SUB.outM,
+  unit_neg: { name: 'Talk Me Through It (Negotiator)', bpm: 64, root: 62, scale: 'dor', form: true, swing: .2, prog: JF.night, progB: JF.porch, theme: MEL.talkdown, themeB: JT.heart, intro: 'motif', introTheme: SUB.inH, outro: 'motif', outroTheme: SUB.outM,
     band: { rhodes: { pat: 'ballad', v: .03 }, bass: { pat: 'walk', v: .065 } }, drums: { pat: 'brush', v: .35 }, lead: { voice: 'vibes', v: .032, oct: 12 }, leadB: { voice: 'sax', v: .034, oct: 0 } },
-  unit_marine: { name: 'Channel Markers (Marine)', bpm: 88, root: 62, scale: 'mix', form: true, themeA1: JT.frag, swing: .24, prog: JF.porch, progB: JF.lift, theme: SUB.tideline, themeB: JT.main, intro: 'bass', outro: 'motif',
+  unit_marine: { name: 'Channel Markers (Marine)', bpm: 88, root: 62, scale: 'mix', form: true, swing: .24, prog: JF.porch, progB: JF.lift, theme: MEL.channel, themeB: JT.main, intro: 'bass', outro: 'motif',
     band: { rhodes: { pat: 'push', v: .024 }, bass: { pat: 'funk', v: .085 } }, drums: { pat: 'bossa', v: .6 }, lead: { voice: 'flute', v: .038, oct: 12 }, leadB: { voice: 'vibes', v: .03, oct: 12 } },
-  unit_brt: { name: 'Check-In (Behavioral Resource)', bpm: 76, root: 65, scale: 'maj', form: true, swing: .16, prog: JF.porch, progB: JF.lift, theme: JT.heart, themeB: SUB.square, intro: 'band', outro: 'motif',
+  unit_brt: { name: 'Check-In (Behavioral Resource)', bpm: 76, root: 65, scale: 'maj', form: true, swing: .16, prog: JF.porch, progB: JF.lift, theme: MEL.checkin, themeB: JT.heart, intro: 'band', outro: 'motif',
     band: { rhodes: { pat: 'push', v: .028 }, bass: { pat: 'walk', v: .075 } }, drums: { pat: 'brush', v: .45 }, lead: { voice: 'vibes', v: .032, oct: 12 }, leadB: { voice: 'flute', v: .036, oct: 12 } },
-  unit_hoi: { name: 'Under the Overpass (Homeless Initiative)', bpm: 80, root: 67, scale: 'mix', form: true, swing: .18, prog: JF.porch, progB: JF.night, theme: JT.heart, themeB: JT.calm, intro: 'motif', introTheme: SUB.inH, outro: 'band',
+  unit_hoi: { name: 'Under the Overpass (Homeless Initiative)', bpm: 80, root: 67, scale: 'mix', form: true, swing: .18, prog: JF.porch, progB: JF.night, theme: MEL.overpass, themeB: JT.calm, intro: 'motif', introTheme: SUB.inH, outro: 'band',
     band: { rhodes: { pat: 'ballad', v: .028 }, bass: { pat: 'walk', v: .07 } }, drums: { pat: 'brush', v: .4 }, lead: { voice: 'flute', v: .038, oct: 12 }, leadB: { voice: 'sax', v: .034, oct: 0 } },
-  unit_det: { name: 'Cold Case (Detective)', bpm: 66, root: 57, scale: 'min', form: true, swing: .2, prog: JF.dark, progB: JF.dark, theme: SUB.longroad, themeB: JT.frag, intro: 'bass', outro: 'motif', outroTheme: SUB.outM,
+  unit_det: { name: 'Cold Case (Detective)', bpm: 66, root: 57, scale: 'min', form: true, swing: .2, prog: JF.dark, progB: JF.dark, theme: MEL.coldcase, themeB: JT.frag, intro: 'bass', outro: 'motif', outroTheme: SUB.outM,
     band: { rhodes: { pat: 'ballad', v: .028 }, vamp: { v: .016 }, bass: { pat: 'walk', v: .075 } }, drums: { pat: 'jazz', v: .45 }, drone: { v: .02 }, lead: { voice: 'mute', v: .034, oct: 12 }, leadB: { voice: 'sax', v: .036, oct: 0 } },
-  unit_sro: { name: 'Hall Pass (School Resource)', bpm: 108, root: 67, scale: 'maj', form: true, swing: .1, prog: JF.vamp, progB: JF.lift, theme: SUB.bounce, themeB: SUB.square, intro: 'hits', outro: 'motif',
+  unit_sro: { name: 'Hall Pass (School Resource)', bpm: 108, root: 67, scale: 'maj', form: true, swing: .1, prog: JF.vamp, progB: JF.lift, theme: MEL.hallpass, themeB: JT.main, intro: 'hits', outro: 'motif',
     band: { clav: { v: .016 }, rhodes: { pat: 'funk', v: .024 }, horns: { v: .014 }, bass: { pat: 'funk', v: .09 } }, drums: { pat: 'lowride', v: .75 }, lead: { voice: 'vibes', v: .034, oct: 12 }, leadB: { voice: 'flute', v: .036, oct: 12 } },
   // ---- shifts: the time you work has its own color ----
-  shift_day: { name: 'First Light (Day Shift)', bpm: 98, root: 62, scale: 'maj', form: true, themeA1: JT.frag, swing: .1, prog: JF.vamp, progB: JF.lift, theme: JT.main, themeB: SUB.square, intro: 'motif', introTheme: SUB.inM, outro: 'hits',
+  shift_day: { name: 'First Light (Day Shift)', bpm: 98, root: 62, scale: 'maj', form: true, swing: .1, prog: JF.vamp, progB: JF.lift, theme: MEL.firstlight, themeB: JT.main, intro: 'motif', introTheme: SUB.inM, outro: 'hits',
     band: { rhodes: { pat: 'push', v: .026 }, horns: { v: .014 }, bass: { pat: 'funk', v: .09 } }, drums: { pat: 'lowride', v: .75 }, lead: { voice: 'flute', v: .04, oct: 12 }, leadB: { voice: 'horns', v: .028, oct: 12 } },
-  shift_mid: { name: 'Swing Shift (Midshift)', bpm: 90, root: 64, scale: 'dor', form: true, swing: .24, prog: JF.night, progB: JF.vamp, theme: SUB.corner, themeB: JT.calm, intro: 'drums', outro: 'band',
+  shift_mid: { name: 'Swing Shift (Midshift)', bpm: 90, root: 64, scale: 'dor', form: true, swing: .24, prog: JF.night, progB: JF.vamp, theme: MEL.swingshift, themeB: JT.main, intro: 'drums', outro: 'band',
     band: { rhodes: { pat: 'push', v: .026 }, wah: { v: .014 }, bass: { pat: 'walk', v: .085 } }, drums: { pat: 'shuffle', v: .7 }, lead: { voice: 'sax', v: .04, oct: 0 }, leadB: { voice: 'vibes', v: .03, oct: 12 } },
-  shift_night: { name: 'Graveyard (Night Shift)', bpm: 70, root: 62, scale: 'min', form: true, swing: .2, prog: JF.dark, progB: JF.night, theme: JT.heart, themeB: JT.frag, intro: 'bass', outro: 'motif', outroTheme: SUB.outH,
+  shift_night: { name: 'Graveyard (Night Shift)', bpm: 70, root: 62, scale: 'min', form: true, swing: .2, prog: JF.dark, progB: JF.night, theme: MEL.graveyard, themeB: JT.heart, intro: 'bass', outro: 'motif', outroTheme: SUB.outH,
     band: { rhodes: { pat: 'ballad', v: .03 }, vamp: { v: .014 }, bass: { pat: 'walk', v: .08 } }, drums: { pat: 'jazz', v: .5 }, drone: { v: .016 }, lead: { voice: 'sax', v: .04, oct: 0 }, leadB: { voice: 'mute', v: .03, oct: 12 } }
 };
 
