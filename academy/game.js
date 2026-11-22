@@ -16,6 +16,7 @@ import { FOLK } from './folkcast.js';
 import { installUiStage } from './uistage.js';
 import { installTogether } from './together.js';
 import { installClock } from './clockwork.js';
+const CLOCK = installClock({ radio: (w, m) => radio(w, m) }); let RHY = null, RHYK = -1; // declared up front: load() can run before the rest of this file has been read
 import { sprite as folkSpriteOf, fromLook as folkFromLookG, SW as FSW, SH as FSH, OX as FOX, OY as FOY } from './pixelfolk.js';
 import { momentArt } from './moments.js';
 import { DISTRICTS, NPCS, LANDMARKS, CALLS, OBSERVE, SHIFTS, SHIFT_MIN, PHONETIC, QUICK, UNITS, STATS, unitName } from './data.js';
@@ -680,7 +681,6 @@ function gossipLine() { if (!W || inside) return null; const hooks = SIDE.filter
   if (hooks.length && (!deeds.length || Math.random() < .6)) return rnd(hooks); return deeds.length ? rnd(deeds) : null; }
 // patrol activities: traffic stops, welfare checks, warrants, transport and business checks, played step by step
 // each district's daily rhythm (clockwork.js): how busy the streets are, what the radio says, and the calls that fit the hour
-const CLOCK = installClock({ radio: (w, m) => radio(w, m) }); let RHY = null, RHYK = -1;
 function rhythmTick() { if (!RHY || inside || !W) return; const h = hourNow(), k = Math.floor(h * 2); if (k === RHYK) return; RHYK = k; CLOCK.tick(W.did, h);
   const want = Math.round(11 * RHY.busy * CLOCK.traffic(W.did, h)) + 2, wp = Math.round(30 * RHY.busy * CLOCK.people(W.did, h)); // the street fills and empties with the rhythm
   while (traffic.length < want) traffic.push(newCar()); if (traffic.length > want) traffic = traffic.filter((c, i) => c.bk || i < want);

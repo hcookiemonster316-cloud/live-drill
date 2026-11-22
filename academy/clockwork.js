@@ -34,7 +34,7 @@ export function installClock(H) {
   // a call that fits this hour, now and then (the regular calls still come)
   function call(did, h) { const on = now(did, h); if (!on.length || Math.random() > .4) return null; const r = on[(Math.random() * on.length) | 0], c = r[6][(Math.random() * r[6].length) | 0], t = c.slice(0, 4); t.les0 = c[4]; t.rhythm = r[2]; return t; }
   // the radio says so when a rhythm starts; once per rhythm per day
-  function tick(did, h) { const on = now(did, h); const k = did + ':' + on.map((r) => r[2]).join(','); if (k === lastKey) return null; const was = lastKey; lastKey = k; if (was == null || was.split(':')[0] !== String(did)) { if (on.length && H.radio) setTimeout(() => H.radio('Dispatch', on[0][3]), 5000); return on[0] || null; } // arriving mid-rhythm: say what the district is doing const fresh = on.find((r) => !was.split(':')[1] || was.split(':')[1].split(',').indexOf(r[2]) < 0); if (fresh && H.radio) H.radio('Dispatch', fresh[3]); return fresh || null; }
+  function tick(did, h) { const on = now(did, h); const k = did + ':' + on.map((r) => r[2]).join(','); if (k === lastKey) return null; const was = lastKey; lastKey = k; if (was == null || was.split(':')[0] !== String(did)) { if (on.length && H.radio) setTimeout(() => H.radio('Dispatch', on[0][3]), 5000); return on[0] || null; } /* arriving mid-rhythm: say what the district is doing */ const fresh = on.find((r) => !was.split(':')[1] || was.split(':')[1].split(',').indexOf(r[2]) < 0); if (fresh && H.radio) H.radio('Dispatch', fresh[3]); return fresh || null; }
   function label(did, h) { const on = now(did, h); return on.length ? on[0][3].split('.')[0] : ''; }
   return { now, traffic, people, call, tick, label, R };
 }
