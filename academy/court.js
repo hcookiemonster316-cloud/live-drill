@@ -1,0 +1,44 @@
+// Your reports go to court. A pursuit that ends in an arrest files a case; a couple of shifts later you are called to
+// testify. The defense reads your pursuit report against the radio log: a report that matches holds, a report that
+// doesn't gets picked apart, and how you answer for it matters. The prosecutor then needs the case law from the chapter
+// that fits what you did out there (Pinellas Park, Lewis, Brower, Scott). The verdict comes from all three: the paper,
+// your honesty on the stand and the law. It lands in your case file and the courthouse remembers.
+// facts in facts_vo.json, by what happened at the end of the pursuit
+const LAW = { term: ['F239', 'F240', 'F258', 'F241'], air: ['F253', 'F255', 'F254'], lost: ['F253', 'F255', 'F239'], sticks: ['F266', 'F247', 'F250'] };
+const HOW = { term: 'you terminated the pursuit', air: 'you handed the pursuit to Air One', lost: 'you lost sight and broadcast the description', sticks: 'it ended on stop sticks' };
+const AGO = ['this morning', 'last shift', 'two shifts ago', 'three shifts ago'];
+
+export function installCourt(H) {
+  const S = H.S, C = () => (S.court = S.court || { pend: [], hist: [] });
+  // a pursuit arrest files a case: what the report got wrong comes with it
+  function file(o) { const c = C(); c.pend.push({ how: LAW[o.how] ? o.how : 'sticks', ordered: !!o.ordered, wrong: o.wrong | 0, filed: !!o.filed, proc: o.procOk | 0, where: o.where || 'the east side', sh: H.shift(), due: H.shift() + 2, t: Date.now() }); while (c.pend.length > 3) c.pend.shift(); H.saveS(); }
+  let wait = -1;
+  function onShift() { if (C().pend.some((p) => p.due <= H.shift())) wait = 16; } /* after the shift briefing settles */
+  function tick(dt) { if (wait < 0) return; wait -= dt; if (wait > 0) return; if (!H.free()) { wait = 4; return; } wait = -1; const p = C().pend.find((x) => x.due <= H.shift()); if (p) testify(p); }
+  function testify(p) {
+    const def = H.sayAs('defense', { name: 'Marisol Keane', icon: '⚖️', role: 'Defense attorney' }), ada = H.sayAs('ada', { name: 'ADA Ruth Fenwick', icon: '🏛️', role: 'Assistant State Attorney' });
+    const ago = AGO[Math.min(3, H.shift() - p.sh)] || 'a while back', st = { honest: null };
+    const lines = [['narr', 'Court day. County Courthouse, courtroom 3B. The arrest from your pursuit near ' + p.where + ', ' + ago + '. Before you go in, remember: ' + HOW[p.how] + '.'], ['hattie', 'Officer, you\'re up. Raise your right hand.']];
+    if (!p.filed) lines.push([def, 'Officer, there is no pursuit report in the file. None. So the jury has only your memory, weeks later. No further questions.']);
+    else if (p.wrong) lines.push([def, 'Officer, your report says one thing. The radio log, recorded at the time, says another. ' + (p.wrong > 1 ? 'More than once.' : 'Once.') + ' Which one should this jury believe?'],
+      ['choice', [{ t: 'The radio log. My report has a mistake, and I own it.', fx: () => { st.honest = true; }, reply: [[def, '...Thank you for your candor, officer.'], ['narr', 'A couple of jurors nod. Owning it costs you less than defending it would have.']] },
+        { t: 'My report is accurate. The log must be wrong.', fx: () => { st.honest = false; }, reply: [[def, 'The log is a recording, officer. Your Honor, I\'d ask the jury to note that.'], ['narr', 'The judge writes something down. That is never good.']] },
+        { t: 'I don\'t recall the details anymore.', fx: () => { st.honest = false; }, reply: [[def, 'You don\'t recall. And yet you signed this report. No further questions.']] }], 'The defense has your report and the radio log']);
+    else lines.push([def, 'Your report matches the radio log line for line, officer. Time, place, the reason you stopped. ...No further questions on the report.']);
+    // the law that fits what you did: two questions at most, from the prosecutor's redirect
+    const ids = (LAW[p.how] || LAW.sticks).filter((id) => H.factQ(id)).sort(() => Math.random() - .5).slice(0, 2);
+    lines.push([ada, 'Redirect, Your Honor. Officer, the defense is going to argue you shouldn\'t have been out there at all. Help the jury with the law.']);
+    ids.forEach((id) => { const q = H.factQ(id); if (q) lines.push(['q', q, ada]); });
+    H.dialogue(lines, (res) => {
+      const paper = !p.filed ? 0 : !p.wrong ? 2 : st.honest ? 1 : 0, law = res.right || 0, score = paper + law + (p.proc >= 3 ? 1 : 0);
+      const v = score >= 4 ? 'held' : score >= 2 ? 'plea' : 'lost';
+      const words = { held: 'The case held. Guilty on the fleeing charge.', plea: 'He took a plea to a lesser charge. Not a loss, not a win.', lost: 'Case dismissed. The paperwork didn\'t hold up.' }[v];
+      const why = !p.filed ? 'There was no report.' : p.wrong ? (st.honest ? 'Your report had a mistake and you owned it on the stand.' : 'Your report had a mistake and you stood behind it.') : 'Your report matched the log.';
+      C().pend = C().pend.filter((x) => x !== p); C().hist.push({ v, where: p.where, sh: H.shift(), how: p.how, paper, law, n: res.n || 0, honest: st.honest, words: words + ' ' + why, t: Date.now() }); if (C().hist.length > 20) C().hist.shift(); H.saveS();
+      H.trust(4, v === 'held' ? 3 : v === 'plea' ? 1 : -3); H.award(v === 'held' ? 120 : v === 'plea' ? 60 : 20, 'court testimony'); H.stat('court'); if (v === 'held') H.stat('courtWon');
+      H.debrief({ title: 'Court day', where: 'County Courthouse', extra: [['📝', 'Your report', paper * 5, 10, why], ['⚖️', 'The law', law * 5, 10, law + ' of ' + (res.n || 0) + ' answers the jury needed'], ['🏛️', 'Verdict', v === 'held' ? 10 : v === 'plea' ? 5 : 0, 10, words]], right: res.right, n: res.n, qs: res.qs || [] });
+    }, { kicker: 'COURT · TESTIMONY' });
+  }
+  const threads = () => C().pend.map((p) => ({ icon: '⚖️', text: 'Court date: the pursuit arrest near ' + p.where, sub: p.due <= H.shift() ? 'You\'ll be called this shift' : 'Subpoena for a later shift', why: p.filed ? (p.wrong ? 'Your report doesn\'t match the radio log in ' + p.wrong + ' place' + (p.wrong > 1 ? 's' : '') + '.' : 'Your report matches the radio log.') : 'No report was filed.' }));
+  return { file, onShift, tick, testify, threads, LAW, get waiting() { return wait; } };
+}

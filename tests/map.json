@@ -4,6 +4,9 @@
   "calendar.js": [
    "t97"
   ],
+  "casefile.js": [
+   "tcourt"
+  ],
   "ch5data.js": [
    "t93"
   ],
@@ -12,6 +15,9 @@
   ],
   "coop.js": [
    "t65"
+  ],
+  "court.js": [
+   "tcourt"
   ],
   "decide.js": [
    "t91",
@@ -30,7 +36,9 @@
   "epic.js": [
    "t51",
    "t60",
+   "tcase",
    "tcons",
+   "tcourt",
    "trecon"
   ],
   "feel.js": [
@@ -141,6 +149,7 @@
    "t96",
    "tarc",
    "tcons",
+   "tcourt",
    "tpart",
    "treps",
    "tvo",

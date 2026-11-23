@@ -148,8 +148,8 @@ export function installEpic(H) {
       '<div class="mbGrid">' + [0, 1, 2, 3, 4].map((d) => '<div class="mbCol"><b>' + esc(H.dname(d)) + '</b>' + CLUES.filter((c) => c[1] === d).map((c) => S.clues[c[0]] ? '<div class="mbPin got"><i>📜</i><p>' + esc(c[3]) + '</p><small>' + esc(c[2]) + '</small></div>' : '<div class="mbPin"><i>❔</i><p>“' + esc(c[4]) + '”</p></div>').join('') + '</div>').join('') + '</div>' +
       (H.threads && H.threads().length ? '<div class="mbOpen mbThreads"><b>THREADS ON THE STREET</b>' + H.threads().map((t) => '<div class="mbThread' + (t.closed ? ' closed' : '') + '"><i>' + t.icon + '</i><span>' + esc(t.text) + (t.why ? '<em>' + esc(t.why) + '</em>' : '') + '</span><small>' + esc(t.sub) + '</small></div>').join('') + '</div>' : '') +
       (RC().open.length ? '<div class="mbOpen"><b>OPEN SCENES</b>' + RC().open.map((o, i) => { const sc = SCENES.find((x) => x.id === o.id); return sc ? '<button type="button" data-ro="' + i + '"><i>🔎</i><span>' + esc(sc.title) + (o.where ? ' · ' + esc(o.where) : '') + '</span><small>' + o.lock.filter(Boolean).length + ' of ' + sc.facts.length + ' confirmed</small></button>' : ''; }).join('') + '</div>' : '') +
-      '<div class="qAct"><button type="button" id="mClose">Close</button></div>');
-    H.$('mClose').onclick = H.closeModal; H.stat('board'); document.querySelectorAll('[data-ro]').forEach((b) => b.onclick = () => reopen(+b.dataset.ro));
+      '<div class="qAct">' + (H.caseFile ? '<button type="button" class="ghost" id="mbCase">Open the case file</button>' : '') + '<button type="button" id="mClose">Close</button></div>');
+    H.$('mClose').onclick = H.closeModal; if (H.$('mbCase')) H.$('mbCase').onclick = () => H.caseFile(); H.stat('board'); document.querySelectorAll('[data-ro]').forEach((b) => b.onclick = () => reopen(+b.dataset.ro));
   }
 
   // ================= 8. the rival =================
