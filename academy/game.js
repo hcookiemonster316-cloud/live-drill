@@ -1993,6 +1993,20 @@ const APPROACH = [
     { t: 'Hang back and watch it for a minute', eff: 'observe', reply: [['castillo', '(over the radio) Good. Where is it headed? Who is inside?']] },
     { t: 'Pull right up behind it', eff: 'contact', reply: [['castillo', '(over the radio) Okay. Leave yourself room, and tell dispatch where you are.']] }] }
 ];
+// three ways through every call, each lawful under policy, each a skill that grows with use (S.ways counts them):
+// talk (slower, builds trust on the block, lowers the chance it turns), observe (takes a minute, and what you notice
+// rules out a wrong answer on the first question), or enforce (fast and by the book, costs a little trust and can
+// turn into an argument you have to settle). Levels 1 to 5 sharpen each one.
+const WAY3 = { talk: { icon: '💬', name: 'Talk it through', cost: 'slower, builds trust' }, observe: { icon: '👀', name: 'Look it over first', cost: 'takes a minute, you notice more' }, enforce: { icon: '📋', name: 'Handle it by the book, fast', cost: 'quick, costs some trust' } };
+const wayLvl = (k) => Math.min(5, 1 + Math.floor(Math.sqrt(((S.ways || {})[k] || 0) / 2)));
+function waysChoice(c, cid, qs) { S.ways = S.ways || {}; const use = (k) => { S.ways[k] = (S.ways[k] || 0) + 1; c.way = k; saveS(); const n = S.ways[k], lv = wayLvl(k); if (n > 1 && wayLvl(k) > Math.min(5, 1 + Math.floor(Math.sqrt((n - 1) / 2)))) setTimeout(() => toast(WAY3[k].icon + ' ' + WAY3[k].name + ' is now level ' + lv + '.'), 600); };
+  const opt = (k, reply, fx) => ({ t: WAY3[k].icon + ' ' + WAY3[k].name + ' (Lv ' + wayLvl(k) + ')', eff: k === 'talk' ? 'quiet' : k === 'observe' ? 'observe' : 'direct', reply, fx: () => { use(k); fx && fx(); } });
+  return ['choice', [
+    opt('talk', [['narr', 'You take your time. Names first, then what happened, in their words.'], [cid, 'Thank you for actually listening. Most people don\'t.']], () => { clock += 3; blockTrust(wayLvl('talk') >= 3 ? 2 : 1); }),
+    opt('observe', [['narr', 'You stand back for a minute and take it all in: hands, exits, the car, who keeps looking where.']], () => { clock += 2; const q = qs[0]; if (q && !q.multi && q.opts && q.opts.length > 2) { const drop = (wayLvl('observe') >= 4 && q.opts.length > 3) ? 2 : 1; for (let k = 0; k < drop; k++) { const w = q.opts.findIndex((o, i) => i !== q.c); if (w < 0) break; q.opts.splice(w, 1); if (w < q.c) q.c--; } q.observed = true; } }),
+    opt('enforce', [['narr', 'You go straight to it: identify, explain the law, state what happens next.']].concat(Math.random() < Math.max(.08, .32 - .05 * wayLvl('enforce')) ? [[cid, 'Hold on, you can\'t just walk up and start telling me what happens!'], ['choice', [
+      { t: 'Lower your voice and explain why you\'re here', eff2: 'calm', reply: [[cid, '...Okay. Okay. Go ahead.']] }, { t: 'Repeat the order, louder', reply: [[cid, 'Fine. Whatever you say.'], ['narr', 'It works, but nobody on the block will forget how it sounded.']], fx: () => blockTrust(-1) }].sort(() => Math.random() - .5), 'It\'s turning into an argument.']] : []), () => { blockTrust(-1); })
+  ], 'How do you want to handle this?']; }
 function approachFor(les) { const a = APPROACH.filter((x) => x.les.indexOf(les) >= 0); return a.length ? a[Math.floor(Math.random() * a.length)] : null; }
 // consequences, some immediate and some later in the shift
 function consequence(eff, c) {
@@ -2083,6 +2097,7 @@ function openCallSceneQ(c) {
   if (c.aiBk && c.aiBk.arrived && cover === c.aiBk.name) { lines.push(['narr', c.aiBk.name + ' ' + c.aiBk.job + '.']); c.bkRow = ['🤝', 'Backup', c.prio <= 2 ? 10 : 6, 10, 'Called ' + c.aiBk.name.replace(/ \(.*\)/, '') + ' and let them do their job']; }
   { const rv = EP.rivalCameo(); if (rv) lines.push(rv); const tr = NG.cameo(); if (tr) lines.push(tr); }
   if (a) lines.push(['choice', hasSk('tac2') ? a.opts.concat([{ t: 'Stage a block away and wait for a second unit', eff: 'quiet', reply: [['velvet', '(over the radio) Copy. Second unit is two minutes out. Hold at the corner.'], ['castillo', '(over the radio) Good. Nobody walks into a call alone if they don\'t have to.']] }]) : a.opts, a.q]);
+  if (!c.ops && !c.deesc) lines.push(waysChoice(c, cid, qs)); // three ways through: how you handle it once you're there
   if (/warrant|arrest/i.test(c.title)) arrestLines(c).forEach((x) => lines.push(x));
   if (c.open === 'assess') lines.push(['narr', 'You stop short of the door and take in the whole scene: exits, hands, who is watching.']); else if (c.open === 'id') lines.push(['narr', 'You ask for ID up front. The caller fumbles for a wallet, then hands it over.']);
   VAR.callerLines(c, cid).forEach((x) => lines.push(x)); MEM.callerLine(c, cid).forEach((x) => lines.push(x)); { const ov = SUBJ.open(c.les); if (ov) lines.push(ov); } VAR.complication(c, cid).forEach((x) => lines.push(x)); { const mg = VAR.sceneMini(c); if (mg) lines.push(mg); }
