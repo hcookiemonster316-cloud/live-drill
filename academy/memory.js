@@ -43,11 +43,31 @@ const ECHO = {
     bark: ["{who} said you'd come back. She waited.", "Aren't you the one who was going to check on {who}?"],
     back: ["You said you'd come back last time. You didn't.", "I waited for you last time. Are you going to stay this time?"] }
 };
+// delayed consequences: a call that didn't fully land plants a later one at the same address. What you missed comes
+// back as the thing it turned into, a rushed visit gets a call back, a heavy-handed one a complaint. Going back and
+// getting it right closes it. [title, what dispatch says], per lesson for what got missed
+const CONS = {
+  0: ['Breakdown on {where}', 'The car from your last call on {where} broke down in traffic. Whatever got skipped on the walk-around gave out.'],
+  1: ['Near miss on {where}', 'Somebody almost got hit on {where}, right where you were last time. People there are asking what was missed.'],
+  2: ['Slide-off on {where}', 'A car slid off the road on {where}. Same stretch you handled before, same conditions.'],
+  3: ['Fender bender on {where}', 'Two cars touched on {where}, the spot from your last call. The setup there never got fixed.'],
+  4: ['Load spilled on {where}', 'A load came off a vehicle on {where}. Same driver, same habit as last time.'],
+  5: ['Car in the ditch on {where}', 'A driver overcorrected into the ditch on {where}. You talked to them there before.'],
+  6: ['Rear-end on {where}', 'Rear-end crash on {where}. The braking problem from your last call there came back.'],
+  7: ['Wide turn crash on {where}', 'A vehicle swung wide on the corner at {where} and hit a parked car. You were here before.'],
+  8: ['Backing crash on {where}', 'Something got backed into on {where}. Same yard, same habit as last time.'],
+  9: ['Dark road crash on {where}', 'A crash on the dark stretch at {where}. The thing you were sent about last time is still out there.'],
+  10: ['Blocked emergency lane on {where}', 'An ambulance got held up on {where} again. People remember you were here last time.'],
+  11: ['Transport trouble on {where}', 'A transport ran into trouble on {where}. It\'s the same setup you saw last time.']
+};
+const SEED = { missed: { prio: 2, line: 'Last time you were here, something got missed. This is what it turned into.', brief: 'Still open on {where}: what got missed last time is going to come back.' },
+  callback: { prio: 3, line: '{who} called back. Last time you were in and out before they finished.', title: 'Call back to {where}', text: '{who} on {where} is calling again. They say nobody answered their questions last time.', brief: '{who} on {where} has questions you didn\'t stay for. Expect a call back.', intent: 'nervous' },
+  complaint: { prio: 3, line: 'The neighbors remember how hard you came in last time.', title: 'Neighbor complaint on {where}', text: 'A neighbor on {where} wants to talk to the officer who came in so hard last time.', brief: 'Somebody on {where} is still upset about how hard you came in. It will come up again.', intent: 'angry' } };
 const HARSH = { front: 1, loud: 1 }, GENTLE = { quiet: 1, smart: 1, neighbors: 1, observe: 1 };
 
 export function installMemory(H) {
   const S = H.S; S.mem = S.mem || { d: [], shift: 0, pr: [] };
-  const M = S.mem; M.d = M.d || []; M.pr = M.pr || [];
+  const M = S.mem; M.d = M.d || []; M.pr = M.pr || []; M.seed = M.seed || [];
   const did = () => H.did();
   function note(k, o) {
     if (!ECHO[k] || !o) return null;
@@ -77,15 +97,15 @@ export function installMemory(H) {
   let briefDue = 0;
   function onShift() {
     M.pr.filter((p) => p.sh < M.shift + 1).forEach((p) => note('broke', { who: p.who, where: p.where, x: p.x, y: p.y, did: p.did }));
-    M.pr = []; M.shift++; H.saveS(); briefDue = 6;
+    M.pr = []; M.shift++; M.seed = M.seed.filter((x) => x.due >= M.shift - 2); H.saveS(); briefDue = 6; /* left alone three shifts, it fades */
   }
   function briefing() {
-    const due = M.d.filter((d) => !d.told && d.sh < M.shift), top = H.arcSummary ? H.arcSummary() : ''; if (!due.length && !top) return false;
+    const due = M.d.filter((d) => !d.told && d.sh < M.shift), top = H.arcSummary ? H.arcSummary() : '', wait = M.seed.filter((x) => x.due <= M.shift && !x.told).slice(-2); if (!due.length && !top && !wait.length) return false; wait.forEach((x) => { x.told = 1; });
     // the newest few, with at least one good one up front if there is one
     // the newest two good things and the newest thing that didn't go well, so it's never all praise or all complaints
     const good = due.filter((d) => ECHO[d.k].good), bad = due.filter((d) => !ECHO[d.k].good), pick = good.slice(-2).concat(bad.slice(-1));
     due.slice().reverse().forEach((d) => { if (pick.length < 3 && pick.indexOf(d) < 0) pick.push(d); }); due.forEach((d) => { d.told = 1; }); H.saveS();
-    const rows = pick.map((d) => '<li class="memRow ' + (ECHO[d.k].good ? 'good' : 'bad') + '"><i>' + ECHO[d.k].icon + '</i><span>' + H.esc(fill(rnd(ECHO[d.k].brief), d)) + '</span></li>').join('');
+    const rows = wait.map((x) => '<li class="memRow wait"><i>⏳</i><span>' + H.esc(fill(SEED[x.k].brief || SEED.missed.brief, { who: x.who || 'The caller', where: x.where })) + '</span></li>').join('') + pick.map((d) => '<li class="memRow ' + (ECHO[d.k].good ? 'good' : 'bad') + '"><i>' + ECHO[d.k].icon + '</i><span>' + H.esc(fill(rnd(ECHO[d.k].brief), d)) + '</span></li>').join('');
     H.openModal('<div class="sceneHead"><b>SINCE YOUR LAST SHIFT</b><h2>' + (rows ? 'What people remember' : 'Roll call briefing') + '</h2><p>' + (rows ? 'How you handled your calls doesn\'t stay on the call. It follows you around the city.' : 'Here\'s how your last shift added up.') + '</p></div>' + top + (rows ? '<ul class="memList">' + rows + '</ul>' : '') + '<div class="qAct"><button type="button" id="mClose">Back to work</button></div>');
     const b = document.getElementById('mClose'); if (b) b.onclick = () => H.closeModal();
     return true;
@@ -114,5 +134,20 @@ export function installMemory(H) {
   function draw(now) {
     M.pr.forEach((p) => { if (p.did !== did()) return; const [sx, sy] = H.iso(p.x, p.y); H.bubble(sx, sy - 70, '🏠', '#38bdf8', now); });
   }
-  return { note, afterCall, deesc, pursuit, promiseOption, callerLine, onShift, briefing, tick, draw, ECHO, get open() { return M.pr; }, get shiftNo() { return M.shift; }, get dbg() { return { briefDue, free: H.free() }; }, get deeds() { return M.d; } };
+  // plant: after a call is graded, one thing from it may come back a shift or two later
+  function plant(c, r) {
+    if (!c || c.ops || c.deesc || c.x == null || !c.where) return null;
+    if (c.cons) { const k = M.seed.indexOf(c.cons); if (k >= 0) M.seed.splice(k, 1); const ok = r.right === r.n; const last = M.d[M.d.length - 1]; if (ok && !(last && last.where === c.where && last.sh === M.shift && ECHO[last.k].good)) note('help', { who: who(c), where: c.where, x: c.x, y: c.y }); H.saveS(); return ok ? 'fixed' : 'still'; }
+    if (M.seed.some((x) => x.where === c.where && x.did === did())) return null;
+    const k = r.n && r.right < r.n && c.les != null && CONS[c.les] && Math.random() < .6 ? 'missed' : c.wrap === 'quick' ? 'callback' : HARSH[c.eff] || (c.way === 'enforce' && c.rules && c.rules.intent && !c.readRight && c.rules.intent !== 'calm') ? 'complaint' : null;
+    if (!k) return null; M.seed.push({ k, les: c.les, who: who(c), where: c.where, x: c.x, y: c.y, did: did(), due: M.shift + (k === 'complaint' ? 2 : 1) }); while (M.seed.length > 6) M.seed.shift(); H.saveS(); return k;
+  }
+  // dispatch asks: is something from an earlier shift due in this district? (now and then, never all at once)
+  function dueCall(here) {
+    const s = M.seed.find((x) => x.did === here && x.due <= M.shift); if (!s || Math.random() > .35) return null; const T = SEED[s.k], o = { who: s.who || 'The caller', where: s.where };
+    const t = s.k === 'missed' ? [fill(CONS[s.les][0], o), T.prio, 'any', fill(CONS[s.les][1], o)] : [fill(T.title, o), T.prio, 'any', fill(T.text, o)]; t.les0 = s.les; t.cons = s; return t;
+  }
+  const consLine = (s) => fill(SEED[s.k].line, { who: s.who || 'The caller', where: s.where });
+  const consIntent = (s) => SEED[s.k].intent || null;
+  return { plant, dueCall, consLine, consIntent, get seeds() { return M.seed; }, note, afterCall, deesc, pursuit, promiseOption, callerLine, onShift, briefing, tick, draw, ECHO, get open() { return M.pr; }, get shiftNo() { return M.shift; }, get dbg() { return { briefDue, free: H.free() }; }, get deeds() { return M.d; } };
 }

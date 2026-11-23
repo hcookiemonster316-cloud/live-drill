@@ -98,6 +98,7 @@ export function installVariety(H) {
   ];
   const DEF_CALLER = { calm: ["Okay. Okay, thank you for telling me what's happening."], brief: ["Sure. Right. Whatever you need."], canvass: ["The lady in the blue house was outside. She might know more.", "There's a camera on the corner store. And the guy who walks his dog every night, he sees everything.", "My neighbor was out there too. Want me to get her?"], bye: ["Thank you, officer."] };
   function caller(c) {
+    if (c.rep) { c.vc = CALLERS.find((x) => x.k === c.rep.k) || CALLERS[2]; c.vcn = c.rep.name; c.vci = c.rep.icon; c.vret = false; return [c.rep.name, c.rep.icon]; } /* a regular talks in their own voice (offenders.js) */
     const a = S.addr[aKey(c)];
     if (a && a.cal && a.cn && Math.random() < .75) { const C = CALLERS.find((x) => x.k === a.cal) || rnd(CALLERS); c.vc = C; c.vcn = a.cn; c.vci = a.ci; c.vret = true; return [a.cn, a.ci]; }
     let C = pick('callerType', CALLERS); if (C.k === 'kid' && !/houses|apartments/.test(c.kind)) C = CALLERS[0];
@@ -187,7 +188,7 @@ export function installVariety(H) {
     if (c.vtw) out.push(...c.vtw.on);
     if (C.pre) out.push(['narr', rnd(C.pre)]);
     if (a && c.vret) out.push([cid, pick('ret', ["Oh, it's you again. You were here for the " + a.t.toLowerCase() + ".", "Hey! You're the one who came last time. Okay, good. That makes this easier.", "Back again. I'm starting to feel bad about how often I call."])]);
-    else out.push([cid, pick('open_' + (C.k || 'x'), C.open || ["Officer! Over here. Thank goodness.", "You got here fast. Okay, here's what happened."])]);
+    else if (!c.rep) out.push([cid, pick('open_' + (C.k || 'x'), C.open || ["Officer! Over here. Thank goodness.", "You got here fast. Okay, here's what happened."])]);
     if (cond && cond.remark && Math.random() < .45) out.push([cid, pick('rem_' + S.vcond, cond.remark)]);
     if (c.vrev) { const R = REVEAL.find((x) => x.re.test(c.title)); out.push(...R.l); }
     return out;

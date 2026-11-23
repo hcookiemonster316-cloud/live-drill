@@ -65,13 +65,18 @@
    "t94",
    "t95",
    "t98",
-   "tarc"
+   "tarc",
+   "tcons",
+   "treps"
   ],
   "mood.js": [
    "tmood"
   ],
   "music.js": [
    "tmood"
+  ],
+  "offenders.js": [
+   "treps"
   ],
   "pacing.js": [
    "t101"
@@ -132,7 +137,9 @@
    "t93",
    "t96",
    "tarc",
+   "tcons",
    "tpart",
+   "treps",
    "tvo",
    "tways"
   ],
