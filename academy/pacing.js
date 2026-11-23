@@ -62,5 +62,25 @@ export function installPacing(H) {
     if (k !== stallK) { stallK = k; stallT = 0; hinted = 0; return; }
     stallT += dt; if (stallT >= STALL * (hinted + 1) && hinted < 2) { hinted++; say(hint()); }
   }
-  return { afterCall, onNote, heavy, breather, hint, say, tick, SCENES, get lastHint() { return last; }, get dbg() { return { due, cool, stallT, hinted, free: H.free() }; } };
+  // ---------- the shift storyteller: reads how the shift is going and picks what comes next ----------
+  // tired (calls back to back, or morale running low): the radio goes quiet for a bit and a breather comes;
+  // a hot streak (the last calls graded A or better): the next one is harder, and dispatch says it's yours;
+  // a missed fact still fresh: the next call comes from that lesson, and your partner says why;
+  // otherwise the usual mix. The choice is made when dispatch is about to send a call.
+  const recent = [], grades = [];
+  function onCallDone() { recent.push(Date.now()); while (recent.length > 8) recent.shift(); }
+  function onGrade(g) { grades.push(g); while (grades.length > 5) grades.shift(); }
+  function mood() { const now = Date.now(), last12 = recent.filter((t) => now - t < 12 * 60000).length, morale = S.morale == null ? 70 : S.morale;
+    if ((last12 >= 4 || morale < 35) && cool <= 0) return { k: 'tired' };
+    if (grades.length >= 3 && grades.slice(-3).every((g) => g === 'A' || g === 'S')) return { k: 'hot' };
+    const miss = S.fmiss || {}, fresh = Object.keys(miss).filter((f) => now - miss[f] < 15 * 60000).sort((a, b) => miss[b] - miss[a])[0];
+    if (fresh) { const les = H.lessonOfFact ? H.lessonOfFact(fresh) : null; if (les != null && (H.districtLessons ? H.districtLessons() : []).indexOf(les) >= 0) return { k: 'review', les, fid: fresh }; }
+    return { k: 'steady' }; }
+  let lastPick = '';
+  function pick() { const m = mood(); if (m.k === lastPick && m.k !== 'steady' && m.k !== 'review') return { k: 'steady' }; lastPick = m.k;
+    if (m.k === 'tired') { heavy('tired'); due = 3; H.radio('Dispatch', 'Board\'s quiet for a minute. Take five, you\'ve been running all shift.'); return { k: 'tired', hold: 45 }; }
+    if (m.k === 'hot') { grades.length = 0; setTimeout(() => H.radio('Dispatch', "You're on a roll. This next one's a priority, and it's yours."), 400); return { k: 'hot', prio: 1 }; }
+    if (m.k === 'review') { setTimeout(() => say('This one\'s like the one you missed earlier. Slow down and get it right this time.'), 2500); return m; }
+    return m; }
+  return { pick, onCallDone, onGrade, mood, afterCall, onNote, heavy, breather, hint, say, tick, SCENES, get lastHint() { return last; }, get dbg() { return { due, cool, stallT, hinted, free: H.free() }; } };
 }

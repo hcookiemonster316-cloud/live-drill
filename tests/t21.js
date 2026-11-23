@@ -17,7 +17,7 @@ const OUT = process.argv[2];
       if (!st.modal) break; }
     console.log(name, JSON.stringify(seen)); };
   // call
-  await a.evaluate(() => window.__pc.dispatchCall()); await a.waitForTimeout(300);
+  for (let k = 0; k < 10; k++) { await a.evaluate(() => { const pc = window.__pc; if (!pc.call) pc.dispatchCall(); const o = document.querySelector('#dlg .dlgOpts [data-k="0"]'); if (!pc.call && o) o.click(); }); await a.waitForTimeout(300); if (await a.evaluate(() => !!window.__pc.call)) break; } // two calls holding: take the first
   await a.evaluate(() => { const c = window.__pc.call; window.__pc.P.x = c.x; window.__pc.P.y = c.y + .3; }); await a.waitForTimeout(1500); await a.screenshot({ path: OUT + '/S_call_open.png' }); await drive('call');
   console.log('calls', await a.evaluate(() => window.__pc.S.calls));
   // citizen, observe, info
