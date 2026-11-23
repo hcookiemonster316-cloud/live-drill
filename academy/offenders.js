@@ -82,5 +82,7 @@ export function installOffenders(H) {
   function roster(did) { return (P[did] || []).map((p) => ({ name: p.name, role: p.role, met: rec(p.id).st, done: rec(p.id).done })); }
   /* someone you turned around now brings you tips in their district */
   function ally(did) { const g = (P[did] || []).filter((p) => rec(p.id).done === 'good'); return g.length ? g[(Math.random() * g.length) | 0].name : null; }
-  return { call, who, lines, after, roster, ally, P };
+  /* regulars you've met and not settled yet, for the mystery board */
+  function threads() { const out = []; for (const d in P) P[d].forEach((p) => { const r = rec(p.id); if (r.st > 0 && !r.done) out.push({ icon: p.icon, text: p.name + ' · ' + p.role, sub: 'Met ' + r.st + ' of 4 times' + (r.last ? ', last time you ' + (r.last === 'talk' ? 'talked it through' : r.last === 'enforce' ? 'came down hard' : 'watched first') : ''), why: '' }); if (r.done) out.push({ icon: p.icon, text: p.name, sub: r.done === 'good' ? 'Turned it around. Brings you tips.' : r.done === 'hard' ? 'Charged.' : 'Moved out of the district.', closed: 1 }); }); return out; }
+  return { threads, call, who, lines, after, roster, ally, P };
 }

@@ -29,7 +29,9 @@
   ],
   "epic.js": [
    "t51",
-   "t60"
+   "t60",
+   "tcons",
+   "trecon"
   ],
   "feel.js": [
    "tdrill"
@@ -67,6 +69,7 @@
    "t98",
    "tarc",
    "tcons",
+   "trecon",
    "treps"
   ],
   "mood.js": [

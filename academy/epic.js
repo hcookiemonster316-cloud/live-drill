@@ -137,14 +137,19 @@ export function installEpic(H) {
       H.openModal('<div class="clueCard"><span>📜</span><small>THE LEDGER · CLUE ' + Object.keys(S.clues).length + ' OF ' + CLUES.length + '</small><h2>A torn ledger page</h2><p>' + esc(text) + '</p><em>' + (n >= 3 ? 'That\'s all three pages in ' + esc(H.dname(d)) + '. Someone at the Central Library has been asking about these.' : n + ' of 3 pages found in ' + esc(H.dname(d)) + '.') + '</em></div><div class="qAct"><button type="button" class="ghost" id="clBoard">Mystery board</button><button type="button" id="mClose">Keep patrolling</button></div>');
       H.$('mClose').onclick = H.closeModal; H.$('clBoard').onclick = board; });
   }
-  function clueDraw(now) { if (H.inside || !H.W) return; const d = H.W.did, P = H.P;
-    CLUES.forEach(([id, cd, place]) => { if (cd !== d || S.clues[id]) return; const l = H.W.lots.find((x) => (x.name || '').indexOf(place) >= 0); if (!l || Math.hypot(l.door[0] - P.x, l.door[1] - P.y) > 9) return; const [sx, sy] = H.iso(l.door[0], l.door[1]); H.sparkle(sx, sy - 14, now, '#fde68a'); }); }
+  /* each clue's lot, looked up once per district map instead of every frame */
+  let clW = null, clL = [];
+  const clueLots = () => { if (clW !== H.W) { clW = H.W; const d = H.W.did; clL = CLUES.filter((c) => c[1] === d).map((c) => [c, H.W.lots.find((x) => (x.name || '').indexOf(c[2]) >= 0)]).filter((x) => x[1]); } return clL; };
+  function clueDraw(now) { if (H.inside || !H.W) return; const P = H.P;
+    clueLots().forEach(([[id], l]) => { if (S.clues[id] || Math.abs(l.door[0] - P.x) > 9 || Math.abs(l.door[1] - P.y) > 9 || Math.hypot(l.door[0] - P.x, l.door[1] - P.y) > 9) return; const [sx, sy] = H.iso(l.door[0], l.door[1]); H.sparkle(sx, sy - 14, now, '#fde68a'); }); }
   function board() {
     const got = Object.keys(S.clues).length;
     H.openModal('<div class="sceneHead"><b>THE LEDGER · MYSTERY BOARD</b><h2>' + got + ' of ' + CLUES.length + ' pages found</h2><p>In 1987, two million dollars in hurricane relief money vanished. Torn pages from the city\'s ledger are hidden around Port Meridian. Read the riddles, go exploring, and look for a glint near a door.</p></div>' +
       '<div class="mbGrid">' + [0, 1, 2, 3, 4].map((d) => '<div class="mbCol"><b>' + esc(H.dname(d)) + '</b>' + CLUES.filter((c) => c[1] === d).map((c) => S.clues[c[0]] ? '<div class="mbPin got"><i>📜</i><p>' + esc(c[3]) + '</p><small>' + esc(c[2]) + '</small></div>' : '<div class="mbPin"><i>❔</i><p>“' + esc(c[4]) + '”</p></div>').join('') + '</div>').join('') + '</div>' +
+      (H.threads && H.threads().length ? '<div class="mbOpen mbThreads"><b>THREADS ON THE STREET</b>' + H.threads().map((t) => '<div class="mbThread' + (t.closed ? ' closed' : '') + '"><i>' + t.icon + '</i><span>' + esc(t.text) + (t.why ? '<em>' + esc(t.why) + '</em>' : '') + '</span><small>' + esc(t.sub) + '</small></div>').join('') + '</div>' : '') +
+      (RC().open.length ? '<div class="mbOpen"><b>OPEN SCENES</b>' + RC().open.map((o, i) => { const sc = SCENES.find((x) => x.id === o.id); return sc ? '<button type="button" data-ro="' + i + '"><i>🔎</i><span>' + esc(sc.title) + (o.where ? ' · ' + esc(o.where) : '') + '</span><small>' + o.lock.filter(Boolean).length + ' of ' + sc.facts.length + ' confirmed</small></button>' : ''; }).join('') + '</div>' : '') +
       '<div class="qAct"><button type="button" id="mClose">Close</button></div>');
-    H.$('mClose').onclick = H.closeModal; H.stat('board');
+    H.$('mClose').onclick = H.closeModal; H.stat('board'); document.querySelectorAll('[data-ro]').forEach((b) => b.onclick = () => reopen(+b.dataset.ro));
   }
 
   // ================= 8. the rival =================
@@ -207,28 +212,51 @@ export function installEpic(H) {
 
   // ================= 11 + 12. after a call: investigate the scene or write the report =================
   function afterCall(c, done) {
-    const sc = SCENES.find((s) => s.kind.test(c.kind || 'street'));
-    if (c.prio <= 2 && sc && Math.random() < .35) return investigate(sc, c, done);
+    const crash = SCENES.find((s) => s.call && s.call.test(c.title || '')), sc = crash || SCENES.find((s) => !s.call && s.kind.test(c.kind || 'street'));
+    if (sc && (crash ? Math.random() < .5 : c.prio <= 2 && Math.random() < .35)) return investigate(sc, c, done);
     if (Math.random() < .3) return report(c, done);
     done([]);
   }
+  // ================= scenes you piece together =================
+  // Find the evidence, then fill in what happened from what you saw. Whenever three of your answers are right they
+  // lock in together; you are never told which single answer is wrong. You can leave a scene open and finish it later
+  // from the mystery board, where open scenes wait beside the ledger pages.
+  const RC = () => (S.recon = S.recon || { open: [], solved: 0 });
   function investigate(sc, c, done) {
     let found = 0, wrong = 0; const real = sc.items.filter((x) => x[2]).length, hl = H.hasSkill('inv1');
     const draw = () => H.openModal('<div class="sceneHead"><b>PROCESS THE SCENE · ' + esc(sc.title.toUpperCase()) + '</b><h2>Find the evidence</h2><p>Tap what matters. Not everything at a scene is evidence. ' + found + ' of ' + real + ' found.</p></div>' +
       '<div class="invScene" style="--a:' + sc.bg[0] + ';--b:' + sc.bg[1] + '">' + sc.items.map((it, k) => '<button type="button" data-iv="' + k + '" class="' + (it.done ? (it[2] ? 'ok' : 'no') : '') + (hl && it[2] && !it.done ? ' hint' : '') + '" style="left:' + it[3] + '%;top:' + it[4] + '%"><span>' + it[0] + '</span>' + (it.done ? '<small>' + esc(it[1]) + '</small>' : '') + '</button>').join('') + '</div>' +
-      '<div class="qAct"><button type="button" id="ivNext"' + (found < real ? ' disabled' : '') + '>Build the timeline</button></div>');
+      '<div class="qAct"><button type="button" id="ivNext"' + (found < real ? ' disabled' : '') + '>Piece it together</button></div>');
     sc.items.forEach((it) => { it.done = false; });
-    const bind = () => { draw(); document.querySelectorAll('[data-iv]').forEach((b) => b.onclick = () => { const it = sc.items[+b.dataset.iv]; if (it.done) return; it.done = true; if (it[2]) { found++; H.beep(880, .08, 'triangle', .04); } else { wrong++; H.beep(220, .12, 'sawtooth', .03); } bind(); }); H.$('ivNext').onclick = () => timeline(); };
-    const timeline = () => {
-      const pool = sc.order.map((t, i) => ({ t, i })).sort(() => Math.random() - .5), picked = [];
-      const tdraw = () => { H.openModal('<div class="sceneHead"><b>EVIDENCE BOARD</b><h2>What happened, in order?</h2><p>Tap the events from first to last.</p></div><div class="tlPicked">' + picked.map((p, k) => '<div><i>' + (k + 1) + '</i>' + esc(p.t) + '</div>').join('') + '</div><div class="tlPool">' + pool.filter((p) => picked.indexOf(p) < 0).map((p) => '<button type="button" data-tl="' + p.i + '">' + esc(p.t) + '</button>').join('') + '</div>' + (picked.length ? '<div class="qAct"><button type="button" class="ghost" id="tlUndo">Undo</button></div>' : ''));
-        document.querySelectorAll('[data-tl]').forEach((b) => b.onclick = () => { if (picked.length >= pool.length) return; picked.push(pool.find((p) => p.i === +b.dataset.tl)); if (picked.length === pool.length) finish(); else tdraw(); }); const u = H.$('tlUndo'); if (u) u.onclick = () => { picked.pop(); tdraw(); }; };
-      const finish = () => { const right = picked.filter((p, k) => p.i === k).length, score = Math.max(0, Math.round(((found - wrong * .5) / real) * 6 + right / sc.order.length * 4)); H.stat('investigate'); if (right === sc.order.length && !wrong) H.stat('invPerfect');
-        done([['🔎', 'Investigation', Math.min(10, score), 10, found + ' of ' + real + ' clues' + (wrong ? ', ' + wrong + ' red herring' + (wrong > 1 ? 's' : '') : '') + ' · timeline ' + right + '/' + sc.order.length]]); };
-      tdraw();
-    };
+    const bind = () => { draw(); document.querySelectorAll('[data-iv]').forEach((b) => b.onclick = () => { const it = sc.items[+b.dataset.iv]; if (it.done) return; it.done = true; if (it[2]) { found++; H.beep(880, .08, 'triangle', .04); } else { wrong++; H.beep(220, .12, 'sawtooth', .03); } bind(); }); H.$('ivNext').onclick = () => reconstruct(sc, { where: c.where, who: c.vcn, x: c.x, y: c.y, found, real, wrong }, done); };
     bind();
   }
+  // the deduction sheet; `st` carries what was found and, for a reopened scene, the answers so far
+  function reconstruct(sc, st, done) {
+    const F = sc.facts; st.pick = st.pick || F.map(() => -1); st.lock = st.lock || F.map(() => 0); st.tries = st.tries || 0;
+    st.ord = st.ord || F.map((f) => f[1].map((_, i) => i).sort(() => Math.random() - .5)); /* options in a fixed shuffled order per scene visit */
+    const nLock = () => st.lock.filter(Boolean).length;
+    const check = () => { const ok = F.map((f, k) => !st.lock[k] && st.pick[k] === f[2]), n = ok.filter(Boolean).length, left = F.length - nLock();
+      if (n >= 3 || (n && n === left)) { ok.forEach((v, k) => { if (v) st.lock[k] = 1; }); H.sting && H.sting('set'); H.beep(660, .1, 'triangle', .05); setTimeout(() => H.beep(990, .14, 'triangle', .05), 110); return true; } return false; };
+    const draw = (flash) => { const all = nLock() === F.length;
+      H.openModal('<div class="sceneHead"><b>PIECE IT TOGETHER · ' + esc(sc.title.toUpperCase()) + '</b><h2>What happened here?</h2><p>Fill it in from what you saw. Each time three answers are right, they lock in. Nobody tells you which one is wrong.</p></div>' +
+        '<div class="rcSaw">' + sc.items.filter((it) => it[2]).map((it) => '<span><i>' + it[0] + '</i>' + esc(it[1]) + '</span>').join('') + '</div>' +
+        '<ol class="rcSheet">' + F.map((f, k) => { const parts = f[0].split('___'); return '<li class="' + (st.lock[k] ? 'ok' + (flash && flash[k] ? ' new' : '') : '') + '">' + esc(parts[0]) + (st.lock[k] ? '<b>' + esc(f[1][f[2]]) + '</b>' : '<select data-rc="' + k + '"><option value="-1">choose</option>' + st.ord[k].map((i) => '<option value="' + i + '"' + (st.pick[k] === i ? ' selected' : '') + '>' + esc(f[1][i]) + '</option>').join('') + '</select>') + esc(parts[1] || '') + '</li>'; }).join('') + '</ol>' +
+        '<div class="rcFoot"><span>' + nLock() + ' of ' + F.length + ' confirmed</span></div>' +
+        '<div class="qAct">' + (all ? '' : '<button type="button" class="ghost" id="rcLeave">Leave it open</button>') + '<button type="button" id="rcFile"' + (all ? '' : ' disabled') + '>' + (all ? 'File it' : 'Lock in all six to file') + '</button></div>');
+      document.querySelectorAll('[data-rc]').forEach((el) => el.onchange = () => { st.pick[+el.dataset.rc] = +el.value; if (st.pick.every((p, k) => st.lock[k] || p >= 0)) st.tries++; const before = st.lock.slice(); if (check()) draw(st.lock.map((v, k) => v && !before[k])); });
+      const lv = H.$('rcLeave'); if (lv) lv.onclick = () => leave(); H.$('rcFile').onclick = () => finish(); };
+    const row = (open) => { const n = nLock(), sc10 = Math.max(0, Math.min(10, Math.round((st.found - st.wrong * .5) / st.real * 3 + n / F.length * 6 + (!open && st.tries <= 2 ? 1 : 0))));
+      return ['🔎', 'Scene work', sc10, 10, st.found + ' of ' + st.real + ' clues' + (st.wrong ? ', ' + st.wrong + ' red herring' + (st.wrong > 1 ? 's' : '') : '') + ' · ' + (open ? n + ' of ' + F.length + ' confirmed, left open on the board' : 'pieced together' + (st.tries <= 1 ? ' first try' : ''))]; };
+    const leave = () => { const R = RC(); R.open = R.open.filter((o) => o !== st.ref); st.ref = { id: sc.id, where: st.where, who: st.who, x: st.x, y: st.y, found: st.found, real: st.real, wrong: st.wrong, pick: st.pick, lock: st.lock, ord: st.ord, tries: st.tries, t: Date.now() };
+      R.open.push(st.ref); while (R.open.length > 5) R.open.shift(); H.saveS(); H.toast('🔎 Left open on the mystery board. Come back to it any time.'); done([row(true)]); };
+    const finish = () => { const R = RC(); if (st.ref) R.open = R.open.filter((o) => o.t !== st.ref.t); R.solved++; H.saveS(); H.stat('investigate'); if (st.tries <= 1 && !st.wrong) H.stat('invPerfect');
+      if (H.memNote && st.where) H.memNote('solved', { who: st.who, where: st.where, x: st.x, y: st.y }); done([row(false)]); };
+    draw();
+  }
+  // reopen a scene left open, from the board; it pays out like the original would have
+  function reopen(i) { const o = RC().open[i], sc = o && SCENES.find((s) => s.id === o.id); if (!sc) return; const st = Object.assign({}, o, { ref: o });
+    reconstruct(sc, st, (rows) => { const r = rows[0]; if (!RC().open.includes(o)) { H.award(Math.round(r[2] * 6), 'Closed a scene from the board'); H.toast('🔎 ' + r[4]); } H.closeModal(); }); }
   function report(c, done) {
     const now = new Date(), fill = (s) => s.replace('{date}', now.toLocaleDateString()).replace('{time}', String(H.hour() | 0).padStart(2, '0') + String(Math.floor((H.hour() % 1) * 60)).padStart(2, '0') + ' hours').replace('{where}', c.where).replace('{title}', c.title.toLowerCase()).replace(/\{caller\}/g, 'caller');
     let k = 0, right = 0; const rounds = REPORT.map(([lbl, opts]) => ({ lbl, opts: opts.map((o, i) => ({ t: fill(o), ok: i === 0 })).sort(() => Math.random() - .5) })), lines = [];
@@ -313,5 +341,6 @@ export function installEpic(H) {
   let sqT = 0;
   setInterval(() => { try { squadTick(); } catch (e) {} }, 30000); setTimeout(() => { try { squadTick(); } catch (e) {} }, 8000);
   applyDisplay();
-  return { splash, intro, get busy() { return busy || !!cine; }, tick, skyDraw, fxDraw, clueDraw, wxCall, wxBark, timeScale, slowMo, zoomPunch, ending, board, rivalPanel, rivalCameo, graduation, credits, repOf, callMult, afterCall, SECRETS, boards, squadCall, squadHud, loadArt, loadLore, TIPS2, applyDisplay, calibrate, fullMoon, RANKS };
+  const sceneTest = (id, c, done) => investigate(SCENES.find((x) => x.id === id), c || {}, done || (() => H.closeModal()));
+  return { sceneTest, splash, intro, get busy() { return busy || !!cine; }, tick, skyDraw, fxDraw, clueDraw, wxCall, wxBark, timeScale, slowMo, zoomPunch, ending, board, rivalPanel, rivalCameo, graduation, credits, repOf, callMult, afterCall, SECRETS, boards, squadCall, squadHud, loadArt, loadLore, TIPS2, applyDisplay, calibrate, fullMoon, RANKS };
 }

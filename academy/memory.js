@@ -34,6 +34,10 @@ const ECHO = {
     brief: ["The pursuit on {where} is under review. Sgt. Castillo wants to talk about it.", "A driver on {where} says your pursuit nearly hit her car. She filed a complaint."],
     bark: ["You almost hit my car chasing that guy.", "That chase came way too close to the bus stop."],
     back: [] },
+  solved: { icon: '🔎', good: 1,
+    brief: ["The detectives made the case on {where} from the scene you pieced together.", "{who} on {where} heard the case got made. Word is the patrol officer figured it out."],
+    bark: ["You're the one who figured out what happened on {where}.", "Heard you read that scene on {where} like a book."],
+    back: ["You figured out what happened last time. I told everybody."] },
   kept: { icon: '🏠', good: 1,
     brief: ["{who} told the whole block you came back like you said you would.", "{who} on {where} wrote a letter to the chief about you checking back on her."],
     bark: ["You came back to check on {who}. People noticed.", "{who} says you kept your word. That's rare."],
@@ -140,14 +144,19 @@ export function installMemory(H) {
     if (c.cons) { const k = M.seed.indexOf(c.cons); if (k >= 0) M.seed.splice(k, 1); const ok = r.right === r.n; const last = M.d[M.d.length - 1]; if (ok && !(last && last.where === c.where && last.sh === M.shift && ECHO[last.k].good)) note('help', { who: who(c), where: c.where, x: c.x, y: c.y }); H.saveS(); return ok ? 'fixed' : 'still'; }
     if (M.seed.some((x) => x.where === c.where && x.did === did())) return null;
     const k = r.n && r.right < r.n && c.les != null && CONS[c.les] && Math.random() < .6 ? 'missed' : c.wrap === 'quick' ? 'callback' : HARSH[c.eff] || (c.way === 'enforce' && c.rules && c.rules.intent && !c.readRight && c.rules.intent !== 'calm') ? 'complaint' : null;
-    if (!k) return null; M.seed.push({ k, les: c.les, who: who(c), where: c.where, x: c.x, y: c.y, did: did(), due: M.shift + (k === 'complaint' ? 2 : 1) }); while (M.seed.length > 6) M.seed.shift(); H.saveS(); return k;
+    if (!k) return null; M.seed.push({ k, les: c.les, who: who(c), where: c.where, x: c.x, y: c.y, did: did(), due: M.shift + (k === 'complaint' ? 2 : 1), t: c.title, sh: M.shift, right: r.right, n: r.n }); /* what led to it, for the card */ while (M.seed.length > 6) M.seed.shift(); H.saveS(); return k;
   }
   // dispatch asks: is something from an earlier shift due in this district? (now and then, never all at once)
   function dueCall(here) {
     const s = M.seed.find((x) => x.did === here && x.due <= M.shift); if (!s || Math.random() > .35) return null; const T = SEED[s.k], o = { who: s.who || 'The caller', where: s.where };
     const t = s.k === 'missed' ? [fill(CONS[s.les][0], o), T.prio, 'any', fill(CONS[s.les][1], o)] : [fill(T.title, o), T.prio, 'any', fill(T.text, o)]; t.les0 = s.les; t.cons = s; return t;
   }
-  const consLine = (s) => fill(SEED[s.k].line, { who: s.who || 'The caller', where: s.where });
+  // the card that opens a call that came back: when you were here, what you did, what it turned into
+  const AGO = ['Earlier this shift', 'Last shift', 'Two shifts ago', 'Three shifts ago'];
+  const ledTo = (s) => s.t == null ? '' : (AGO[Math.min(3, M.shift - s.sh)] || 'A while back') + ' you took "' + s.t + '" here' + (s.k === 'missed' ? ' and got ' + s.right + ' of ' + s.n + ' right.' : s.k === 'callback' ? ' and wrapped it up before they were done.' : ' and came in hard.');
+  const consLine = (s) => { const why = ledTo(s); return (why ? why + ' ' : '') + fill(SEED[s.k].line, { who: s.who || 'The caller', where: s.where }); };
+  // open threads for the mystery board
+  const threads = () => M.seed.map((s) => ({ icon: '⏳', text: (s.t || 'A call') + ' · ' + s.where, sub: s.due <= M.shift ? 'Could come back any time now' : 'Coming back on a later shift', why: ledTo(s) }));
   const consIntent = (s) => SEED[s.k].intent || null;
-  return { plant, dueCall, consLine, consIntent, get seeds() { return M.seed; }, note, afterCall, deesc, pursuit, promiseOption, callerLine, onShift, briefing, tick, draw, ECHO, get open() { return M.pr; }, get shiftNo() { return M.shift; }, get dbg() { return { briefDue, free: H.free() }; }, get deeds() { return M.d; } };
+  return { plant, dueCall, consLine, threads, consIntent, get seeds() { return M.seed; }, note, afterCall, deesc, pursuit, promiseOption, callerLine, onShift, briefing, tick, draw, ECHO, get open() { return M.pr; }, get shiftNo() { return M.shift; }, get dbg() { return { briefDue, free: H.free() }; }, get deeds() { return M.d; } };
 }
