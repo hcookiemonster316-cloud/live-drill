@@ -5,7 +5,8 @@
    "t97"
   ],
   "casefile.js": [
-   "tcourt"
+   "tcourt",
+   "twatch"
   ],
   "ch5data.js": [
    "t93"
@@ -93,7 +94,8 @@
    "t101"
   ],
   "partners.js": [
-   "tpart"
+   "tpart",
+   "twatch"
   ],
   "path.js": [
    "t101",
@@ -159,6 +161,9 @@
    "t91",
    "tunlock",
    "tvo"
+  ],
+  "watchlog.js": [
+   "twatch"
   ],
   "ways.js": [
    "tways"

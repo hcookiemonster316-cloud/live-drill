@@ -251,7 +251,7 @@ export function installEpic(H) {
     const leave = () => { const R = RC(); R.open = R.open.filter((o) => o !== st.ref); st.ref = { id: sc.id, where: st.where, who: st.who, x: st.x, y: st.y, found: st.found, real: st.real, wrong: st.wrong, pick: st.pick, lock: st.lock, ord: st.ord, tries: st.tries, t: Date.now() };
       R.open.push(st.ref); while (R.open.length > 5) R.open.shift(); H.saveS(); H.toast('🔎 Left open on the mystery board. Come back to it any time.'); done([row(true)]); };
     const finish = () => { const R = RC(); if (st.ref) R.open = R.open.filter((o) => o.t !== st.ref.t); R.solved++; H.saveS(); H.stat('investigate'); if (st.tries <= 1 && !st.wrong) H.stat('invPerfect');
-      if (H.memNote && st.where) H.memNote('solved', { who: st.who, where: st.where, x: st.x, y: st.y }); done([row(false)]); };
+      if (H.watch) H.watch(sc.title, st.where); if (H.memNote && st.where) H.memNote('solved', { who: st.who, where: st.where, x: st.x, y: st.y }); done([row(false)]); };
     draw();
   }
   // reopen a scene left open, from the board; it pays out like the original would have

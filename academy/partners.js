@@ -83,5 +83,35 @@ export function installPartners(H) {
   function startLine(k) { const s = S.pcase[k], a = s && s.out && AFTER[k] && AFTER[k][s.out]; return a ? a[(Math.random() * a.length) | 0] : null; }
   // after a cover-up Park sits out the next four shifts
   const benched = (k) => { const s = S.pcase[k]; return !!(s && s.bench > 0); };
-  return { onShift, afterCall, tick, startLine, benched, CASES, get state() { return S.pcase; }, get pending() { return pending; } };
+  // ---- partners who bring it up ----
+  // Each partner remembers the calls you worked together and how you handled them. Their trust in you (0-100) moves
+  // with it, and it decides how they act on a call: a partner who trusts you backs your play, one who doesn't goes
+  // quiet and second-guesses you. At the start of a later shift they bring up something you did together.
+  const PM = (k) => { S.pmem = S.pmem || {}; return (S.pmem[k] = S.pmem[k] || { t: 60, log: [] }); };
+  const trust = (k) => (k ? PM(k).t : 60);
+  // what happened, and how much it moves their trust
+  function remember(c, r, ext) {
+    const p = H.partner(); if (!p) return 0; const m = PM(p.k); let d = 0, good = null, what = '';
+    if (ext && ext.pur) { if (ext.pur === 'term' && !ext.ordered) { d = 6; good = true; what = 'called off that chase before it went bad'; } else if (ext.pur === 'term' && ext.ordered) { d = -2; good = false; what = 'kept chasing until the sergeant had to call it'; } else if (ext.pur === 'air') { d = 4; good = true; what = 'handed that chase to Air One'; } }
+    else if (c && c.title) { const all = r && r.n && r.right === r.n;
+      if (c.wrap === 'quick' && c.prio <= 2) { d = -4; good = false; what = 'left that ' + c.title.toLowerCase() + ' before it was done'; }
+      else if (c.way === 'enforce' && c.rules && c.rules.intent === 'calm') { d = -4; good = false; what = 'came in hard on a calm person at ' + (c.where || 'that call'); }
+      else if (all && c.readRight) { d = 4; good = true; what = 'read that person right at ' + (c.where || 'that call'); }
+      else if (all) { d = 2; good = true; what = 'handled that ' + c.title.toLowerCase(); }
+      else if (r && r.n && r.right === 0) { d = -2; good = false; what = 'missed everything on that ' + c.title.toLowerCase(); } }
+    if (!d) return 0; m.t = Math.max(0, Math.min(100, m.t + d));
+    m.log.push({ sh: shiftNo, g: good, w: what, where: c && c.where || '' }); if (m.log.length > 12) m.log.shift(); H.saveS(); return d; }
+  const VOICE = {
+    walsh: { g: ['Been thinking about when you {w}. That was good police work. I told the guys at the diner.', 'You {w}. Took me ten years to do that right. Keep doing it.'],
+      b: ['We should talk about when you {w}. Not now. Later. But we should.', 'You {w}. I\'ve seen where that goes. Don\'t make it a habit.'] },
+    park: { g: ['Remember when you {w}? I wrote it down. Like, in the notebook.', 'Okay so when you {w}, that\'s exactly what they teach. You actually do it.'],
+      b: ['Can I say something? When you {w}, that kind of scared me.', 'I keep thinking about when you {w}. Was that right? It didn\'t feel right.'] },
+    castillo: { g: ['When you {w}. Good work. It\'s in your file.', 'You {w}. That\'s the officer I want out here.'],
+      b: ['When you {w}. Not your best. Don\'t do it again.', 'You {w}. I wrote that down too.'] } };
+  // a line from an earlier shift together, once each
+  function bringUp(k) { const m = S.pmem && S.pmem[k], V = VOICE[k]; if (!m || !V) return null; const e = m.log.slice().reverse().find((x) => x.sh < shiftNo && !x.told); if (!e) return null; e.told = 1; H.saveS();
+    const L = e.g ? V.g : V.b; return L[(Math.random() * L.length) | 0].replace('{w}', e.w); }
+  // how the partner acts on a call: 'good' backs you, 'short' goes quiet, 'even' in between
+  const stance = (k) => { const t = trust(k); return t >= 70 ? 'good' : t < 40 ? 'short' : 'even'; };
+  return { remember, bringUp, trust, stance, onShift, afterCall, tick, startLine, benched, CASES, get state() { return S.pcase; }, get pending() { return pending; } };
 }

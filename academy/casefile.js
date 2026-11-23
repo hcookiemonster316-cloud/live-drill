@@ -30,7 +30,7 @@ export function installCasefile(H) {
   // the archive, built from what this player has actually seen; rebuilt only when it might have changed
   let memo = null, memoKey = '';
   function entries() {
-    const key = JSON.stringify(S.story) + '|' + Object.keys(S.flags || {}).length + '|' + Object.keys(S.clues || {}).length + '|' + Object.keys(S.qitems || {}).length + '|' + (S.rlog || []).length + '|' + (S.clog || []).length + '|' + ((S.court && S.court.hist) || []).length;
+    const key = JSON.stringify(S.story) + '|' + Object.keys(S.flags || {}).length + '|' + Object.keys(S.clues || {}).length + '|' + Object.keys(S.qitems || {}).length + '|' + (S.rlog || []).length + '|' + (S.clog || []).length + '|' + ((S.court && S.court.hist) || []).length + '|' + (S.journal || []).length;
     if (memo && key === memoKey) return memo; memoKey = key; const out = [];
     CHAPTERS.forEach((ch, ci) => { const upto = Math.min(S.story[ch.d] || 0, ch.steps.length); for (let i = 0; i < upto; i++) { const st = ch.steps[i], lines = [];
       const add = (L) => (L || []).forEach((x) => { if (!Array.isArray(x)) return; if (x[0] === 'choice') { (x[1] || []).forEach((o) => { if (o.set && S.flags[o.set]) add(o.reply); }); return; } if (typeof x[1] === 'string' && ok(x[2])) lines.push(x); });
@@ -41,6 +41,7 @@ export function installCasefile(H) {
     (S.rlog || []).forEach((r, i) => out.push({ id: 'rl' + r[0] + '.' + i, ord: 1e5 + i, kind: 'Radio log', when: 'Shift ' + (r[1] + 1), src: r[2], at: '', text: r[3] }));
     (S.clog || []).forEach((r, i) => out.push({ id: 'cr' + r[0] + '.' + i, ord: 2e5 + i, kind: 'Call report', when: 'Shift ' + (r[1] + 1), src: 'Your report', at: r[3], text: r[2] + (r[3] ? ' at ' + r[3] : '') + '.' + (r[4] ? ' Knowledge checks: ' + r[4] + '.' : '') + (r[5] ? ' Handled by ' + (r[5] === 'talk' ? 'talking it through' : r[5] === 'enforce' ? 'enforcement' : 'watching first') + '.' : '') }));
     ((S.court && S.court.hist) || []).forEach((h, i) => out.push({ id: 'ct' + (h.t || i), ord: 3e5 + i, kind: 'Court transcript', when: 'Shift ' + (h.sh + 1), src: 'County Courthouse', at: 'Courtroom 3B', text: 'The pursuit arrest near ' + h.where + '. ' + (h.words || '') }));
+    (S.journal || []).forEach((j, i) => out.push({ id: 'ew' + j.at, ord: 4e5 + i, kind: 'End of watch log', when: 'Shift ' + (j.sh + 1), src: j.shift + ' · ' + j.district + ' · grade ' + j.grade, at: j.district, text: j.lines.join(' ') + ' ' + j.why }));
     return (memo = out);
   }
   // search: every word must appear; earliest first, like flipping through a file drawer; only five shown

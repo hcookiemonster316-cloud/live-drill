@@ -34,7 +34,7 @@ export function installCourt(H) {
       const v = score >= 4 ? 'held' : score >= 2 ? 'plea' : 'lost';
       const words = { held: 'The case held. Guilty on the fleeing charge.', plea: 'He took a plea to a lesser charge. Not a loss, not a win.', lost: 'Case dismissed. The paperwork didn\'t hold up.' }[v];
       const why = !p.filed ? 'There was no report.' : p.wrong ? (st.honest ? 'Your report had a mistake and you owned it on the stand.' : 'Your report had a mistake and you stood behind it.') : 'Your report matched the log.';
-      C().pend = C().pend.filter((x) => x !== p); C().hist.push({ v, where: p.where, sh: H.shift(), how: p.how, paper, law, n: res.n || 0, honest: st.honest, words: words + ' ' + why, t: Date.now() }); if (C().hist.length > 20) C().hist.shift(); H.saveS();
+      C().pend = C().pend.filter((x) => x !== p); C().hist.push({ v, where: p.where, sh: H.shift(), how: p.how, paper, law, n: res.n || 0, honest: st.honest, words: words + ' ' + why, t: Date.now() }); if (C().hist.length > 20) C().hist.shift(); H.saveS(); if (H.watch) H.watch(words + ' ' + why);
       H.trust(4, v === 'held' ? 3 : v === 'plea' ? 1 : -3); H.award(v === 'held' ? 120 : v === 'plea' ? 60 : 20, 'court testimony'); H.stat('court'); if (v === 'held') H.stat('courtWon');
       H.debrief({ title: 'Court day', where: 'County Courthouse', extra: [['📝', 'Your report', paper * 5, 10, why], ['⚖️', 'The law', law * 5, 10, law + ' of ' + (res.n || 0) + ' answers the jury needed'], ['🏛️', 'Verdict', v === 'held' ? 10 : v === 'plea' ? 5 : 0, 10, words]], right: res.right, n: res.n, qs: res.qs || [] });
     }, { kicker: 'COURT · TESTIMONY' });
