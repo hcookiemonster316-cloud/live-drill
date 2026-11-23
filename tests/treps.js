@@ -30,7 +30,7 @@ const { chromium } = require('playwright');
     if (m === 3 && !said.some((x) => /treating me like a person/.test(x))) errs.push('meeting 4: no good ending line');
     await a.waitForFunction((m) => (window.__pc.S.reps.dale || {}).st > m, m, { timeout: 30000 }).catch(() => errs.push('meeting ' + (m + 1) + ' did not finish')); await a.waitForTimeout(400); }
   const end = await a.evaluate(() => ({ done: (window.__pc.S.reps.dale || {}).done, ally: window.__pc.REPS.ally(0), toast: [...document.querySelectorAll('.toast,#toast')].map((x) => x.innerText).join(' | ') }));
-  console.log('end', JSON.stringify(end)); if (end.done !== 'good' || end.ally !== 'Dale Hutchins') errs.push('Dale did not turn it around: ' + JSON.stringify(end));
+  console.log('end', JSON.stringify(end)); if (end.done !== 'good' || end.ally !== 'Dale Hutchins') errs.push('Dale did not turn it around: ' + JSON.stringify(end) + ' ' + JSON.stringify(await a.evaluate(() => window.__pc.S.reps.dale)));
   // 3) someone handled hard comes back angry or with a story
   const hard = await a.evaluate(() => { const pc = window.__pc; pc.S.reps.tina = { st: 1, w: ['enforce'], last: 'enforce', right: 0, sh: -5 }; const L = pc.REPS.lines({ id: 'tina', did: 0, stage: 1 }); return { intent: L.intent, said: L.lines.map((x) => x[1]).join(' ') }; });
   console.log('hard', JSON.stringify(hard)); if (!/angry|lying/.test(hard.intent) || !/call my school/.test(hard.said)) errs.push('enforced regular did not come back sore');

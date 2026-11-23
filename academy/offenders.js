@@ -73,7 +73,7 @@ export function installOffenders(H) {
     if (rep.stage === 0) out.push(['narr', 'You don\'t know ' + p.name + ' yet. You will.']);
     else if (rep.stage === 3) out.push(['narr', p.name + ' again. Fourth time. This is where it settles.']);
     const said = r.last === 'talk' ? st[3] : r.last === 'enforce' ? st[4] : r.last === 'observe' ? st[5] : null; if (said) out.push([who, said]);
-    if (rep.stage === 3) { const tally = { talk: 0, enforce: 0, observe: 0 }; r.w.forEach((w) => { tally[w] = (tally[w] || 0) + 1; }); const end = tally.talk + r.right >= 3 ? 'good' : tally.enforce >= 2 ? 'hard' : 'away'; rep.end = end;
+    if (rep.stage === 3) { const tally = { talk: 0, enforce: 0, observe: 0 }; r.w.forEach((w) => { tally[w] = (tally[w] || 0) + 1; }); const sc = tally.talk * 2 + r.right - tally.enforce * 2, end = tally.enforce >= 2 && tally.enforce > tally.talk ? 'hard' : sc >= 3 ? 'good' : 'away'; /* calls with no choice of approach count for neither side */ rep.end = end;
       out.push([who, end === 'good' ? 'I wanted to say it to your face. You kept treating me like a person. So. I fixed it. All of it.' : end === 'hard' ? 'Save it. My lawyer says I shouldn\'t talk to you.' : 'I\'m moving to my sister\'s. Different county. Thought you should know.']); }
     return { lines: out, who, intent: r.last === 'enforce' ? (Math.random() < .5 ? 'angry' : 'lying') : r.last === 'talk' ? 'calm' : r.last === 'observe' ? 'nervous' : null }; }
   // after the call: remember how you handled it, and settle it at the fourth meeting
