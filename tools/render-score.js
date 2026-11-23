@@ -22,7 +22,7 @@ const OUT = require('os').tmpdir() + '/', DEST = require('path').join(__dirname,
     // the main titles keep their full dynamics (a quiet opening that grows to a big finish): one fixed gain to the target
     // loudness instead of loudnorm's moving gain, which would flatten the arc; everything else is leveled as before
     let af = 'loudnorm=I=-25:TP=-1.5:LRA=11,afade=t=in:d=0.4';
-    if (/^title_/.test(id)) { const meas = require('child_process').spawnSync('ffmpeg', ['-hide_banner', '-f', 's16le', '-ar', '32000', '-ac', '2', '-i', raw, '-af', 'ebur128', '-f', 'null', '-'], { encoding: 'utf8' }).stderr; const I = +((meas.match(/I:\s+(-?[\d.]+) LUFS/g) || []).pop() || 'I: -24 LUFS').match(/-?[\d.]+/)[0]; af = 'volume=' + (-23 - I).toFixed(2) + 'dB,alimiter=limit=0.84,afade=t=in:d=0.2'; }
+    if (true) { /* every track keeps its dynamics now (owner's call): one fixed gain per track to the same loudness */ const meas = require('child_process').spawnSync('ffmpeg', ['-hide_banner', '-f', 's16le', '-ar', '32000', '-ac', '2', '-i', raw, '-af', 'ebur128', '-f', 'null', '-'], { encoding: 'utf8' }).stderr; const I = +((meas.match(/I:\s+(-?[\d.]+) LUFS/g) || []).pop() || 'I: -24 LUFS').match(/-?[\d.]+/)[0]; af = 'volume=' + ((/^title_/.test(id) ? -23 : -24) - I).toFixed(2) + 'dB,alimiter=limit=0.84,afade=t=in:d=0.2'; }
     execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 's16le', '-ar', '32000', '-ac', '2', '-i', raw, '-af', af, '-ar', '32000', '-c:a', 'libmp3lame', '-b:a', '80k', DEST + id + '.mp3']);
     fs.unlinkSync(raw); console.log(id, ((Date.now() - t0) / 1000).toFixed(1) + 's', (fs.statSync(DEST + id + '.mp3').size / 1024).toFixed(0) + 'KB');
   }

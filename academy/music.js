@@ -5,6 +5,14 @@
 // marimba, bells, brass, lead and bass, with a soft drum kit, stereo placement, reverb and delay.
 
 import { TRACKS } from './scoredata.js';
+// the dynamic shape of a composed track, bar by bar (32 bars: intro 4, A 8, B 8, A2 8, outro 4), with a gentle rise
+// inside each phrase; the swell intro starts near silence, the finale holds full and lets the room ring
+function dyn(m, b, s) { const p = (b * 16 + s) / 16, sec = sectionOf(b);
+  if (sec === 'intro') return m.intro === 'swell' ? .25 + .75 * Math.pow((p + 1 / 16) / 4, 1.6) : m.intro === 'hits' || m.intro === 'drums' ? .82 : .68 + .08 * (p / 4);
+  if (sec === 'A') { const q = p - 4; return .8 + .07 * Math.sin(Math.PI * q / 8) + (q > 6 ? .05 * (q - 6) : 0); }
+  if (sec === 'B') { const q = p - 12; return .72 + .2 * Math.pow(q / 8, 1.4); } // the bridge dips, then builds into the return
+  if (sec === 'A2') { const q = p - 20; return .95 + .05 * Math.sin(Math.PI * q / 8) + (q > 6 ? .06 * (q - 6) : 0); }
+  const q = p - 28; return m.outro === 'final' ? 1 : Math.max(.45, 1 - .14 * q); } // the outro winds down
 // the hook's opening motif, for intros (heard in the intro's last two bars) and outros (slowed, then it rings out)
 const MOTIF_IN = 'r:16 4:3/2 7:1/2 6:1/3 7:1/3 6:1/3 4:1 r:4 4:3/2 7:1/2 6:1/3 7:1/3 6:1/3 4:1 1:4', MOTIF_OUT = '4:3 7:1 6:2/3 7:2/3 6:2/3 4:2 0:8 r:16';
 const LEADX = 1.7, BANDX = .82, DUCK = .72; // melody up, band down a touch, and the band ducks under each melody note
@@ -34,7 +42,7 @@ function sectionView(m, sec) { let c = VIEW.get(m); if (!c) { c = {}; VIEW.set(m
     else if (ty === 'swell') { v.band = null; v.keys = null; v.drums = { pat: 'roll', v: .55 }; v.swell = true; v.strings = m.strings || { v: .03 }; v.choir = m.choir; v.drone = m.drone || { v: .02 }; v.lead = Object.assign({}, m.lead || { voice: 'brass', v: .03, oct: 0 }, { sparse: false }); v.ev = m._evIn || (m._evIn = parseTheme(m.introTheme || MOTIF_IN)); } // a film opening: low drone, strings and a choir rising over a timpani roll that grows, and the hook's motif on low brass
     else if (ty === 'final') { v.band = null; v.keys = null; v.drums = { pat: 'final', v: (m.drums || {}).v || 1 }; v.strings = m.strings2 || m.strings; v.choir = m.choir; v.lead = null; v.bass = m.bass && { pat: 'whole', v: m.bass.v }; } // one last big chord and a long ring
     else if (ty === 'motif') { v.band = { rhodes: { pat: 'ballad', v: ((B.rhodes || {}).v || .026) * .9 }, vamp: B.vamp }; v.drums = null; v.lead = Object.assign({}, m.lead || { voice: 'vibes', v: .03, oct: 12 }, { sparse: false }); const key = sec === 'intro' ? '_evIn' : '_evOut'; v.ev = m[key] || (m[key] = parseTheme(sec === 'intro' ? m.introTheme || MOTIF_IN : m.outroTheme || MOTIF_OUT)); } }
-  if (sec === 'B') { v.prog = m.progB || m.prog; v.ev = m.themeB ? (m._evB || (m._evB = parseTheme(m.themeB))) : v.ev; if (m.leadB) v.lead = m.leadB; if (m.drumsB !== undefined) v.drums = m.drumsB; if (m.keysB) v.keys = m.keysB; }
+  if (sec === 'B') { if (m.choirB) v.choir = m.choirB; v.prog = m.progB || m.prog; v.ev = m.themeB ? (m._evB || (m._evB = parseTheme(m.themeB))) : v.ev; if (m.leadB) v.lead = m.leadB; if (m.drumsB !== undefined) v.drums = m.drumsB; if (m.keysB) v.keys = m.keysB; }
   if (sec === 'A' && m.themeA1) v.ev = m._evA1 || (m._evA1 = parseTheme(m.themeA1)); // a hint of the hook first; the full tune comes back in A2
   if (sec === 'A2') { v.counter = m.counter || null; if (m.strings2) v.strings = m.strings2; if (m.leadA2) v.lead = m.leadA2; if (m.choir2) v.choir = m.choir2; if (m.drumsA2) v.drums = m.drumsA2; } // the last time through can be the biggest
   return (c[sec] = v); }
@@ -140,7 +148,7 @@ export function createMusic(getCtx) {
     oscs.forEach((o) => { o.start(t); o.stop(endT + .1); });
     return { g, end: endT };
   }
-  function drum(L, kind, t, v) {
+  function drum(L, kind, t, v) { v *= L.gainK || 1; // the kit follows the dynamics too
     const a = ctx(), g = a.createGain(), p = a.createStereoPanner ? a.createStereoPanner() : null;
     if (kind === 'ghost') return drum(L, 'snare', t, v * .22);
     if (kind === 'conga') { if (p) { p.pan.value = -.35; g.connect(p); p.connect(L.bus); } else g.connect(L.bus); const o = a.createOscillator(); o.frequency.setValueAtTime(240, t); o.frequency.exponentialRampToValueAtTime(175, t + .1); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.09 * v, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + .22); o.connect(g); o.start(t); o.stop(t + .25); return; }
@@ -183,7 +191,10 @@ export function createMusic(getCtx) {
   const noteOf = (m, d, oct) => { const sc = SCALES[m.scale]; return m.root + (oct || 0) + sc[((d % 7) + 7) % 7] + 12 * Math.floor(d / 7); };
   function playStep(L, t, spb) {
     const m0 = L.m, bar = Math.floor(L.step / 16), s = L.step % 16, beat = s / 4, sec = m0.form ? sectionOf(bar) : 'A';
-    L.gainK = m0.form && m0.intro === 'swell' && sectionOf(bar) === 'intro' ? .25 + .75 * Math.pow(((bar % 32) * 16 + s + 1) / 64, 1.6) : 1; // the opening grows from almost nothing
+    // dynamics, like a band playing it: every track breathes. The intro is quieter (a swell grows from almost nothing),
+    // the first A sits back, the bridge dips and then builds, the last A is the biggest and pushes into its final bars,
+    // and the outro winds down. Inside each section, every eight-bar phrase rises a little toward its end and settles.
+    L.gainK = m0.form ? dyn(m0, bar % 32, s) : 1;
     const tStraight = t; if (m0.swing && s % 2) t += m0.swing * spb; // the band swings its sixteenths; the melody keeps its own written rhythm
     const m = m0.form ? sectionView(m0, sec) : m0, rb = m0.form ? (bar - (sec === 'B' ? 12 : sec === 'A2' ? 20 : 4) + 64) : bar;
     const deg = m.prog[rb % m.prog.length], ch = chordOf(m, deg, m.keys && m.keys.sev);
@@ -226,7 +237,13 @@ export function createMusic(getCtx) {
     // the theme, on the lead instrument
     if (m.lead && (m0.form || (bar % 16) >= m.lead.from)) { const b8 = (rb % 8) * 4 + beat, ev = m.ev || THEME_EV; ev.forEach((e) => { if (e.b >= b8 - 1e-4 && e.b < b8 + .25 - 1e-4 && (!m.lead.sparse || e.l >= 2 || ((bar * 7 + Math.round(e.b * 12) * 13) % 3) > 0)) { const nx = ev[ev.indexOf(e) + 1], room = nx && nx.b > e.b ? nx.b - e.b : e.l, nd = spb * 4 * Math.min(e.l, room) * (e.l < .5 ? .88 : .94), tn = tStraight + (e.b - b8) * 4 * spb; /* the melody is one voice: it plays straight (triplets and dotted notes as written, not swung), each note ends before the next one starts */
           if (L.lastLead && L.lastLead.end > tn) { try { const lg = L.lastLead.g.gain; lg.cancelScheduledValues(tn); lg.setTargetAtTime(.0001, tn - .004, .012); } catch (er) {} } /* cut the last note's tail as the next one speaks, so nothing smears */
-          L.route = 'lead'; L.lastLead = voice(L, m.lead.voice, noteOf(m, e.d, m.lead.oct) + (e.acc || 0), tn, nd, m.lead.v, .05); L.route = 'band'; if (m.counter) { const ln = noteOf(m, e.d, m.counter.oct || 0) + (e.acc || 0); let best = -1; for (const c0 of ch) for (let o = -24; o <= 12; o += 12) { const c1 = c0 + o; if (c1 <= ln - 3 && c1 > best) best = c1; } if (best < 0) best = ln - 4; voice(L, m.counter.voice, best, tn, nd, m.counter.v * .85, -.3); } /* the harmony line always lands on a chord tone */ L.route = null; if (L.bandBus) { const gb = L.bandBus.gain; gb.setTargetAtTime(BANDX * DUCK, tn, .025); gb.setTargetAtTime(BANDX, tn + Math.max(.08, nd * .85), .18); } } }); }
+          L.route = 'lead'; { const bt = e.b % 4, acc = bt < .01 ? 1.08 : Math.abs(bt - 2) < .01 ? 1.03 : (bt % 1) > .01 ? .92 : 1, hi = 1 + Math.max(-.06, Math.min(.08, (e.d - 4) * .012)), life = .96 + ((e.b * 7.31 + e.d * 3.7) % 1) * .08; L.lastLead = voice(L, m.lead.voice, noteOf(m, e.d, m.lead.oct) + (e.acc || 0), tn, nd, m.lead.v * acc * hi * life, .05); } /* phrasing: downbeats lean in, offbeats lighter, the top of a line sings out */ L.route = 'band'; if (m.counter) { const ln = noteOf(m, e.d, m.counter.oct || 0) + (e.acc || 0); let best = -1; for (const c0 of ch) for (let o = -24; o <= 12; o += 12) { const c1 = c0 + o; if (c1 <= ln - 3 && c1 > best) best = c1; } if (best < 0) best = ln - 4; voice(L, m.counter.voice, best, tn, nd, m.counter.v * .85, -.3); } /* the harmony line always lands on a chord tone */ L.route = null; if (L.bandBus) { const gb = L.bandBus.gain; gb.setTargetAtTime(BANDX * DUCK, tn, .025); gb.setTargetAtTime(BANDX, tn + Math.max(.08, nd * .85), .18); } } }); }
+    // the cinematic layer: timpani mark the start of each section, and roll (growing) through the last two beats of the
+    // bridge into the last A; a soft cymbal swell lands with the A2 downbeat
+    if (m0.cinema && m0.form) { const b32 = bar % 32, cv = .55 + .45 * m0.cinema;
+      if (s === 0 && (b32 === 4 || b32 === 12 || b32 === 20)) drum(L, 'timp', t, cv * (b32 === 20 ? 1.2 : .9));
+      if (b32 === 19 && s >= 8) drum(L, 'timp', t, cv * (.4 + .6 * (s - 8) / 7));
+      if (b32 === 20 && s === 0) drum(L, 'open', t, cv * 1.4); }
     // drums, with a fill on the last bar of every eight
     if (m.drums) { const pat = DRUMS[m.drums.pat], hit = m.drums.pat === 'final' && bar % 32 !== 28 ? '' : pat[s], dv = m.drums.v * (m.swell ? (bar % 32 + 1) / 4 : 1), swing = (m.drums.pat === 'brush' || m.drums.pat === 'shuffle') && s % 2 ? spb * .28 : 0;
       if (bar % 8 === 7 && s >= 12 && (m.drums.pat === 'drive' || m.drums.pat === 'pop' || m.drums.pat === 'pulse' || m.drums.pat === 'march' || m.drums.pat === 'half')) drum(L, s % 2 ? 'snare' : 'tom', t, dv * .8);

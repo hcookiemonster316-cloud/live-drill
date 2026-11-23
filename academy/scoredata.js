@@ -204,6 +204,17 @@ const BASE = { title: ['Port Meridian', 72], day: ['Day Watch', 100], night: ['N
   call: ['En Route', 112], urgent: ['Priority One', 136], scene: ['On Scene', 84], debrief: ['Debrief', 76], friend: ['Neighbors', 80], water: ['Marine Patrol', 84] };
 // which arrangements belong to a place, a unit and a shift (the score player adds them to the rotation)
 export const CONTEXT = { district: (d) => 'dist_' + d, unit: (u) => (u && u !== 'patrol' ? 'unit_' + u : null), shift: (s) => 'shift_' + (s || 'day') };
+// the cinematic layer, on every track (owner's call): the band plays as before, and an orchestra plays with it. Strings
+// hold the chords from the first A, a choir joins for the bridge and the last A, timpani mark every new section and
+// roll into the last A, and the openings and endings are film-like (a swell from near silence, a last chord that
+// rings). How much orchestra depends on the mood: fuller for story, title and urgent tracks, lighter for patrol and
+// indoors, so the city still sounds like a cop show and every scene sounds like a film.
+const WEIGHT = (id) => /^(title|story|urgent|scene|debrief|unit_neg|shift_night|dist_4|unit_det)/.test(id) ? 1 : /^(call|side|dist|unit|shift)/.test(id) ? .8 : .6;
+for (const id in TRACKS) { const t = TRACKS[id], w = WEIGHT(id); if (/^title_/.test(id)) { t.cinema = 1; continue; }
+  t.cinema = w; if (!t.strings) t.strings = { v: .02 * w + .006 }; if (!t.strings2) t.strings2 = { v: t.strings.v * 1.45 };
+  if (!t.choir) t.choirB = { v: .009 * w + .004 }; if (!t.choir2) t.choir2 = { v: .013 * w + .005 };
+  if (!t.drone && w >= .8) t.drone = { v: .012 };
+  if (t.intro === 'band' || !t.intro) t.intro = 'swell'; if (t.outro === 'band' || !t.outro) t.outro = 'final'; }
 export const META = {}; for (const k in TRACKS) META[k] = { name: TRACKS[k].name, bpm: TRACKS[k].bpm };
 // which tracks play for each situation, in rotation
 export const ROTATION = {};
