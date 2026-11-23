@@ -2,7 +2,7 @@
 // to small MP3s. Each mood rotates through its tracks with crossfades. Until the first file has loaded (or if files
 // can't load), the same synth plays the score live instead.
 import { META, ROTATION, POOLS, CONTEXT, TRACKS, trackLen } from './scoredata.js';
-const MV = '?v=8'; // bump when the soundtrack is re-rendered, so returning players hear the new files right away
+const MV = '?v=9'; // bump when the soundtrack is re-rendered, so returning players hear the new files right away
 const FILE = 'music/title_1.mp3' + MV; // loaded first; once it can play, the file score takes over from the live synth
 const NAMES = {}; for (const k in META) if (META[k].base) NAMES[META[k].base] = META[k].name;
 const PRIORITY = { call: 1, urgent: 1, scene: 1, story: 1 }; // these cut in right away; calmer moods wait a little so the music doesn't jump around

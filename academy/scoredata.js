@@ -99,10 +99,14 @@ const P = { // a few chord progressions, as scale degrees, one per bar
 
 export const TRACKS = {
   // ---- title ----
-  title_1: { name: 'Port Meridian (Main Title)', bpm: 84, root: 62, scale: 'dor', form: true, themeA1: JT.frag, intro: 'motif', introTheme: SUB.inM, outro: 'motif', outroTheme: SUB.outM, swing: .12, prog: JF.vamp, progB: JF.bridge, theme: JT.main, themeB: JT.bridge,
-    band: { rhodes: { pat: 'funk', v: .03 }, wah: { v: .016 }, horns: { v: .018 }, bass: { pat: 'funk', v: .095 } }, drums: { pat: 'funk', v: .75 }, lead: { voice: 'horns', v: .03, oct: 12 }, leadB: { voice: 'sax', v: .042, oct: 0 }, counter: { voice: 'vibes', v: .02, oct: 12 } },
-  title_2: { name: 'Port Meridian (Locker Room)', bpm: 70, root: 62, scale: 'dor', form: true, intro: 'band', outro: 'motif', outroTheme: SUB.outH, swing: .2, prog: JF.night, progB: JF.bridge, theme: JT.heart, themeB: JT.calm,
-    band: { rhodes: { pat: 'ballad', v: .036 }, bass: { pat: 'walk', v: .085 } }, drums: { pat: 'jazz', v: .55 }, lead: { voice: 'vibes', v: .034, oct: 12 }, leadB: { voice: 'mute', v: .03, oct: 12 } },
+  // the first thing a player hears: a film-style main title. A low drone, strings and a choir rise over a growing
+  // timpani roll while low horns state the hook; then the hook on horns over a full string section and big drums,
+  // a choir-and-strings bridge, the hook again on bright brass with the choir at full voice, and one last chord.
+  title_1: { name: 'Port Meridian (Main Title)', bpm: 74, root: 62, scale: 'min', form: true, swing: 0, intro: 'swell', outro: 'final', prog: [0, 5, 2, 6, 0, 5, 3, 4], progB: [5, 6, 0, 4, 5, 6, 3, 4], theme: JT.main, themeB: JT.bridge,
+    strings: { v: .03 }, strings2: { v: .056 }, choir: { v: .016 }, drone: { v: .016 }, bass: { pat: 'whole', v: .08 }, drums: { pat: 'epic', v: .6 }, drumsA2: { pat: 'epic', v: 1.15 }, lead: { voice: 'horns', v: .034, oct: 0 }, leadB: { voice: 'strings', v: .04, oct: 12 }, leadA2: { voice: 'brass', v: .048, oct: 12 }, choir2: { v: .04 }, counter: { voice: 'strings', v: .022, oct: 0 } },
+  // the menu: the same story told quieter, piano and strings, then the choir and brass carry it home
+  title_2: { name: 'Port Meridian (Overture)', bpm: 68, root: 62, scale: 'min', form: true, swing: 0, intro: 'motif', introTheme: SUB.inM, outro: 'final', prog: [0, 5, 2, 6, 0, 5, 3, 4], progB: [5, 6, 0, 4, 5, 6, 3, 4], theme: JT.calm, themeB: JT.heart,
+    keys: { voice: 'piano', pat: 'arp8', v: .034 }, strings: { v: .03 }, strings2: { v: .04 }, choir: { v: .016 }, bass: { pat: 'whole', v: .07 }, drumsB: { pat: 'epic', v: .55 }, lead: { voice: 'piano', v: .05, oct: 12 }, leadB: { voice: 'brass', v: .034, oct: 0 }, leadA2: { voice: 'horns', v: .036, oct: 0 }, choir2: { v: .026 }, drumsA2: { pat: 'epic', v: .75 }, counter: { voice: 'strings', v: .02, oct: 0 } },
   // ---- day patrol ----
   day_1: { name: 'Day Watch', bpm: 96, root: 62, scale: 'dor', form: true, themeA1: JT.frag, intro: 'hits', outro: 'motif', outroTheme: SUB.outM, swing: .14, prog: JF.vamp, progB: JF.bridge, theme: JT.main, themeB: JT.bridge,
     band: { rhodes: { pat: 'funk', v: .032 }, wah: { v: .02, busy: true }, clav: { v: .016 }, bass: { pat: 'funk', v: .1 } }, drums: { pat: 'funk', v: .85 }, lead: { voice: 'mute', v: .036, oct: 12 }, leadB: { voice: 'sax', v: .04, oct: 0 }, counter: { voice: 'vibes', v: .02, oct: 12 } },
@@ -206,7 +210,7 @@ export const ROTATION = {};
 for (const k in BASE) ROTATION[k] = Object.keys(TRACKS).filter((t) => t.indexOf(k + '_') === 0);
 // what each situation can play: its own arrangements first, plus related ones that fit the same feeling, so a long patrol
 // hears a wide rotation instead of two tracks back and forth (each kept to its mood: no pursuit music on a quiet street)
-const KIN = { title: ['day_1', 'night_1'], day: ['side_1', 'friend_2', 'debrief_2', 'title_1'], night: ['water_2', 'title_2', 'story_1'], inside: ['friend_1', 'debrief_1'],
+const KIN = { title: [], day: ['side_1', 'friend_2', 'debrief_2', 'title_1'], night: ['water_2', 'title_2', 'story_1'], inside: ['friend_1', 'debrief_1'],
   story: ['night_1', 'inside_2'], side: ['day_2', 'friend_2', 'day_1'], call: ['urgent_1'], urgent: ['call_1'], scene: ['inside_2'], debrief: ['title_2', 'friend_1'],
   friend: ['day_2', 'water_1', 'debrief_2'], water: ['friend_1', 'night_2', 'day_2'] };
 export const POOLS = {}; for (const k in ROTATION) POOLS[k] = ROTATION[k].concat((KIN[k] || []).filter((id) => TRACKS[id] && ROTATION[k].indexOf(id) < 0));
