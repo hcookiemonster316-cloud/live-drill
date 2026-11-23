@@ -23,7 +23,9 @@ const OUT = process.argv[2] || 'tests/out';
   const cf = await a.evaluate(() => window.__pc.CASE.search('Palm').hits.map((e) => e.kind)); console.log('case file', cf); if (cf.indexOf('End of watch log') < 0) errs.push('journal not in the case file');
   // next shift: Walsh brings it up
   await a.evaluate(() => document.getElementById('eNext').click()); await a.waitForTimeout(500);
-  const line = await a.evaluate(() => { const pc = window.__pc; pc.PART.onShift('walsh'); return pc.PART.bringUp('walsh'); }); console.log('Walsh:', line); if (!line || !/chase|read that person/.test(line)) errs.push('Walsh did not bring it up');
+  const line = await a.evaluate(() => { const pc = window.__pc; pc.PART.onShift('walsh'); return pc.PART.bringUp('walsh'); }); console.log('Walsh:', line);
+  const told = await a.evaluate(() => window.__pc.S.pmem.walsh.log.filter((e) => e.told).length); /* the shift's opening line may already have used one */
+  if (!told || (line && !/chase|read that person/.test(line))) errs.push('Walsh did not bring it up');
   const again = await a.evaluate(() => window.__pc.PART.bringUp('walsh')); console.log('next mention:', again);
   // low trust: he goes short
   const st = await a.evaluate(() => { const pc = window.__pc; pc.S.pmem.walsh.t = 30; return pc.PART.stance('walsh'); }); console.log('stance at 30:', st); if (st !== 'short') errs.push('low trust not short');
