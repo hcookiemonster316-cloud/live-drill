@@ -217,7 +217,14 @@ const perkHTML = (it) => it.perk ? '<ul class="pkList">' + perkLines(it.perk).ma
 const slotTag = (it) => it.slot ? '<span class="slTag">' + slotOf(it.slot).icon + ' ' + slotOf(it.slot).name + '</span>' : it.kind === 'use' ? '<span class="slTag">Use once</span>' : '<span class="slTag">Keepsake</span>';
 
 // ---------- the grand reveal ----------
+let HOLD = null, HELD = 0;
+/* the game can ask reveals to wait (a moment on screen the player shouldn't miss); a reveal waits at most 30 s */
+export const holdReveals = (f) => { HOLD = f; };
 export function reveal(item, where, opts) {
+  if (HOLD && HOLD() && HELD < 75) { HELD++; return new Promise((r) => setTimeout(() => r(reveal(item, where, opts)), 400)); }
+  HELD = 0; return reveal0(item, where, opts);
+}
+function reveal0(item, where, opts) {
   opts = opts || {};
   return new Promise((done) => {
     const R = RARITY[item.r], isNew = !!opts.isNew, el = document.createElement('div');
