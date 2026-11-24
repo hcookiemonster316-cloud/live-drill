@@ -67,7 +67,7 @@ export function installRecord(H) {
     let ph = 'pry', left = 2600, last = performance.now(), st = null; const bye = () => { const ps = H.peds(), i = ps.indexOf(w); if (i >= 0) ps.splice(i, 1); if (st) st.hide = 0; crew = null; };
     const step = () => { const n = performance.now(), dt = H.paused && H.paused() ? 0 : n - last; last = n; left -= dt; if (H.W() !== W) return bye();
       if (ph === 'pry' && left <= 0) { dress(W, did); st = W.props.find((p) => p.rec && p.down && p.x >= ox && p.x < ox + 11 && p.y >= oy && p.y < oy + 11); if (!st) return bye();
-        st.hide = Infinity; /* the stack only shows once it's set down */ w.wait = 0; w.path = [[st.x - .5, st.y - .2]]; w.rx = { k: 'carry', until: 1e15 }; ph = 'walk'; left = 9000; }
+        st.hide = Infinity; /* the stack only shows once it's set down */ w.wait = 0; const end = [st.x - .5, st.y - .2], way = H.route && H.route(w.x, w.y, end[0], end[1]); /* round the fences and the house, the way a person would */ w.path = way && way.length < 30 ? [...way.slice(0, -1), end] : [end]; w.rx = { k: 'carry', until: 1e15 }; ph = 'walk'; left = 14000; }
       else if (ph === 'walk' && (!w.path.length || left <= 0)) { w.path = []; w.wait = 1e9; w.x = st.x - .5; w.y = st.y - .2; st.hide = 0; const P2 = H.P(); w.face = (P2.x - w.x) - (P2.y - w.y) > 0 ? 1 : -1; w.back = false; w.moving = false; w.rx = Math.hypot(P2.x - w.x, P2.y - w.y) < 12 ? { k: 'wave', until: 1e15 } : null; ph = 'wave'; left = 1600; }
       else if (ph === 'wave' && left <= 0) return bye();
       setTimeout(step, 80); };

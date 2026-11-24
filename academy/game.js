@@ -137,23 +137,27 @@ const bad = () => { beep(392, .14, 'triangle', .035); beep(330, .22, 'triangle',
 let sirenT = 0;
 
 // ---------- pathfinding (A*, 8 directions for walking, 4 for driving) ----------
+let ASB = null;
 function astar(sx, sy, tx, ty, pass, diag, move) {
   sx = Math.floor(sx); sy = Math.floor(sy); tx = Math.floor(tx); ty = Math.floor(ty);
   if (!pass(tx, ty)) { const alt = nearest(tx, ty, pass); if (!alt) return null; [tx, ty] = alt; }
-  const NN = N * N, gS = new Float32Array(NN).fill(1e9), came = new Int32Array(NN).fill(-1), closed = new Uint8Array(NN), heap = [], hf = [];
+  /* the search buffers live across calls; a generation stamp marks which entries belong to this search, so nothing is allocated or cleared per path */
+  const NN = N * N; if (!ASB || ASB.n !== NN || ASB.gen > 4e9) ASB = { n: NN, g: new Float32Array(NN), came: new Int32Array(NN), seen: new Uint32Array(NN), shut: new Uint32Array(NN), gen: 0 };
+  const gen = ++ASB.gen, G = ASB.g, came = ASB.came, seen = ASB.seen, shut = ASB.shut, heap = [], hf = [];
+  const gS = (k) => (seen[k] === gen ? G[k] : 1e9), setG = (k, v, c) => { G[k] = v; came[k] = c; seen[k] = gen; };
   const h = (x, y) => { const dx = Math.abs(tx - x), dy = Math.abs(ty - y); return diag ? Math.max(dx, dy) + .414 * Math.min(dx, dy) : dx + dy; };
   const push = (k, f) => { heap.push(k); hf.push(f); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (hf[p] <= hf[i]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; [hf[p], hf[i]] = [hf[i], hf[p]]; i = p; } };
   const pop = () => { const top = heap[0], lk = heap.pop(), lf = hf.pop(); if (heap.length) { heap[0] = lk; hf[0] = lf; let i = 0; for (;;) { const l = i * 2 + 1, r = l + 1; let m = i; if (l < heap.length && hf[l] < hf[m]) m = l; if (r < heap.length && hf[r] < hf[m]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; [hf[m], hf[i]] = [hf[i], hf[m]]; i = m; } } return top; };
-  const s0 = sy * N + sx, goal = ty * N + tx; if (s0 < 0 || s0 >= NN) return null; gS[s0] = 0; push(s0, h(sx, sy)); let guard = 0;
+  const s0 = sy * N + sx, goal = ty * N + tx; if (s0 < 0 || s0 >= NN) return null; setG(s0, 0, -1); push(s0, h(sx, sy)); let guard = 0;
   const dirs = diag ? [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] : [[1, 0], [-1, 0], [0, 1], [0, -1]];
   while (heap.length && guard++ < 40000) {
-    const k = pop(); if (closed[k]) continue; closed[k] = 1;
+    const k = pop(); if (shut[k] === gen) continue; shut[k] = gen;
     if (k === goal) { const out = []; let c = k; while (c !== s0 && c >= 0) { out.push([c % N + .5, Math.floor(c / N) + .5]); c = came[c]; } return out.reverse(); }
     const x = k % N, y = (k - x) / N;
     for (const [dx, dy] of dirs) {
-      const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue; const nk = ny * N + nx; if (closed[nk] || !pass(nx, ny) || (move && !move(x, y, dx, dy))) continue;
+      const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue; const nk = ny * N + nx; if (shut[nk] === gen || !pass(nx, ny) || (move && !move(x, y, dx, dy))) continue;
       if (dx && dy && (!pass(x + dx, y) || !pass(x, y + dy))) continue;
-      const ng = gS[k] + (dx && dy ? 1.414 : 1); if (ng < gS[nk]) { gS[nk] = ng; came[nk] = k; push(nk, ng + h(nx, ny)); }
+      const ng = G[k] + (dx && dy ? 1.414 : 1); if (ng < gS(nk)) { setG(nk, ng, k); push(nk, ng + h(nx, ny)); }
     }
   }
   return null;
@@ -705,7 +709,7 @@ function rhythmTick() { if (!RHY || inside || !W) return; const h = hourNow(), k
   while (traffic.length < want) traffic.push(newCar()); if (traffic.length > want) traffic = traffic.filter((c, i) => c.bk || i < want);
   while (peds.length < wp) peds.push(newPed()); if (peds.length > wp) peds.length = wp; }
 const WL = installWatch({ S, hour: () => hourNow(), saveS: () => saveS() });
-const REC = installRecord({ S, paused: () => paused, ptnSay: (L) => { const pt = VAR.partner(); if (pt && L[pt.k]) setTimeout(() => radio(ptnName(pt), L[pt.k]), 2200); }, withPartner: () => { const pt = VAR.partner(); if (!pt || !PART.remember(null, null, { party: 1 })) return; ptnHud(true); const L = { walsh: 'Twenty-four years and nobody ever threw me a party. Don\'t get used to it. ...Get me a plate.', park: 'They made a plate for me too! Is this normal? This can\'t be normal.', castillo: 'Remember this one. On the bad nights, remember this one.' }[pt.k]; if (L) setTimeout(() => radio(ptnName(pt), L), 2600); }, log: (t) => WL.add('back', t, t), ally: (d) => REPS.ally(d), newPed: () => newPed(), sting: (k) => { try { if (S.sound && music && music.sting) music.sting(k); } catch (e) {} }, W: () => W, P: () => P, peds: () => peds, inside: () => !!inside, iso: (x, y) => iso(x, y), bubble: (...a) => bubble(...a), radio: (a, b) => radio(a, b), toast: (m) => toast(m), award: (...a) => award(...a), saveS: () => saveS(), shift: () => MEM.shiftNo, trust: (d, n) => { S.trust[d] = Math.max(0, Math.min(100, (S.trust[d] == null ? 50 : S.trust[d]) + n)); }, watch: (t) => WL.add('party', t, t) });
+const REC = installRecord({ S, paused: () => paused, route: (sx, sy, tx, ty) => astar(sx, sy, tx, ty, (a, b) => W.walkable(a, b) && !gateBlock(a, b) && W.at(a, b) !== T.WATER, true), ptnSay: (L) => { const pt = VAR.partner(); if (pt && L[pt.k]) setTimeout(() => radio(ptnName(pt), L[pt.k]), 2200); }, withPartner: () => { const pt = VAR.partner(); if (!pt || !PART.remember(null, null, { party: 1 })) return; ptnHud(true); const L = { walsh: 'Twenty-four years and nobody ever threw me a party. Don\'t get used to it. ...Get me a plate.', park: 'They made a plate for me too! Is this normal? This can\'t be normal.', castillo: 'Remember this one. On the bad nights, remember this one.' }[pt.k]; if (L) setTimeout(() => radio(ptnName(pt), L), 2600); }, log: (t) => WL.add('back', t, t), ally: (d) => REPS.ally(d), newPed: () => newPed(), sting: (k) => { try { if (S.sound && music && music.sting) music.sting(k); } catch (e) {} }, W: () => W, P: () => P, peds: () => peds, inside: () => !!inside, iso: (x, y) => iso(x, y), bubble: (...a) => bubble(...a), radio: (a, b) => radio(a, b), toast: (m) => toast(m), award: (...a) => award(...a), saveS: () => saveS(), shift: () => MEM.shiftNo, trust: (d, n) => { S.trust[d] = Math.max(0, Math.min(100, (S.trust[d] == null ? 50 : S.trust[d]) + n)); }, watch: (t) => WL.add('party', t, t) });
 const VAR = installVariety({ S, L, CALLS, P, partnerStart: (k) => PART.backLine(k) || PART.bringUp(k) || PART.startLine(k), trustAt: (x, y, n) => { const bx = Math.floor((x - 2) / 11), by = Math.floor((y - 2) / 11); if (bx < 0 || by < 0 || bx > 12 || by > 12) return; S.btrust = S.btrust || {}; const d = (S.btrust[W.did] = S.btrust[W.did] || {}), k = bx + ',' + by, was = d[k] || 0; d[k] = Math.max(-10, Math.min(10, was + n)); REC.moved(W.did, k, was, d[k]); S.trust[W.did] = Math.max(0, Math.min(100, (S.trust[W.did] == null ? 50 : S.trust[W.did]) + n * .5)); saveS(); }, arcBias: (c) => SARC.bias(c), partnerStart: (k) => rankLine(k) || PART.startLine(k), partnerBenched: (k) => PART.benched(k), clock: () => clock, hourNow: () => hourNow(), night: () => isNight(hourNow()), cold: () => !!(FX && FX.cold), did: () => W.did, lessons: () => W.D.lessons,
   radio: (w, m) => radio(w, m), chirp: () => chirp(), toast: (t) => toast(t), dialogue: (...a) => dialogue(...a), sayAs: (...a) => sayAs(...a), award: (...a) => award(...a), stat: (...a) => stat(...a), saveS: () => saveS(),
   call: () => call, callCard: () => callCard(), landmark: () => { const ls = W.lots.map((l) => l.name || (LANDMARKS[l.kind] || {}).name).filter(Boolean); return ls.length ? rnd(ls) : 'the plaza'; },
@@ -2396,7 +2400,15 @@ function placeOrders() { const r = $('radio'), o = $('orders'); if (!r || !o || 
 addEventListener('resize', placeOrders);
 const toastQ = []; let toastOn = false;
 function toast(t) { if (toastOn && $('toast').dataset.t === t) return; if (toastQ.indexOf(t) >= 0) return; if (toastQ.length >= 3) toastQ.shift(); toastQ.push(t); pumpToast(); }
-function pumpToast() { if (toastOn || !toastQ.length) return; const el = $('toast'); el.textContent = el.dataset.t = toastQ.shift(); el.hidden = false; toastOn = true; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; toastOn = false; setTimeout(pumpToast, 250); }, toastQ.length ? 2600 : 3800); }
+/* a toast never sits on top of what it's telling you about: if the neighbor at work (or you) would be under it, it drops to just above the bottom bar, and follows while it's up */
+let TDT = 0;
+function toastDodge() { const el = $('toast'); if (el.hidden) return; const spots = [[P.x, P.y]], cw = REC.crew; if (cw) spots.unshift([cw.x, cw.y]);
+  const hit = (r) => spots.some(([x, y]) => { const [sx, sy] = window.__pc.scr(x, y); return sx > r.left - 20 && sx < r.right + 20 && sy - 70 * cam.z < r.bottom + 8 && sy + 8 > r.top; });
+  const low = el.classList.contains('low'); el.classList.remove('low'); el.style.bottom = ''; const up = hit(el.getBoundingClientRect());
+  const cc = $('callCard'), ccr = cc && !cc.hidden && cc.offsetParent ? cc.getBoundingClientRect() : null; el.style.bottom = ccr ? innerHeight - ccr.top + 8 + 'px' : ''; /* above the call card when one is up */
+  el.classList.add('low'); const down = hit(el.getBoundingClientRect());
+  const lo = up && !down ? true : !up ? false : low; el.classList.toggle('low', lo); if (!lo) el.style.bottom = ''; clearTimeout(TDT); if (toastOn) TDT = setTimeout(toastDodge, 300); }
+function pumpToast() { if (toastOn || !toastQ.length) return; const el = $('toast'); el.textContent = el.dataset.t = toastQ.shift(); el.hidden = false; toastOn = true; toastDodge(); clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; toastOn = false; setTimeout(pumpToast, 250); }, toastQ.length ? 2600 : 3800); }
 $('bCar').onclick = () => { if (inside) { toast('Head outside first. The door is the glowing spot by the exit.'); return; } if (P.boat) exitBoat(); else if (P.inCar) exitCar(); else if (pcar) { if (Math.hypot(pcar.x - P.x, pcar.y - P.y) < 2.2) enterCar(); else { toast('Walking back to your ' + U().ride.label.toLowerCase() + '.'); goTo(pcar.x, pcar.y, enterCar); } } };
 $('bMap').onclick = () => { jTab = chStep() ? 'story' : 'map'; journal(); }; $('bLock').onclick = locker;
 $('bPause').onclick = () => pauseMenu();
