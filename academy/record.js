@@ -25,9 +25,10 @@ export function installRecord(H) {
         if (!board({ v: seed % 2 })) put('board', ox + SIDE[1], y, { v: seed % 2 }); put('litter', ox + SIDE[3], y, { v: seed % 3 }); if (v <= -7 && !board({ v: (seed + 1) % 2 })) putAny('board', [ox + SIDE[2], ox + SIDE[0], ox + 3.5, ox + 8.5, ox + 9.5], y, { v: (seed + 1) % 2 }); } });
     const pt = party(did); if (pt) { const [bx, by] = pt.k.split(',').map(Number), ox = 2 + bx * 11, oy = 2 + by * 11; put('lights', ox + 3.5, oy + 8.5); put('stall', ox + 5.5, oy + 9.5, { color: '#1f7a5a' }); put('lights', ox + 6.5, oy + 8.5); }
   }
+  const blockName = (did, k) => { const W = H.W(); if (!W || W.did !== did) return ''; const l = W.lots.find((x) => x.bx + ',' + x.by === k && x.name); return l ? l.name : ''; };
   // tiers, so the street only re-dresses when a block crosses one
   const tier = (v) => (v >= 7 ? 2 : v >= 4 ? 1 : v <= -7 ? -2 : v <= -4 ? -1 : 0);
-  function moved(did, k, before, after) { note(did, k, after); if (tier(before) !== tier(after)) { dress(H.W(), did); if (tier(after) > tier(before) && after >= 4) H.toast('🌼 People on this block are fixing up their storefronts.'); else if (tier(after) < tier(before) && after <= -4) H.toast('🪵 Plywood is going up on this block. People here don\'t trust you.'); }
+  function moved(did, k, before, after) { note(did, k, after); if (tier(before) !== tier(after)) { dress(H.W(), did); const nm = blockName(did, k); if (tier(after) > tier(before) && after >= 4) { H.toast('🌼 People on this block are fixing up their storefronts.'); if (H.log) H.log(tier(after) === 2 ? 'Somebody put a bench out' + (nm ? ' on ' + nm + '\'s block' : '') + '. People sit out there now when you drive by.' : 'Storefronts are getting fixed up' + (nm ? ' on ' + nm + '\'s block' : '') + '. They trust you there now.'); } else if (tier(after) < tier(before) && after <= -4) { H.toast('🪵 Plywood is going up on this block. People here don\'t trust you.'); if (H.log) H.log('Plywood went up' + (nm ? ' on ' + nm + '\'s block' : '') + '. People there stopped trusting you.'); } }
     maybeParty(did, k, after); }
   // a block that was trouble (-3 or lower) and now trusts you (8+) throws a party, once
   function maybeParty(did, k, v) { const m = (S.bmin || {})[did] || {}; S.bparty = S.bparty || {}; if (v < 8 || (m[k] == null ? 0 : m[k]) > -3 || S.bparty[did + ':' + k]) return;

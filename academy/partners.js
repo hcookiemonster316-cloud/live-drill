@@ -93,7 +93,8 @@ export function installPartners(H) {
   // what happened, and how much it moves their trust
   function remember(c, r, ext) {
     const p = H.partner(); if (!p) return 0; const m = PM(p.k); let d = 0, good = null, what = '';
-    if (ext && ext.pur) { if (ext.pur === 'term' && !ext.ordered) { d = 6; good = true; what = 'called off that chase before it went bad'; } else if (ext.pur === 'term' && ext.ordered) { d = -2; good = false; what = 'kept chasing until the sergeant had to call it'; } else if (ext.pur === 'air') { d = 4; good = true; what = 'handed that chase to Air One'; } }
+    if (ext && ext.court) { const k = ext.court; if (k.honest === false) { d = -4; good = false; what = 'stood behind a report that was wrong, on the stand'; } else if (k.honest) { d = 3; good = true; what = 'owned a mistake on the stand instead of covering it'; } else if (k.v === 'held') { d = 2; good = true; what = 'testified and the case held'; } }
+    else if (ext && ext.pur) { if (ext.pur === 'term' && !ext.ordered) { d = 6; good = true; what = 'called off that chase before it went bad'; } else if (ext.pur === 'term' && ext.ordered) { d = -2; good = false; what = 'kept chasing until the sergeant had to call it'; } else if (ext.pur === 'air') { d = 4; good = true; what = 'handed that chase to Air One'; } }
     else if (c && c.title) { const all = r && r.n && r.right === r.n;
       if (c.wrap === 'quick' && c.prio <= 2) { d = -4; good = false; what = 'left that ' + c.title.toLowerCase() + ' before it was done'; }
       else if (c.way === 'enforce' && c.rules && c.rules.intent === 'calm') { d = -4; good = false; what = 'came in hard on a calm person at ' + (c.where || 'that call'); }

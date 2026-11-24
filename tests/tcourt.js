@@ -23,6 +23,7 @@ const { chromium } = require('playwright');
   const ensure = async (n, want) => { for (let k = 0; k < 2; k++) { if (await a.waitForFunction((n) => window.__pc.S.court.hist.length >= n, n, { timeout: 15000 }).then(() => true).catch(() => false)) return true;
     console.log('retrying testimony', JSON.stringify(await a.evaluate(() => ({ dlg: document.getElementById('dlg').hidden, dt: document.getElementById('dlg').innerText.slice(0, 120), modal: document.getElementById('modal').hidden, mt: document.getElementById('modal').innerText.slice(0, 80), pend: window.__pc.S.court.pend.length, hist: window.__pc.S.court.hist.length }))));
     await idle(); await a.evaluate(() => { const pc = window.__pc, P = pc.S.court.pend; if (P.length) pc.COURT.testify(P[P.length - 1]); }); await drive(want); } return false; };
+  await a.evaluate(() => { window.__pc.S.vpart = 'walsh'; }); /* a partner rides along and hears the testimony */
   // a pursuit arrest whose report missed once
   await a.evaluate(() => { const pc = window.__pc; pc.COURT.file({ how: 'term', wrong: 1, filed: true, procOk: 3, where: 'Palm Ave' }); });
   const th = await a.evaluate(() => { window.__pc.EP.board(); const t = [...document.querySelectorAll('.mbThread')].map((x) => x.innerText.replace(/\s+/g, ' ')); window.__pc.closeModal(); return t; });
@@ -38,6 +39,7 @@ const { chromium } = require('playwright');
   const h = await a.evaluate(() => window.__pc.S.court); console.log('court', JSON.stringify(h));
   const last = h.hist[h.hist.length - 1] || {}; if (last.honest !== true || last.paper !== 1) errs.push('owning the mistake was not credited'); if (h.pend.length) errs.push('case still pending');
   if (!seen.some((x) => /^C:.*The radio log\. My report/.test(x))) errs.push('the defense did not raise the report');
+  const pl = await a.evaluate(() => ((window.__pc.S.pmem || {}).walsh || { log: [] }).log.map((e) => e.w)); console.log('walsh remembers', JSON.stringify(pl)); if (!pl.some((w) => /owned a mistake on the stand/.test(w))) errs.push('partner did not hear the testimony');
   const cf = await a.evaluate(() => window.__pc.CASE.search('courthouse Palm').hits.map((e) => e.kind + ': ' + e.text)); console.log('case file', JSON.stringify(cf)); if (!cf.some((t) => /^Court transcript/.test(t))) errs.push('verdict not in the case file');
   await idle();
   // a clean report: the defense lets it go

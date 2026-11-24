@@ -18,6 +18,7 @@ const { chromium } = require('playwright');
     pc.S.btrust[did][kg] = 2; pc.blockTrust(3); const at5 = rec(); const toast1 = [...document.querySelectorAll('.toast,#toast')].map((x) => x.innerText).join(' | ');
     pc.blockTrust(3); const at8 = rec(); const party = JSON.stringify(pc.S.bparty || {});
     return { did, kg, kb, at5, at8, party, toast1 }; });
+  const wl = await a.evaluate(() => window.__pc.WL.log.map((x) => x.text)); console.log('shift log', JSON.stringify(wl).slice(0, 300)); if (!wl.some((t) => /Storefronts are getting fixed up/.test(t))) errs.push('the shift log missed the block coming around');
   console.log('blocks', r.kg, r.kb); console.log('at +5', r.at5.join(' ')); console.log('at +8', r.at8.join(' ')); console.log('party', r.party);
   if (!r.at5.some((x) => x === 'flowers@' + r.kg)) errs.push('no flowers on a block at +5');
   if (!r.at8.some((x) => x === 'bench@' + r.kg)) errs.push('no bench on a block at +8');

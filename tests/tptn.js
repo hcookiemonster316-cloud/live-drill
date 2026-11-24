@@ -10,7 +10,7 @@ const { chromium } = require('playwright');
   const r1 = await a.evaluate(() => { const pc = window.__pc; pc.S.vpart = 'walsh'; pc.ptnHud(); const el = document.getElementById('hPtn'); return { hidden: el.hidden, text: el.innerText.replace(/\s+/g, ' '), cls: el.className, on: el.querySelectorAll('.pip i.on').length }; });
   console.log('hud', JSON.stringify(r1)); if (r1.hidden || !/Walsh/.test(r1.text) || !/has your back/.test(r1.text) || r1.on !== 4) errs.push('partner HUD wrong: ' + JSON.stringify(r1));
   // a call that goes well moves it up and pulses
-  const r2 = await a.evaluate(() => { const pc = window.__pc; const d = pc.PART.remember({ title: 'Noise complaint', where: 'Main St', prio: 3 }, { right: 3, n: 3 }); pc.ptnHud(true); const el = document.getElementById('hPtn'); return { d, t: pc.PART.trust('walsh'), cls: el.className, last: pc.PART.last }; });
+  const r2 = await a.evaluate(() => { const pc = window.__pc; const d = pc.PART.remember({ title: 'Noise complaint', where: 'Main St', prio: 3 }, { right: 3, n: 3 }); pc.ptnHud(true); return { d, t: pc.PART.trust('walsh'), last: pc.PART.last }; }); r2.cls = await a.waitForFunction(() => /\bup\b/.test(document.getElementById('hPtn').className) && document.getElementById('hPtn').className, null, { timeout: 3000 }).then((h) => h.jsonValue()).catch(() => ''); /* the pulse starts a frame or two later */
   console.log('after', JSON.stringify(r2)); if (r2.d !== 2 || r2.t !== 74 || !/\bup\b/.test(r2.cls)) errs.push('trust did not rise and pulse: ' + JSON.stringify(r2));
   // no partner: hidden
   const r3 = await a.evaluate(() => { const pc = window.__pc; pc.S.vpart = null; pc.ptnHud(); return document.getElementById('hPtn').hidden; }); if (!r3) errs.push('HUD shows a partner when riding alone');
