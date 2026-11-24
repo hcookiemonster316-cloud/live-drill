@@ -875,7 +875,7 @@ function revealAround(cx, cy, r) {
   let changed = false; const a = EXA;
   for (let y = Math.floor(cy - r); y <= cy + r; y++) for (let x = Math.floor(cx - r); x <= cx + r; x++) { if (x < 0 || y < 0 || x >= N || y >= N) continue; const i = y * N + x; if (a[i] || Math.hypot(x + .5 - cx, y + .5 - cy) > r) continue; a[i] = 1; changed = true; if (W.g[i] !== T.WATER) exCount++; if (fogC) fogC.getContext('2d').clearRect(x * fogC.width / N, y * fogC.height / N, fogC.width / N + .6, fogC.height / N + .6); }
   if (!changed) { exFlush(false); return; } exDirty = 1; exFlush(false);
-  const pct = Math.floor(exCount / exTotal * 100), done = S.mile[exKey()] || 0; $('hExp').textContent = 'Explored ' + pct + '%';
+  const pct = Math.floor(exCount / exTotal * 100), done = S.mile[exKey()] || 0; { const he = $('hExp'), tx = 'Explored ' + pct + '%'; if (he.textContent !== tx) he.textContent = tx; } /* only when the number changes */
   const next = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100].find((m) => m > done && pct >= m);
   if (next) { S.mile[exKey()] = next; saveS(); banner('🧭', 'Explorer · ' + next + '% of ' + W.D.name, next === 100 ? 'Every street walked. The district knows your name.' : 'Keep wandering. There is more out there.'); queueLoot('Exploration reward: ' + next + '%', 1, next === 100 ? 'r' : next >= 50 ? 'u' : 'c'); award(10 + next, 'exploration'); }
 }
@@ -1830,6 +1830,7 @@ function moodNow() {
   if (scene) return 'scene';
   if (call && call.accepted && (call.prio === 1 || BUFF.speedTo > clock)) return 'urgent';
   if (call) return 'call';
+  if (!inside && REC.atParty) return 'party'; // a block party plays its own song
   if (inside) return 'inside';
   if (P.boat) return 'water';
   const h = hourNow(); return h >= 19 || h < 6 ? 'night' : 'day';
@@ -2771,7 +2772,7 @@ function onPlayers(all, uid) {
     Object.assign(o, { n: v.n, f: v.f, u: v.u, sh: v.s, tx: v.x, ty: v.y, c: v.c, v: v.v, d: v.d, st: v.st, q: v.q, b: v.b, a: v.a, g: v.g || null, k: v.k || null, r: v.r }); if (S.squad && v.g === S.squad.code && !o.sqHello) { o.sqHello = 1; toast('🛡️ Squadmate ' + v.c + ' is on shift nearby.'); }
   });
   Object.keys(others).forEach((k) => { if (!seen[k]) delete others[k]; });
-  $('hOn').textContent = (Object.keys(others).length + 1) + ' on shift';
+  { const ho = $('hOn'), tx = (Object.keys(others).length + 1) + ' on shift'; if (ho.textContent !== tx) ho.textContent = tx; }
 }
 let DRAWN_OTHERS = 0, rankT = 0;
 function rankOthers(dt) { rankT -= dt; if (rankT > 0) return; rankT = .5; const ks = Object.keys(others); DRAWN_OTHERS = ks.length; ks.map((k) => [k, Math.hypot(others[k].rx - P.x, others[k].ry - P.y)]).sort((a, b) => a[1] - b[1]).forEach(([k], i) => { others[k].nearRank = i; }); }

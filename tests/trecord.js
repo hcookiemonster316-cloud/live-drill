@@ -29,6 +29,7 @@ const { chromium } = require('playwright');
   await a.waitForFunction(() => Object.values(window.__pc.S.bparty || {}).some((p) => p.seen), null, { timeout: 8000 }).catch(() => errs.push('stopping by the party did nothing'));
   await a.waitForFunction(() => Object.values(window.__pc.S.bparty || {}).some((p) => p.ally), null, { timeout: 8000 }).catch(() => errs.push('the regular who turned it around was not at the party'));
   const g = await a.evaluate(() => window.__pc.REC._peds().filter((p) => p.party).length); console.log('party guests', g); if (g < 5) errs.push('no crowd at the block party');
+  const pm = await a.evaluate(async () => ({ at: window.__pc.REC.atParty, mp3: (await fetch('music/party_1.mp3', { method: 'HEAD' })).ok })); console.log('party music', JSON.stringify(pm)); if (!pm.at || !pm.mp3) errs.push('the block party does not play its song');
   // 4) people wave on the good block
   const waved = await a.evaluate(() => { const pc = window.__pc, P = pc.P, ps = pc.peds || []; return ps.length; });
   const rx = await a.evaluate(async () => { const pc = window.__pc, P = pc.P; const ps = pc.REC._peds(); if (!ps.length) return 'no peds'; const p = ps.find((x) => !x.party); p.x = P.x + 1.5; p.y = P.y; p._rxDone = 0; p.rx = null; const r0 = Math.random; Math.random = () => 0; pc.REC.tick(1); Math.random = r0; return p.rx ? p.rx.k : 'none'; });

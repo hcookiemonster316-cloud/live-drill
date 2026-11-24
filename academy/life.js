@@ -113,7 +113,7 @@ export function installLife(H) {
   const rpMult = () => (S.car.dirt < .15 ? 1.05 : 1);
   const ride = (base) => { if (S.car.skinSpec) return Object.assign({}, base, { stripe: S.car.skinSpec.stripe, text: S.car.skinSpec.text }); const d = DECALS.find((x) => x[0] === S.car.decal); return d ? Object.assign({}, base, { stripe: d[1] }) : base; };
   function carHud() {
-    const el = H.$('carHud'); if (!el) return; const P = H.P; if (!P.inCar || H.inside || H.rideKind() === 'bike' || H.rideKind() === 'horse') { el.hidden = true; return; } el.hidden = false; const c = S.car;
+    const el = H.$('carHud'); if (!el) return; const P = H.P; if (!P.inCar || H.inside || H.rideKind() === 'bike' || H.rideKind() === 'horse') { if (!el.hidden) el.hidden = true; return; } if (el.hidden) el.hidden = false; const c = S.car;
     el.innerHTML = '<span title="Fuel">⛽<i style="--v:' + c.fuel + '"></i></span><span title="Clean">🧽<i style="--v:' + (1 - c.dirt) + '"></i></span><span title="Condition">🔧<i style="--v:' + (1 - c.wear) + '"></i></span>';
   }
   let hudT = 0;

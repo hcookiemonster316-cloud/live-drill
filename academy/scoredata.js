@@ -68,6 +68,8 @@ const SUB = {
 // more melodies: every district, unit and shift, and the second arrangement of several situations, has a tune of its own.
 // The hook still opens or closes most of them (intros, outros, B sections), so the score stays one family.
 const MEL = {
+  // the block party: a horn call answered by the street, then the call again an octave up, and it lands home
+  party: '4:1/2 4:1/2 5:1/2 7:1 5:1/2 4:1 2:1 4:1/2 2:1/2 0:2 0:1/2 2:1/2 4:1 5:1/2 4:1/2 2:1 r:1/2 4:1/2 5:1 4:2 7:1/2 7:1/2 9:1/2 11:1 9:1/2 7:1 5:1 7:1/2 6:1/2 4:2 5:1/2 4:1/2 2:1 4:1/2 5:1/2 4:1 2:1/2 1:1/2 0:3',
   founders: '0:1 4:1 7:3/2 6:1/2 5:1 4:1 2:2 3:1 5:1 8:3/2 7:1/2 6:3 r:1 7:1/2 8:1/2 9:1 7:1 5:1 6:1/2 7:1/2 8:1 6:1 4:1 5:1 3:1 4:1/2 2:1/2 1:1 0:3 r:1',
   cornerstore: 'r:1/2 2:1/2 3:1/2 4:1 2:1/2 0:1 2:1/2 3:1/2 2:1/2 0:1/2 -1:1 0:1 r:1/2 2:1/2 3:1/2 4:1 6:1/2 7:1 6:1/2 4:1/2 3:1 4:2 7:1 6:1/2 4:1/2 6:1 4:1 3:1/2 4:1/2 3:1/2 2:1/2 0:2 2:1 3:1 4:1/2 6:1/2 4:1 2:1/2 0:1/2 0:3',
   riverpark: '2:1 4:1 9:2 8:1 7:1 4:2 5:1 6:1 7:3/2 4:1/2 5:4 2:1 4:1 9:3/2 11:1/2 10:1 9:1 7:2 8:1/2 7:1/2 6:1 5:1 3:1 4:4',
@@ -157,6 +159,9 @@ export const TRACKS = {
     band: { rhodes: { pat: 'push', v: .028 }, bass: { pat: 'walk', v: .08 } }, drums: { pat: 'brush', v: .5 }, lead: { voice: 'flute', v: .038, oct: 12 }, leadB: { voice: 'vibes', v: .028, oct: 12 } },
   friend_2: { name: 'Saturday at the Plaza', bpm: 102, root: 67, scale: 'mix', form: true, themeA1: JT.frag, intro: 'bass', outro: 'motif', outroTheme: SUB.outM, swing: .12, prog: JF.porch, progB: JF.lift, theme: JT.main, themeB: JT.bridge,
     band: { clav: { v: .016 }, rhodes: { pat: 'funk', v: .024 }, horns: { v: .016 }, bass: { pat: 'funk', v: .09 } }, drums: { pat: 'lowride', v: .75 }, lead: { voice: 'mute', v: .034, oct: 12 }, leadB: { voice: 'flute', v: .036, oct: 12 } },
+  // ---- a block that turned around throws a party ----
+  party_1: { name: 'Block Party', bpm: 108, root: 67, scale: 'mix', form: true, intro: 'drums', outro: 'motif', outroTheme: SUB.outM, swing: .1, prog: JF.porch, progB: JF.lift, theme: MEL.party, themeB: JT.main,
+    band: { clav: { v: .018 }, rhodes: { pat: 'funk', v: .024 }, horns: { v: .018 }, wah: { v: .012 }, bass: { pat: 'funk', v: .095 } }, drums: { pat: 'lowride', v: .8 }, lead: { voice: 'horns', v: .036, oct: 12 }, leadB: { voice: 'sax', v: .04, oct: 0 } },
   // ---- marine patrol ----
   water_1: { name: 'Marine Patrol', bpm: 86, root: 62, scale: 'mix', form: true, intro: 'drums', outro: 'motif', outroTheme: SUB.outM, swing: .14, prog: JF.porch, progB: JF.lift, theme: MEL.harbor, themeB: JT.main,
     band: { rhodes: { pat: 'push', v: .024 }, bass: { pat: 'funk', v: .08 } }, drums: { pat: 'lowride', v: .6 }, lead: { voice: 'vibes', v: .032, oct: 12 }, leadB: { voice: 'flute', v: .036, oct: 12 } },
@@ -219,6 +224,7 @@ export const META = {}; for (const k in TRACKS) META[k] = { name: TRACKS[k].name
 // which tracks play for each situation, in rotation
 export const ROTATION = {};
 for (const k in BASE) ROTATION[k] = Object.keys(TRACKS).filter((t) => t.indexOf(k + '_') === 0);
+ROTATION.party = ['party_1']; // its own mood: only at a block party
 // what each situation can play: its own arrangements first, plus related ones that fit the same feeling, so a long patrol
 // hears a wide rotation instead of two tracks back and forth (each kept to its mood: no pursuit music on a quiet street)
 const KIN = { title: [], day: ['side_1', 'friend_2', 'debrief_2', 'title_1'], night: ['water_2', 'title_2', 'story_1'], inside: ['friend_1', 'debrief_1'],
