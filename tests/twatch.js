@@ -29,4 +29,10 @@ const OUT = process.argv[2] || 'tests/out';
   const again = await a.evaluate(() => window.__pc.PART.bringUp('walsh')); console.log('next mention:', again);
   // low trust: he goes short
   const st = await a.evaluate(() => { const pc = window.__pc; pc.S.pmem.walsh.t = 30; return pc.PART.stance('walsh'); }); console.log('stance at 30:', st); if (st !== 'short') errs.push('low trust not short');
+  // the field journal's Your watch tab tells the career shift by shift
+  await a.evaluate(() => { const pc = window.__pc; pc.closeModal && pc.closeModal(); pc.S.court = pc.S.court || { pend: [], hist: [] }; pc.S.court.hist.push({ v: 'held', how: 'arrest', where: 'Oak St', sh: 0 }); pc.journalTab('watch'); });
+  await a.waitForSelector('.wkTiles', { timeout: 8000 }).catch(() => errs.push('Your watch tab did not open'));
+  const wk = await a.evaluate(() => ({ tiles: [...document.querySelectorAll('.wkT')].map((x) => x.innerText.replace(/\s+/g, ' ')), shifts: document.querySelectorAll('.wkS').length, first: (document.querySelector('.wkS') || {}).innerText, partners: [...document.querySelectorAll('.wkP')].map((x) => x.innerText.replace(/\s+/g, ' ')) }));
+  console.log('your watch', JSON.stringify(wk).slice(0, 600)); if (wk.shifts !== 1 || !/Called off the pursuit/.test(wk.first || '') || !wk.tiles.some((t) => /^1 shift logged/.test(t)) || !wk.partners.some((p) => /Walsh/.test(p))) errs.push('Your watch is missing the career');
+  await a.screenshot({ path: OUT + '/twatch_journal.png' });
   console.log(errs.length ? errs.slice(0, 4).join('\n') : 'no errors'); await b.close(); process.exit(errs.length ? 1 : 0); })();

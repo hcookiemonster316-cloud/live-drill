@@ -49,7 +49,7 @@ export function installRecord(H) {
     const ps = H.peds(); guests.forEach((g) => ps.unshift(g)); }
   let sway = 0, heard = false;
   function partyTick(dt, P) { const pt = party(H.W().did); crowd(pt); if (!pt) return; sway += dt; if (sway > 1.1) { sway = 0; guests.forEach((g, i) => { if (Math.random() < .5) g.face = -g.face; if (Math.random() < .35) g.rx = { k: i % 3 ? 'note' : 'party', until: performance.now() + 1400 }; }); }
-    const [bx, by] = pt.k.split(',').map(Number), near = Math.hypot(P.x - (2 + bx * 11 + 5), P.y - (2 + by * 11 + 9)) < 6; if (near && !heard) { heard = true; if (H.sting) H.sting('gradeS'); } else if (!near) heard = false; }
+    const [bx, by] = pt.k.split(',').map(Number), near = Math.hypot(P.x - (2 + bx * 11 + 5), P.y - (2 + by * 11 + 9)) < 6; if (near && !heard) { heard = true; if (H.sting) H.sting('gradeS'); const al = H.ally ? H.ally(H.W().did) : null; if (al && !pt.ally) { pt.ally = al; H.saveS(); setTimeout(() => H.toast('🍽️ ' + al + ' is here. Holding two plates, and one of them is for you.'), 1600); if (H.watch) H.watch(al + ' was at the block party. A year ago you were taking reports on him.'); } } /* a regular who turned it around shows up */ else if (!near) heard = false; }
   const RX = { wave: ['👋', '#22c55e'], away: ['😒', '#6b7280'], note: ['🎵', '#f5b800'], party: ['🎉', '#f472b6'] };
   function draw(now) { if (H.inside()) return; H.peds().forEach((p) => { if (!p.rx || p.rx.until < now) return; const [sx, sy] = H.iso(p.x, p.y); const r = RX[p.rx.k] || RX.wave; H.bubble(sx, sy - 44, r[0], r[1], now); }); }
   return { dress, moved, note, tick, draw, party, tier, _peds: () => H.peds() };

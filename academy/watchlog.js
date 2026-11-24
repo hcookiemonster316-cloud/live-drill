@@ -31,5 +31,14 @@ export function installWatch(H) {
     const e = { sh: o.sh, at: Date.now(), shift: o.shift, district: o.district, grade: o.grade, lines: log.map((x) => x.t + ' · ' + x.text), why };
     J().push(e); if (J().length > 60) J().splice(0, J().length - 60); H.saveS(); log = []; return e; }
   const html = (e, esc) => '<div class="ewLog"><b>END OF WATCH</b>' + (e.lines.length ? '<ol>' + e.lines.slice(-8).map((l) => '<li>' + esc(l) + '</li>').join('') + '</ol>' : '<p>No calls logged.</p>') + '<p class="ewWhy">' + esc(e.why) + '</p></div>';
-  return { start, add, call, pursuit, regular, back, court, scene, partner, close, html, get log() { return log; } };
+  // your watch, in the field journal: the career told shift by shift, newest first, with what it all added up to
+  function screen(esc, T) {
+    const J0 = J(), c = (S.court && S.court.hist) || [], n = (v) => c.filter((h) => h.v === v).length, reps = Object.values(S.reps || {}), parties = Object.keys(S.bparty || {}).length;
+    const tile = (big, small) => '<div class="wkT"><b>' + big + '</b><small>' + small + '</small></div>';
+    const tiles = '<div class="wkTiles">' + tile(J0.length, J0.length === 1 ? 'shift logged' : 'shifts logged') + tile(n('held') + '<i>·</i>' + n('plea') + '<i>·</i>' + n('lost'), 'held · plea · lost in court') + tile(parties, parties === 1 ? 'block turned around' : 'blocks turned around') + (reps.some((r) => r.done) ? tile(reps.filter((r) => r.done === 'good').length + ' of ' + reps.filter((r) => r.done).length, 'regulars who turned it around') : tile(reps.length, reps.length === 1 ? 'regular you know' : 'regulars you know')) + '</div>';
+    const pts = (T.partners || []).map((p) => '<div class="wkP ' + p.st + '"><b>' + esc(p.name) + '</b><u><s style="--w:' + p.t + '%"></s></u><small>' + esc(p.word) + '</small></div>').join('');
+    const best = J0.length ? J0.reduce((a, e) => ('DCBAS'.indexOf(e.grade) > 'DCBAS'.indexOf(a.grade) ? e : a), J0[0]) : null;
+    const rows = J0.slice().reverse().map((e, i) => '<details class="wkS"' + (i === 0 ? ' open' : '') + '><summary><span class="wkG g' + esc(e.grade) + '">' + esc(e.grade) + '</span><b>Shift ' + (e.sh + 1) + ' · ' + esc(e.shift) + '</b><small>' + esc(e.district) + (e === best && J0.length > 2 ? ' · your best shift' : '') + '</small><em>' + esc(e.why) + '</em></summary>' + (e.lines.length ? '<ol>' + e.lines.map((l) => '<li>' + esc(l) + '</li>').join('') + '</ol>' : '<p>No calls logged.</p>') + '</details>').join('');
+    return tiles + (pts ? '<div class="jSec"><b>Partners</b></div><div class="wkPs">' + pts + '</div>' : '') + '<div class="jSec"><b>Shift by shift</b></div>' + (rows || '<p class="lkSum">Finish a shift and its End of Watch log lands here.</p>'); }
+  return { start, add, call, pursuit, regular, back, court, scene, partner, close, html, screen, get log() { return log; } };
 }
