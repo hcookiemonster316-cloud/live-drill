@@ -50,5 +50,5 @@ const { chromium } = require('playwright');
   if (fin.good < 2 || fin.bad < 1) errs.push('court record not in how you worked');
   await a.evaluate(() => [...document.body.children].forEach((x) => { if (!/^(view|vign|hTop|hBot)$/.test(x.id)) x.style.visibility = 'hidden'; }));
   await a.waitForTimeout(500); await a.screenshot({ path: (process.argv[2] || 'tests/out') + '/trecord.png' });
-  await a.evaluate((kb) => { const P = window.__pc.P, [bx, by] = kb.split(',').map(Number); P.x = 2 + bx * 11 + 5; P.y = 2 + by * 11 + 11; }, r.kb); await a.waitForTimeout(700); await a.screenshot({ path: (process.argv[2] || 'tests/out') + '/trecord_bad.png' });
+  await a.evaluate((kb) => { const P = window.__pc.P, [bx, by] = kb.split(',').map(Number); P.x = 2 + bx * 11 + 5; P.y = 2 + by * 11 + 11; P.path = []; }, r.kb); await a.waitForTimeout(3000); await a.screenshot({ path: (process.argv[2] || 'tests/out') + '/trecord_bad.png' });
   console.log(errs.length ? errs.slice(0, 4).join('\n') : 'no errors'); await b.close(); process.exit(errs.length ? 1 : 0); })();

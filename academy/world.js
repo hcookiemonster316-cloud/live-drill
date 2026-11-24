@@ -662,7 +662,7 @@ function mini(g, tx, x, y, w, d, h, base, color) {
 }
 
 // props are drawn once into a small cached sprite per look (trees sway by sliding the sprite); animated ones still draw live
-const PROPC = new Map(), PROP_STATIC = new Set(['board', 'litter', 'lights', 'hydrant', 'bin', 'bush', 'flowers', 'stall', 'cone', 'bench', 'pump', 'canopy', 'crate', 'scrap', 'hoop', 'lumberstack', 'lamp']);
+const PROPC = new Map(), PROP_STATIC = new Set(['chalk', 'tag', 'board', 'litter', 'lights', 'hydrant', 'bin', 'bush', 'flowers', 'stall', 'cone', 'bench', 'pump', 'canopy', 'crate', 'scrap', 'hoop', 'lumberstack', 'lamp']);
 const PPX = new Map();
 // a prop drawn at 3x, its solid parts turned into pixel art and its see-through dark parts (ground shadows) kept soft
 function propPix(q, night) {
@@ -700,6 +700,13 @@ export function drawProp(g, p, sx, sy, t, night) {
       g.fillStyle = v ? '#b8935f' : '#c9a46c'; g.fillRect(sx - 10, sy - 26, 20, 26); g.fillStyle = 'rgba(80,55,25,.35)'; for (let k = 0; k < 4; k++) g.fillRect(sx - 10, sy - 24 + k * 6, 20, 1);
       g.strokeStyle = '#8a6a3e'; g.lineWidth = 2; g.beginPath(); g.moveTo(sx - 9, sy - 25); g.lineTo(sx + 9, sy - 1); g.moveTo(sx + 9, sy - 25); g.lineTo(sx - 9, sy - 1); g.stroke();
       g.fillStyle = '#3a3a3a'; [[-8, -24], [8, -24], [-8, -2], [8, -2]].forEach(([x, y]) => g.fillRect(sx + x, sy + y, 1.5, 1.5)); if (v) { g.fillStyle = 'rgba(190,40,60,.75)'; g.fillRect(sx - 7, sy - 15, 9, 3); g.fillRect(sx + 1, sy - 10, 6, 2); } return; }
+    case 'chalk': { /* kids' sidewalk chalk on a block that trusts you: a hopscotch run and a sun */ const C = ['#f9a8d4', '#93c5fd', '#fde68a', '#86efac', '#c4b5fd'], v = p.v || 0; g.lineWidth = 1.7;
+      for (let i = 0; i < 5; i++) { const cx = sx - 12 + i * 5.5, cy = sy - 3 + i * 2.75 + (i % 2 ? 0 : 0); g.strokeStyle = C[(i + v) % 5]; g.beginPath(); g.moveTo(cx, cy - 2.6); g.lineTo(cx + 5, cy); g.lineTo(cx, cy + 2.6); g.lineTo(cx - 5, cy); g.closePath(); g.stroke(); }
+      g.strokeStyle = '#fde68a'; g.beginPath(); g.ellipse(sx + 15, sy - 4, 4.4, 2.5, 0, 0, Math.PI * 2); g.stroke(); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; g.beginPath(); g.moveTo(sx + 15 + Math.cos(a) * 6.2, sy - 4 + Math.sin(a) * 3.5); g.lineTo(sx + 15 + Math.cos(a) * 9.2, sy - 4 + Math.sin(a) * 5.2); g.stroke(); } break; }
+    case 'tag': { /* spray paint on a storefront nobody is fixing up */ const v = p.v || 0, C = [['#ef4444', '#111827'], ['#a855f7', '#f5f5f4'], ['#22c55e', '#111827']][v % 3]; g.lineCap = 'round'; g.lineJoin = 'round';
+      g.save(); g.translate(sx, sy); g.scale(1.35, 1.35); g.translate(-sx, -sy + 4);
+      const path = () => { g.beginPath(); g.moveTo(sx - 9, sy - 16); g.bezierCurveTo(sx - 6, sy - 26, sx - 2, sy - 8, sx + 1, sy - 20); g.bezierCurveTo(sx + 3, sy - 27, sx + 6, sy - 12, sx + 10, sy - 22); g.moveTo(sx - 7, sy - 12); g.lineTo(sx + 8, sy - 15); };
+      g.strokeStyle = C[1]; g.lineWidth = 3.4; path(); g.stroke(); g.strokeStyle = C[0]; g.lineWidth = 2; path(); g.stroke(); g.fillStyle = C[0]; g.fillRect(sx + 9, sy - 13, 1, 3); g.fillRect(sx - 4, sy - 11, 1, 4); g.lineCap = 'butt'; g.restore(); break; }
     case 'litter': { /* trash nobody's picking up: a tipped bag, cans, paper */ const v = p.v || 0; g.fillStyle = '#2b2f36'; g.beginPath(); g.ellipse(sx - 3, sy - 4, 7, 5, -.3, 0, Math.PI * 2); g.fill(); g.fillStyle = '#41464f'; g.beginPath(); g.ellipse(sx - 5, sy - 6, 3, 2, 0, 0, Math.PI * 2); g.fill();
       g.fillStyle = '#e8e3d6'; [[5, -1], [-9, 2], [8, 3]].slice(0, 2 + (v % 2)).forEach(([x, y]) => { g.save(); g.translate(sx + x, sy + y); g.rotate(x * .2); g.fillRect(-2.5, -1.5, 5, 3); g.restore(); });
       g.fillStyle = v === 2 ? '#c0392b' : '#9aa4ae'; g.fillRect(sx + 2, sy - 3, 4, 2.5); return; }
