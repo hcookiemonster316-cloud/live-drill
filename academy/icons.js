@@ -146,6 +146,8 @@ export const ICONS = {
   cowboy: [...person(BR), [TN, 'M10 7c0-3 3-5 6-5s6 2 6 5Z'], [TN, E(16, 8, 11, 2)]], group: [[GY, 'M2 30v-4c0-3 3-5 6-5s6 2 6 5v4Z'], [SK, C(8, 15, 4)], [BL, 'M14 30v-5c0-4 3-6 7-6s7 2 7 6v5Z'], [SK, C(21, 12, 4.6)]], silhouette: [[GY, 'M8 30v-6c0-4 3.6-7 8-7s8 3 8 7v6Z'], [GY, C(16, 11, 5.5)]],
   salute: [...person(NV, SK, NV), ['-' + SK, Lp([24, 22], [26, 12], [22, 8]), 2.4]], wave_hand: [[SK, 'M10 30c-4-3-6-8-5-12l2-6c1-2 3-2 3 0v4l1-11c0-2 3-2 3 0v9l1-11c0-2 3-2 3 0v11l1-9c0-2 3-2 3 0v13c0 5-2 10-6 12Z']], hand_up: [[SK, 'M11 30V12c0-2 3-2 3 0v-7c0-2 3-2 3 0v7-5c0-2 3-2 3 0v6-3c0-2 3-2 3 0v12c0 5-3 8-7 8Z']],
   flex: [[SK, 'M4 26c2-8 6-14 10-14l3-5c1-2 4-1 4 1l-2 5c5-2 10 1 10 7 0 5-5 8-12 8H4Z']], pray: [[SK, 'M15 4l-6 15-2 11h7l2-7Zm2 0l6 15 2 11h-7l-2-7Z']], foot: [[SK, E(16, 20, 7, 10)], [SK, C(12, 7, 2.4)], [SK, C(17, 6, 2.4)], [SK, C(21, 8, 2)]], steps: [[DG2, E(10, 21, 4, 7)], [DG2, E(21, 12, 4, 7)]],
+  dash: [['-' + GY, 'M4 12h14c4 0 5-5 1-5', 2.6], ['-' + GY, 'M3 18h20c4 0 5 6 1 6', 2.6], ['-' + GY, 'M8 24h7', 2.6]],
+  warn: [[YL, 'M16 3L30 28H2Z'], ['-' + K, 'M16 3L30 28H2Z', 1.6], [K, R(14.6, 11, 2.8, 9, 1.2)], [K, C(16, 23.6, 1.7)]], cycle: [['-' + GR, 'M7 15a9 9 0 0 1 16-5', 3], [GR, P([25, 4], [26, 13], [18, 11])], ['-' + GR, 'M25 17a9 9 0 0 1-16 5', 3], [GR, P([7, 28], [6, 19], [14, 21])]],
   face: face('M10 19c3 4 9 4 12 0'), unamused: [[YL, C(16, 16, 13)], ['-' + K, 'M8 12h6', 2], ['-' + K, 'M18 12h6', 2], [K, R(11, 12, 3, 2.4, 1)], [K, R(21, 12, 3, 2.4, 1)], ['-' + K, 'M11 22c3-1.6 7-1.6 10 0', 2]],
   mirror: [[GY, R(14.5, 20, 3, 10, 1.4)], [GD, E(16, 12, 9, 10.5)], [SKY, E(16, 12, 6.8, 8.3)], ['-' + W, 'M12 8c1-2 3-3 5-3', 1.6]], bucket: [[GY, 'M6 10h20l-3 18H9Z'], ['-' + K, 'M6 10h20', 1.6], ['-' + K, 'M7 10c0-8 18-8 18 0', 1.6], [W, R(9, 14, 14, 2, 1)]], grin: face('M9 18h14c-1 5-4 7-7 7s-6-2-7-7Z'), cool: [...face('M10 20c3 3 9 3 12 0'), [K, R(7, 10, 8, 5, 2)], [K, R(17, 10, 8, 5, 2)], [K, R(14, 11, 4, 1.6)]], angel: [...face('M10 19c3 4 9 4 12 0'), ['-' + YL, E(16, 3, 8, 2), 1.6]],
   think: face('M11 21h8'), exhale: face('M12 21a2 2 0 0 0 4 0'),
@@ -195,7 +197,7 @@ delete ICONS.gun_free_badge;
 
 // every emoji the game uses, mapped to an icon above
 const MAP = {
-  '🪞': 'mirror', '🪣': 'bucket', '😒': 'unamused',
+  '⚠': 'warn', '🔄': 'cycle', '🔁': 'cycle', '💨': 'dash', '🪞': 'mirror', '🪣': 'bucket', '😒': 'unamused',
   '🚑': 'firetruck', '🕯': 'candle', '🎈': 'balloon', '🛡': 'shield', '🚓': 'cruiser', '🚔': 'cruiser', '🎖': 'medal', '📻': 'radio', '🧾': 'receipt', '🤝': 'handshake', '🗂': 'dividers', '🏠': 'house', '📦': 'box', '👀': 'eyes', '📋': 'clipboard', '☕': 'coffee', '🔧': 'wrench', '🔒': 'lock', '🔐': 'lock', '⚖': 'scales',
   '🏷': 'tag', '🧢': 'cap', '🐕': 'dog', '🐩': 'dog', '🦮': 'dog', '⛽': 'can', '📍': 'pin', '🔦': 'flashlight', '📜': 'scroll', '🏃': 'runner', '🧭': 'compass', '🎧': 'headphones', '🎣': 'fishing', '💛': 'heartY', '🗺': 'map', '🚨': 'siren', '📚': 'books', '📁': 'folder', '📂': 'folder',
   '🥾': 'hiking', '🐦': 'bird', '🎓': 'grad', '🔎': 'magnifier', '🔍': 'magnifier', '⛪': 'church', '🥊': 'glove', '🧽': 'sponge', '✉': 'envelope', '💈': 'shirt', '👔': 'tie', '🎮': 'game', '🌀': 'spiral', '🚗': 'car', '🚙': 'car', '🚘': 'car', '🚕': 'car2', '⭐': 'star', '★': 'star', '🏡': 'home2', '🚐': 'van',

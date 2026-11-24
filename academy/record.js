@@ -54,5 +54,9 @@ export function installRecord(H) {
     const [bx, by] = pt.k.split(',').map(Number), near = Math.hypot(P.x - (2 + bx * 11 + 5), P.y - (2 + by * 11 + 9)) < 6; if (near && !heard) { heard = true; /* the Block Party track comes in (moodNow reads atParty) */ const al = H.ally ? H.ally(H.W().did) : null; if (al && !pt.ally) { pt.ally = al; H.saveS(); setTimeout(() => H.toast('🍽️ ' + al + ' is here. Holding two plates, and one of them is for you.'), 1600); if (H.watch) H.watch(al + ' was at the block party. A year ago you were taking reports on him.'); } } /* a regular who turned it around shows up */ else if (!near) heard = false; }
   const RX = { wave: ['👋', '#22c55e'], away: ['😒', '#6b7280'], note: ['🎵', '#f5b800'], party: ['🎉', '#f472b6'] };
   function draw(now) { if (H.inside()) return; H.peds().forEach((p) => { if (!p.rx || p.rx.until < now) return; const [sx, sy] = H.iso(p.x, p.y); const r = RX[p.rx.k] || RX.wave; H.bubble(sx, sy - 44, r[0], r[1], now); }); }
-  return { dress, moved, note, tick, draw, party, tier, get atParty() { return heard && !!party(H.W().did); }, _peds: () => H.peds() };
+  // a block that trusts you calls you by name: once a shift, now and then, the next call comes from a neighbor there
+  function tip(did, sh, force) { S.btip = S.btip || {}; if (S.btip[did] === sh || (!force && Math.random() > .3)) return null; const W = H.W(), T = BT(did);
+    const good = W.lots.filter((l) => l.name && l.door && (T[l.bx + ',' + l.by] || 0) >= 7); if (!good.length) return null; const l = good[(Math.random() * good.length) | 0]; S.btip[did] = sh; H.saveS();
+    return { x: l.door[0] + .5, y: l.door[1] + .5, where: l.name, kind: l.kind }; }
+  return { dress, moved, note, tick, draw, party, tier, tip, get atParty() { return heard && !!party(H.W().did); }, _peds: () => H.peds() };
 }

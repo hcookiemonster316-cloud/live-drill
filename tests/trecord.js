@@ -48,6 +48,13 @@ const { chromium } = require('playwright');
   const fin = await a.evaluate(() => { const pc = window.__pc; pc.S.pmem.walsh.t = 80; pc.S.court = { pend: [], hist: [{ v: 'held', honest: null }, { v: 'plea', honest: true }, { v: 'lost', honest: false }] }; const c0 = pc.FIN.conduct(); return { who: pc.FIN.helpers().map((h) => h.name + ' · ' + h.why), good: c0.good, bad: c0.bad }; });
   console.log('finale', JSON.stringify(fin).slice(0, 500)); if (!fin.who.some((w) => /^Dale Hutchins/.test(w)) || !fin.who.some((w) => /^The neighbors/.test(w)) || !fin.who.some((w) => /^Ofc. Bernie Walsh/.test(w))) errs.push('the last shift does not remember the record');
   if (fin.good < 2 || fin.bad < 1) errs.push('court record not in how you worked');
+  // 6b) a block that trusts you calls you by name now and then
+  const tipc = await a.evaluate(() => { const pc = window.__pc; for (let i = 0; i < 300; i++) { if (pc.curCall) pc.dropCall(); pc.S.btip = {}; pc.dispatchCall(); const c = pc.curCall; if (c && c.tip) { const r = { where: c.where, text: c.text }; pc.dropCall(); return r; } } return null; });
+  console.log('tip call', JSON.stringify(tipc)); if (!tipc || !/asked for you by name/.test(tipc.text)) errs.push('a trusting block never called you by name');
+  // 7) the trust map marks what happened where: the party, an arrest that fell apart
+  const tm = await a.evaluate((kb) => { const pc = window.__pc, [bx, by] = kb.split(',').map(Number); pc.S.court.hist.push({ v: 'lost', how: 'arrest', x: 2 + bx * 11 + 5, y: 2 + by * 11 + 5, did: pc.W.did, where: 'Oak St' }); pc.trustMap(pc.W.did); const mk = [...document.querySelectorAll('.tmMk')].map((x) => x.textContent); const cell = document.querySelector('.tmCell .tmMk').parentElement; cell.click(); const info = document.getElementById('tmInfo').textContent; return { mk, info }; }, r.kb);
+  console.log('trust map', JSON.stringify(tm)); if (tm.mk.length < 2 || !/block party|fell apart/.test(tm.info)) errs.push('the trust map does not show what happened where');
+  await a.screenshot({ path: (process.argv[2] || 'tests/out') + '/trecord_map.png' }); await a.evaluate(() => window.__pc.closeModal());
   await a.evaluate(() => [...document.body.children].forEach((x) => { if (!/^(view|vign|hTop|hBot)$/.test(x.id)) x.style.visibility = 'hidden'; }));
   await a.waitForTimeout(500); await a.screenshot({ path: (process.argv[2] || 'tests/out') + '/trecord.png' });
   await a.evaluate((kb) => { const P = window.__pc.P, [bx, by] = kb.split(',').map(Number); P.x = 2 + bx * 11 + 5; P.y = 2 + by * 11 + 11; P.path = []; }, r.kb); await a.waitForTimeout(3000); await a.screenshot({ path: (process.argv[2] || 'tests/out') + '/trecord_bad.png' });
