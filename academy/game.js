@@ -1530,16 +1530,19 @@ function chapterDone2(c) {
   $('mDone').onclick = () => { closeModal(); if (rw.rp) award(rw.rp, 'chapter complete'); if (rw.loot) queueLoot('Chapter ' + (c.d + 1) + ': ' + c.title, 1, rw.loot); if (c.d === 4 && !S.graduated) setTimeout(() => EP.graduation(), 1500); };
 }
 function objectiveFlash(text) { const el = $('objBar'); if (!el) return; el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+// the objective bar only touches the page when something on it changed: the arrow turns a visible step, the distance
+// reads differently (writing the same values every frame cost a style recalculation each time)
+function objSet(el, ang, dist) { if (el.hidden) el.hidden = false; const a = Math.round(ang * 40) / 40; if (el._a !== a) { el._a = a; el.querySelector('.objArr').style.transform = 'rotate(' + a + 'rad)'; } const D = $('objD'); if (D && D.textContent !== dist) D.textContent = dist; }
 function objectiveHud() {
   const el = $('objBar'), A = activeQ(), st = A && A.step, t = stepTarget();
   if ((!st || !t) && !scene) { const G = guideTarget(), q = S.track !== 'main' ? sideQ(S.track) : null; if (G && q && sideLive(q)) { const d = Math.hypot(G.x - P.x, G.y - P.y), [tx, ty] = iso(G.x, G.y), [px, py] = iso(P.x, P.y), txt = (inside ? 'Head outside, then to ' : 'Head to ') + DISTRICTS[q.d].name + ': ' + q.steps[S.side[q.id]].goal;
     if (el.dataset.t !== txt) { el.dataset.t = txt; el.innerHTML = '<i class="objArr">➤</i><span><small>Side case · ' + esc(q.title) + '</small><b>' + esc(txt) + '</b></span><em id="objD"></em>'; el.classList.add('side'); }
-    el.hidden = false; el.querySelector('.objArr').style.transform = 'rotate(' + Math.atan2(ty - py, tx - px) + 'rad)'; $('objD').textContent = Math.round(d * 4) * 5 + ' ft'; return; } }
-  if (!st || !t || scene) { el.hidden = true; return; }
+    objSet(el, Math.atan2(ty - py, tx - px), Math.round(d * 4) * 5 + ' ft'); return; } }
+  if (!st || !t || scene) { if (!el.hidden) el.hidden = true; return; }
   const d = Math.hypot(t.x - P.x, t.y - P.y), [tx, ty] = iso(t.x, t.y), [px, py] = iso(P.x, P.y), ang = Math.atan2(ty - py, tx - px);
   const txt = t.exit ? 'Head outside: ' + st.goal : st.goal;
   if (el.dataset.t !== txt) { el.dataset.t = txt; el.innerHTML = '<i class="objArr">➤</i><span><small>' + (A.side ? 'Side case · ' : '') + esc(A.title) + '</small><b>' + esc(txt) + '</b></span><em id="objD"></em>'; el.classList.toggle('side', !!A.side); }
-  el.hidden = false; el.querySelector('.objArr').style.transform = 'rotate(' + ang + 'rad)'; $('objD').textContent = d < 2.5 ? 'here' : Math.round(d * 4) * 5 + ' ft';
+  objSet(el, ang, d < 2.5 ? 'here' : Math.round(d * 4) * 5 + ' ft');
 }
 function storyMarker(now) {
   if (!inside) SIDE.forEach((q) => { if (!sideAvail(q)) return; const r = giverPos(q); if (!r) return; const [sx, sy] = iso(r.x, r.y); bubble(sx, sy - 66, '!', '#38bdf8', now); });
@@ -1626,7 +1629,8 @@ function trackerHud(dt) {
     el.querySelectorAll('[data-qt]').forEach((rw) => rw.onclick = (e) => { if (e.target.closest('.qtGo')) return; S.track = rw.dataset.qt; saveS(); beep(660, .06, 'triangle', .04); objectiveFlash(); TRAIL.t = 0; trkT = 0; });
     const go = el.querySelector('.qtGo'); if (go) go.onclick = (e) => { e.stopPropagation(); const tg = stepTarget(); if (!tg) return; if (tg.exit && inside) { exitBuilding(); return; } goTo(tg.x, tg.y); beep(880, .06, 'triangle', .04); };
   }
-  el.hidden = false; if (!PH.on()) { let top = 0; ['hExp', 'hCombo'].forEach((id) => { const e = $(id); if (e && !e.hidden && e.offsetParent !== null) { const r = e.getBoundingClientRect(); if (r.height) top = Math.max(top, r.bottom); } }); if (top) el.style.top = (top + 8) + 'px'; }
+  el.hidden = false; const lk = ['hExp', 'hCombo'].map((id) => { const e = $(id); return e ? (e.hidden ? 0 : 1) + ':' + e.className + ':' + e.textContent.length : '-'; }).join('|') + innerWidth + 'x' + innerHeight + el.dataset.k; /* measure the layout only when something that moves it changed (was a forced layout every 0.4 s) */
+  if (!PH.on() && lk !== el._lk) { el._lk = lk; let top = 0; ['hExp', 'hCombo'].forEach((id) => { const e = $(id); if (e && !e.hidden && e.offsetParent !== null) { const r = e.getBoundingClientRect(); if (r.height) top = Math.max(top, r.bottom); } }); if (top) el.style.top = (top + 8) + 'px'; }
   const dd = $('qtD'); if (dd) dd.textContent = !t ? '' : t.exit ? 'exit' : dist < 2.5 ? 'here' : Math.round(dist * 4) * 5 + ' ft';
 }
 
@@ -2477,8 +2481,8 @@ async function squadLeave(quiet) {
 function nearSquad() { if (!S.squad) return 0; let n = 0; Object.keys(others).forEach((k) => { const o = others[k]; if (o.g === S.squad.code && Math.hypot(o.rx - P.x, o.ry - P.y) < 16) n++; }); return n; }
 function squadMult() { return nearSquad() ? 1 + .1 + gp('rpSquad') / 100 : 1; }
 function squadTick(dt) {
-  if (!S.squad || !net) { if ($('sqChip')) $('sqChip').hidden = true; return; } COMMS.sqT -= dt; if (COMMS.sqT <= 0) { COMMS.sqT = 25; net.sqBeat(S.squad.code, meInfo()); }
-  const n = nearSquad(), el = $('sqChip'); if (!el) return; el.hidden = !n; if (n) el.textContent = '🛡️ Squad +' + Math.round((squadMult() - 1) * 100) + '% RP';
+  if (!S.squad || !net) { const sq = $('sqChip'); if (sq && !sq.hidden) sq.hidden = true; return; } COMMS.sqT -= dt; if (COMMS.sqT <= 0) { COMMS.sqT = 25; net.sqBeat(S.squad.code, meInfo()); }
+  const n = nearSquad(), el = $('sqChip'); if (!el) return; if (el.hidden !== !n) el.hidden = !n; if (n) { const tx = '🛡️ Squad +' + Math.round((squadMult() - 1) * 100) + '% RP'; if (el.textContent !== tx) el.textContent = tx; }
 }
 function inviteCard(from, v) {
   const el = $('invCard'); if (!el) return;

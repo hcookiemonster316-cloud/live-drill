@@ -147,7 +147,7 @@ export function installEpic(H) {
     H.openModal('<div class="sceneHead"><b>THE LEDGER · MYSTERY BOARD</b><h2>' + got + ' of ' + CLUES.length + ' pages found</h2><p>In 1987, two million dollars in hurricane relief money vanished. Torn pages from the city\'s ledger are hidden around Port Meridian. Read the riddles, go exploring, and look for a glint near a door.</p></div>' +
       '<div class="mbGrid">' + [0, 1, 2, 3, 4].map((d) => '<div class="mbCol"><b>' + esc(H.dname(d)) + '</b>' + CLUES.filter((c) => c[1] === d).map((c) => S.clues[c[0]] ? '<div class="mbPin got"><i>📜</i><p>' + esc(c[3]) + '</p><small>' + esc(c[2]) + '</small></div>' : '<div class="mbPin"><i>❔</i><p>“' + esc(c[4]) + '”</p></div>').join('') + '</div>').join('') + '</div>' +
       (H.threads && H.threads().length ? '<div class="mbOpen mbThreads"><b>THREADS ON THE STREET</b>' + H.threads().map((t) => '<div class="mbThread' + (t.closed ? ' closed' : '') + '"><i>' + t.icon + '</i><span>' + esc(t.text) + (t.why ? '<em>' + esc(t.why) + '</em>' : '') + '</span><small>' + esc(t.sub) + '</small></div>').join('') + '</div>' : '') +
-      (RC().open.length ? '<div class="mbOpen"><b>OPEN SCENES</b>' + RC().open.map((o, i) => { const sc = SCENES.find((x) => x.id === o.id); return sc ? '<button type="button" data-ro="' + i + '"><i>🔎</i><span>' + esc(sc.title) + (o.where ? ' · ' + esc(o.where) : '') + '</span><small>' + o.lock.filter(Boolean).length + ' of ' + sc.facts.length + ' confirmed</small></button>' : ''; }).join('') + '</div>' : '') +
+      (RC().open.length ? '<div class="mbOpen"><b>OPEN SCENES</b>' + RC().open.map((o, i) => { const sc = SCENES.find((x) => x.id === o.id); return sc ? '<button type="button" data-ro="' + i + '"><i>🔎</i><span>' + esc(titleOf(o)) + (o.where ? ' · ' + esc(o.where) : '') + '</span><small>' + o.lock.filter(Boolean).length + ' of ' + sc.facts.length + ' confirmed</small></button>' : ''; }).join('') + '</div>' : '') +
       '<div class="qAct">' + (H.caseFile ? '<button type="button" class="ghost" id="mbCase">Open the case file</button>' : '') + '<button type="button" id="mClose">Close</button></div>');
     H.$('mClose').onclick = H.closeModal; if (H.$('mbCase')) H.$('mbCase').onclick = () => H.caseFile(); H.stat('board'); document.querySelectorAll('[data-ro]').forEach((b) => b.onclick = () => reopen(+b.dataset.ro));
   }
@@ -213,7 +213,7 @@ export function installEpic(H) {
   // ================= 11 + 12. after a call: investigate the scene or write the report =================
   function afterCall(c, done) {
     const crash = SCENES.find((s) => s.call && s.call.test(c.title || '')), sc = crash || SCENES.find((s) => !s.call && s.kind.test(c.kind || 'street'));
-    if (sc && (crash ? Math.random() < .5 : c.prio <= 2 && Math.random() < .35)) return investigate(sc, c, done);
+    if (sc && (crash ? Math.random() < .5 : c.prio <= 2 && Math.random() < .35)) return investigate(variant(sc), c, done);
     if (Math.random() < .3) return report(c, done);
     done([]);
   }
@@ -222,6 +222,11 @@ export function installEpic(H) {
   // lock in together; you are never told which single answer is wrong. You can leave a scene open and finish it later
   // from the mystery board, where open scenes wait beside the ledger pages.
   const RC = () => (S.recon = S.recon || { open: [], solved: 0 });
+  // every scene comes in more than one version (epicdata alt): the same kind of crime, different evidence, a different
+  // story to piece together. They take turns, so the second burglary you work is not the first one again.
+  function variant(sc, v) { const alts = sc.alt || []; if (v == null) { S.scv = S.scv || {}; v = S.scv[sc.id] = ((S.scv[sc.id] == null ? -1 : S.scv[sc.id]) + 1) % (alts.length + 1); }
+    const b = Object.assign({}, sc, v ? alts[v - 1] : {}); b.items = b.items.map((x) => x.slice()); b.v = v; return b; }
+  const titleOf = (o) => { const sc = SCENES.find((x) => x.id === o.id); return sc ? (o.v && sc.alt && sc.alt[o.v - 1] ? sc.alt[o.v - 1].title : sc.title) : ''; };
   function investigate(sc, c, done) {
     let found = 0, wrong = 0; const real = sc.items.filter((x) => x[2]).length, hl = H.hasSkill('inv1');
     const draw = () => H.openModal('<div class="sceneHead"><b>PROCESS THE SCENE · ' + esc(sc.title.toUpperCase()) + '</b><h2>Find the evidence</h2><p>Tap what matters. Not everything at a scene is evidence. ' + found + ' of ' + real + ' found.</p></div>' +
@@ -248,14 +253,14 @@ export function installEpic(H) {
       const lv = H.$('rcLeave'); if (lv) lv.onclick = () => leave(); H.$('rcFile').onclick = () => finish(); };
     const row = (open) => { const n = nLock(), sc10 = Math.max(0, Math.min(10, Math.round((st.found - st.wrong * .5) / st.real * 3 + n / F.length * 6 + (!open && st.tries <= 2 ? 1 : 0))));
       return ['🔎', 'Scene work', sc10, 10, st.found + ' of ' + st.real + ' clues' + (st.wrong ? ', ' + st.wrong + ' red herring' + (st.wrong > 1 ? 's' : '') : '') + ' · ' + (open ? n + ' of ' + F.length + ' confirmed, left open on the board' : 'pieced together' + (st.tries <= 1 ? ' first try' : ''))]; };
-    const leave = () => { const R = RC(); R.open = R.open.filter((o) => o !== st.ref); st.ref = { id: sc.id, where: st.where, who: st.who, x: st.x, y: st.y, found: st.found, real: st.real, wrong: st.wrong, pick: st.pick, lock: st.lock, ord: st.ord, tries: st.tries, t: Date.now() };
+    const leave = () => { const R = RC(); R.open = R.open.filter((o) => o !== st.ref); st.ref = { id: sc.id, v: sc.v || 0, where: st.where, who: st.who, x: st.x, y: st.y, found: st.found, real: st.real, wrong: st.wrong, pick: st.pick, lock: st.lock, ord: st.ord, tries: st.tries, t: Date.now() };
       R.open.push(st.ref); while (R.open.length > 5) R.open.shift(); H.saveS(); H.toast('🔎 Left open on the mystery board. Come back to it any time.'); done([row(true)]); };
     const finish = () => { const R = RC(); if (st.ref) R.open = R.open.filter((o) => o.t !== st.ref.t); R.solved++; H.saveS(); H.stat('investigate'); if (st.tries <= 1 && !st.wrong) H.stat('invPerfect');
       if (H.watch) H.watch(sc.title, st.where); if (H.memNote && st.where) H.memNote('solved', { who: st.who, where: st.where, x: st.x, y: st.y }); done([row(false)]); };
     draw();
   }
   // reopen a scene left open, from the board; it pays out like the original would have
-  function reopen(i) { const o = RC().open[i], sc = o && SCENES.find((s) => s.id === o.id); if (!sc) return; const st = Object.assign({}, o, { ref: o });
+  function reopen(i) { const o = RC().open[i], sc0 = o && SCENES.find((s) => s.id === o.id); if (!sc0) return; const sc = variant(sc0, o.v || 0); const st = Object.assign({}, o, { ref: o });
     reconstruct(sc, st, (rows) => { const r = rows[0]; if (!RC().open.includes(o)) { H.award(Math.round(r[2] * 6), 'Closed a scene from the board'); H.toast('🔎 ' + r[4]); } H.closeModal(); }); }
   function report(c, done) {
     const now = new Date(), fill = (s) => s.replace('{date}', now.toLocaleDateString()).replace('{time}', String(H.hour() | 0).padStart(2, '0') + String(Math.floor((H.hour() % 1) * 60)).padStart(2, '0') + ' hours').replace('{where}', c.where).replace('{title}', c.title.toLowerCase()).replace(/\{caller\}/g, 'caller');
@@ -341,6 +346,6 @@ export function installEpic(H) {
   let sqT = 0;
   setInterval(() => { try { squadTick(); } catch (e) {} }, 30000); setTimeout(() => { try { squadTick(); } catch (e) {} }, 8000);
   applyDisplay();
-  const sceneTest = (id, c, done) => investigate(SCENES.find((x) => x.id === id), c || {}, done || (() => H.closeModal()));
+  const sceneTest = (id, c, done, v) => investigate(variant(SCENES.find((x) => x.id === id), v || 0), c || {}, done || (() => H.closeModal()));
   return { sceneTest, splash, intro, get busy() { return busy || !!cine; }, tick, skyDraw, fxDraw, clueDraw, wxCall, wxBark, timeScale, slowMo, zoomPunch, ending, board, rivalPanel, rivalCameo, graduation, credits, repOf, callMult, afterCall, SECRETS, boards, squadCall, squadHud, loadArt, loadLore, TIPS2, applyDisplay, calibrate, fullMoon, RANKS };
 }

@@ -38,4 +38,12 @@ const OUT = process.argv[2] || 'tests/out';
   await a.evaluate(() => { document.querySelectorAll('[data-rc]').forEach((el) => { el.value = '0'; el.dispatchEvent(new Event('change')); }); }); await a.click('#rcFile'); await a.waitForTimeout(500);
   const end = await a.evaluate(() => ({ open: window.__pc.S.recon.open.length, solved: window.__pc.S.recon.solved, xp: window.__pc.S.xp || 0 })); console.log('end', JSON.stringify(end), 'xp before', xp0);
   if (end.open !== 0 || end.solved !== 2) errs.push('board did not close the scene: ' + JSON.stringify(end));
+  // 3) every scene has a second version: different evidence, a different story, and it solves
+  const openV = (id, v) => a.evaluate(([id, v]) => { window.__rows = null; const pc = window.__pc; pc.EP.sceneTest(id, { where: 'Main St', vcn: 'Ms. Ruiz', x: pc.P.x, y: pc.P.y }, (rows) => { window.__rows = rows; pc.closeModal(); }, v); }, [id, v]);
+  for (const id of ['rearend', 'tbone', 'burg', 'hitrun', 'shop', 'vandal', 'yard']) {
+    await openV(id, 1); await a.waitForSelector('[data-iv]'); const head = await a.evaluate(() => document.querySelector('.sceneHead b').innerText); await findReal(); if (id === 'shop') await a.screenshot({ path: OUT + '/trecon_alt.png' });
+    await a.click('#ivNext'); await a.waitForSelector('.rcSheet'); const first = await a.evaluate(() => document.querySelector('.rcSheet li').innerText.replace(/\s+/g, ' '));
+    await a.evaluate(() => { document.querySelectorAll('[data-rc]').forEach((el) => { el.value = '0'; el.dispatchEvent(new Event('change')); }); }); n = await locked();
+    await a.click('#rcFile'); await a.waitForFunction(() => window.__rows); const rr = await a.evaluate(() => window.__rows[0]); console.log('alt', id, '|', head, '|', first.slice(0, 50), '|', n, rr[2]);
+    if (n !== 6 || rr[2] < 6) errs.push('second version of ' + id + ' did not solve'); }
   console.log(errs.length ? errs.slice(0, 4).join('\n') : 'no errors'); await b.close(); process.exit(errs.length ? 1 : 0); })();
