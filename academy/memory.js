@@ -66,6 +66,7 @@ const CONS = {
 };
 const SEED = { missed: { prio: 2, line: 'Last time you were here, something got missed. This is what it turned into.', brief: 'Still open on {where}: what got missed last time is going to come back.' },
   callback: { prio: 3, line: '{who} called back. Last time you were in and out before they finished.', title: 'Call back to {where}', text: '{who} on {where} is calling again. They say nobody answered their questions last time.', brief: '{who} on {where} has questions you didn\'t stay for. Expect a call back.', intent: 'nervous' },
+  walked: { prio: 2, line: 'He\'s back on the same block, and the people who called it in last time are scared.', title: 'He\'s back on {where}', text: 'The man from the arrest on {where} is back. The case got dismissed, and the neighbors want to know what happens now.', brief: 'The case from {where} fell apart in court. He\'s back out there, and that block will call again.', intent: 'angry' },
   complaint: { prio: 3, line: 'The neighbors remember how hard you came in last time.', title: 'Neighbor complaint on {where}', text: 'A neighbor on {where} wants to talk to the officer who came in so hard last time.', brief: 'Somebody on {where} is still upset about how hard you came in. It will come up again.', intent: 'angry' } };
 const HARSH = { front: 1, loud: 1 }, GENTLE = { quiet: 1, smart: 1, neighbors: 1, observe: 1 };
 
@@ -146,6 +147,8 @@ export function installMemory(H) {
     const k = r.n && r.right < r.n && c.les != null && CONS[c.les] && Math.random() < .6 ? 'missed' : c.wrap === 'quick' ? 'callback' : HARSH[c.eff] || (c.way === 'enforce' && c.rules && c.rules.intent && !c.readRight && c.rules.intent !== 'calm') ? 'complaint' : null;
     if (!k) return null; M.seed.push({ k, les: c.les, who: who(c), where: c.where, x: c.x, y: c.y, did: did(), due: M.shift + (k === 'complaint' ? 2 : 1), t: c.title, sh: M.shift, right: r.right, n: r.n }); /* what led to it, for the card */ while (M.seed.length > 6) M.seed.shift(); H.saveS(); return k;
   }
+  // a case that fell apart in court comes back to the street it started on
+  function walked(o) { if (!o || o.x == null) return; M.seed.push({ k: 'walked', les: o.les, who: 'The neighbors', where: o.where, x: o.x, y: o.y, did: o.did == null ? did() : o.did, due: M.shift + 1, t: o.title || 'The arrest', sh: o.sh == null ? M.shift : o.sh }); while (M.seed.length > 6) M.seed.shift(); H.saveS(); }
   // dispatch asks: is something from an earlier shift due in this district? (now and then, never all at once)
   function dueCall(here) {
     const s = M.seed.find((x) => x.did === here && x.due <= M.shift); if (!s || Math.random() > .35) return null; const T = SEED[s.k], o = { who: s.who || 'The caller', where: s.where };
@@ -153,10 +156,10 @@ export function installMemory(H) {
   }
   // the card that opens a call that came back: when you were here, what you did, what it turned into
   const AGO = ['Earlier this shift', 'Last shift', 'Two shifts ago', 'Three shifts ago'];
-  const ledTo = (s) => s.t == null ? '' : (AGO[Math.min(3, M.shift - s.sh)] || 'A while back') + ' you took "' + s.t + '" here' + (s.k === 'missed' ? ' and got ' + s.right + ' of ' + s.n + ' right.' : s.k === 'callback' ? ' and wrapped it up before they were done.' : ' and came in hard.');
+  const ledTo = (s) => s.t == null ? '' : (AGO[Math.min(3, M.shift - s.sh)] || 'A while back') + ' you took "' + s.t + '" here' + (s.k === 'missed' ? ' and got ' + s.right + ' of ' + s.n + ' right.' : s.k === 'walked' ? ', made the arrest, and the case fell apart in court.' : s.k === 'callback' ? ' and wrapped it up before they were done.' : ' and came in hard.');
   const consLine = (s) => { const why = ledTo(s); return (why ? why + ' ' : '') + fill(SEED[s.k].line, { who: s.who || 'The caller', where: s.where }); };
   // open threads for the mystery board
   const threads = () => M.seed.map((s) => ({ icon: '⏳', text: (s.t || 'A call') + ' · ' + s.where, sub: s.due <= M.shift ? 'Could come back any time now' : 'Coming back on a later shift', why: ledTo(s) }));
   const consIntent = (s) => SEED[s.k].intent || null;
-  return { plant, dueCall, consLine, threads, consIntent, get seeds() { return M.seed; }, note, afterCall, deesc, pursuit, promiseOption, callerLine, onShift, briefing, tick, draw, ECHO, get open() { return M.pr; }, get shiftNo() { return M.shift; }, get dbg() { return { briefDue, free: H.free() }; }, get deeds() { return M.d; } };
+  return { plant, walked, dueCall, consLine, threads, consIntent, get seeds() { return M.seed; }, note, afterCall, deesc, pursuit, promiseOption, callerLine, onShift, briefing, tick, draw, ECHO, get open() { return M.pr; }, get shiftNo() { return M.shift; }, get dbg() { return { briefDue, free: H.free() }; }, get deeds() { return M.d; } };
 }

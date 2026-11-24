@@ -16,6 +16,8 @@ const { chromium } = require('playwright');
       if (bs.length) { const t = bs.map((x) => x.innerText.replace(/\s+/g, ' ')); let k = t.findIndex((x) => x.toLowerCase().includes(want)); if (k < 0) k = 0; bs.forEach((x) => { x.__t = 1; }); bs[k].click(); return 'C:' + t[k].slice(0, 40); }
       const who = (d.querySelector('.dlgName') || {}).innerText || ''; const txt = 'L:' + who.replace(/\s+/g, ' ') + ': ' + (d.querySelector('.dlgTxt') || d).innerText.replace(/\s+/g, ' ').slice(0, 300); d.click(); return txt; }, want);
     if (st === 'hidden') { hid++; if (seen.length && hid > 25 && !(await a.evaluate(() => window.__pc.dbg().paused))) break; continue; } hid = 0; if (st !== seen[seen.length - 1]) seen.push(st); if (/two new tires/.test(st) && !shot) { shot = 1; } else if (shot === 1) { shot = 2; } } return seen; };
+  await a.evaluate(() => { window.__pc.S.cfg.noAmbient = true; }); /* no street moments in the middle of testimony */
+  const idle = () => a.waitForFunction(() => document.getElementById('dlg').hidden && document.getElementById('modal').hidden, null, { timeout: 15000 }).catch(() => {});
   // a pursuit arrest whose report missed once
   await a.evaluate(() => { const pc = window.__pc; pc.COURT.file({ how: 'term', wrong: 1, filed: true, procOk: 3, where: 'Palm Ave' }); });
   const th = await a.evaluate(() => { window.__pc.EP.board(); const t = [...document.querySelectorAll('.mbThread')].map((x) => x.innerText.replace(/\s+/g, ' ')); window.__pc.closeModal(); return t; });
@@ -32,9 +34,31 @@ const { chromium } = require('playwright');
   const last = h.hist[h.hist.length - 1] || {}; if (last.honest !== true || last.paper !== 1) errs.push('owning the mistake was not credited'); if (h.pend.length) errs.push('case still pending');
   if (!seen.some((x) => /^C:.*The radio log\. My report/.test(x))) errs.push('the defense did not raise the report');
   const cf = await a.evaluate(() => window.__pc.CASE.search('courthouse Palm').hits.map((e) => e.kind + ': ' + e.text)); console.log('case file', JSON.stringify(cf)); if (!cf.some((t) => /^Court transcript/.test(t))) errs.push('verdict not in the case file');
+  await idle();
   // a clean report: the defense lets it go
-  await a.evaluate(() => { const pc = window.__pc; pc.COURT.file({ how: 'air', wrong: 0, filed: true, procOk: 3, where: 'Elm St' }); const p = pc.S.court.pend[pc.S.court.pend.length - 1]; pc.COURT.testify(p); });
+  await a.evaluate(() => { const pc = window.__pc; if (pc.curCall) pc.dropCall(); pc.COURT.file({ how: 'air', wrong: 0, filed: true, procOk: 3, where: 'Elm St' }); const p = pc.S.court.pend[pc.S.court.pend.length - 1]; pc.COURT.testify(p); });
   const seen2 = await drive('xx'); if (!seen2.some((x) => /line for line/.test(x))) errs.push('a clean report was still attacked');
   await a.waitForFunction(() => window.__pc.S.court.hist.length === 2, null, { timeout: 30000 }).catch(() => errs.push('second verdict missing'));
   console.log('second', JSON.stringify(await a.evaluate(() => window.__pc.S.court.hist[1])));
+  await idle(); if (process.env.V) { console.log('state', JSON.stringify(await a.evaluate(() => ({ dlg: document.getElementById('dlg').hidden, modal: document.getElementById('modal').hidden, mt: document.getElementById('modal').innerText.slice(0, 200), paused: window.__pc.dbg().paused, pend: window.__pc.S.court.pend.length, hist: window.__pc.S.court.hist.length })))); await a.screenshot({ path: 'tests/out/tcourt_dbg.png' }); }
+  // an ordinary arrest: the defense goes after the step you skipped, owning it is credited
+  await a.evaluate(() => { const pc = window.__pc; if (pc.curCall) pc.dropCall(); pc.COURT.file({ how: 'arrest', les: 0, miss: ['cuffs'], wrong: 0, filed: true, procOk: 2, where: 'Oak St', title: 'Warrant service' }); pc.COURT.testify(pc.S.court.pend[pc.S.court.pend.length - 1]); });
+  const seen3 = await drive('should have'); if (!seen3.some((x) => /double-locked/.test(x))) errs.push('the defense did not raise the skipped step');
+  await a.waitForFunction(() => window.__pc.S.court.hist.length === 3, null, { timeout: 30000 }).catch(() => errs.push('arrest verdict missing'));
+  const h3 = await a.evaluate(() => window.__pc.S.court.hist[2]); console.log('arrest', JSON.stringify(h3)); if (!h3 || h3.honest !== true || h3.how !== 'arrest' || !/owned it/.test(h3.words)) errs.push('arrest testimony not credited');
+  await idle();
+  // a clean arrest that holds: the block where it happened hears about it
+  const k0 = await a.evaluate(() => { const pc = window.__pc, P = pc.P, k = Math.floor((P.x - 2) / 11) + ',' + Math.floor((P.y - 2) / 11); pc.S.btrust = pc.S.btrust || {}; pc.S.btrust[pc.W.did] = pc.S.btrust[pc.W.did] || {}; pc.S.btrust[pc.W.did][k] = 1;
+    pc.COURT.file({ how: 'arrest', les: 0, miss: [], wrong: 0, filed: true, procOk: 3, where: 'Main St', x: P.x, y: P.y, did: pc.W.did, title: 'Arrest warrant' }); pc.COURT.testify(pc.S.court.pend[pc.S.court.pend.length - 1]); return k; });
+  await drive('xx'); await a.waitForFunction(() => window.__pc.S.court.hist.length === 4, null, { timeout: 30000 }).catch(() => errs.push('clean arrest verdict missing'));
+  const h4 = await a.evaluate((k) => ({ v: (window.__pc.S.court.hist[3] || {}).v, t: window.__pc.S.btrust[window.__pc.W.did][k] }), k0); console.log('clean arrest', JSON.stringify(h4)); if (h4.v === 'held' && h4.t !== 3) errs.push('the block did not hear the case held');
+  if (h4.v !== 'held') errs.push('a clean arrest with right answers did not hold: ' + h4.v);
+  // the real thing: an arrest call ends and files its own case, with the steps you skipped
+  await a.evaluate(() => { const pc = window.__pc; pc.S.court.pend = []; const c = { les: 0, title: 'Arrest warrant at the motel', prio: 2, text: 'Serve the warrant.', x: pc.P.x, y: pc.P.y, where: 'Main St', kind: 'street', t0: 0, accepted: true }; pc.openCallScene(c); });
+  const s5 = await drive('from cover'); if (process.env.V) console.log(s5.join('\n')); let pf = null; for (let i = 0; i < 60 && !(pf = await a.evaluate(() => JSON.parse(JSON.stringify(window.__pc.S.court.pend.find((x) => x.how === 'arrest') || null)))); i++) { await a.evaluate(() => { const r = document.querySelector('.rpt [data-k]:not([disabled])'); if (r) r.click(); }); await a.waitForTimeout(500); } /* fill in the incident report if one is asked for */
+  if (!pf) errs.push('an arrest call did not file a case');
+  console.log('filed', JSON.stringify(pf)); if (!pf || pf.how !== 'arrest' || pf.miss.length !== 3 - pf.proc) errs.push('arrest case filed wrong: ' + JSON.stringify(pf));
+  // a case that falls apart sends the call back to the street it started on
+  const back = await a.evaluate(() => { const pc = window.__pc; pc.MEM.walked({ where: 'Oak St', x: pc.P.x, y: pc.P.y, did: pc.W.did, les: 0, title: 'Warrant service' }); pc.S.mem.shift += 1; const r0 = Math.random; Math.random = () => 0; const t = pc.MEM.dueCall(pc.W.did); Math.random = r0; return t ? { title: t[0], line: pc.MEM.consLine(t.cons) } : null; });
+  console.log('back', JSON.stringify(back)); if (!back || !/back on Oak St/.test(back.title) || !/fell apart in court/.test(back.line)) errs.push('a lost case did not come back to the street');
   console.log(errs.length ? errs.slice(0, 4).join('\n') : 'no errors'); await b.close(); process.exit(errs.length ? 1 : 0); })();
