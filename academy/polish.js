@@ -182,8 +182,10 @@ export function installPolish(H) {
   }
   // gamepad: polled each frame
   const padPrev = {}; let padMove = 0;
+  // no gamepad polling until one is plugged in (getGamepads ran every frame for everyone)
+  let padOn = false; try { addEventListener('gamepadconnected', () => { padOn = true; }); addEventListener('gamepaddisconnected', () => { try { padOn = [...navigator.getGamepads()].some((g) => g && g.connected); } catch (e) {} }); } catch (e) {}
   function pad(dt) {
-    let gp = null; try { gp = [...(navigator.getGamepads ? navigator.getGamepads() : [])].find((g) => g && g.connected); } catch (e) {} if (!gp) return;
+    if (!padOn) return; let gp = null; try { gp = [...(navigator.getGamepads ? navigator.getGamepads() : [])].find((g) => g && g.connected); } catch (e) {} if (!gp) return;
     if (!S.padHello) { S.padHello = 1; H.toast('🎮 Gamepad connected. Start pauses, A talks, B backs out.'); }
     const btn = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed), edge = (i) => { const p = btn(i), was = padPrev[i]; padPrev[i] = p; return p && !was; };
     const key = (k) => { const t = document.activeElement && document.activeElement !== document.documentElement ? document.activeElement : document.body; t.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); };

@@ -489,7 +489,7 @@ function spriteResTick(now) {
   if (t === RES) { resN = 0; return; } if (t !== resWant) { resWant = t; resN = 0; } if (!now && ++resN < 24) return;
   setRes(t); resN = 0; SPR.forEach((x) => { if (x.canvas) x.stale = 1; });
 }
-const lightProps = () => W._lights || (W._lights = W.props.filter((p) => p.t === 'lamp' || p.t === 'canopy' || p.t === 'mast'));
+const lightProps = () => W._lights || (W._lights = W.props.filter((p) => p.t === 'lamp' || p.t === 'canopy' || p.t === 'mast' || p.t === 'lights'));
 const isoC = (o) => o._iso || (o._iso = iso(o.x, o.y));
 // props never move once a district is built, so they're sorted once into 512 px screen buckets and each frame only
 // visits the buckets the view overlaps, instead of every prop in the district
@@ -567,7 +567,7 @@ function render(now) { RNOW = now; LBLR.length = 0; frameStart(); spriteResTick(
     lx.globalCompositeOperation = 'destination-out';
     const hole = (ix, iy, r, k) => { const x = (ix * z + tx) * s, y = (iy * z + ty) * s, rr = r * z * s; if (x < -rr || y < -rr || x > lc.width + rr || y > lc.height + rr) return; lx.globalAlpha = k; lx.drawImage(radSprite('#000'), x - rr, y - rr, rr * 2, rr * 2); lx.globalAlpha = 1; };
     VL.length = 0; { const M = 260; eachVisIn(lightProps(), '_lb', -tx / z - M, -ty / z - M, (lc.width / s - tx) / z + M, (lc.height / s - ty) / z + M, vlPush); } // 260: the tallest light reaches 216 above its base
-    VL.forEach((p) => { const q = isoC(p), ix = q[0], iy = q[1]; if (p.t === 'lamp') { if (p.on) hole(ix + 10, iy - 6, 92, .85); } else if (p.t === 'canopy') hole(ix, iy, 110, .9); else if (p.t === 'mast') hole(ix, iy - 200, 16, .9); });
+    VL.forEach((p) => { const q = isoC(p), ix = q[0], iy = q[1]; if (p.t === 'lamp') { if (p.on) hole(ix + 10, iy - 6, 92, .85); } else if (p.t === 'canopy') hole(ix, iy, 110, .9); else if (p.t === 'mast') hole(ix, iy - 200, 16, .9); else if (p.t === 'lights') hole(ix, iy - 30, 64, .8); }); /* block party string lights light up the night */
     SPR.forEach((sp) => { if (sp.canvas) sp.lights.forEach((q) => hole(q[0], q[1], 34, .55)); }); trimSprites();
     traffic.forEach((c) => { const off = laneOff(c), [ix, iy] = iso(c.x + off[0], c.y + off[1]), f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][c.dir]; hole(ix + f[0] * 34, iy + f[1] * 34, 56, .7); });
     { const [ix, iy] = iso(P.x, P.y); hole(ix, iy - 10, (P.inCar || P.boat ? 120 : 96) * BUFF.light * (1 + gp('light') / 100), .8); }
@@ -580,6 +580,7 @@ function render(now) { RNOW = now; LBLR.length = 0; frameStart(); spriteResTick(
     if (glc.width !== lc.width || glc.height !== lc.height) { glc.width = lc.width; glc.height = lc.height; }
     gx.setTransform(1, 0, 0, 1, 0, 0); gx.globalCompositeOperation = 'source-over'; gx.clearRect(0, 0, glc.width, glc.height); gx.globalCompositeOperation = 'lighter'; let glowN = 0;
     const glow = (ix, iy, r, col) => { const x = (ix * z + tx) * s, y = (iy * z + ty) * s, rr = r * z * s; if (x < -rr || y < -rr || x > glc.width + rr || y > glc.height + rr) return; glowN++; gx.drawImage(radSprite(col), x - rr, y - rr, rr * 2, rr * 2); };
+    VL.forEach((p) => { if (p.t !== 'lights') return; const q = isoC(p); ['rgba(245,184,0,.5)', 'rgba(239,68,68,.45)', 'rgba(34,197,94,.45)', 'rgba(59,130,246,.45)', 'rgba(244,114,182,.45)'].forEach((c, k) => { const u = (k * 1.5 + 1) / 8; glow(q[0] - 14 + 28 * u, q[1] - 37 + 22 * u * (1 - u), 9, c); }); glow(q[0], q[1] - 30, 40, 'rgba(255,214,140,.14)'); });
     VL.forEach((p) => { if (p.t === 'lamp' && p.on) { const q = isoC(p), ix = q[0], iy = q[1]; glow(ix + 10, iy - 37, 18, 'rgba(255,220,150,.55)'); glow(ix + 10, iy - 37, 46, 'rgba(255,200,120,.12)'); glow(ix + 10, iy - 2, 40, 'rgba(255,190,110,.10)'); } });
     if (FX.rain && !inside) { const glowE = (ix, iy, rx, ry, col) => { const x = (ix * z + tx) * s, y = (iy * z + ty) * s, w = rx * z * s, h = ry * z * s; if (x < -w || y < -h || x > glc.width + w || y > glc.height + h) return; glowN++; gx.drawImage(radSprite(col), x - w, y - h * .2, w * 2, h * 2); };
       VL.forEach((p) => { if (p.t === 'lamp' && p.on) { const q = isoC(p); glowE(q[0] + 10, q[1] + 4, 9, 26, 'rgba(255,205,130,.22)'); } }); }

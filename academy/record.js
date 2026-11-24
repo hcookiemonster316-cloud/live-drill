@@ -13,7 +13,7 @@ export function installRecord(H) {
   function note(did, k, v) { S.bmin = S.bmin || {}; const m = (S.bmin[did] = S.bmin[did] || {}); if (m[k] == null || v < m[k]) m[k] = v; }
   // dress the district's blocks for how they feel about you; called when a district loads and when a block's trust moves a tier
   function dress(W, did) {
-    if (!W || !W.props) return; W.props = W.props.filter((p) => !p.rec); const T = BT(did), taken = new Set(W.props.map((p) => Math.floor(p.x) + ',' + Math.floor(p.y)));
+    if (!W || !W.props) return; W.props = W.props.filter((p) => !p.rec); W._lights = null; /* the party's string lights join the night lighting */ const T = BT(did), taken = new Set(W.props.map((p) => Math.floor(p.x) + ',' + Math.floor(p.y)));
     const put = (t, x, y, o) => { const k = Math.floor(x) + ',' + Math.floor(y); if (taken.has(k)) return false; taken.add(k); W.props.push(Object.assign({ t, x, y, rec: 1 }, o)); return true; };
     const putAny = (t, xs, y, o) => xs.some((x) => put(t, x, y, o)); // first free sidewalk spot
     Object.keys(T).forEach((k) => { const v = T[k]; if (Math.abs(v) < 4) return; const [bx, by] = k.split(',').map(Number), ox = 2 + bx * 11, oy = 2 + by * 11, y = oy + 8.5, seed = bx * 7 + by * 13;
