@@ -66,7 +66,7 @@ export function installPartners(H) {
   // shifts together needed before each scene
   const NEED = [1, 3, 5];
   let pending = null, shiftNo = 0;
-  function onShift(k) { shiftNo++; const pk = S.pcase.park; if (pk && pk.bench > 0) pk.bench--; if (k && CASES[k]) { st(k).rides++; } H.saveS(); }
+  function onShift(k) { shiftNo++; Object.keys(S.pmem || {}).forEach((pk) => { const m = S.pmem[pk]; if (m.away > 0 && --m.away === 0) { m.t = Math.max(m.t, 45); m.back = 1; } }); /* a partner who asked out comes back after two shifts, willing to start over */ const pk = S.pcase.park; if (pk && pk.bench > 0) pk.bench--; if (k && CASES[k]) { st(k).rides++; } H.saveS(); }
   // a call cleared with a partner aboard: their next scene, if it's time, plays once the street is free
   function afterCall() {
     const p = H.partner(); if (!p || !CASES[p.k]) return; const s = st(p.k);
@@ -82,7 +82,7 @@ export function installPartners(H) {
   // a shift's opening line for a partner whose story has turned (null: use their usual lines)
   function startLine(k) { const s = S.pcase[k], a = s && s.out && AFTER[k] && AFTER[k][s.out]; return a ? a[(Math.random() * a.length) | 0] : null; }
   // after a cover-up Park sits out the next four shifts
-  const benched = (k) => { const s = S.pcase[k]; return !!(s && s.bench > 0); };
+  const benched = (k) => { const s = S.pcase[k], m = S.pmem && S.pmem[k]; return !!(s && s.bench > 0) || !!(m && m.away > 0); };
   // ---- partners who bring it up ----
   // Each partner remembers the calls you worked together and how you handled them. Their trust in you (0-100) moves
   // with it, and it decides how they act on a call: a partner who trusts you backs your play, one who doesn't goes
@@ -120,6 +120,12 @@ export function installPartners(H) {
     const m = PM(p.k); m.t = Math.min(100, m.t + 1); last = { k: p.k, d: 1, w: 'took a minute with people on the street', t: m.t, at: Date.now() };
     if (streetN === 1) { m.log.push({ sh: shiftNo, g: true, w: 'took the time to talk with people on the street', where: '' }); if (m.log.length > 12) m.log.shift(); } H.saveS();
     const L = NOD[p.k]; return L && streetN <= 2 ? L[(streetN - 1) % L.length] : null; }
+  // a partner whose trust bottoms out asks for someone else at end of watch, and sits out two shifts
+  const NAME = { walsh: 'Walsh', park: 'Park', castillo: 'Castillo' };
+  const LEAVE = { walsh: 'I put in for a different partner. It\'s not personal. Okay, it\'s a little personal.', park: 'I asked Sarge if I could ride with somebody else for a while. I\'m sorry. I just don\'t feel safe out there with you right now.', castillo: 'I\'m reassigning myself. Show me something on your own, then we\'ll talk.' };
+  const BACK = { walsh: 'Sarge put us back together. Clean slate. Don\'t make me regret it.', park: 'Hey. So. They put us back together. I want this to work. Do you?', castillo: 'I\'m back in your car. I read your last two shifts. Let\'s see if it holds.' };
+  function endWatch(k) { const m = k && S.pmem && S.pmem[k]; if (!m || m.away > 0 || m.t >= 25) return null; m.away = 2; H.saveS(); return { name: NAME[k] || 'Your partner', said: LEAVE[k] || 'I asked for a different partner.' }; }
+  function backLine(k) { const m = S.pmem && S.pmem[k]; if (!m || !m.back) return null; m.back = 0; H.saveS(); return BACK[k] || null; }
   const stance = (k) => { const t = trust(k); return t >= 70 ? 'good' : t < 40 ? 'short' : 'even'; };
-  return { remember, street, bringUp, trust, stance, get last() { return last; }, onShift, afterCall, tick, startLine, benched, CASES, get state() { return S.pcase; }, get pending() { return pending; } };
+  return { remember, street, endWatch, backLine, bringUp, trust, stance, get last() { return last; }, onShift, afterCall, tick, startLine, benched, CASES, get state() { return S.pcase; }, get pending() { return pending; } };
 }

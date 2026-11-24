@@ -29,6 +29,9 @@ const OUT = process.argv[2] || 'tests/out';
   const again = await a.evaluate(() => window.__pc.PART.bringUp('walsh')); console.log('next mention:', again);
   // low trust: he goes short
   const st = await a.evaluate(() => { const pc = window.__pc; pc.S.pmem.walsh.t = 30; return pc.PART.stance('walsh'); }); console.log('stance at 30:', st); if (st !== 'short') errs.push('low trust not short');
+  // trust that bottoms out: the partner asks for someone else, sits out two shifts, and comes back willing to start over
+  const tr = await a.evaluate(() => { const pc = window.__pc, P = pc.PART, m = pc.S.pmem.walsh; m.t = 20; m.away = 0; const out = P.endWatch('walsh'), b0 = P.benched('walsh'); P.onShift(null); const b1 = P.benched('walsh'); P.onShift(null); const b2 = P.benched('walsh'); return { out, b0, b1, b2, t: m.t, back: P.backLine('walsh'), again: P.backLine('walsh') }; });
+  console.log('transfer', JSON.stringify(tr)); if (!tr.out || !/different partner/.test(tr.out.said) || !tr.b0 || !tr.b1 || tr.b2 || tr.t < 45 || !/Clean slate/.test(tr.back || '') || tr.again) errs.push('a partner at rock bottom did not ask out and come back: ' + JSON.stringify(tr));
   // the field journal's Your watch tab tells the career shift by shift
   await a.evaluate(() => { const pc = window.__pc; pc.closeModal && pc.closeModal(); pc.S.court = pc.S.court || { pend: [], hist: [] }; pc.S.court.hist.push({ v: 'held', how: 'arrest', where: 'Oak St', sh: 0 }); pc.journalTab('watch'); });
   await a.waitForSelector('.wkTiles', { timeout: 8000 }).catch(() => errs.push('Your watch tab did not open'));

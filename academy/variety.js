@@ -173,7 +173,7 @@ export function installVariety(H) {
     const opts = Object.keys(COND).filter((k) => k !== 'normal' && !(COND[k].night && !night) && !(COND[k].day && night) && !(k === 'heat' && H.cold()));
     S.vcond = Math.random() < .55 && opts.length ? pick('cond', opts) : 'normal';
     const r = Math.random(); S.vpart = r < .35 ? null : r < .62 ? 'walsh' : r < .9 ? 'park' : 'castillo';
-    if (S.vpart && H.partnerBenched && H.partnerBenched(S.vpart)) S.vpart = 'walsh'; // Park sits out a few shifts after a cover-up (partners.js)
+    if (S.vpart && H.partnerBenched && H.partnerBenched(S.vpart)) S.vpart = H.partnerBenched('walsh') || S.vpart === 'walsh' ? null : 'walsh'; // Park sits out a few shifts after a cover-up (partners.js)
     LOG.length = 0; recentT = []; ambT = 50 + Math.random() * 30; void h;
     setTimeout(() => {
       const C = COND[S.vcond]; if (C && C.radio) { const D = dispatcher(); H.radio(D.label, C.radio); H.toast('Tonight: ' + C.name + '.'); }

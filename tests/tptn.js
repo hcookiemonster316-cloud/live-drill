@@ -19,5 +19,9 @@ const { chromium } = require('playwright');
   console.log('debrief', JSON.stringify(r4)); if (!r4.row || !/^100/.test(r4.score)) errs.push('partner row changed the grade or is missing: ' + JSON.stringify(r4));
   await a.evaluate(() => { document.querySelectorAll('#modal #mDone').forEach((x) => x.click()); const pc = window.__pc; pc.S.vpart = 'walsh'; pc.ptnHud(); });
   await a.addStyleTag({ content: '#modal,#radio,#orders,#banner,.banner,.toast{display:none!important}' }); await a.waitForTimeout(300); await a.screenshot({ path: (process.argv[2] || 'tests/out') + '/tptn.png', clip: { x: 0, y: 0, width: 900, height: 120 } });
+  // a partner at 85+ shares their read of the person on a call
+  await a.evaluate(() => { const pc = window.__pc; pc.S.vpart = 'walsh'; pc.S.pmem.walsh.t = 90; if (pc.curCall) pc.dropCall(); const c = { les: 0, title: 'Noise complaint', prio: 3, text: 'Loud music.', x: pc.P.x, y: pc.P.y, where: 'Main St', kind: 'street', t0: 0, accepted: true }; pc.openCallScene(c); window.__c = c; });
+  let heard = ''; for (let i = 0; i < 60 && !heard; i++) { heard = await a.evaluate(() => { const d = document.getElementById('dlg'); if (d.hidden) return ''; const t = d.innerText; if (/just wants it handled|Scared, not dangerous|burn it off|too clean/.test(t)) return t.replace(/\s+/g, ' ').slice(0, 160); const o = d.querySelector('.dlgOpts button:not([disabled])'); if (o) o.click(); else d.click(); return ''; }); await a.waitForTimeout(150); }
+  console.log('read', heard, await a.evaluate(() => window.__c.ptRead)); if (!heard) errs.push('a partner at 85 trust did not share their read');
   if (await a.evaluate(() => document.getElementById('hPtn').hidden)) errs.push('HUD stayed hidden when a partner came back');
   console.log(errs.length ? errs.slice(0, 4).join('\n') : 'no errors'); await b.close(); process.exit(errs.length ? 1 : 0); })();
