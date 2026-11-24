@@ -61,4 +61,4 @@ for t in $(grep -v ": no errors$" "$OUT" | cut -d: -f1); do case " $KNOWN " in *
   echo "$t retry: $r" >> "$OUT"; [ "$r" = "no errors" ] || FAILS="$FAILS $t"; done
 echo "== $MODE${SHARD:+ shard $SHARD}: $(echo $LIST | wc -w) tests, $(grep -c '^[^ ]*: no errors$' "$OUT") passed first time, $(( $(date +%s) - T0 )) s"; grep -v "^[^ ]*: no errors$" "$OUT"
 kill $PWS ${SRV:-} 2>/dev/null
-[ -z "$FAILS" ] || { echo "STILL FAILING:$FAILS"; exit 1; }
+[ -z "$FAILS" ] || { echo "STILL FAILING:$FAILS"; for t in $FAILS; do echo "--- $t (retry log, last lines)"; grep -v '^\s*at ' "$OUTD/logs/$t.retry.txt" | tail -12 | cut -c1-300; done; exit 1; } # the CI log shows why, since artifacts can be hard to reach
