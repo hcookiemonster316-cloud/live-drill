@@ -11,6 +11,9 @@ export function installRecord(H) {
   const keyAt = (x, y) => { const bx = Math.floor((x - 2) / 11), by = Math.floor((y - 2) / 11); return bx < 0 || by < 0 || bx > 12 || by > 12 ? null : bx + ',' + by; };
   // remember the lowest a block has been, so a turnaround can be noticed
   function note(did, k, v) { S.bmin = S.bmin || {}; const m = (S.bmin[did] = S.bmin[did] || {}); if (m[k] == null || v < m[k]) m[k] = v; }
+  // the window spots on a block's street-facing storefronts, where plywood goes up
+  function fronts(W, bx, by) { const fr = W.lots.filter((l) => l.bx === bx && l.by === by && l.bld); if (!fr.length) return []; const fy = Math.max(...fr.map((l) => l.bld.y + l.bld.d)), wall = [];
+    fr.filter((l) => l.bld.y + l.bld.d === fy).forEach((l) => { const b = l.bld, dx = l.door ? l.door[0] + .5 : -9; (b.w < 4 ? [b.x + .45, b.x + b.w - .45] : [b.x + .7, b.x + b.w - .7, b.x + b.w * .3]).filter((x) => Math.abs(x - dx) > .9) /* a narrow storefront has room either side of its door */.forEach((x) => wall.push([x, b.y + b.d + .12, b])); }); return wall; }
   // dress the district's blocks for how they feel about you; called when a district loads and when a block's trust moves a tier
   function dress(W, did) {
     if (!W || !W.props) return; W.props = W.props.filter((p) => !p.rec); W._lights = null; /* the party's string lights join the night lighting */ const T = BT(did);
@@ -20,12 +23,11 @@ export function installRecord(H) {
     Object.keys(T).forEach((k) => { const v = T[k]; if (Math.abs(v) < 4) return; const [bx, by] = k.split(',').map(Number), ox = 2 + bx * 11, oy = 2 + by * 11, y = oy + 8.5, seed = bx * 7 + by * 13;
       if (!W.lots.some((l) => l.bx === bx && l.by === by)) return;
       if (v >= 4) { put('flowers', ox + SIDE[0], y, { c: FLOWER[seed % 4] }); put('flowers', ox + SIDE[3], y, { c: FLOWER[(seed + 1) % 4] }); if (v >= 7) { put('bench', ox + SIDE[1], y); putAny('chalk', [ox + 4.5, ox + 3.5, ox + 8.5], y + .3, { v: seed % 5 }); } }
-      else { const fr = W.lots.filter((l) => l.bx === bx && l.by === by && l.bld), fy = Math.max(...fr.map((l) => l.bld.y + l.bld.d)), wall = []; // plywood goes over the windows of the storefronts facing the street
-        fr.filter((l) => l.bld.y + l.bld.d === fy).forEach((l) => { const b = l.bld, dx = l.door ? l.door[0] + .5 : -9; (b.w < 4 ? [b.x + .45, b.x + b.w - .45] : [b.x + .7, b.x + b.w - .7, b.x + b.w * .3]).filter((x) => Math.abs(x - dx) > .9) /* a narrow storefront has room either side of its door */.forEach((x) => wall.push([x, b.y + b.d + .12, b])); });
+      else { const wall = fronts(W, bx, by); // plywood goes over the windows of the storefronts facing the street
         const board = (o) => { for (const w of wall) { const k = Math.floor(w[0] * 2) + '|' + Math.floor(w[1]); if (taken.has(k)) continue; taken.add(k); W.props.push(Object.assign({ t: 'board', x: w[0], y: w[1], rec: 1, wall: 1, front: 1, dz: w[2].x + w[2].w + w[2].y + w[2].d - 1.05 - w[0] - w[1] }, o)); return true; } return false; };
         if (!board({ v: seed % 2 })) put('bin', ox + SIDE[1], y, { tip: 1 }); /* no storefront to board up: the can's been knocked over and left */ put('litter', ox + SIDE[3], y, { v: seed % 3 }); if (v <= -7) { const tg = wall.find((w) => !taken.has(Math.floor(w[0] * 2) + '|' + Math.floor(w[1]))); if (tg) { taken.add(Math.floor(tg[0] * 2) + '|' + Math.floor(tg[1])); W.props.push({ t: 'tag', x: tg[0], y: tg[1], rec: 1, wall: 1, front: 1, v: seed % 3, dz: tg[2].x + tg[2].w + tg[2].y + tg[2].d - 1.05 - tg[0] - tg[1] }); } }
         if (v <= -7 && !board({ v: (seed + 1) % 2 })) putAny('litter', [ox + SIDE[2], ox + SIDE[0], ox + 3.5, ox + 8.5], y, { v: (seed + 1) % 3 }); } });
-    Object.keys(S.bdown || {}).forEach((id) => { const [d2, k] = id.split(':'); const o = S.bdown[id]; if (+d2 !== did || !o || H.shift() !== o.sh || tier(T[k] || 0) < o.t) return; /* gone again if they board back up */ const [bx, by] = k.split(',').map(Number), ox = 2 + bx * 11, oy = 2 + by * 11; putAny('board', [ox + 9.3, ox + .9, ox + 5.2], oy + 9.3, { down: 1 }); });
+    Object.keys(S.bdown || {}).forEach((id) => { const [d2, k] = id.split(':'); const o = S.bdown[id]; if (+d2 !== did || !o || H.shift() !== o.sh || tier(T[k] || 0) < o.t) return; /* gone again if they board back up */ const [bx, by] = k.split(',').map(Number), ox = 2 + bx * 11, oy = 2 + by * 11; const w0 = fronts(W, bx, by)[0], nx = w0 ? [w0[0], w0[0] + 1, w0[0] - 1] : []; putAny('board', [...nx, ox + 9.3, ox + .9, ox + 5.2], oy + 9.3, { down: 1 }); }); /* stacked at the curb right below the storefront it came off */
     const pt = party(did); if (pt) { const [bx, by] = pt.k.split(',').map(Number), ox = 2 + bx * 11, oy = 2 + by * 11; put('lights', ox + 3.5, oy + 8.5); put('stall', ox + 5.5, oy + 9.5, { color: '#1f7a5a' }); put('lights', ox + 6.5, oy + 8.5); }
   }
   const blockName = (did, k) => { const W = H.W(); if (!W || W.did !== did) return ''; const l = W.lots.find((x) => x.bx + ',' + x.by === k && x.name); return l ? l.name : ''; };
@@ -59,15 +61,23 @@ export function installRecord(H) {
   // to the curb; out of view, it's simply down when you get there
   let crew = null;
   function unboard(did, k) { const W = H.W(), P = H.P(); if (!H.newPed || !W || W.did !== did || crew) return false; const [bx, by] = k.split(',').map(Number), ox = 2 + bx * 11, oy = 2 + by * 11;
-    const bs = W.props.filter((p) => p.rec && p.wall && p.t === 'board' && p.x >= ox && p.x < ox + 11 && p.y >= oy && p.y < oy + 11); if (!bs.length || Math.hypot(bs[0].x - P.x, bs[0].y - P.y) > 10) return false; /* close enough to see it */
-    const w = H.newPed(), b0 = bs[0], now = performance.now(); Object.assign(w, { x: b0.x, y: b0.y + .45, path: [], wait: 1e9, jog: false, dog: null, bike: false, party: 1, face: 1, rx: { k: 'pry', until: now + 2600 } }); H.peds().unshift(w); crew = w;
-    setTimeout(() => { if (H.W() === W) { dress(W, did); w.rx = { k: 'carry', until: performance.now() + 2600 }; const st = W.props.find((p) => p.rec && p.down && p.x >= ox && p.x < ox + 11 && p.y >= oy && p.y < oy + 11); if (st) { w.x = st.x - .5; w.y = st.y - .2; } } }, 2600);
-    setTimeout(() => { const ps = H.peds(), i = ps.indexOf(w); if (i >= 0) ps.splice(i, 1); crew = null; }, 5400); return true; }
+    const bs = W.props.filter((p) => p.rec && p.wall && p.t === 'board' && p.x >= ox && p.x < ox + 11 && p.y >= oy && p.y < oy + 11); if (!bs.some((b) => Math.hypot(b.x - P.x, b.y - P.y) <= 10)) return false; /* close enough to see it */
+    const w = H.newPed(), b0 = bs.reduce((a, b) => Math.hypot(b.x - P.x, b.y - P.y) < Math.hypot(a.x - P.x, a.y - P.y) ? b : a); /* the window nearest you, so you see it */ Object.assign(w, { x: b0.x, y: b0.y + .45, path: [], wait: 1e9, jog: false, dog: null, bike: false, party: 1, face: 1, sp: 1.5, rx: { k: 'pry', until: 1e15 } }); H.peds().unshift(w); crew = w;
+    /* a little play in game time: pry, carry it down to the curb at a walk, set it down and wave. Paused time (a promotion, a menu) doesn't count */
+    let ph = 'pry', left = 2600, last = performance.now(), st = null; const bye = () => { const ps = H.peds(), i = ps.indexOf(w); if (i >= 0) ps.splice(i, 1); if (st) st.hide = 0; crew = null; };
+    const step = () => { const n = performance.now(), dt = H.paused && H.paused() ? 0 : n - last; last = n; left -= dt; if (H.W() !== W) return bye();
+      if (ph === 'pry' && left <= 0) { dress(W, did); st = W.props.find((p) => p.rec && p.down && p.x >= ox && p.x < ox + 11 && p.y >= oy && p.y < oy + 11); if (!st) return bye();
+        st.hide = Infinity; /* the stack only shows once it's set down */ w.wait = 0; w.path = [[st.x - .5, st.y - .2]]; w.rx = { k: 'carry', until: 1e15 }; ph = 'walk'; left = 9000; }
+      else if (ph === 'walk' && (!w.path.length || left <= 0)) { w.path = []; w.wait = 1e9; w.x = st.x - .5; w.y = st.y - .2; st.hide = 0; const P2 = H.P(); w.face = (P2.x - w.x) - (P2.y - w.y) > 0 ? 1 : -1; w.back = false; w.moving = false; w.rx = Math.hypot(P2.x - w.x, P2.y - w.y) < 12 ? { k: 'wave', until: 1e15 } : null; ph = 'wave'; left = 1600; }
+      else if (ph === 'wave' && left <= 0) return bye();
+      setTimeout(step, 80); };
+    setTimeout(step, 80);
+    return true; }
   const RX = { pry: ['🔨', '#b8935f'], carry: ['🪵', '#b8935f'], wave: ['👋', '#22c55e'], away: ['😒', '#6b7280'], note: ['🎵', '#f5b800'], party: ['🎉', '#f472b6'] };
   function draw(now) { if (H.inside()) return; H.peds().forEach((p) => { if (!p.rx || p.rx.until < now) return; const [sx, sy] = H.iso(p.x, p.y); const r = RX[p.rx.k] || RX.wave; H.bubble(sx, sy - 44, r[0], r[1], now); }); }
   // a block that trusts you calls you by name: once a shift, now and then, the next call comes from a neighbor there
   function tip(did, sh, force) { S.btip = S.btip || {}; if (S.btip[did] === sh || (!force && Math.random() > .3)) return null; const W = H.W(), T = BT(did);
     const good = W.lots.filter((l) => l.name && l.door && (T[l.bx + ',' + l.by] || 0) >= 7); if (!good.length) return null; const l = good[(Math.random() * good.length) | 0]; S.btip[did] = sh; H.saveS();
     return { x: l.door[0] + .5, y: l.door[1] + .5, where: l.name, kind: l.kind }; }
-  return { dress, moved, note, tick, draw, party, tier, tip, get atParty() { return heard && !!party(H.W().did); }, _peds: () => H.peds() };
+  return { dress, moved, note, tick, draw, party, tier, tip, get atParty() { return heard && !!party(H.W().did); }, get crew() { return crew; }, _peds: () => H.peds() };
 }

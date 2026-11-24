@@ -667,9 +667,14 @@ const PPX = new Map(), PKEY_SKIP = new Set(['x', 'y', 't', 'on', 'rec', 'wall', 
 // a prop drawn at 3x, its solid parts turned into pixel art and its see-through dark parts (ground shadows) kept soft
 function propPix(q, night) {
   const k = 3, W = 120, Hh = 150, [bv, bg] = hiCanvas(W, Hh, k); drawProp(bg, q, 60, 130, 0, night);
-  const all = bg.getImageData(0, 0, W * k, Hh * k).data; let x0 = W, y0 = Hh, x1 = -1, y1 = -1;
-  for (let y = 0; y < Hh * k; y++) { const r = y * W * k; for (let x = 0; x < W * k; x++) if (all[(r + x) * 4 + 3] > 8) { const X = (x / k) | 0, Y = (y / k) | 0; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; } }
-  if (x1 < 0) return EMPTYC; const w = x1 - x0 + 1, h = y1 - y0 + 1, src = bg.getImageData(x0 * k, y0 * k, w * k, h * k), d = src.data, { out } = pixelize(d, w, h, k, 10);
+  /* one read-back only: find the drawn box on the full read, then crop it out of the same pixels (a second getImageData stalls the GPU again) */
+  const WK = W * k, HK = Hh * k, all = bg.getImageData(0, 0, WK, HK).data; let ya = -1, yb = -1, xa = WK, xb = -1;
+  for (let y = 0; y < HK; y++) { let i = y * WK * 4 + 3; for (let x = 0; x < WK; x++, i += 4) if (all[i] > 8) { if (ya < 0) ya = y; yb = y; if (x < xa) xa = x; break; } }
+  if (ya < 0) return EMPTYC;
+  for (let y = ya; y <= yb; y++) { let i = (y * WK + WK - 1) * 4 + 3; for (let x = WK - 1; x > xb; x--, i -= 4) if (all[i] > 8) { xb = x; break; } }
+  const x0 = (xa / k) | 0, y0 = (ya / k) | 0, x1 = (xb / k) | 0, y1 = (yb / k) | 0, w = x1 - x0 + 1, h = y1 - y0 + 1, rw = w * k * 4, d = new Uint8ClampedArray(rw * h * k);
+  for (let y = 0; y < h * k; y++) { const o = ((y0 * k + y) * WK + x0 * k) * 4; d.set(all.subarray(o, o + rw), y * rw); }
+  const src = new ImageData(d, w * k, h * k), { out } = pixelize(d, w, h, k, 10);
   // the soft layer: only faint, dark pixels (shadows), never the faint edges of the body itself
   for (let i = 0; i < d.length; i += 4) { const a = d[i + 3]; if (a >= 110 || .299 * d[i] + .587 * d[i + 1] + .114 * d[i + 2] > 70) { d[i + 3] = 0; } }
   const c = document.createElement('canvas'); c.width = w * k; c.height = h * k; const cg = c.getContext('2d'); cg.putImageData(src, 0, 0);
