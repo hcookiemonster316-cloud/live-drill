@@ -513,7 +513,7 @@ function render(now) { RNOW = now; LBLR.length = 0; frameStart(); spriteResTick(
   // anchors of people, cars and props: their sprites reach at most ~80 px sideways, ~140 px up and ~30 px down, so the
   // test is that tight; the wider box above stays for the grid lookups (buildings are culled by their own bounds)
   const sx0 = cam.x - cv.width / 2 / z - 80, sx1 = cam.x + cv.width / 2 / z + 80, sy0 = cam.y - cv.height / 2 / z - 40, sy1 = cam.y + cv.height / 2 / z + 150;
-  const vis = (sx, sy) => sx > sx0 && sx < sx1 && sy > sy0 && sy < sy1;
+  const vis = (sx, sy) => sx > sx0 && sx < sx1 && sy > sy0 && sy < sy1; BV[0] = cam.x - cv.width / 2 / z - 20; BV[1] = cam.x + cv.width / 2 / z + 20; BV[2] = cam.y - cv.height / 2 / z - 24; BV[3] = cam.y + cv.height / 2 / z + 20;
   const list = [];
   // buildings between you and the camera fade so you can always see yourself (and others near you)
   const [pix, piy] = iso(P.x, P.y), pd = P.x + P.y;
@@ -819,7 +819,8 @@ function ring(sx, sy, col, now) { const k = (now % 1400) / 1400; ctx.strokeStyle
 // map bubbles ("!", a radio, a heart) are drawn once per icon and color into a small sprite at the on-screen resolution,
 // then stamped with their bob each frame, like labels: same look, no per-frame circle, tail and icon text
 const BUBC = new Map();
-function bubble(sx, sy, txt, col, now) { const b = Math.sin(now / 260) * 3, k = txt + '|' + col + '|' + RES; let c = BUBC.get(k);
+const BV = [-1e9, 1e9, -1e9, 1e9]; // this frame's view in screen-world units: map bubbles outside it aren't drawn (a few px of slack for the bob)
+function bubble(sx, sy, txt, col, now) { if (sx < BV[0] || sx > BV[1] || sy < BV[2] || sy > BV[3]) return; const b = Math.sin(now / 260) * 3, k = txt + '|' + col + '|' + RES; let c = BUBC.get(k);
   if (!c) { if (BUBC.size > 120) BUBC.clear(); const [cv, g] = hiCanvas(26, 30, Math.max(1.5, RES)); g.translate(13, 12);
     g.fillStyle = col; g.beginPath(); g.arc(0, 0, 11, 0, Math.PI * 2); g.fill(); g.beginPath(); g.moveTo(-5, 8); g.lineTo(5, 8); g.lineTo(0, 15); g.fill();
     g.fillStyle = col === '#f5b800' ? '#0b1630' : '#fff'; g.font = '800 13px Meridian,system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, 0, 1); c = cv; BUBC.set(k, c); }
