@@ -9,7 +9,7 @@ const OUT = process.argv[2] || 'tests/out';
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.click('#mDone').catch(() => {}); await a.waitForFunction(() => window.__pc && window.__pc.W && window.__booted, null, { timeout: 20000 }); await a.waitForTimeout(2500);
   await a.addStyleTag({ content: '.lorePop,.tCard{display:none!important}' });
   // a call worked with Walsh, read right and all correct
-  const t1 = await a.evaluate(() => { const pc = window.__pc, t0 = pc.PART.trust('walsh'); const c = { title: 'Fender bender blocking Main', where: 'Main St', prio: 2, way: 'talk', readRight: true, wrap: 'case', rules: { intent: 'nervous' } };
+  const t1 = await a.evaluate(() => { const pc = window.__pc; pc.S.vpart = 'walsh'; /* the shift may have dealt another partner */ const t0 = pc.PART.trust('walsh'); const c = { title: 'Fender bender blocking Main', where: 'Main St', prio: 2, way: 'talk', readRight: true, wrap: 'case', rules: { intent: 'nervous' } };
     pc.WL.call(c, { right: 3, n: 3 }); const d = pc.PART.remember(c, { right: 3, n: 3 }); pc.WL.pursuit('term', false, 'Palm Ave'); pc.PART.remember(c, null, { pur: 'term', ordered: false }); pc.WL.court('The case held. Guilty on the fleeing charge. Your report matched the log.');
     return { t0, t1: pc.PART.trust('walsh'), d, log: pc.WL.log.map((x) => x.t + ' ' + x.text) }; });
   console.log('trust', t1.t0, '->', t1.t1); console.log(t1.log.join('\n')); if (!(t1.t1 > t1.t0)) errs.push('trust did not rise');

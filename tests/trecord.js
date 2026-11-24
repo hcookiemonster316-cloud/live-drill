@@ -1,0 +1,36 @@
+// a city that shows your record: block trust shows on the street (flowers and a bench where they trust you, plywood
+// and litter where they don't), people wave or turn away as you pass, and a block that was trouble and comes around
+// throws a block party you can stop by
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const a = await b.newPage({ viewport: { width: 900, height: 640 } }); const errs = []; a.on('pageerror', (e) => errs.push(e.message + ' ' + (e.stack || '').split('\n')[1]));
+  await a.goto('http://localhost:8765/academy/?mock&skiptitle');
+  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ ch: 'vo', cs: '1-Adam-12', home: 0, unlocked: [0, 1, 2, 3, 4], story: { 0: 99, 1: 99, 2: 99, 3: 99, 4: 99 }, shift: 'day', unit: 'patrol', sound: false, seenIntro: 1, seenCine: 1, tutDone: 1, cfg: { autoQ: false, text: 'instant', pursuits: false } })));
+  await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.click('#mDone').catch(() => {}); await a.waitForFunction(() => window.__pc && window.__pc.W && window.__booted, null, { timeout: 20000 }); await a.waitForTimeout(1500);
+  await a.addStyleTag({ content: '.lorePop,.tCard{display:none!important}' });
+  await a.evaluate(() => document.querySelectorAll('#modal:not([hidden]) #mClose,#modal:not([hidden]) #mDone').forEach((x) => x.click()));
+  // 1) pick the block the player stands next to and the one beside it
+  const r = await a.evaluate(() => { const pc = window.__pc, W = pc.W, P = pc.P, did = W.did; const lots = W.lots.slice().sort((p, q) => Math.hypot(p.bx * 11 + 7 - P.x, p.by * 11 + 7 - P.y) - Math.hypot(q.bx * 11 + 7 - P.x, q.by * 11 + 7 - P.y));
+    const good = lots[0], bad = lots.find((l) => l.bx !== good.bx || l.by !== good.by); const kg = good.bx + ',' + good.by, kb = bad.bx + ',' + bad.by;
+    pc.S.btrust = pc.S.btrust || {}; pc.S.btrust[did] = { [kb]: 0 }; pc.S.bmin = { [did]: { [kg]: -5 } };
+    // move the player onto the good block's sidewalk; trust moves where the player stands
+    P.x = good.bx * 11 + 2 + 5; P.y = good.by * 11 + 2 + 9.5;
+    const rec = () => W.props.filter((p) => p.rec).map((p) => p.t + '@' + Math.floor((p.x - 2) / 11) + ',' + Math.floor((p.y - 2) / 11));
+    pc.S.btrust[did][kg] = 2; pc.blockTrust(3); const at5 = rec(); const toast1 = [...document.querySelectorAll('.toast,#toast')].map((x) => x.innerText).join(' | ');
+    pc.blockTrust(3); const at8 = rec(); const party = JSON.stringify(pc.S.bparty || {});
+    return { did, kg, kb, at5, at8, party, toast1 }; });
+  console.log('blocks', r.kg, r.kb); console.log('at +5', r.at5.join(' ')); console.log('at +8', r.at8.join(' ')); console.log('party', r.party);
+  if (!r.at5.some((x) => x === 'flowers@' + r.kg)) errs.push('no flowers on a block at +5');
+  if (!r.at8.some((x) => x === 'bench@' + r.kg)) errs.push('no bench on a block at +8');
+  if (!/"k":"/.test(r.party) || !r.at8.some((x) => x.startsWith('lights@'))) errs.push('no block party after a turnaround');
+  // 2) a burned block boards up
+  const bad = await a.evaluate((kb) => { const pc = window.__pc, W = pc.W; pc.S.btrust[W.did][kb] = -8; pc.REC.dress(W, W.did); return W.props.filter((p) => p.rec && p.t !== 'flowers' && p.t !== 'bench' && p.t !== 'lights' && p.t !== 'stall').map((p) => p.t + '@' + Math.floor((p.x - 2) / 11) + ',' + Math.floor((p.y - 2) / 11)); }, r.kb);
+  console.log('burned block', bad.join(' ')); if (process.env.V) console.log(await a.evaluate((kb) => { const W = window.__pc.W, [bx, by] = kb.split(',').map(Number), ox = 2 + bx * 11, oy = 2 + by * 11; return JSON.stringify(W.props.filter((p) => p.x >= ox && p.x < ox + 11 && p.y >= oy + 7 && p.y < oy + 11).map((p) => [p.t, p.x, p.y, p.rec ? 1 : 0])); }, r.kb)); if (bad.filter((x) => x === 'board@' + r.kb).length < 2 || !bad.includes('litter@' + r.kb)) errs.push('burned block did not board up');
+  // 3) the party pays once when you stop by (the player is standing on the block)
+  await a.waitForFunction(() => Object.values(window.__pc.S.bparty || {}).some((p) => p.seen), null, { timeout: 8000 }).catch(() => errs.push('stopping by the party did nothing'));
+  // 4) people wave on the good block
+  const waved = await a.evaluate(() => { const pc = window.__pc, P = pc.P, ps = pc.peds || []; return ps.length; });
+  const rx = await a.evaluate(async () => { const pc = window.__pc, P = pc.P; const ps = pc.REC._peds(); if (!ps.length) return 'no peds'; const p = ps[0]; p.x = P.x + 1.5; p.y = P.y; p._rxDone = 0; p.rx = null; const r0 = Math.random; Math.random = () => 0; pc.REC.tick(1); Math.random = r0; return p.rx ? p.rx.k : 'none'; });
+  console.log('ped reaction', rx, waved); if (rx !== 'wave') errs.push('ped on a trusting block did not wave: ' + rx);
+  await a.evaluate(() => [...document.body.children].forEach((x) => { if (!/^(view|vign|hTop|hBot)$/.test(x.id)) x.style.visibility = 'hidden'; }));
+  await a.waitForTimeout(500); await a.screenshot({ path: (process.argv[2] || 'tests/out') + '/trecord.png' });
+  console.log(errs.length ? errs.slice(0, 4).join('\n') : 'no errors'); await b.close(); process.exit(errs.length ? 1 : 0); })();

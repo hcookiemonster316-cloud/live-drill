@@ -66,10 +66,13 @@ export function installEchoes(H) {
     if (!business(c.where)) return;
     const k = ck(c.where), r = S.callers[k] = S.callers[k] || { n: 0, good: 0, settled: 0 }; if (r.settled) return;
     r.n++; if (res && res.n && res.right * 2 >= res.n) r.good++;
-    if (r.good >= 3) { r.settled = Date.now(); setTimeout(() => H.radio('Dispatch', 'Funny thing, ' + S.cs + '. ' + c.where + ' used to call us every week. Nothing since you started handling it. Whatever you said, it worked.'), 3500); }
+    if (r.good >= 3) { r.settled = Date.now(); openV++; setTimeout(() => H.radio('Dispatch', 'Funny thing, ' + S.cs + '. ' + c.where + ' used to call us every week. Nothing since you started handling it. Whatever you said, it worked.'), 3500); }
     else if (r.n === 2) setTimeout(() => H.radio('Dispatch', 'That\'s the second call from ' + c.where + '. They\'re going to be regulars.'), 3000);
     H.saveS();
   }
+  // the doors that put out an OPEN sign, worked out once per district and again only when a place settles (was every frame)
+  let openV = 0, openMemo = { W: null, v: -1, pts: [] };
+  const openDoors = (W) => { if (openMemo.W !== W || openMemo.v !== openV) openMemo = { W, v: openV, pts: W.lots.filter((l) => l.name && l.door && settled(l.name)).map((l) => [l.door[0] + .9, l.door[1] + .3]) }; return openMemo.pts; };
   const settled = (where) => { const r = S.callers[ck(where)]; return !!(r && r.settled); };
 
   // ---------- a roadside memorial, and a community board whose flyers change ----------
@@ -114,7 +117,7 @@ export function installEchoes(H) {
     const put = (x, y, k, dz) => { const [sx, sy] = H.iso(x, y); if (!vis(sx, sy)) return; list.push({ d: x + y + (dz || 0), f: () => { const s = sprite2(k); ctx.drawImage(s, sx - s.lw / 2, sy - s.lh + 2, s.lw, s.lh); } }); };
     if (d.mem) put(d.mem[0], d.mem[1], (S.beltTalk || {})[did] ? 'memorialNote' : 'memorial');
     if (d.board) put(d.board[0], d.board[1], 'board');
-    for (const l of W.lots) { if (!l.name || !settled(l.name) || !l.door) continue; put(l.door[0] + .9, l.door[1] + .3, 'open', .4); }
+    for (const o of openDoors(W)) put(o[0], o[1], 'open', .4);
   }
   // walking past: the memorial and the board speak once a shift each
   let wT = 0;

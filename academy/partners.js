@@ -87,6 +87,7 @@ export function installPartners(H) {
   // Each partner remembers the calls you worked together and how you handled them. Their trust in you (0-100) moves
   // with it, and it decides how they act on a call: a partner who trusts you backs your play, one who doesn't goes
   // quiet and second-guesses you. At the start of a later shift they bring up something you did together.
+  let last = null; // the most recent change, for the HUD and the debrief
   const PM = (k) => { S.pmem = S.pmem || {}; return (S.pmem[k] = S.pmem[k] || { t: 60, log: [] }); };
   const trust = (k) => (k ? PM(k).t : 60);
   // what happened, and how much it moves their trust
@@ -99,7 +100,7 @@ export function installPartners(H) {
       else if (all && c.readRight) { d = 4; good = true; what = 'read that person right at ' + (c.where || 'that call'); }
       else if (all) { d = 2; good = true; what = 'handled that ' + c.title.toLowerCase(); }
       else if (r && r.n && r.right === 0) { d = -2; good = false; what = 'missed everything on that ' + c.title.toLowerCase(); } }
-    if (!d) return 0; m.t = Math.max(0, Math.min(100, m.t + d));
+    if (!d) return 0; m.t = Math.max(0, Math.min(100, m.t + d)); last = { k: p.k, d, w: what, t: m.t, at: Date.now() };
     m.log.push({ sh: shiftNo, g: good, w: what, where: c && c.where || '' }); if (m.log.length > 12) m.log.shift(); H.saveS(); return d; }
   const VOICE = {
     walsh: { g: ['Been thinking about when you {w}. That was good police work. I told the guys at the diner.', 'You {w}. Took me ten years to do that right. Keep doing it.'],
@@ -113,5 +114,5 @@ export function installPartners(H) {
     const L = e.g ? V.g : V.b; return L[(Math.random() * L.length) | 0].replace('{w}', e.w); }
   // how the partner acts on a call: 'good' backs you, 'short' goes quiet, 'even' in between
   const stance = (k) => { const t = trust(k); return t >= 70 ? 'good' : t < 40 ? 'short' : 'even'; };
-  return { remember, bringUp, trust, stance, onShift, afterCall, tick, startLine, benched, CASES, get state() { return S.pcase; }, get pending() { return pending; } };
+  return { remember, bringUp, trust, stance, get last() { return last; }, onShift, afterCall, tick, startLine, benched, CASES, get state() { return S.pcase; }, get pending() { return pending; } };
 }

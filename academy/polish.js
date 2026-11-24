@@ -22,7 +22,7 @@ export function installPolish(H) {
     ].filter(Boolean);
     (d.extra || []).forEach((r) => rows.push(r));
     if (d.coop) rows.push(['🛡️', 'Teamwork', 5, 5, 'Ran backup with ' + d.coop]);
-    const base = rows.filter((r) => r[1] !== 'Teamwork'), score = Math.min(100, Math.round(base.reduce((a, r) => a + r[2], 0) / base.reduce((a, r) => a + r[3], 0) * 100) + (d.coop ? 5 : 0)), g = grade(score), key = d.title, best = S.grades[key];
+    const base = rows.filter((r) => r[1] !== 'Teamwork' && !r[5]), /* r[5]: a row that informs, not scores (your partner's trust) */ score = Math.min(100, Math.round(base.reduce((a, r) => a + r[2], 0) / base.reduce((a, r) => a + r[3], 0) * 100) + (d.coop ? 5 : 0)), g = grade(score), key = d.title, best = S.grades[key];
     const better = !best || 'DCBAS'.indexOf(g) > 'DCBAS'.indexOf(best); if (better) S.grades[key] = g; H.stat('callGrade' + g); if (g === 'S') H.stat('callS'); H.saveS();
     H.setMood('debrief'); H.sting(g === 'S' || g === 'A' ? 'gradeS' : 'grade');
     H.openModal('<div class="dbf"><div class="dbfHead"><small>' + esc(d.prio === 1 ? 'PRIORITY 1' : d.prio === 2 ? 'PRIORITY 2' : 'ROUTINE') + ' · CALL CLEARED</small><h2>' + esc(d.title) + '</h2><p>' + esc(d.where) + (d.role ? ' · ' + esc(d.role) : '') + '</p></div>' +

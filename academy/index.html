@@ -82,6 +82,7 @@ canvas#view{position:fixed;inset:0;touch-action:none;display:block}
 /* HUD */
 .hTop{position:fixed;left:8px;right:8px;top:calc(8px + var(--safe-t));display:flex;gap:8px;align-items:flex-start;pointer-events:none;z-index:5}
 .hTop>*{pointer-events:auto}
+.hPtn{display:flex;align-items:center;gap:5px;font-size:11px;line-height:1.2;margin-top:2px;opacity:.92}.hPtn[hidden]{display:none}.hPtn b{font-weight:700}.hPtn .pip{display:inline-flex;gap:2px;text-decoration:none}.hPtn .pip i{width:6px;height:6px;border-radius:2px;background:rgba(255,255,255,.18)}.hPtn.good .pip i.on{background:#22c55e}.hPtn.even .pip i.on{background:#f5b800}.hPtn.short .pip i.on{background:#ef4444}.hPtn em{font-style:normal;opacity:.75}.hPtn.up{animation:ptnUp 1.6s ease-out}.hPtn.dn{animation:ptnDn 1.6s ease-out}@keyframes ptnUp{0%,30%{color:#4ade80;transform:scale(1.08)}100%{color:inherit;transform:none}}@keyframes ptnDn{0%,30%{color:#f87171;transform:translateX(-2px)}15%{transform:translateX(2px)}100%{color:inherit;transform:none}}
 .hCard{background:var(--panel);border:1px solid var(--line);border-radius:14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .hMe{display:flex;align-items:center;gap:10px;padding:7px 12px 7px 7px;min-width:0;flex:0 1 auto}
 .hRing{--p:0;flex:none;width:44px;height:44px;border-radius:50%;background:conic-gradient(var(--gold) calc(var(--p)*1%),rgba(255,255,255,.12) 0);display:grid;place-items:center}
@@ -1206,7 +1207,7 @@ body.phHud .stopBtn{bottom:calc(172px + var(--safe-b))}
 <canvas id="view" aria-label="Patrol City map"></canvas>
 <div class="hTop">
   <div class="hCard hMe"><div class="hRing" id="hMast"><span id="hMastN">0/0</span></div><div class="hId"><b id="hCs">—</b><span id="hUnit"></span><span id="hRank"></span></div></div>
-  <div class="hCard hShift"><span id="hClock">—</span><span id="hDist">—</span><span id="hOn">Connecting…</span></div>
+  <div class="hCard hShift"><span id="hClock">—</span><span id="hDist">—</span><span id="hOn">Connecting…</span><span id="hPtn" class="hPtn" hidden></span></div>
 </div>
 <div id="radio" aria-live="polite" role="log"></div>
 <div id="orders" class="orders"></div>

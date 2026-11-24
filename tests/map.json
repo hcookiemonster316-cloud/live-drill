@@ -95,6 +95,7 @@
   ],
   "partners.js": [
    "tpart",
+   "tptn",
    "twatch"
   ],
   "path.js": [
@@ -107,11 +108,15 @@
   ],
   "polish.js": [
    "t79",
+   "tptn",
    "treport"
   ],
   "premium.js": [
    "t63",
    "t73"
+  ],
+  "record.js": [
+   "trecord"
   ],
   "rewards.js": [
    "t68",
