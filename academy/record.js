@@ -31,7 +31,7 @@ export function installRecord(H) {
     maybeParty(did, k, after); }
   // a block that was trouble (-3 or lower) and now trusts you (8+) throws a party, once
   function maybeParty(did, k, v) { const m = (S.bmin || {})[did] || {}; S.bparty = S.bparty || {}; if (v < 8 || (m[k] == null ? 0 : m[k]) > -3 || S.bparty[did + ':' + k]) return;
-    S.bparty[did + ':' + k] = { k, did, sh: H.shift(), seen: 0 }; H.saveS(); dress(H.W(), did); const l = H.W().lots.find((x) => x.bx + ',' + x.by === k);
+    const l = H.W().lots.find((x) => x.bx + ',' + x.by === k); S.bparty[did + ':' + k] = { k, did, sh: H.shift(), seen: 0, name: (l && l.name) || '' }; H.saveS(); dress(H.W(), did);
     H.radio('Dispatch', 'Folks on ' + ((l && l.name) || 'your old trouble block') + ' are throwing a block party. They asked if you\'d stop by.'); }
   function party(did) { const b = S.bparty || {}; for (const id in b) { const p = b[id]; if (p.did === did && H.shift() - p.sh <= 1) return p; } return null; }
   // reactions: someone on a block that trusts you waves; on one that doesn't, they turn away

@@ -737,7 +737,7 @@ const SPEC = installSpecial({ get S() { return S; }, saveS: () => saveS(), shift
   iso: (x, y) => iso(x, y), ring: (sx, sy, c, now) => ring(sx, sy, c, now), bubble: (sx, sy, t, c, now) => bubble(sx, sy, t, c, now), label: (sx, sy, t, c) => label(sx, sy, t, c), px: () => P.x, py: () => P.y });
 const PART = installPartners({ S, saveS: () => saveS(), partner: () => VAR.partner(), free: () => streetFree(), dialogue: (...a) => dialogue(...a), twist: (t) => twistCard(t) });
 // the exam as a finale: the last shift (finale.js)
-const FIN = installFinale({ S, MEM, NPCS, esc, backers: () => GRP.backers() });
+const FIN = installFinale({ S, MEM, NPCS, esc, backers: () => GRP.backers(), turned: () => [0, 1, 2, 3, 4].flatMap((d) => REPS.roster(d).filter((r) => r.done === 'good').map((r) => r.name)), partners: () => ['walsh', 'park', 'castillo'].filter((k) => S.pmem && S.pmem[k]).map((k) => ({ name: ({ walsh: 'Ofc. Bernie Walsh', park: 'Ofc. Theo Park', castillo: 'Sgt. Dana Castillo' })[k], t: PART.trust(k) })) });
 const CAL = installCalendar({ S, NPCS, esc, saveS: () => saveS(), radio: (a, b) => radio(a, b), lessonName: (l) => L.lessonName(l), whereNow: (n) => POL.whereNow(n), homeOf: (n) => NPC_AT[n.id] || n.home, openModal: (h) => openModal(h), closeModal: () => closeModal(), did: () => W.did, exam: () => chapterExam() });
 // districts whose people disagree: two community groups per district (groups.js)
 const GRP = installGroups({ S, esc, saveS: () => saveS(), did: () => W.did, day: () => CAL.day(), free: () => streetFree(), sayAs: (...a) => sayAs(...a), dialogue: (...a) => dialogue(...a), districtName: (d) => DISTRICTS[d].name });
@@ -1124,7 +1124,9 @@ function activeQ() {
   const o = SIDE.find((q) => q.d === W.did && sideLive(q)); return o ? mk(o) : null;
 }
 const chStep = () => { const a = activeQ(); return a ? a.step : null; };
-function stepLot(st) { if (!st) return null; const outW = inside ? inside.O.W : W; return outW.lots.find((l) => (l.name || '').indexOf(st.at) >= 0) || outW.lots.find((l) => l.kind === st.at.toLowerCase()); }
+// a step's lot never moves, so it is looked up once per step and map (stepTarget runs a dozen times a frame; this scanned every lot each time)
+const STEPLOT = new WeakMap();
+function stepLot(st) { if (!st) return null; const outW = inside ? inside.O.W : W, c = STEPLOT.get(st); if (c && c.W === outW) return c.lot; const lot = outW.lots.find((l) => (l.name || '').indexOf(st.at) >= 0) || outW.lots.find((l) => l.kind === st.at.toLowerCase()) || null; STEPLOT.set(st, { W: outW, lot }); return lot; }
 // where the waypoint is, in the current map's coordinates
 function stepTarget() {
   const st = chStep(); if (!st) return null; const lot = stepLot(st); if (!lot) return null;

@@ -17,6 +17,10 @@ export function installFinale(H) {
     deeds.slice().reverse().forEach((d) => { if (!d.who) return; if (d.k === 'kept') add(d.who, '🏠', 'you kept your word'); else if (d.k === 'help') add(d.who, '🤝', 'you helped at ' + (d.where || 'her door')); else if (d.k === 'deeswin') add(d.who, '☕', 'you talked someone down'); });
     (H.NPCS || []).filter((n) => (S.npc[n.id] || 0) >= 3).sort((a, b) => (S.npc[b.id] || 0) - (S.npc[a.id] || 0)).forEach((n) => add(n.name, n.icon || '⭐', (S.npc[n.id] >= 6 ? 'a close friend' : 'a friend') + ' from ' + (n.role || 'the beat')));
     (H.backers ? H.backers() : []).forEach((b) => add(b.name, b.icon, b.why)); // community groups that trust you (groups.js)
+    // the record you built on the street: regulars who turned it around, blocks that threw you a party, partners who trust you
+    (H.turned ? H.turned() : []).forEach((n) => add(n, '🔄', 'turned it around after you kept talking it through'));
+    Object.values(S.bparty || {}).forEach((p) => add('The neighbors' + (p.name ? ' from ' + p.name : ''), '🎉', 'their block used to be trouble, then threw you a party'));
+    (H.partners ? H.partners() : []).filter((p) => p.t >= 70).forEach((p) => add(p.name, '👮', 'your partner, who has your back'));
     return out;
   }
   // a stage's opening: the time, what dispatch sends you to, and now and then someone you helped
@@ -33,8 +37,8 @@ export function installFinale(H) {
   // how you worked: clean pursuit endings, talk-downs, by-the-book arrests and reports, good co-op calls against the
   // pursuits you kept going, the talk-downs that went wrong and the co-op calls you ran badly
   function conduct() {
-    const t = S.stat || {}, good = (t.pursuitSafe || 0) + (t.deescWin || 0) + (t.arrestClean || 0) + (t.reportPerfect || 0) + (t.coopGood || 0);
-    const bad = Math.max(0, (t.pursuits || 0) - (t.pursuitSafe || 0)) + Math.max(0, (t.deesc || 0) - (t.deescWin || 0)) + Math.max(0, (t.coop || 0) - (t.coopGood || 0));
+    const t = S.stat || {}, ct = (S.court && S.court.hist) || [], good = (t.pursuitSafe || 0) + (t.deescWin || 0) + (t.arrestClean || 0) + (t.reportPerfect || 0) + (t.coopGood || 0) + ct.filter((h) => h.v === 'held' || h.honest).length; /* court: cases that held, and mistakes owned on the stand */
+    const bad = Math.max(0, (t.pursuits || 0) - (t.pursuitSafe || 0)) + Math.max(0, (t.deesc || 0) - (t.deescWin || 0)) + Math.max(0, (t.coop || 0) - (t.coopGood || 0)) + ct.filter((h) => h.honest === false).length; /* standing behind a wrong report on the stand */
     return { good, bad, clean: bad * 2 <= good };
   }
   // the ending: the score decides whether you graduate; the people you helped (trust) and how you worked (conduct)

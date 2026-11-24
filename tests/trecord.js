@@ -38,6 +38,10 @@ const { chromium } = require('playwright');
   const st = await a.evaluate(() => { const pc = window.__pc; pc.S.vpart = 'walsh'; const t0 = pc.PART.trust('walsh'); const lines = [1, 2, 3, 4].map(() => pc.PART.street()); return { t0, t1: pc.PART.trust('walsh'), lines }; });
   console.log('street', JSON.stringify(st)); if (st.t1 - st.t0 !== 3 || !st.lines[0]) errs.push('partner did not notice the street moments right');
   await a.evaluate(() => { const pc = window.__pc, P = pc.P, pt = Object.values(pc.S.bparty)[0], [bx, by] = pt.k.split(',').map(Number); P.x = 2 + bx * 11 + 4; P.y = 2 + by * 11 + 11; });
+  // 6) the last shift remembers all of it: who turned it around, the block that threw a party, a partner who has your back, the court record
+  const fin = await a.evaluate(() => { const pc = window.__pc; pc.S.pmem.walsh.t = 80; pc.S.court = { pend: [], hist: [{ v: 'held', honest: null }, { v: 'plea', honest: true }, { v: 'lost', honest: false }] }; const c0 = pc.FIN.conduct(); return { who: pc.FIN.helpers().map((h) => h.name + ' · ' + h.why), good: c0.good, bad: c0.bad }; });
+  console.log('finale', JSON.stringify(fin).slice(0, 500)); if (!fin.who.some((w) => /^Dale Hutchins/.test(w)) || !fin.who.some((w) => /^The neighbors/.test(w)) || !fin.who.some((w) => /^Ofc. Bernie Walsh/.test(w))) errs.push('the last shift does not remember the record');
+  if (fin.good < 2 || fin.bad < 1) errs.push('court record not in how you worked');
   await a.evaluate(() => [...document.body.children].forEach((x) => { if (!/^(view|vign|hTop|hBot)$/.test(x.id)) x.style.visibility = 'hidden'; }));
   await a.waitForTimeout(500); await a.screenshot({ path: (process.argv[2] || 'tests/out') + '/trecord.png' });
   await a.evaluate((kb) => { const P = window.__pc.P, [bx, by] = kb.split(',').map(Number); P.x = 2 + bx * 11 + 5; P.y = 2 + by * 11 + 11; }, r.kb); await a.waitForTimeout(700); await a.screenshot({ path: (process.argv[2] || 'tests/out') + '/trecord_bad.png' });
