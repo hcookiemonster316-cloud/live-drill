@@ -96,6 +96,7 @@
   "partners.js": [
    "tpart",
    "tptn",
+   "trecord",
    "twatch"
   ],
   "path.js": [

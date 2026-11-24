@@ -113,6 +113,13 @@ export function installPartners(H) {
   function bringUp(k) { const m = S.pmem && S.pmem[k], V = VOICE[k]; if (!m || !V) return null; const e = m.log.slice().reverse().find((x) => x.sh < shiftNo && !x.told); if (!e) return null; e.told = 1; H.saveS();
     const L = e.g ? V.g : V.b; return L[(Math.random() * L.length) | 0].replace('{w}', e.w); }
   // how the partner acts on a call: 'good' backs you, 'short' goes quiet, 'even' in between
+  // the small stuff counts too: a partner sees you take a minute with people on the street (up to three times a shift)
+  let streetN = 0, streetSh = -1;
+  const NOD = { walsh: ['That\'s the part of the job nobody writes down.', 'People remember that stuff. Trust me.'], park: ['Huh. I wouldn\'t have thought to do that.', 'Okay, that was nice. I\'m stealing that.'], castillo: ['Good.', 'That\'s how you buy goodwill you\'ll need later.'] };
+  function street() { const p = H.partner(); if (!p) return null; if (streetSh !== shiftNo) { streetSh = shiftNo; streetN = 0; } if (streetN >= 3) return null; streetN++;
+    const m = PM(p.k); m.t = Math.min(100, m.t + 1); last = { k: p.k, d: 1, w: 'took a minute with people on the street', t: m.t, at: Date.now() };
+    if (streetN === 1) { m.log.push({ sh: shiftNo, g: true, w: 'took the time to talk with people on the street', where: '' }); if (m.log.length > 12) m.log.shift(); } H.saveS();
+    const L = NOD[p.k]; return L && streetN <= 2 ? L[(streetN - 1) % L.length] : null; }
   const stance = (k) => { const t = trust(k); return t >= 70 ? 'good' : t < 40 ? 'short' : 'even'; };
-  return { remember, bringUp, trust, stance, get last() { return last; }, onShift, afterCall, tick, startLine, benched, CASES, get state() { return S.pcase; }, get pending() { return pending; } };
+  return { remember, street, bringUp, trust, stance, get last() { return last; }, onShift, afterCall, tick, startLine, benched, CASES, get state() { return S.pcase; }, get pending() { return pending; } };
 }
