@@ -59,4 +59,9 @@ const { chromium } = require('playwright');
   await a.evaluate(() => [...document.body.children].forEach((x) => { if (!/^(view|vign|hTop|hBot)$/.test(x.id)) x.style.visibility = 'hidden'; }));
   await a.waitForTimeout(500); await a.screenshot({ path: (process.argv[2] || 'tests/out') + '/trecord.png' });
   await a.evaluate((kb) => { const P = window.__pc.P, [bx, by] = kb.split(',').map(Number); P.x = 2 + bx * 11 + 5; P.y = 2 + by * 11 + 11; P.path = []; }, r.kb); await a.waitForTimeout(3000); await a.screenshot({ path: (process.argv[2] || 'tests/out') + '/trecord_bad.png' });
+  // every burned block shows it, storefront strips included, and plywood only ever hangs on a wall (no storefront: the can is knocked over)
+  const all = await a.evaluate(() => { const pc = window.__pc, W = pc.W, T = pc.S.btrust[W.did], keys = [...new Set(W.lots.filter((l) => l.bx != null).map((l) => l.bx + ',' + l.by))]; keys.forEach((k) => { T[k] = -8; }); pc.REC.dress(W, W.did);
+    const rec = W.props.filter((p) => p.rec), on = (k) => { const [bx, by] = k.split(',').map(Number), ox = 2 + bx * 11, oy = 2 + by * 11; return rec.some((p) => p.x >= ox && p.x < ox + 11 && p.y >= oy && p.y < oy + 11); };
+    return { blocks: keys.length, strips: [...new Set(W.lots.filter((l) => l.sub).map((l) => l.bx + ',' + l.by))].length, bare: keys.filter((k) => !on(k)), loose: rec.filter((p) => p.t === 'board' && !p.wall).length, tipped: rec.filter((p) => p.t === 'bin' && p.tip).length }; });
+  console.log('all burned', JSON.stringify(all)); if (all.bare.length || all.loose || !all.strips) errs.push('burned blocks not dressed right: ' + JSON.stringify(all));
   console.log(errs.length ? errs.slice(0, 4).join('\n') : 'no errors'); await b.close(); process.exit(errs.length ? 1 : 0); })();

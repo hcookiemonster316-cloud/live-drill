@@ -246,7 +246,7 @@ function strip(W, list, ox, oy, R) {
     const [kind, nm, sg] = e, [bx, by, w, d] = spots[i], pal = PAL[W.D.theme];
     const b = { x: bx, y: by, w, d, h: 30 + Math.floor(R() * 16), style: 'shop', color: pal[Math.floor(R() * pal.length)], sign: sg || (LANDMARKS[kind] || {}).sign || 'SHOP', awning: aw[(i + Math.floor(R() * 6)) % 6] };
     W.buildings.push(b); for (let yy = by; yy < by + d; yy++) for (let xx = bx; xx < bx + w; xx++) W.set(xx, yy, T.BLDG);
-    W.lots.push({ kind, ox, oy, name: nm, sign: sg, bld: b, door: [bx + 1, by + d], info: [bx + (i % 2 ? 0 : 2), by + d], sub: true });
+    W.lots.push({ kind, ox, oy, bx: (ox - 2) / 11, by: (oy - 2) / 11, name: nm, sign: sg, bld: b, door: [bx + 1, by + d], info: [bx + (i % 2 ? 0 : 2), by + d], sub: true });
   });
   P(W, 'bench', x0 + 3.5, y0 + 2.5); P(W, 'tree', x0 + 3.5, y0 + 3.5, { block: true, s: .8 }); P(W, 'lamp', x0 + 3.5, y0 + 6.5);
 }
@@ -663,7 +663,7 @@ function mini(g, tx, x, y, w, d, h, base, color) {
 
 // props are drawn once into a small cached sprite per look (trees sway by sliding the sprite); animated ones still draw live
 const PROPC = new Map(), PROP_STATIC = new Set(['chalk', 'tag', 'board', 'litter', 'lights', 'hydrant', 'bin', 'bush', 'flowers', 'stall', 'cone', 'bench', 'pump', 'canopy', 'crate', 'scrap', 'hoop', 'lumberstack', 'lamp']);
-const PPX = new Map();
+const PPX = new Map(), PKEY_SKIP = new Set(['x', 'y', 't', 'on', 'rec', 'wall', 'front', 'dz', 'block']); // fields that place a prop but don't change how it looks: props that differ only in these share one sprite
 // a prop drawn at 3x, its solid parts turned into pixel art and its see-through dark parts (ground shadows) kept soft
 function propPix(q, night) {
   const k = 3, W = 120, Hh = 150, [bv, bg] = hiCanvas(W, Hh, k); drawProp(bg, q, 60, 130, 0, night);
@@ -679,7 +679,7 @@ function propPix(q, night) {
 export function drawPropFast(g, p, sx, sy, t, night) {
   let key = null, ox = 0, q = p;
   if (p.t === 'tree' || p.t === 'palm') { const v = Math.floor(p.x * 7 + p.y * 13) & 3; key = p.t + '|' + v + '|' + (p.s || 1); ox = p.t === 'tree' ? Math.sin(t / 1100 + p.x * 3) * 1.2 : Math.sin(t / 900 + p.x) * .8; q = null; }
-  else if (PROP_STATIC.has(p.t)) { key = p.t; if (p._pk == null) { let pk = ''; for (const k in p) if (k !== 'x' && k !== 'y' && k !== 't' && k !== 'on' && k[0] !== '_') pk += '|' + k + '=' + p[k]; p._pk = pk; } key += p._pk + (p.on ? '|on' : ''); }
+  else if (PROP_STATIC.has(p.t)) { key = p.t; if (p._pk == null) { let pk = ''; for (const k in p) if (k[0] !== '_' && !PKEY_SKIP.has(k)) pk += '|' + k + '=' + p[k]; p._pk = pk; } key += p._pk + (p.on ? '|on' : ''); }
   if (!key) return drawProp(g, p, sx, sy, t, night);
   if (PIXELFOLK) { // pixel props: the body becomes pixel art like the people and cars, the soft ground shadow is kept
     key += '|' + (night ? 1 : 0); let c = PPX.get(key);
@@ -694,7 +694,11 @@ export function drawPropFast(g, p, sx, sy, t, night) {
 export function drawProp(g, p, sx, sy, t, night) {
   switch (p.t) {
     case 'hydrant': g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 2, sy + 1, 5, 2.5, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#c0392b'; g.fillRect(sx - 3, sy - 10, 6, 10); g.fillRect(sx - 5, sy - 7, 10, 3); g.fillStyle = '#e74c3c'; g.beginPath(); g.arc(sx, sy - 10, 3, Math.PI, 0); g.fill(); return;
-    case 'bin': g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 2, sy + 1, 6, 3, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#2f4f3a'; g.fillRect(sx - 4, sy - 12, 8, 12); g.fillStyle = '#3d6b4c'; g.fillRect(sx - 5, sy - 13, 10, 2.5); return;
+    case 'bin': if (p.tip) { /* knocked over and left: the can on its side, the lid off, trash spilling toward the curb */ g.save(); g.translate(sx, sy); g.scale(1.35, 1.35); g.translate(-sx, -sy); g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 1, sy + 1, 12, 4, 0, 0, Math.PI * 2); g.fill();
+      g.save(); g.translate(sx - 2, sy - 4); g.rotate(-.28); g.fillStyle = '#2f4f3a'; g.fillRect(-8, -4.5, 13, 9); g.fillStyle = '#25402f'; g.fillRect(-8, -4.5, 13, 2); g.fillStyle = '#1b2a20'; g.beginPath(); g.ellipse(5, 0, 2.2, 4.5, 0, 0, Math.PI * 2); g.fill(); g.restore();
+      g.fillStyle = '#3d6b4c'; g.beginPath(); g.ellipse(sx - 10, sy + 2, 5, 2, .2, 0, Math.PI * 2); g.fill(); g.fillStyle = '#2b2f36'; g.beginPath(); g.ellipse(sx + 7, sy - 1, 4, 3, .3, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#e8e3d6'; [[11, 2], [4, 3]].forEach(([x, y]) => { g.save(); g.translate(sx + x, sy + y); g.rotate(x * .15); g.fillRect(-2.5, -1.5, 5, 3); g.restore(); }); g.fillStyle = '#9aa4ae'; g.fillRect(sx + 13, sy - 2, 3.5, 2.2); g.restore(); return; }
+      g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(sx + 2, sy + 1, 6, 3, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#2f4f3a'; g.fillRect(sx - 4, sy - 12, 8, 12); g.fillStyle = '#3d6b4c'; g.fillRect(sx - 5, sy - 13, 10, 2.5); return;
     case 'bush': { const s = p.s || 1; g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(sx + 3, sy + 2, 10 * s, 4 * s, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = p.c || '#3f7d3a'; [[-4, -5, 6], [4, -5, 6], [0, -8, 7]].forEach(([a, b, r]) => { g.beginPath(); g.arc(sx + a * s, sy + b * s, r * s, 0, Math.PI * 2); g.fill(); }); g.fillStyle = 'rgba(255,255,255,.12)'; g.beginPath(); g.arc(sx - 1 * s, sy - 11 * s, 3 * s, 0, Math.PI * 2); g.fill(); return; }
     case 'board': { /* plywood over a shop window: a panel leaning on the wall, nailed, an X of braces */ const v = p.v || 0; g.fillStyle = 'rgba(0,0,0,.22)'; g.beginPath(); g.ellipse(sx + 2, sy + 1, 12, 4, 0, 0, Math.PI * 2); g.fill();
       g.fillStyle = v ? '#b8935f' : '#c9a46c'; g.fillRect(sx - 10, sy - 26, 20, 26); g.fillStyle = 'rgba(80,55,25,.35)'; for (let k = 0; k < 4; k++) g.fillRect(sx - 10, sy - 24 + k * 6, 20, 1);
