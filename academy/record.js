@@ -42,7 +42,7 @@ export function installRecord(H) {
     H.peds().forEach((p) => { if (p.party || p.rx && p.rx.until > now) return; const d = Math.hypot(p.x - P.x, p.y - P.y); if (d > 3.2 || p._rxDone) return; const k = keyAt(p.x, p.y), v = k ? T[k] || 0 : 0;
       if (v >= 4 && Math.random() < .5) { p.rx = { k: 'wave', until: now + 2600 }; p._rxDone = 1; p.face = P.x < p.x ? -1 : 1; }
       else if (v <= -4 && Math.random() < .5) { p.rx = { k: 'away', until: now + 2600 }; p._rxDone = 1; p.face = P.x < p.x ? 1 : -1; } });
-    partyTick(.4, P); const pt = party(did); if (pt && !pt.seen) { const k = keyAt(P.x, P.y); if (k === pt.k) { pt.seen = 1; H.saveS(); H.award(80, 'stopped by the block party'); H.trust(did, 3); H.toast('🎉 They saved you a plate. A year ago this block wouldn\'t open the door for you.'); if (H.watch) H.watch('Stopped by the block party on a block that used to be trouble.'); } } }
+    partyTick(.4, P); const pt = party(did); if (pt && !pt.seen) { const k = keyAt(P.x, P.y); if (k === pt.k) { pt.seen = 1; H.saveS(); H.award(80, 'stopped by the block party'); H.trust(did, 3); H.toast('🎉 They saved you a plate. A year ago this block wouldn\'t open the door for you.'); if (H.watch) H.watch('Stopped by the block party on a block that used to be trouble.'); if (H.withPartner) H.withPartner(); } } }
   // the party itself: a few neighbors out on the sidewalk by the stall, swaying, and a little music when you walk up
   let guests = [], guestW = null;
   function crowd(pt) { const W = H.W(); if (!pt || !H.newPed) { if (guests.length) { const set = new Set(guests); const ps = H.peds(); for (let i = ps.length - 1; i >= 0; i--) if (set.has(ps[i])) ps.splice(i, 1); guests = []; } return; }

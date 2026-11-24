@@ -11,7 +11,7 @@ const { chromium } = require('playwright');
   // 1) pick the block the player stands next to and the one beside it
   const r = await a.evaluate(() => { const pc = window.__pc, W = pc.W, P = pc.P, did = W.did; const lots = W.lots.slice().sort((p, q) => Math.hypot(p.bx * 11 + 7 - P.x, p.by * 11 + 7 - P.y) - Math.hypot(q.bx * 11 + 7 - P.x, q.by * 11 + 7 - P.y));
     const good = lots[0], bad = lots.find((l) => l.bld && (l.bx !== good.bx || l.by !== good.by)) || lots[1]; const kg = good.bx + ',' + good.by, kb = bad.bx + ',' + bad.by;
-    pc.S.reps = Object.assign(pc.S.reps || {}, { dale: { st: 4, done: 'good', w: ['talk'], right: 3 } }); /* a regular who turned it around */ pc.S.btrust = pc.S.btrust || {}; pc.S.btrust[did] = { [kb]: 0 }; pc.S.bmin = { [did]: { [kg]: -5 } };
+    pc.S.reps = Object.assign(pc.S.reps || {}, { dale: { st: 4, done: 'good', w: ['talk'], right: 3 } }); /* a regular who turned it around */ pc.S.vpart = 'walsh'; /* with a partner along */ pc.S.btrust = pc.S.btrust || {}; pc.S.btrust[did] = { [kb]: 0 }; pc.S.bmin = { [did]: { [kg]: -5 } };
     // move the player onto the good block's sidewalk; trust moves where the player stands
     P.x = good.bx * 11 + 2 + 5; P.y = good.by * 11 + 2 + 9.5;
     const rec = () => W.props.filter((p) => p.rec).map((p) => p.t + '@' + Math.floor((p.x - 2) / 11) + ',' + Math.floor((p.y - 2) / 11));
@@ -28,6 +28,7 @@ const { chromium } = require('playwright');
   console.log('burned block', bad.join(' ')); if (process.env.V) console.log(await a.evaluate((kb) => { const W = window.__pc.W, [bx, by] = kb.split(',').map(Number), ox = 2 + bx * 11, oy = 2 + by * 11; return JSON.stringify(W.props.filter((p) => p.x >= ox && p.x < ox + 11 && p.y >= oy + 7 && p.y < oy + 11).map((p) => [p.t, p.x, p.y, p.rec ? 1 : 0])); }, r.kb)); if (bad.filter((x) => x === 'board@' + r.kb).length < 2 || !bad.includes('litter@' + r.kb)) errs.push('burned block did not board up'); if (!bad.includes('wall')) errs.push('plywood is not on the storefront');
   // 3) the party pays once when you stop by (the player is standing on the block)
   await a.waitForFunction(() => Object.values(window.__pc.S.bparty || {}).some((p) => p.seen), null, { timeout: 8000 }).catch(() => errs.push('stopping by the party did nothing'));
+  const pw = await a.evaluate(() => ((window.__pc.S.pmem || {}).walsh || { log: [] }).log.map((e) => e.w)); console.log('partner at the party', JSON.stringify(pw)); if (!pw.some((w) => /block party/.test(w))) errs.push('the partner did not remember the block party');
   await a.waitForFunction(() => Object.values(window.__pc.S.bparty || {}).some((p) => p.ally), null, { timeout: 8000 }).catch(() => errs.push('the regular who turned it around was not at the party'));
   const g = await a.evaluate(() => window.__pc.REC._peds().filter((p) => p.party).length); console.log('party guests', g); if (g < 5) errs.push('no crowd at the block party');
   const pm = await a.evaluate(async () => ({ at: window.__pc.REC.atParty, mp3: (await fetch('music/party_1.mp3', { method: 'HEAD' })).ok })); console.log('party music', JSON.stringify(pm)); if (!pm.at || !pm.mp3) errs.push('the block party does not play its song');
