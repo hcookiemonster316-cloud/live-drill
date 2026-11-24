@@ -349,6 +349,7 @@ function newObserve() { const did = W.did, ls = W.D.lessons.filter((l) => OBSERV
 
 // ---------- dispatch ----------
 function dispatchCall() {
+  if (ON.holdCalls) { nextCall = 5; return; } // the guided first shift sends its own call when it's time
   if (SPEC.holdCalls()) { nextCall = 6; return; } // a special shift holds routine calls until its stops are done (special.js)
   { const hd = VAR.hold(); if (hd) { nextCall = hd; return; } }
   const story = PACE.pick(); if (story.hold) { nextCall = story.hold; return; } // the shift storyteller: rest, push, or review
@@ -1707,7 +1708,7 @@ function loreCheck(dt) {
   if (fresh.length) { saveS(); loreQ.push(fresh); stat('lore', fresh.length); setTimeout(lorePop, 300); }
 }
 function lorePop() {
-  if (loreBusy || !loreQ.length) return; if (scene || storyBusy || looting || MG.busy || !$('modal').hidden || !$('dlg').hidden || !fe().hidden || EP.busy || document.querySelector('.tCard, .introCine, .gradCred')) { setTimeout(lorePop, 700); return; }
+  if (loreBusy || !loreQ.length) return; if (ON.active || scene || storyBusy || looting || MG.busy || !$('modal').hidden || !$('dlg').hidden || !fe().hidden || EP.busy || document.querySelector('.tCard, .introCine, .gradCred')) { setTimeout(lorePop, 700); return; }
   loreBusy = true; PREM.onLore(); const es = loreQ.shift(), e = es[0], many = es.length > 1, tot = LORE.length, have = LORE.filter((x) => S.lore[x.id]).length;
   const el = document.createElement('div'); el.className = 'lorePop';
   el.innerHTML = '<canvas class="lpFx"></canvas><div class="lpCard"><div class="lpBook"><span>📜</span></div><small>' + (many ? es.length + ' lore entries discovered' : 'Lore discovered') + ' · ' + have + ' of ' + tot + '</small><h2>' + esc(many ? es.map((x) => x.title).join(' · ') : e.title) + '</h2><p>' + esc(many ? 'New pages in your Field Journal.' : e.text) + '</p><div class="lpBtns"><button type="button" data-a="read">' + 'Read in journal' + '</button><button type="button" class="ghost" data-a="ok">Back to patrol</button></div></div>';
@@ -2398,9 +2399,9 @@ const feed = [];
 function radio(who, msg) { feed.push([who, msg]); CASE.radio(who, msg); /* the case file keeps your radio log */
   // small gestures: your officer keys the shoulder mic when you talk or dispatch calls your number, and the radio button blinks
   if (S.cs && (who === S.cs || String(msg).indexOf(S.cs) >= 0)) MICT = performance.now() + 1700;
-  replay($('bRadio'), 'rx'); while (feed.length > 30) feed.shift(); const el = $('radio'); el.innerHTML = feed.slice(-3).map((f) => '<div><b>' + esc(f[0]) + ':</b> ' + esc(f[1]) + '</div>').join(''); placeOrders(); }
+  replay($('bRadio'), 'rx'); while (feed.length > 30) feed.shift(); const el = $('radio'); el.innerHTML = feed.slice(-3).map((f) => '<div><b>' + esc(f[0]) + ':</b> ' + esc(f[1]) + '</div>').join(''); /* the shift orders follow the radio box through a ResizeObserver, which reads after layout instead of forcing one per radio line */ }
 function placeOrders() { const r = $('radio'), o = $('orders'); if (!r || !o || PH.on()) return; /* phone HUD lays these out in CSS: no forced layout per radio line */ const b = r.getBoundingClientRect(); o.style.top = Math.max(b.bottom + 6, 0) + 'px'; }
-addEventListener('resize', placeOrders);
+addEventListener('resize', placeOrders); if (window.ResizeObserver && $('radio')) new ResizeObserver(() => placeOrders()).observe($('radio'));
 const toastQ = []; let toastOn = false;
 function toast(t) { if (toastOn && $('toast').dataset.t === t) return; if (toastQ.indexOf(t) >= 0) return; if (toastQ.length >= 3) toastQ.shift(); toastQ.push(t); pumpToast(); }
 /* a toast never sits on top of what it's telling you about: if the neighbor at work (or you) would be under it, it drops to just above the bottom bar, and follows while it's up */
@@ -2842,9 +2843,9 @@ function unitPicker() {
 // ---------- start screen ----------
 function callsign(did) { return (did + 1) + '-' + rnd(PHONETIC) + '-' + (10 + Math.floor(Math.random() * 89)); }
 function startScreen() {
-  let did = S.home != null ? S.home : 0, shift = SHIFTS.some((x) => x.id === S.shift) ? S.shift : 'day', unit = S.unit || '';
+  let did = S.home != null ? S.home : 0, shift = SHIFTS.some((x) => x.id === S.shift) ? S.shift : 'day', unit = S.unit || 'patrol';
   // call sign: district number - phonetic letter - unit number the cadet picks
-  const old = /^\d-([A-Za-z]+)-(\d{1,3})$/.exec(S.cs || ''); let phon = old && PHONETIC.includes(old[1]) ? old[1] : 'Adam', num = old ? old[2] : '';
+  const old = /^\d-([A-Za-z]+)-(\d{1,3})$/.exec(S.cs || ''); let phon = old && PHONETIC.includes(old[1]) ? old[1] : 'Adam', num = old ? old[2] : String(10 + Math.floor(Math.random() * 89)); /* a new cadet gets a number to start with (change it any time) so the start button works right away */
   const csNow = () => (did + 1) + '-' + phon + '-' + (num || '##');
   const draw = () => {
     $('start').innerHTML = '<div class="stBox"><div class="stBrand"><span class="stBadge" data-noicon><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17l-5.6 3 1.1-6.3L2.9 9.3l6.3-.9z" fill="#0f1a33" stroke="#fff3b0" stroke-width=".8" stroke-linejoin="round"/></svg></span><div><b>PATROL CITY</b><small>Learn the job on the street · ' + CHAPTER.name + '</small></div></div>' +
@@ -2871,6 +2872,8 @@ function startScreen() {
 }
 function rollCall() {
   const d = W.D;
+  // a brand-new cadet gets the sergeant, not a rulebook: the guided shift teaches the controls, and unit perks and lesson lists start showing from the second roll call
+  if (!S.tutDone) { openModal('<div class="sceneHead"><b>ROLL CALL · ' + esc(shiftOf().name.toUpperCase()) + '</b><h2>' + esc(d.name) + '</h2><p>' + esc(d.blurb) + '</p></div><p class="fact"><b>Sgt. Castillo:</b> ' + esc(S.cs) + ', first day. You stay close to me this morning. I show you around, then you take your first call. Got questions, ask me.</p><div class="qAct"><button type="button" id="mDone">Hit the street</button></div>'); $('mDone').onclick = closeModal; return; }
   openModal('<div class="sceneHead"><b>ROLL CALL · ' + esc(shiftOf().name.toUpperCase()) + '</b><h2>' + esc(d.name) + '</h2><p>' + esc(d.blurb) + '</p></div><p class="fact">' + U().icon + ' <b>' + esc(unitName(U())) + '.</b> ' + esc(U().perk) + ': ' + esc(U().perkText) + '</p><p class="fact">Focus this shift: ' + d.lessons.map((l) => esc(L.lessonName(l))).join(' · ') + '.</p><ul class="how"><li>Tap the street to walk; tap your patrol car to drive.</li><li>Answer dispatch calls, help citizens with a <b>?</b>, check study points <b>i</b> and anything that looks off <b>!</b>.</li><li>Master every lesson here, then take the District Final Call to open the next district.</li></ul><div class="qAct"><button type="button" id="mDone">Hit the street</button></div>');
   $('mDone').onclick = closeModal;
 }

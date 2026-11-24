@@ -66,5 +66,5 @@ export function installOnboard(H) {
     const ago = S.lastSeen ? Math.round((Date.now() - S.lastSeen) / 60000) : null, when = ago == null ? '' : ago < 2 ? 'just now' : ago < 60 ? ago + ' min ago' : ago < 1440 ? Math.round(ago / 60) + ' hr ago' : Math.round(ago / 1440) + ' days ago';
     return '<div class="tiCont"><small>CONTINUE' + (S.fto ? ' · NEW GAME+ ' + (S.ng || 1) + ' · FTO' : '') + (when ? ' · LAST PLAYED ' + esc(when.toUpperCase()) : '') + '</small><b>' + esc(H.dname(d)) + (ch ? ' · Chapter ' + (d + 1) + ': ' + esc(ch.title) : '') + '</b><p>➤ ' + esc(goal) + '</p></div>';
   }
-  return { tick: (dt) => { tutTick(); gateTick(dt); }, gateMenu, continueCard, get active() { return !!tut; }, finish };
+  return { tick: (dt) => { tutTick(); gateTick(dt); }, gateMenu, continueCard, get active() { return !!tut; }, /* true until the guided shift reaches its own call: random calls wait so the first minutes teach one thing at a time */ get holdCalls() { return !S.tutDone && (!tut || tut.i < 0 || STEPS[tut.i].id !== 'call' && STEPS.findIndex((x) => x.id === 'call') > tut.i); }, finish };
 }
