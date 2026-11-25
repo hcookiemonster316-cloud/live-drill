@@ -107,6 +107,9 @@
   "music.js": [
    "tmood"
   ],
+  "nightrun.js": [
+   "tnight"
+  ],
   "offenders.js": [
    "treps"
   ],
