@@ -340,7 +340,7 @@ function load(did) {
   for (let i = 0; i < 2 + (S.unit === 'det' ? 1 : 0); i++) observes.push(newObserve());
   pboat = null; P.boat = false; K9.x = P.x - .8; K9.y = P.y + .4;
   if (W.river && S.unit === 'marine') { const y = Math.max(2, Math.min(N - 3, Math.round(P.y))); pboat = { x: 36.6, y: y + .5, dir: 1, dock: [35.5, y + .5] }; }
-  exploreInit(); liveInit(); placeRegulars(); ambienceInit(); SS = { rp: 0, calls: 0, right: 0, answered: 0, ords: {} }; COMBO = 0; bestCombo = 0; ordersInit(); comboHud(); abilitiesInit(); $('hExp').textContent = 'Explored ' + Math.floor(exCount / exTotal * 100) + '%';
+  exploreInit(); liveInit(); placeRegulars(); ambienceInit(); SS = { rp: 0, calls: 0, right: 0, answered: 0, ords: {} }; COMBO = 0; bestCombo = 0; ordersInit(); comboHud(); if (CERTX) CERTX.check(); abilitiesInit(); $('hExp').textContent = 'Explored ' + Math.floor(exCount / exTotal * 100) + '%';
   cam.x = iso(P.x, P.y)[0]; cam.y = iso(P.x, P.y)[1]; cam.free = false;
   hud(); radio('Dispatch', 'All units, ' + shiftOf().name.toLowerCase() + ' in ' + W.D.name + ' is on. ' + S.cs + ', you are in service.'); VAR.onShift(); PART.onShift(S.vpart); ptnHud(); SARC.onShift(); ECHO.onShift(); MEM.onShift(); COURT.onShift(); WL.start(); SPEC.onShift(); CAL.onShift(); if (SPROUT_R[L.rankOf(S.xp).name] && !S.sproutTip) { S.sproutTip = 1; saveS(); setTimeout(() => toast('🌱 New cadets wear a sprout. Ask for backup any time: veterans earn a bonus for helping you.'), 9000); }
   CHAT.list = []; CHAT.seen = new Set(); if (net && net.chatOn) net.chatOn(did, chatIn); if (MG) MG.watch(did);
@@ -800,7 +800,7 @@ const loreHint = (w) => w === 'start' ? '' : /^d\d$/.test(w) ? 'Opens with ' + D
 const CASE = installCasefile({ S, esc: (x) => esc(x), $: (id) => $(id), nameOf: (id) => (CAST[id] || NPCS.find((n) => n.id === id) || NPCS2.find((n) => n.id === id) || { name: id }).name, get QITEMS() { return QITEMS; }, openModal: (h) => openModal(h), closeModal: () => closeModal(), stat: (...a) => stat(...a), saveS: () => saveS(), award: (...a) => award(...a), toast: (m) => toast(m), beep: (...a) => beep(...a) });
 // officer builds: skills, gear and how you handle calls add up to a style that changes how calls play (Step D)
 const BLD = installBuilds({ S, gp: (k) => gp(k), wayLvl: (k) => wayLvl(k), saveS: () => saveS(), banner: (a, b, c) => banner(a, b, c), toast: (t) => toast(t), note: (t) => CASE.note(t), mark: (t) => (rememberNow ? rememberNow(t) : toast(t)) });
-setInterval(() => { if (!paused && W) { BLD.check(); if (typeof CERT !== 'undefined') CERT.check(); } }, 4000);
+setInterval(() => { if (!W) return; if (CERTX) CERTX.check(); /* a medal can land while a pop-up is open */ if (!paused) BLD.check(); }, 4000);
 // one evening between shifts, and who it goes to (Step D)
 const DINNER = { walsh: 'Twenty years and this is still the best pie in the county. Don\'t tell my wife.', park: 'Can I ask you something? Do you ever feel like you\'re faking it? ...Okay. Me neither.', castillo: 'You did fine today. Don\'t make it weird.' };
 const OT = installOffTime({ S, esc: (x) => esc(x), saveS: () => saveS(), openModal: (h) => openModal(h), closeModal: () => closeModal(), dialogue: (l, d) => dialogue(l, d), toast: (t) => toast(t), radio: (w, m) => radio(w, m), later: (f, ms) => setTimeout(f, ms),
