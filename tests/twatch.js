@@ -23,6 +23,10 @@ const OUT = process.argv[2] || 'tests/out';
   const cf = await a.evaluate(() => window.__pc.CASE.search('Palm').hits.map((e) => e.kind)); console.log('case file', cf); if (cf.indexOf('End of watch log') < 0) errs.push('journal not in the case file');
   // next shift: Walsh brings it up
   await a.evaluate(() => document.getElementById('eNext').click()); await a.waitForTimeout(500);
+  // the evening between shifts (offtime.js): go home and sleep, then the next shift starts
+  await a.waitForSelector('.otPick'); await a.evaluate(() => { const ps = document.querySelectorAll('.otPick'); ps[ps.length - 1].click(); });
+  for (let i = 0; i < 12 && await a.evaluate(() => !document.getElementById('dlg').hidden); i++) { await a.evaluate(() => document.getElementById('dlg').click()); await a.waitForTimeout(400); }
+  await a.waitForFunction(() => document.getElementById('dlg').hidden, null, { timeout: 8000 });
   const line = await a.evaluate(() => { const pc = window.__pc; pc.PART.onShift('walsh'); return pc.PART.bringUp('walsh'); }); console.log('Walsh:', line);
   const told = await a.evaluate(() => window.__pc.S.pmem.walsh.log.filter((e) => e.told).length); /* the shift's opening line may already have used one */
   if (!told || (line && !/chase|read that person/.test(line))) errs.push('Walsh did not bring it up');

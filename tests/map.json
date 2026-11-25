@@ -1,6 +1,9 @@
 {
  "note": "Built by tests/mkmap.js. Module -> regression tests that exercise it. Core files (see run.sh) always add the quick set.",
  "map": {
+  "builds.js": [
+   "tbuilds"
+  ],
   "calendar.js": [
    "t97"
   ],
@@ -19,6 +22,9 @@
   ],
   "court.js": [
    "tcourt"
+  ],
+  "data.js": [
+   "tofftime"
   ],
   "decide.js": [
    "t91",
@@ -91,6 +97,9 @@
   ],
   "offenders.js": [
    "treps"
+  ],
+  "offtime.js": [
+   "tofftime"
   ],
   "pacing.js": [
    "t101"
