@@ -7,6 +7,9 @@
   "calendar.js": [
    "t97"
   ],
+  "careers.js": [
+   "tcareer"
+  ],
   "casefile.js": [
    "tcourt",
    "twatch"
@@ -24,7 +27,8 @@
    "tcourt"
   ],
   "data.js": [
-   "tofftime"
+   "tofftime",
+   "tpromo"
   ],
   "decide.js": [
    "t91",
@@ -103,7 +107,8 @@
    "treps"
   ],
   "offtime.js": [
-   "tofftime"
+   "tofftime",
+   "tpromo"
   ],
   "pacing.js": [
    "t101"
