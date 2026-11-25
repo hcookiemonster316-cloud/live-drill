@@ -18,7 +18,8 @@
    "t93"
   ],
   "city.js": [
-   "t70"
+   "t70",
+   "tshare"
   ],
   "coop.js": [
    "t65"
@@ -60,6 +61,9 @@
    "t98",
    "tfinal",
    "trecord"
+  ],
+  "fresh.js": [
+   "tfresh"
   ],
   "friends.js": [
    "tfinal"

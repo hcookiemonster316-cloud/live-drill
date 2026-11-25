@@ -1,3 +1,4 @@
+import { paint, iconFor } from './icons.js';
 // City life systems: live district incidents with roles, your own beat, a shareable service card, partner-animal
 // care, detective follow-ups on case threads, weekend PT meets, neighborhood watch meetings and seasonal changes.
 // Costs almost nothing per frame: markers are a short list, and everything else runs on a one-second tick.
@@ -75,7 +76,8 @@ export function installCity(H) {
     tr.forEach(([k, r]) => { g.fillStyle = '#e8eef8'; g.fillText(H.trackName(k), 80, y); g.fillStyle = '#f5b800'; g.textAlign = 'right'; g.fillText('Level ' + r.l, 1000, y); g.textAlign = 'left'; g.fillStyle = 'rgba(255,255,255,.1)'; g.fillRect(80, y + 14, 920, 8); g.fillStyle = '#f5b800'; g.fillRect(80, y + 14, Math.min(920, r.l / 20 * 920), 8); y += 68; });
     y += 10;
     const cm = Object.values(S.comms2 || {}).reduce((a, b) => a + b, 0); g.fillStyle = '#cbd5e1'; g.font = "600 40px Meridian Text, sans-serif";
-    g.fillText('🎖️ ' + cm + ' commendations' + (S.partner && S.partner.rank ? '  ·  🤝 ' + S.partner.rank : ''), 80, y + 30); g.fillText('🗺️ ' + Object.keys(S.lore || {}).length + ' pages of city history', 80, y + 100);
+    // the game's own icons, not the system's emoji
+    paint(g, iconFor('🎖️'), 80, y - 6, 46); g.fillText(cm + ' commendations' + (S.partner && S.partner.rank ? '  ·  partner rank ' + S.partner.rank : ''), 142, y + 30); paint(g, iconFor('🗺️'), 80, y + 64, 46); g.fillText(Object.keys(S.lore || {}).length + ' pages of city history', 142, y + 100);
     g.fillStyle = '#64748b'; g.font = "600 30px Meridian Text, sans-serif"; g.fillText('Sim training · FBRTP Vehicle Operations', 80, 1270);
     c.toBlob(async (blob) => { const file = new File([blob], 'patrol-city-record.png', { type: 'image/png' });
       try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'My Patrol City service record' }); H.stat('shared'); return; } } catch (e) {}

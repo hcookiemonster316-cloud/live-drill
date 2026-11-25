@@ -303,6 +303,10 @@ export function installVariety(H) {
   // a decision for this lesson; given a fact's text, one that tests that very fact when there is one (so dispatch's
   // aim at your weakest facts survives the swap from quiz to decision)
   const DEC_BY = new Map();
+  // matching every decision against a fact's text costs a few ms the first time; a district's facts are matched in idle
+  // time after it loads, so the first call scene doesn't pay for it
+  function warmDecisions(lessons) { const ids = L.factList(lessons).map((f) => f.text); let i = 0; const step = (dl) => { while (i < ids.length && (!dl || dl.timeRemaining() > 2)) decisionsFor(ids[i++]); if (i < ids.length) idle(step); }; idle(step); }
+  const idle = (f) => (typeof requestIdleCallback === 'function' ? requestIdleCallback(f, { timeout: 4000 }) : setTimeout(() => f(null), 200));
   function decisionsFor(txt) { if (!txt) return []; let l = DEC_BY.get(txt); if (!l) { l = DALL().filter((x) => x[4].test(txt)); DEC_BY.set(txt, l); } return l; }
   function decisionQ(les, avoid, txt) { const own = decisionsFor(txt).filter((x) => !(avoid && avoid.has(x[1]))); const d = own.length ? own : DALL().filter((x) => x[0] === les && !(avoid && avoid.has(x[1]))); if (!d.length) return null; const X = own.length ? own[Math.random() * own.length | 0] : pick('dec_' + les, d);
     const o = OUT[X[1]] || []; return mkQ(les, X[1], X[2], X[3], X[4], 'dec', [X[5] || o[0] || null, X[6] || o[1] || null]); }
@@ -567,6 +571,6 @@ export function installVariety(H) {
   return {
     pick, hold, pickCall, logEvent, heat, dispatcher, dispatchText, caller, callerLines, complication, midChoice, wrapChoice, afterLines, afterScene, enRoute,
     wantPair, offerPair, otherOutcome, mixQs, formatQ, actify, decisionQ, ACTS, sceneMini, miniLine, GAMES, tick, onShift, partner, questSeq, questDone, questShape, stepShape, offerOK, splitLong,
-    cond: () => COND[S.vcond || 'normal'], aKey
+    cond: () => COND[S.vcond || 'normal'], aKey, warmDecisions
   };
 }
