@@ -791,6 +791,12 @@ export let PIXELFOLK = !(typeof location !== 'undefined' && /[?&]classic\b/.test
 export function setPixelFolk(on) { PIXELFOLK = !!on; }
 const FX = new Map(), FXFIRST = new Map(), FXJOB = new Map(), FXD = new Map(); let FXW = null, FXN = 0, FXT = -1, FXBUD = 0; const FXCAP = 2200;
 try { if (typeof Worker !== 'undefined' && typeof document !== 'undefined' && !(typeof location !== 'undefined' && /[?&]noworker\b/.test(location.search))) { FXW = new Worker(new URL('./folkw.js', import.meta.url), { type: 'module' }); FXW.onmessage = (e) => { const d = e.data, j = FXJOB.get(d.id); FXJOB.delete(d.id); if (!j) return; if (d.fail) { FXW = null; return; } fxStore(j.k, j.lk, new ImageData(d.a, d.w, d.h), j.bare); }; FXW.onerror = () => { FXW = null; }; } } catch (e) { FXW = null; }
+// ask the worker for someone's first frame before they're on screen (a walker just spawned, the regulars when a
+// district loads), so their first appearance doesn't build a sprite on the main thread
+export function folkWarm(o, key) { if (!PIXELFOLK || !FXW || !key || FXFIRST.has(key) || FXJOB.size >= 160) return; // the worker clears a queue this size in well under a second
+  let D = o.folk || FXD.get(key); if (!D) { D = folkFromLook(o); if (FXD.size > 3000) FXD.clear(); FXD.set(key, D); }
+  const d = dir8Of(o), k = key + '|' + d + '|8'; if (FX.has(k) || [...FXJOB.values()].some((j) => j.lk === key)) return;
+  const id = ++FXN; FXJOB.set(id, { k, lk: key, bare: !!o.sit }); try { FXW.postMessage({ id, D, d, ph: 0, mv: false, ss: o.folk ? 4 : 3 }); } catch (e) { FXJOB.delete(id); } }
 // a crisp pixel-art contact shadow (two soft tones) is baked under the feet, so a person is one image copy
 function fxShadow(im) { const a = im.data; for (let y = FOY - 3; y <= Math.min(FSH - 1, FOY + 2); y++) for (let x = 0; x < FSW; x++) { const u = (x + .5 - FOX - 1) / 8.5, v = (y + .5 - FOY) / 3.2, r = u * u + v * v; if (r > 1) continue; const k = (y * FSW + x) * 4; if (a[k + 3]) continue; a[k + 3] = r < .45 ? 92 : 52; } return im; }
 function fxStore(k, lk, im, bare) { const c = document.createElement('canvas'); c.width = FSW; c.height = FSH; c.getContext('2d').putImageData(bare ? im : fxShadow(im), 0, 0); if (FX.size > FXCAP) { let n = 200; for (const kk of FX.keys()) { FX.delete(kk); if (--n <= 0) break; } } FX.set(k, c); if (!FXFIRST.has(lk)) FXFIRST.set(lk, c); return c; }

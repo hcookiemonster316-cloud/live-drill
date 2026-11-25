@@ -26,9 +26,9 @@ export const SLOTS = [
 // loot (% item chance), wait (game minutes a call waits), rpCall/rpCit/rpStudy (% more RP)
 export const PERK_TEXT = {
   res: (v) => (v > 0 ? '+' : '') + v + ' Response', per: (v) => (v > 0 ? '+' : '') + v + ' Perception', rap: (v) => (v > 0 ? '+' : '') + v + ' Rapport', com: (v) => (v > 0 ? '+' : '') + v + ' Composure', tac: (v) => (v > 0 ? '+' : '') + v + ' Tactics',
-  speed: (v) => '+' + v + '% walking speed', drive: (v) => '+' + v + '% driving speed', light: (v) => '+' + v + '% flashlight reach',
+  speed: (v) => (v > 0 ? '+' : '') + v + '% walking speed', drive: (v) => (v > 0 ? '+' : '') + v + '% driving speed', light: (v) => '+' + v + '% flashlight reach',
   spot: (v) => 'Spot trouble ' + v + ' tile' + (v === 1 ? '' : 's') + ' farther', secret: (v) => 'Sense secret spots ' + v + ' tiles farther', explore: (v) => 'Map ' + v + ' more tile' + (v === 1 ? '' : 's') + ' around you',
-  loot: (v) => '+' + v + '% chance to find items', wait: (v) => 'Calls wait ' + v + ' more minutes', rpCall: (v) => '+' + v + '% RP from calls', rpCit: (v) => '+' + v + '% RP from citizens', rpStudy: (v) => '+' + v + '% RP from study points', rpSquad: (v) => '+' + v + '% squad RP bonus'
+  loot: (v) => '+' + v + '% chance to find items', wait: (v) => (v > 0 ? 'Calls wait ' + v + ' more minutes' : 'Calls wait ' + -v + ' fewer minutes'), rpCall: (v) => '+' + v + '% RP from calls', rpCit: (v) => '+' + v + '% RP from citizens', rpStudy: (v) => '+' + v + '% RP from study points', rpSquad: (v) => '+' + v + '% squad RP bonus'
 };
 export const ITEMS = [
   // ---- cover ----
@@ -189,6 +189,21 @@ ITEMS.push(
   { id: 'badgeshadow', r: 'l', icon: '🛡️', name: 'A Badge-Shaped Shadow on the Wall', kind: 'keep', text: 'Not a badge yet. Just the shape of where one will go. Graduation is coming.' },
   { id: 'starlog', r: 'l', icon: '⭐', name: 'The Logbook of Every Class', kind: 'keep', text: 'Every class that trained in Patrol City signed it. There is a blank line with your name penciled in.' }
 );
+// gear with trade-offs (Step D): every piece that helps also costs something you can feel, so a loadout is a choice.
+// One rule per kind of gear, applied to every item: heavy protective gear slows your walk, anything that makes you
+// faster makes you rush, a friendly look softens your command presence, extra RP means taking on more, and gear for
+// noticing things keeps your eyes off the person in front of you. The cost is folded into the perks, so totals,
+// stats and the locker all show it.
+const COST = [
+  [(p) => (p.tac || 0) + (p.res || 0) > 0, (p) => ({ speed: -5 * ((p.tac || 0) + (p.res || 0)) }), 'Heavier: you walk slower.'],
+  [(p) => (p.speed || 0) + (p.drive || 0) > 0, () => ({ com: -1 }), 'You rush: Composure drops.'],
+  [(p) => (p.rap || 0) >= 2, () => ({ tac: -1 }), 'A friendly look: less command presence.'],
+  [(p) => (p.rpCall || 0) + (p.rpCit || 0) + (p.rpStudy || 0) + (p.rpSquad || 0) > 0, () => ({ wait: -10 }), 'You take on more: calls wait less for you.'],
+  [(p) => (p.per || 0) + (p.spot || 0) + (p.light || 0) + (p.secret || 0) + (p.explore || 0) + (p.loot || 0) > 0, () => ({ rap: -1 }), 'Eyes everywhere but on the person in front of you.'],
+  [(p) => (p.com || 0) + (p.rap || 0) > 0, () => ({ drive: -5 }), 'Calm and careful: you drive a little slower.']
+];
+ITEMS.forEach((it) => { const p = it.perk; if (!p || Object.values(p).some((v) => v < 0)) return; const r = COST.find((c) => c[0](p)); if (!r) return; const c = r[1](p);
+  Object.keys(c).forEach((k) => { p[k] = (p[k] || 0) + c[k]; if (!p[k]) delete p[k]; }); it.cost = r[2]; });
 ITEMS.forEach((x) => { if (x.slot) x.kind = 'gear'; });
 export const itemById = (id) => ITEMS.find((x) => x.id === id);
 export const slotOf = (id) => SLOTS.find((s) => s.id === id);
@@ -213,7 +228,7 @@ export function roll(S, min) {
 }
 
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const perkHTML = (it) => it.perk ? '<ul class="pkList">' + perkLines(it.perk).map((l) => '<li class="' + (/^-|^\+?-/.test(l) ? 'neg' : '') + '">' + esc(l) + '</li>').join('') + '</ul>' : '';
+const perkHTML = (it) => it.perk ? '<ul class="pkList">' + perkLines(it.perk).map((l) => '<li class="' + (/^-|^\+?-|fewer/.test(l) ? 'neg' : '') + '">' + esc(l) + '</li>').join('') + (it.cost ? '<li class="neg why">' + esc(it.cost) + '</li>' : '') + '</ul>' : '';
 const slotTag = (it) => it.slot ? '<span class="slTag">' + slotOf(it.slot).icon + ' ' + slotOf(it.slot).name + '</span>' : it.kind === 'use' ? '<span class="slTag">Use once</span>' : '<span class="slTag">Keepsake</span>';
 
 // ---------- the grand reveal ----------
@@ -284,7 +299,7 @@ export function equipHTML(S, xp, stats, base) {
       '<span class="eqIco">' + (it ? it.icon : open ? s.icon : '🔒') + '</span><b>' + s.name + '</b><small>' + (it ? esc(it.name) : open ? 'Empty · tap to equip' : esc(s.hint)) + '</small></button>';
   }).join('') + '</div>' +
     '<div class="eqStats"><b>Your stats</b>' + Object.keys(base).map((k) => '<div class="eqStat"><span>' + ({ res: 'Response', per: 'Perception', rap: 'Rapport', com: 'Composure', tac: 'Tactics' })[k] + '</span><i>' + Array.from({ length: 7 }, (_, n) => '<b class="' + (n < Math.min(base[k], stats[k]) ? 'f' : n < stats[k] ? 'g' : '') + '"></b>').join('') + '</i><em>' + stats[k] + (stats[k] !== base[k] ? ' <small>(' + (stats[k] > base[k] ? '+' : '') + (stats[k] - base[k]) + ')</small>' : '') + '</em></div>').join('') + '</div>' +
-    (Object.keys(t).filter((k) => !base.hasOwnProperty(k)).length ? '<div class="eqPerks"><b>Gear perks</b><ul class="pkList">' + perkLines(Object.fromEntries(Object.entries(t).filter(([k]) => !base.hasOwnProperty(k)))).map((l) => '<li>' + esc(l) + '</li>').join('') + '</ul></div>' : '<p class="lkSum">Equip gear to stack perks. Each slot holds one item.</p>');
+    (Object.keys(t).filter((k) => !base.hasOwnProperty(k)).length ? '<div class="eqPerks"><b>Gear perks</b><ul class="pkList">' + perkLines(Object.fromEntries(Object.entries(t).filter(([k]) => !base.hasOwnProperty(k)))).map((l) => '<li class="' + (/^-|fewer/.test(l) ? 'neg' : '') + '">' + esc(l) + '</li>').join('') + '</ul></div>' : '<p class="lkSum">Equip gear to stack perks. Each slot holds one item.</p>');
 }
 export function itemCardHTML(it, S) {
   const R0 = RARITY[it.r];
