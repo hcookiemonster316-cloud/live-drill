@@ -35,7 +35,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Quick tests against the built site
         env:
-          ROOT: _site # serve the built copy, not the source
+          ROOT: ${{ github.workspace }}/_site # serve the built copy, not the source (absolute: run.sh changes folder)
           JOBS: 2
         run: tests/run.sh quick
       - name: Keep screenshots and the log
