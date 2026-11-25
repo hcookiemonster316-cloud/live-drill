@@ -50,7 +50,17 @@ export const SHEETS = [
     want: ['Every kid across, every morning, and home in one piece.', (S) => fr(S, 'johnson') >= 1],
     flaw: ['Won\'t admit she\'s tired, even now that she stocks shelves overnight.', (S) => fr(S, 'johnson') >= 3],
     secret: ['Mrs. Benoit says Johnson saved her life. Johnson says it was Toby and the cadet. Now Mrs. Benoit brings three thermoses.', (S) => ch(S, 2, 5)],
-    arc: ['The parents with signs at the crossing on Tuesdays.', (S) => fl(S, 'signsMoved'), () => 'They stay on the sidewalk now. They wave at each other.'] }
+    arc: ['The parents with signs at the crossing on Tuesdays.', (S) => fl(S, 'signsMoved'), () => 'They stay on the sidewalk now. They wave at each other.'] },
+  { id: 'keane', name: 'Marisol Keane', icon: '⚖️', how: 'testify in court',
+    want: ['Every report read out loud before it can follow someone for the rest of their life.', (S) => (S.keane && S.keane.n) >= 1],
+    flaw: ['Assumes every report is wrong until it proves otherwise. Usually that\'s her job. Sometimes it isn\'t fair.', (S) => (S.keane && S.keane.n) >= 2],
+    secret: ['Her cousin did eight months on a report nobody checked. One wrong line.', (S) => fl(S, 'keaneWhy')],
+    arc: ['Your report against her reading of it.', (S) => fl(S, 'keaneRight') || fl(S, 'keaneHeld'), (S) => fl(S, 'keaneRight') ? 'She was right about your report once, and you told her so. She still nods at you on the steps.' : 'Your paper held against her. She says she\'d rather lose to that.'] },
+  { id: 'odell', name: 'Frank Odell', icon: '🪵', how: 'stop at Manatee Lumber in Eastside',
+    want: ['For somebody to call him back. Just once.', (S) => fr(S, 'odell') >= 1 || fl(S, 'odellHeard')],
+    flaw: ['Complains to everyone, so nobody listens to the part that\'s true.', (S) => fl(S, 'odellChecked')],
+    secret: ['His slow alarm responses trace back to his own bad door sensor: six false alarms last spring.', (S) => fl(S, 'odellChecked')],
+    arc: ['Right about the dropped follow-up, wrong about the alarm.', (S) => fl(S, 'odellBoth') || fl(S, 'odellHalf') || fl(S, 'odellSensor'), (S) => fl(S, 'odellBoth') ? 'You told him both halves. He fixed the sensor and wrote your name under the case numbers.' : fl(S, 'odellHalf') ? 'You told him only the half he wanted. His alarm went off for the seventh time.' : 'You told him only the half that was his fault. He stopped talking to you.'] }
 ];
 const PARTS = [['want', 'Wants'], ['flaw', 'Flaw'], ['secret', 'Secret'], ['arc', 'Turning point']];
 const txt = (t, S) => (typeof t === 'function' ? t(S) : t);

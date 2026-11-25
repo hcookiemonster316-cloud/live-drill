@@ -15,7 +15,8 @@ export function installCourt(H) {
   function file(o) { const c = C(); c.pend.push({ how: LAW[o.how] || o.how === 'arrest' ? o.how : 'sticks', les: o.les, miss: o.miss || [], x: o.x, y: o.y, did: o.did, title: o.title || '', ordered: !!o.ordered, wrong: o.wrong | 0, filed: !!o.filed, proc: o.procOk | 0, where: o.where || 'the east side', sh: H.shift(), due: H.shift() + 2, t: Date.now() }); while (c.pend.length > 3) c.pend.shift(); H.saveS(); }
   let wait = -1;
   function onShift() { if (C().pend.some((p) => p.due <= H.shift())) wait = 16; } /* after the shift briefing settles */
-  function tick(dt) { if (wait < 0) return; wait -= dt; if (wait > 0) return; if (!H.free()) { wait = 4; return; } wait = -1; const p = C().pend.find((x) => x.due <= H.shift()); if (p) testify(p); }
+  let kq = null; // the defense attorney, waiting on the steps after court
+  function tick(dt) { if (kq && H.free()) { const k = kq; kq = null; keane(k); } if (wait < 0) return; wait -= dt; if (wait > 0) return; if (!H.free()) { wait = 4; return; } wait = -1; const p = C().pend.find((x) => x.due <= H.shift()); if (p) testify(p); }
   function testify(p) {
     const def = H.sayAs('defense', { name: 'Marisol Keane', icon: '⚖️', role: 'Defense attorney' }), ada = H.sayAs('ada', { name: 'ADA Ruth Fenwick', icon: '🏛️', role: 'Assistant State Attorney' });
     const ago = AGO[Math.min(3, H.shift() - p.sh)] || 'a while back', st = { honest: null };
@@ -45,7 +46,23 @@ export function installCourt(H) {
       if (v === 'lost' && p.how === 'arrest' && H.walked) H.walked(p); /* he's back on the street */
       if (p.x != null && H.blockAt && (p.did == null || p.did === H.did())) { H.blockAt(p.x, p.y, v === 'held' ? 2 : v === 'lost' ? -2 : 0); if (v !== 'plea') setTimeout(() => H.toast(v === 'held' ? '🏘️ Word gets back to ' + p.where + ': the case held. People there sleep a little easier.' : '🏘️ Word gets back to ' + p.where + ': he walked. People there wonder why they bothered calling.'), 4200); } H.award(v === 'held' ? 120 : v === 'plea' ? 60 : 20, 'court testimony'); H.stat('court'); if (v === 'held') H.stat('courtWon');
       H.debrief({ title: 'Court day', where: 'County Courthouse', extra: [['📝', 'Your report', paper * 5, 10, why], ['⚖️', 'The law', law * 5, 10, law + ' of ' + (res.n || 0) + ' answers the jury needed'], ['🏛️', 'Verdict', v === 'held' ? 10 : v === 'plea' ? 5 : 0, 10, words]], right: res.right, n: res.n, qs: res.qs || [] });
+      const K = (S.keane = S.keane || { n: 0 }); if (K.n < 3 || Math.random() < .3) kq = { v, paper, honest: st.honest }; H.saveS();
     }, { kicker: 'COURT · TESTIMONY' });
+  }
+  // People who disagree for good reasons (Step F): Marisol Keane isn't the villain of your court day. She reads every
+  // word because what you write follows her client for life, and when your report had a hole in it, she was right.
+  function keane(k) {
+    const def = H.sayAs('defense', { name: 'Marisol Keane', icon: '⚖️', role: 'Defense attorney' }), K = (S.keane = S.keane || { n: 0 }), first = !K.n; K.n++; H.saveS();
+    const hole = k.paper < 2, lines = [['narr', 'Outside, on the courthouse steps, the defense attorney is waiting for a cab. She nods you over.']];
+    if (first) lines.push([def, 'Marisol Keane. You probably think I\'m the enemy.'], [def, 'My client is nineteen. Whatever you write in a report follows him for the rest of his life: jobs, apartments, loans. So I read every word. Somebody has to.']);
+    if (hole) lines.push([def, k.honest ? 'Your report had a hole in it today. You owned it on the stand, which almost nobody does. I noticed.' : 'Your report had a hole in it today. I didn\'t put it there. I just read it out loud.'],
+      ['choice', [{ t: 'Tell her she was right about the report', set: 'keaneRight', reply: [[def, 'Then fix the habit, not the paragraph. That\'s the only advice I give away for free.']] },
+        { t: 'Tell her she twisted what you wrote', reply: [[def, 'I didn\'t twist anything, officer. I read it to twelve people, slowly.']] }]]);
+    else lines.push([def, k.v === 'held' ? 'Today it held, because your paper was clean. I\'d rather lose to that than win on a sloppy report. Strange thing for me to say.' : 'Clean report today. The rest wasn\'t up to you.'],
+      ['choice', [{ t: 'Ask why she does this work', set: 'keaneWhy', reply: [[def, 'My cousin did eight months on a report nobody checked. One wrong line. That\'s why I read every word.']] },
+        { t: 'Tell her you\'ll see her next time', reply: [[def, 'You will. Bring the same report.']] }]]);
+    if (k.v === 'held' && !hole) S.flags.keaneHeld = Date.now();
+    H.dialogue(lines, () => H.stat('keane'), { kicker: 'THE COURTHOUSE STEPS' });
   }
   // two questions from the lesson the call was about (the prosecutor needs the law that fits what happened)
   function lawFor(p) { const out = []; for (let i = 0; i < 8 && out.length < 2; i++) { const id = H.lessonQ ? H.lessonQ(p.les) : null; if (id && out.indexOf(id) < 0 && H.factQ(id)) out.push(id); } return out.length ? out : LAW.sticks.filter((id) => H.factQ(id)).slice(0, 2); }

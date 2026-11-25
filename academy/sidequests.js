@@ -476,3 +476,26 @@ export const LORE2 = [
   { id: 'l_biscuit', title: 'Biscuit', when: 'side:biscuit', text: 'Biscuit now rides along on the marina boat with Junie every Saturday, in a tiny life jacket. Captain Hal pretends to disapprove. Captain Hal bought the life jacket.' },
   { id: 'l_train', title: 'The North Spur', when: 'side:nighttrain', text: 'Freight cars can weigh more than a hundred tons and cannot stop quickly. Railroad police across the country run safety talks for teenagers every year, because the stories always start the same way: "We just thought it would be fun."' }
 ];
+
+// People who disagree for good reasons (Action plan, Step F): a man who complains about the police to anyone who'll
+// listen, and turns out to be right about half of it
+SIDE_CAST.odell = { name: 'Frank Odell', icon: '🪵', role: 'Owns Manatee Lumber' };
+SIDE2.push({ id: 'odell', d: 1, title: 'The Man Who Complains', giver: 'odell', req: [1, 1], blurb: 'Frank Odell at Manatee Lumber says the police never come. He says it to everyone.',
+  offer: [['odell', 'Oh, now one of you stops. Two break-ins this year, two reports, and nobody ever called me back. You want to hear it, or you want to get back to your coffee?']],
+  steps: [
+    { at: 'Manatee Lumber', npc: 'odell', who: 'odell', goal: 'Hear Frank Odell out at Manatee Lumber', say: [
+      ['odell', 'March, they cut the fence and took the copper. July, they took the tools off two trucks. Both times an officer wrote it down and handed me a card with a number on it.'],
+      ['odell', 'And my alarm? I call, and it\'s forty minutes before anybody shows. Forty. I could build you a shed in forty minutes.'],
+      ['choice', [{ t: 'Take notes and ask for both case numbers', set: 'odellHeard', npc: { odell: 1 }, reply: [['odell', '...Huh. Nobody\'s asked for the numbers before. Here. Both of them, on the back of the same card.']] },
+        { t: 'Tell him patrol is stretched thin this year', reply: [['odell', 'That\'s what the last one said. Thin. I\'m the one getting robbed, and somehow I\'m the one getting lectured.']] },
+        { t: 'Suggest he file a written complaint about it', reply: [['odell', 'I filed one. You\'re looking at the guy who filed one. Here, take the case numbers anyway. Somebody should.']] }]]], quiz: { n: 1 } },
+    { at: 'Substation', inside: true, who: 'castillo', goal: 'Look up his reports at the Eastside Substation', say: [
+      ['castillo', 'Pull them up. ...He\'s right. Both burglaries closed out with no follow-up contact. Nobody ever called him back.'],
+      ['castillo', 'The alarm is less simple. His system threw six false alarms last spring, a bad door sensor. After that, his alarms go out at a lower priority.'],
+      ['castillo', 'So he\'s right about one thing, and wrong about why the other one happens. That\'s most complaints, cadet. Listen for the part that\'s true.']],
+      after: [['castillo', '(over the radio) Tell him both. The part where we dropped it, and the part that\'s on his sensor.']], set: 'odellChecked' },
+    { at: 'Manatee Lumber', npc: 'odell', who: 'odell', goal: 'Bring Frank Odell what you found', say: [
+      ['odell', 'Well? Go ahead. Tell me I\'m imagining it.'],
+      ['choice', [{ t: 'Tell him he was right, and about the sensor', set: 'odellBoth', npc: { odell: 2 }, trust: 1, reply: [['odell', '...Nobody followed up. I knew it. And the sensor? Six times? I thought those were raccoons.'], ['odell', 'Fine. I\'ll get the sensor fixed. And you call me when there\'s news on the cases. You, personally.'], ['narr', 'He writes your name on the card, under the case numbers, and underlines it twice.']] },
+        { t: 'Tell him only that the reports were dropped', set: 'odellHalf', npc: { odell: 1 }, reply: [['odell', 'I knew it. I knew it! Wait till the paper hears about this.'], ['narr', 'Two weeks later his alarm goes off at 3 a.m. for the seventh time. It\'s the sensor again.']] },
+        { t: 'Tell him only about the false alarms', set: 'odellSensor', reply: [['odell', 'So it\'s my fault. Of course it is. And the two break-ins nobody called me back about?'], ['narr', 'He doesn\'t wait for an answer.']] }]]] }] });

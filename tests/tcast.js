@@ -14,6 +14,7 @@ const { chromium } = require('playwright');
   console.log('cards', t.length, '|', (t.find((x) => /Walsh/.test(x)) || '').slice(0, 160));
   await a.evaluate(() => document.querySelector('.cbCard').scrollIntoView()); await a.screenshot({ path: 'tcast.png' });
   // learning Park's secret: a notice (the first check after load only records what was already known)
+  await a.waitForFunction(() => window.__pc.S.cbInit, null, { timeout: 12000 }); /* the first check only records what was already known */
   await a.evaluate(() => { const pc = window.__pc; pc.closeModal(); pc.S.pcase.park.stage = 2; pc.S.pcase.park.rides = 4; });
   await a.waitForFunction(() => [...document.querySelectorAll('.toast, #toast, .tst')].some((x) => /Theo Park, secret/.test(x.innerText)) || /Theo Park, secret/.test(document.body.innerText), null, { timeout: 9000 }).catch(() => errs.push('no notice for a new secret'));
   console.log(errs.length ? 'ERRORS ' + errs.join(' / ') : 'no errors'); await b.close(); process.exit(errs.length ? 1 : 0); })();
