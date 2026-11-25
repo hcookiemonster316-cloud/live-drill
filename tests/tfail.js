@@ -16,7 +16,7 @@ const { chromium } = require('playwright');
   const p1 = await mk('complaint'); if (!p1 || p1.k !== 'complaint') errs.push('no complaint queued');
   const h1 = await a.evaluate(() => window.__pc.HK.pick()); console.log('hook', h1 && h1.t); if (!h1 || h1.k !== 'fail') errs.push('teaser is not the complaint');
   const r0 = await a.evaluate(() => (window.__pc.S.stat || {}).right || 0);
-  await a.evaluate(() => window.__pc.FAIL.tick(true)); const n1 = await play('Tell it straight', '/home/claude/sp/tfail.png');
+  await a.evaluate(() => window.__pc.FAIL.tick(true)); const n1 = await play('Tell it straight', 'tfail.png');
   const r1 = await a.evaluate(() => (window.__pc.S.stat || {}).right || 0); console.log('complaint asked', n1, 'right', r0, '->', r1);
   if (n1 !== 1) errs.push('complaint should ask exactly one question'); if (!(r1 > r0)) errs.push('second chance did not count');
   if (!(await notes()).some((t) => /Complaint about Car parked/.test(t) && /honest/.test(t))) errs.push('no complaint note');

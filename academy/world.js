@@ -682,9 +682,11 @@ function propPix(q, night) {
   const src = new ImageData(d, w * k, h * k), { out } = pixelize(d, w, h, k, 10);
   // the soft layer: only faint, dark pixels (shadows), never the faint edges of the body itself
   for (let i = 0; i < d.length; i += 4) { const a = d[i + 3]; if (a >= 110 || .299 * d[i] + .587 * d[i + 1] + .114 * d[i + 2] > 70) { d[i + 3] = 0; } }
-  const c = document.createElement('canvas'); c.width = w * k; c.height = h * k; const cg = c.getContext('2d'); cg.putImageData(src, 0, 0);
-  const pc = document.createElement('canvas'); pc.width = w; pc.height = h; const pg = pc.getContext('2d'), im = pg.createImageData(w, h); out.forEach((cl, i) => { if (cl) im.data.set([cl[0], cl[1], cl[2], 255], i * 4); }); pg.putImageData(im, 0, 0);
-  cg.imageSmoothingEnabled = false; cg.drawImage(pc, 0, 0, w * k, h * k); c.x0 = x0; c.y0 = y0; c.lw = w; c.lh = h; return c;
+  // the pixel body goes straight into the same buffer as solid k-by-k blocks over the soft layer (what drawing a w-by-h
+  // canvas scaled up k times without smoothing does), so each prop needs one canvas, not two
+  const kw = w * k; out.forEach((cl, i) => { if (!cl) return; const r = Math.round(cl[0]), gg = Math.round(cl[1]), bb = Math.round(cl[2]), px = (i % w) * k, py = ((i / w) | 0) * k;
+    for (let yy = 0; yy < k; yy++) { let o = ((py + yy) * kw + px) * 4; for (let xx = 0; xx < k; xx++, o += 4) { d[o] = r; d[o + 1] = gg; d[o + 2] = bb; d[o + 3] = 255; } } });
+  const c = document.createElement('canvas'); c.width = w * k; c.height = h * k; c.getContext('2d').putImageData(src, 0, 0); c.x0 = x0; c.y0 = y0; c.lw = w; c.lh = h; return c;
 }
 export function drawPropFast(g, p, sx, sy, t, night) {
   let key = null, ox = 0, q = p;
