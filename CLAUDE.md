@@ -11,6 +11,7 @@ Standing rules from the owner:
 - Quiz options must be similar in length and content; the right answer must not be obvious.
 - **Everything is made from scratch.** No third-party fonts, icon sets, emoji art, images, sounds or music. Text uses the game's own fonts (Meridian / Meridian Text, built by `tools/makefont.py`); emoji in strings are drawn as the game's own icons (`academy/icons.js`, add a design or a MAP entry for any new emoji); music is composed in `scoredata.js` and rendered with `tools/render-score.js`.
 - Push live in batches of two or three features (owner's call, 2026-11-21), one test cycle per batch (GitHub Pages); `database.rules.json` deploys automatically via `.github/workflows/deploy-rules.yml` when it changes.
+- The site deploys through `.github/workflows/pages.yml` (owner's call, 2026-11-25): `tools/build-site.sh` builds a minified copy (esbuild, file by file, imports unchanged), the quick set runs against that copy (`ROOT=_site tests/run.sh quick`), and only a passing build goes live. Source files are never minified. Read esbuild's warnings when building locally: they caught a duplicate host key and a reassigned const.
 
 Architecture notes:
 - Feature modules export `installX(H)` and get a host object from `game.js` (POL, EP, ON, FEEL, SAFE, NG, PREM, COOP...).

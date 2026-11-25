@@ -1,0 +1,60 @@
+# Builds and deploys the site to GitHub Pages: every script minified (tools/build-site.sh), then the quick regression
+# set runs against the built copy, and only a build that passes goes live. The repo's own files are never changed.
+# Needs: Settings > Pages > Build and deployment > Source = "GitHub Actions" (set once by the owner).
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the minified site
+        run: tools/build-site.sh _site
+      - name: Install Playwright and Chromium
+        working-directory: tests
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Quick tests against the built site
+        env:
+          ROOT: _site # serve the built copy, not the source
+          JOBS: 2
+        run: tests/run.sh quick
+      - name: Keep screenshots and the log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-site-tests
+          path: tests/out/
+          retention-days: 7
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
