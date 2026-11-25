@@ -10,6 +10,7 @@ export function installHooks(H) {
     const ct = ((S.court && S.court.pend) || []).find((p) => p.due <= next); if (ct) out.push({ k: 'court', w: 9, icon: '⚖️', t: 'Court. You testify on ' + (ct.title || 'your arrest') + ' at ' + ct.where + ', and the defense has read your report.' });
     const nf = H.newFace(); if (nf && Math.random() < .6) out.push({ k: 'face', w: 7, icon: '👋', t: nf.name + ' has been asking about you at ' + nf.where + '. Nobody will say why.', id: nf.id });
     const ow = S.sgt && S.sgt.owed && S.sgt.owed[0]; if (ow) out.push({ k: 'owed', w: 5, icon: '📋', t: ow + ' wants a word about the board last night.' });
+    const lh = H.las && H.las(); if (lh) out.push(lh); // Lassiter will find you
     const q = H.activeQ(); if (q && q.step && q.step.goal) out.push({ k: 'case', w: 3, icon: '🗂️', t: (q.side ? q.title + ': ' : 'Your case: ') + q.step.goal + '.' });
     out.sort((a, b) => b.w - a.w); return out[0] || null;
   }

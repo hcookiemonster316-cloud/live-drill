@@ -12,6 +12,7 @@
   ],
   "casefile.js": [
    "tcourt",
+   "tlassiter",
    "twatch"
   ],
   "ch5data.js": [
@@ -77,10 +78,14 @@
   ],
   "hooks.js": [
    "thooks",
+   "tlassiter",
    "tonemore"
   ],
   "interiors.js": [
    "tdecor"
+  ],
+  "lassiter.js": [
+   "tlassiter"
   ],
   "learn.js": [
    "tready",

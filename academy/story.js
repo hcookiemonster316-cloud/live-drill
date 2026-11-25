@@ -102,6 +102,9 @@ export const CHAPTERS = [
       ['lassiter', 'Oh, you\'re the cadet with the cat. Even the courthouse animals like you. That must be exhausting.', { if: 'catPatient' }],
       ['lassiter', 'I remember you. Delgado\'s free lunch. Everybody in this city takes something, cadet. It\'s just a matter of the price. So what\'s yours?', { if: 'freeDog' }],
       ['lassiter', 'You\'re the one who paid for the two-dollar hot dog. Delgado tells everybody. I guess you think that makes you different.', { if: 'paidDelgado' }],
+      ['lassiter', 'You asked me if I had a minute, that first day at the curb. I have a few more now. Seems I won\'t be busy.', { if: 'lasAsk' }],
+      ['lassiter', 'Did you ever finish that coffee? No? Shame. It was good coffee.', { if: 'lasCoffee' }],
+      ['lassiter', 'A car, a beat, people who wave. Go on, cadet. Say it to my face.', { if: 'lasWant' }],
       ['lassiter', 'I\'m sure we can talk about this like reasonable people, before anybody does something they can\'t take back.', { unless: 'freeDog' }],
       ['choice', [
         { t: '"You\'re under arrest. That\'s the conversation."', set: 'firmArrest', reply: [['castillo', 'Mr. Lassiter, there\'s a warrant out for your arrest. The cadet is going to explain what happens next.']] },

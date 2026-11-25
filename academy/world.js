@@ -662,7 +662,7 @@ function mini(g, tx, x, y, w, d, h, base, color) {
 }
 
 // props are drawn once into a small cached sprite per look (trees sway by sliding the sprite); animated ones still draw live
-const PROPC = new Map(), PROP_STATIC = new Set(['chalk', 'tag', 'board', 'litter', 'lights', 'hydrant', 'bin', 'bush', 'flowers', 'stall', 'cone', 'bench', 'pump', 'canopy', 'crate', 'scrap', 'hoop', 'lumberstack', 'lamp']);
+const PROPC = new Map(), PROP_STATIC = new Set(['chalk', 'tag', 'board', 'litter', 'lights', 'hydrant', 'bin', 'bush', 'flowers', 'stall', 'cone', 'bench', 'pump', 'canopy', 'crate', 'scrap', 'hoop', 'lumberstack', 'lamp', 'firetruck']); // the parked engine at Fire 3 never moves: paint it once
 const PPX = new Map(), PKEY_SKIP = new Set(['x', 'y', 't', 'on', 'rec', 'wall', 'front', 'dz', 'block']); // fields that place a prop but don't change how it looks: props that differ only in these share one sprite
 // a prop drawn at 3x, its solid parts turned into pixel art and its see-through dark parts (ground shadows) kept soft
 function propPix(q, night) {
