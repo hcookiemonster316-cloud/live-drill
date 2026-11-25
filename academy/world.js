@@ -665,8 +665,13 @@ function mini(g, tx, x, y, w, d, h, base, color) {
 const PROPC = new Map(), PROP_STATIC = new Set(['chalk', 'tag', 'board', 'litter', 'lights', 'hydrant', 'bin', 'bush', 'flowers', 'stall', 'cone', 'bench', 'pump', 'canopy', 'crate', 'scrap', 'hoop', 'lumberstack', 'lamp', 'firetruck']); // the parked engine at Fire 3 never moves: paint it once
 const PPX = new Map(), PKEY_SKIP = new Set(['x', 'y', 't', 'on', 'rec', 'wall', 'front', 'dz', 'block']); // fields that place a prop but don't change how it looks: props that differ only in these share one sprite
 // a prop drawn at 3x, its solid parts turned into pixel art and its see-through dark parts (ground shadows) kept soft
+// one scratch canvas for every prop, kept on the CPU side: the full read-back below is the expensive part, and a
+// canvas made for reading answers it without a GPU round trip (and without making a new canvas per prop)
+let PXS = null;
 function propPix(q, night) {
-  const k = 3, W = 120, Hh = 150, [bv, bg] = hiCanvas(W, Hh, k); drawProp(bg, q, 60, 130, 0, night);
+  const k = 3, W = 120, Hh = 150;
+  if (!PXS) { const c = document.createElement('canvas'); c.width = W * k; c.height = Hh * k; PXS = c.getContext('2d', { willReadFrequently: true }); }
+  const bg = PXS; bg.setTransform(1, 0, 0, 1, 0, 0); bg.clearRect(0, 0, W * k, Hh * k); bg.save(); bg.setTransform(k, 0, 0, k, 0, 0); drawProp(bg, q, 60, 130, 0, night); bg.restore();
   /* one read-back only: find the drawn box on the full read, then crop it out of the same pixels (a second getImageData stalls the GPU again) */
   const WK = W * k, HK = Hh * k, all = bg.getImageData(0, 0, WK, HK).data; let ya = -1, yb = -1, xa = WK, xb = -1;
   for (let y = 0; y < HK; y++) { let i = y * WK * 4 + 3; for (let x = 0; x < WK; x++, i += 4) if (all[i] > 8) { if (ya < 0) ya = y; yb = y; if (x < xa) xa = x; break; } }

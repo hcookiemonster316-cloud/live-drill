@@ -54,6 +54,9 @@
    "tcourt",
    "trecon"
   ],
+  "failure.js": [
+   "tfail"
+  ],
   "feel.js": [
    "tdrill"
   ],
@@ -77,6 +80,7 @@
    "treport"
   ],
   "hooks.js": [
+   "tfail",
    "thooks",
    "tlassiter",
    "tonemore"
