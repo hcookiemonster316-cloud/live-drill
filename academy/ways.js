@@ -167,6 +167,21 @@ const GEN = {
   book: { t: 'Handle it strictly by the book', beat: 'You follow procedure to the letter: identify everyone, document everything, and explain each step as you go.', end: 'Closed by the book. The report is clean and complete.', kick: 'By the book' }
 };
 
+// the ten cases a new cadet meets first get their own ending for each way, about the same people (Step G):
+// a route has to change how it ends, or routes stop mattering
+const ENDS = {
+  wallet: { talk: 'Kevin buys Dot a slice of pie every Friday now. Neither of them will say who started it.', look: 'A second wallet goes missing at the diner a month later, and the receipt you had Dot sign is the paperwork everybody copies.', book: 'Logged, returned and signed for in ten minutes. Kevin calls it the fastest thing the city has ever done for him.' },
+  clock: { talk: 'Ms. Okafor puts it to a vote at the depot. Five minutes slow wins, forty to three, and she lets you wind it on its birthday.', look: 'It ran slow because of a worn gear tooth, not a choice. The clock gets fixed, and a little sign says it used to be five minutes slow.', book: 'It goes to the city as a work order with the key logged as found property. The clock is right by spring, and Ms. Okafor misses it being wrong.' },
+  ghostcar: { talk: 'The kid\'s mom comes to the daylight practice too. Big Earl teaches both of them, and the lot stays quiet at night.', look: 'The cone scuffs lead to three more kids practicing after dark. Big Earl turns Saturday mornings into a free parking class.', book: 'Written up as an unlicensed driver on private property, parent called, nobody charged. The ghost car never comes back.' },
+  ruth: { talk: 'Grandma Ruth starts a phone tree on Maple Court. Half the block calls her first, and she tells every one of them to call 911.', look: 'Her notebook lines up with two open reports. A detective calls her his best witness, and she saves the voicemail.', book: 'Her notes go into a proper report with dates and plates. Ruth says it\'s the first time anybody typed up her handwriting.' },
+  pigeons: { talk: 'The kid keeps the pigeons, and Sgt. Pruitt teaches him to race them the right way. The pastry case is safe.', look: 'The crumbs were coming from the bakery\'s own back door, left propped open. They fix the latch and the raids stop.', book: 'Parents called, the feeding stops, a sign goes up. The pigeons find another bakery, and Pruitt pretends he isn\'t sad about it.' },
+  deadair: { talk: 'Velvet tells every new dispatcher about the dead spot and who found it. You end up on a training slide.', look: 'You map the dead spot block by block. The radio shop finds a broken repeater, and the block comes back on the air.', book: 'It goes in as an officer safety report. A repeater is ordered, and until it comes, units on that block check in by phone.' },
+  nightowl: { talk: 'You sit with him for twenty minutes. The bus driver comes the next night, and the night after. He\'s back on the route in a week.', look: 'He stopped riding because his stop lost its light. Public works fixes it, and the driver flags you down to say so.', book: 'A welfare check on file and a caseworker assigned. He gets a ride home when they discharge him, and a number to call.' },
+  spokes: { talk: 'The guy in the hoodie talks before you ask. He was moving them for his cousin. The bikes go back, and so does the cousin.', look: 'The serial numbers match three reports. Every bike goes home to its owner, and the rack gets a camera.', book: 'Probable cause, the bikes logged as evidence, photos in the report. Pike says it\'s the cleanest arrest he\'s seen.' },
+  overdue: { talk: 'The reverend brings the book back himself and stays for coffee with Mrs. Ellery. The library frames his note.', look: 'There was a 1987 bus transfer inside the cover, and the reverend remembers the whole day. Mrs. Ellery writes it up for the newsletter.', book: 'Returned at the front desk, no fine, a receipt for the reverend. He says it\'s the best thirty-nine years of guilt he ever paid off.' },
+  corner: { talk: 'They split it: Gio mornings, Mr. Delgado afternoons. By summer they\'re sharing a cooler.', look: 'The permit map shows the corner was never anybody\'s. The city paints two spots, and both men complain about the paint.', book: 'Permits checked, both valid, spots marked by ordinance. Nobody\'s happy, and nobody\'s fighting.' }
+};
+export const CASE_ENDS = ENDS;
 export function installWays(H) {
   const S = H.S; S.ways = S.ways || {}; FLAGS = () => { H.S.flags = H.S.flags || {}; return H.S.flags; };
   // the way a signature case went, from the flag its first scene set
@@ -187,7 +202,7 @@ export function installWays(H) {
     else if (k === 'look') rp = Math.round(rp * 1.2);
     else rp = Math.round(rp * 1.1);
     H.saveS();
-    const end = q.sig ? ({ talk: 'You closed it by talking it through.', look: 'You closed it by finding the cause.', book: 'You closed it by the book.' })[k] : GEN[k].end;
+    const end = q.sig ? ({ talk: 'You closed it by talking it through.', look: 'You closed it by finding the cause.', book: 'You closed it by the book.' })[k] : (ENDS[q.id] && ENDS[q.id][k]) || GEN[k].end;
     return { html: '<p class="chWay"><b>' + H.esc(GEN[k].kick) + '</b> ' + H.esc(end) + '</p>', rp };
   }
   // how you tend to work, for the case journal

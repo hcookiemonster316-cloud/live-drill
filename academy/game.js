@@ -3225,7 +3225,11 @@ function chapterCard(force) {
 }
 // ---- autosave icon ----
 let saveVisT = 0;
-function saveS() { exFlush(true); L.saveState(S); const now = performance.now(); if (now - saveVisT < 5000 || ATTRACT) return; saveVisT = now; const el = $('saving'); el.hidden = false; el.classList.add('in'); setTimeout(() => { el.classList.remove('in'); setTimeout(() => { el.hidden = true; }, 400); }, 1400); }
+// saves made during one action (end of watch alone saved five times) are written once, at the end of that action:
+// the write happens before control returns to the browser, so nothing is lost on a reload or a closed tab
+let SAVEQ = false;
+function saveS() { if (SAVEQ) return; SAVEQ = true; queueMicrotask(() => { SAVEQ = false; saveNow(); }); }
+function saveNow() { exFlush(true); L.saveState(S); const now = performance.now(); if (now - saveVisT < 5000 || ATTRACT) return; saveVisT = now; const el = $('saving'); el.hidden = false; el.classList.add('in'); setTimeout(() => { el.classList.remove('in'); setTimeout(() => { el.hidden = true; }, 400); }, 1400); }
 // ---- camera shake ----
 const SHK = { t: 0, a: 0 };
 function shake(a, d) { if (!S.cfg.shake || !S.cfg.motion) return; SHK.a = Math.max(SHK.a, a); SHK.t = Math.max(SHK.t, d || .4); }
