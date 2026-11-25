@@ -759,6 +759,27 @@
             }
           }
         }
+      },
+      "dd": {
+        "$day": {
+          ".read": "auth != null && $day.matches(/^[0-9]{8}$/)",
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['c','t','m'])",
+            "c": {
+              ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 20"
+            },
+            "t": {
+              ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() < 600"
+            },
+            "m": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
       }
     }
   }
