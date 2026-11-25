@@ -14,7 +14,9 @@ const { chromium } = require('playwright');
   await clearDlg();
   // a clue
   await a.evaluate(() => { const pc = window.__pc, l = pc.W.lots.find((x) => /Dog-Eared/.test(x.name || '')); pc.P.x = l.door[0]; pc.P.y = l.door[1]; pc.P.path = []; });
-  await a.waitForTimeout(2500); console.log('clue:', await a.evaluate(() => document.querySelector('.clueCard') && document.querySelector('.clueCard').innerText.replace(/\n+/g, ' | ').slice(0, 160)));
+  // a place discovered on the way can pop its lore card first; keep clearing those until the clue shows (or 8 s)
+  for (let k = 0; k < 27 && !(await a.evaluate(() => !!document.querySelector('.clueCard'))); k++) { await a.evaluate(() => document.querySelectorAll('.lorePop [data-a="ok"], .tCard').forEach((x) => x.click())); await a.waitForTimeout(300); }
+  console.log('clue:', await a.evaluate(() => document.querySelector('.clueCard') && document.querySelector('.clueCard').innerText.replace(/\n+/g, ' | ').slice(0, 160)));
   await shot('e_clue'); await a.evaluate(() => document.querySelector('#clBoard') && document.querySelector('#clBoard').click()); await a.waitForTimeout(500); await shot('e_board');
   await a.evaluate(() => document.querySelector('#mClose').click()); await a.waitForTimeout(400);
   // a call with investigation or report forced
