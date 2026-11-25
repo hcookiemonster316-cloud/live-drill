@@ -40,7 +40,7 @@ export function installFeel(H) {
   function rankLine(prefix, rankName, xp, cash) {
     const el = H.$('hRank'); if (!el) return; if (disp.xp == null) { disp.xp = xp; disp.cash = cash; }
     const fromX = disp.xp, fromC = disp.cash, up = xp > fromX || cash > fromC, t0 = performance.now(), dur = Math.min(900, 300 + Math.abs(xp - fromX) * 4);
-    if (up) { el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); if (cash > fromC) UI.coin(); }
+    if (up) { /* the pulse restarts next frame: no forced layout right after a debrief is built */ el.classList.remove('pulse'); cancelAnimationFrame(el._pr); el._pr = requestAnimationFrame(() => el.classList.add('pulse')); if (cash > fromC) UI.coin(); }
     cancelAnimationFrame(raf); let ticks = 0;
     const step = (now) => { const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3); disp.xp = Math.round(fromX + (xp - fromX) * e); disp.cash = Math.round(fromC + (cash - fromC) * e); el.textContent = prefix + rankName + ' · ' + disp.xp + ' RP · $' + disp.cash; if (up && ++ticks % 4 === 0 && k < 1) UI.tick(); if (k < 1) raf = requestAnimationFrame(step); };
     if (!up || S.cfg.motion === false) { disp.xp = xp; disp.cash = cash; el.textContent = prefix + rankName + ' · ' + xp + ' RP · $' + cash; } else raf = requestAnimationFrame(step);

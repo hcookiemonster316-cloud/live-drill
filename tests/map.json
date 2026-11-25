@@ -71,6 +71,10 @@
    "thands",
    "treport"
   ],
+  "hooks.js": [
+   "thooks",
+   "tonemore"
+  ],
   "interiors.js": [
    "tdecor"
   ],
