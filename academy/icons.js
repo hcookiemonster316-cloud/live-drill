@@ -280,11 +280,14 @@ patchCtx(typeof OffscreenCanvasRenderingContext2D !== 'undefined' && OffscreenCa
 
 // ---- DOM: swap emoji in text for inline SVG icons as content appears (menus, cards, toasts, the journal)
 const SKIP = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'OPTION', 'TITLE', 'svg', 'SVG']);
+// each icon's markup is parsed once; every later use is a clone (a screen full of hearts was a few hundred parses)
+const ICO_TPL = new Map();
+function icoNode(ic) { let t = ICO_TPL.get(ic); if (!t) { t = document.createElement('i'); t.className = 'pcIco'; t.innerHTML = svg(ic); ICO_TPL.set(ic, t); } return t.cloneNode(true); }
 function swapText(node) {
   const t = node.nodeValue; if (!t || !RX.test(t)) { RX.lastIndex = 0; return; } RX.lastIndex = 0;
   const p = node.parentNode; if (!p || SKIP.has(p.nodeName) || p.closest && p.closest('[data-noicon],svg')) return;
   const frag = document.createDocumentFragment(); let last = 0;
-  t.replace(RX, (m, i) => { const ic = iconFor(m); if (!ic) return m; if (i > last) frag.appendChild(document.createTextNode(t.slice(last, i))); const s = document.createElement('i'); s.className = 'pcIco'; s.innerHTML = svg(ic); s.setAttribute('data-e', m); frag.appendChild(s); last = i + m.length; return m; });
+  t.replace(RX, (m, i) => { const ic = iconFor(m); if (!ic) return m; if (i > last) frag.appendChild(document.createTextNode(t.slice(last, i))); const s = icoNode(ic); s.setAttribute('data-e', m); frag.appendChild(s); last = i + m.length; return m; });
   if (!last) return; if (last < t.length) frag.appendChild(document.createTextNode(t.slice(last))); p.replaceChild(frag, node);
 }
 function walk(root) { if (root.nodeType === 3) return swapText(root); if (root.nodeType !== 1 || SKIP.has(root.nodeName)) return; const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); const list = []; let n; while ((n = tw.nextNode())) list.push(n); list.forEach(swapText); }

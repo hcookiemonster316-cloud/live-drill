@@ -18,7 +18,7 @@ const STABLE = { sedan: 9, suv: .98, van: .9, truck: .95, armored: .88 };   // l
 // a course: centerline points, half-width, cones along both edges; marks are painted lines
 function lane(pts, hw, gap) {
   const P = [], S = [0]; for (let i = 0; i < pts.length; i++) { P.push(pts[i]); if (i) S.push(S[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])); }
-  const cones = [], len = S[S.length - 1]; for (let s = 0; s <= len + .01; s += gap) { const q = at(P, S, s); cones.push({ x: q.x - q.ny * hw, y: q.y + q.nx * hw }, { x: q.x + q.ny * hw, y: q.y - q.nx * hw }); }
+  const cones = [], len = S[S.length - 1]; for (let s = 0; s <= len + .01; s += gap) { const q = at(P, S, s); cones.push({ x: q.x - q.ny * hw, y: q.y + q.nx * hw, s }, { x: q.x + q.ny * hw, y: q.y - q.nx * hw, s }); } // each cone knows how far along the course it stands
   return { P, S, len, hw, cones };
 }
 function at(P, S, s) { let i = 1; while (i < S.length - 1 && S[i] < s) i++; const a = P[i - 1], b = P[i], L = S[i] - S[i - 1] || 1, k = Math.max(0, Math.min(1, (s - S[i - 1]) / L)), nx = (b[0] - a[0]) / L, ny = (b[1] - a[1]) / L; return { x: a[0] + (b[0] - a[0]) * k, y: a[1] + (b[1] - a[1]) * k, nx, ny }; }
@@ -84,7 +84,7 @@ export function installDrills(H) {
     // pedals: pressure builds while held (squeeze, not stab), and drops when released
     const wantG = keys.gas || touch.gas ? 1 : 0, wantB = keys.brk || touch.brk ? 1 : 0;
     c.gas = wantG ? Math.min(1, c.gas + dt * 1.6) : Math.max(0, c.gas - dt * 6);
-    const was = c.brk; c.brk = wantB ? Math.min(1, c.brk + dt * 2.6) : Math.max(0, c.brk - dt * 8); if (was > .15 && c.brk <= .15 && Math.abs(c.v) > 1) R.pumps++;
+    const was = c.brk; c.brk = wantB ? Math.min(1, c.brk + dt * 2.6) : Math.max(0, c.brk - dt * 8); if (was > .15 && c.brk <= .15 && Math.abs(c.v) > 1) { R.pumps++; if (R.dr.id === 'brake' && R.lit) sfx('oops'); }
     // steering: the wheel turns as fast as hands can shuffle it; let go and the caster effect straightens it, going forward only
     const ws = (keys.r || touch.r ? 1 : 0) - (keys.l || touch.l ? 1 : 0);
     if (ws) c.steer = Math.max(-1, Math.min(1, c.steer + ws * dt * 2.2)); else if (c.v > .3) c.steer -= Math.sign(c.steer) * Math.min(Math.abs(c.steer), dt * 2.6 * Math.min(1, c.v / 1.5));
@@ -93,7 +93,7 @@ export function installDrills(H) {
     let along = c.gas * .34 * G * c.gear; R.spin = c.gas > .75 && Math.abs(c.v) < 1.1 && R.gasT < .5; if (R.spin) along *= .35;
     if (c.gear * c.v < -.05) along += c.gear * .5 * G * c.gas; // pushing against a roll the wrong way
     let brakeA = c.brk * G * (c.gear < 0 || c.v < 0 ? .55 : 1);     // the rear brakes take the weight in reverse and they are weaker
-    c.abs = c.brk > .82 && Math.abs(c.v) > .6; if (c.abs) brakeA = Math.min(brakeA, .8 * A); // ABS trades a little stopping power for the grip to steer
+    c.abs = c.brk > .82 && Math.abs(c.v) > .6; if (c.abs) { brakeA = Math.min(brakeA, .8 * A); R.absPh = (R.absPh || 0) + dt; if (R.absPh > 1 / 13) { R.absPh = 0; sfx('abs'); } } /* the pedal chatters: hold it, don't pump */ // ABS trades a little stopping power for the grip to steer
     const longDemand = Math.abs(along) + brakeA, latCap = Math.sqrt(Math.max(0, A * A - Math.min(A * .97, longDemand) ** 2));
     // turning: the yaw the wheel asks for, limited by what the tires can still hold sideways
     const sens = c.v < 0 ? 1.55 : 1, delta = c.steer * STEER * sens / (1 + Math.abs(c.v) * .12), wantYaw = c.v * Math.tan(delta) / LWB, latDemand = Math.abs(c.v * wantYaw);
@@ -125,7 +125,11 @@ export function installDrills(H) {
     const c = R.car, dr = R.dr, co = dr.course; R.at = locate(co, c.x, c.y); const mph = Math.abs(c.v) / MPH; R.t += dt;
     // race your own ghost (Step E): the run is sampled ten times a second; a new best is kept as the ghost for next time
     { const T = R.trace || (R.trace = []), L = T[T.length - 1]; if ((!L || R.t - L[0] >= .1) && T.length < 1200) T.push([Math.round(R.t * 100) / 100, Math.round(c.x * 100) / 100, Math.round(c.y * 100) / 100, Math.round(c.h * 100) / 100]); }
-    co.cones.forEach((k) => { if (!k.hit && obb(c, k.x, k.y, .1)) { k.hit = 1; k.vx = Math.cos(c.va) * Math.abs(c.v) * .8 + (Math.random() - .5); k.vy = Math.sin(c.va) * Math.abs(c.v) * .8 + (Math.random() - .5); R.hits++; sfx('cone'); coach('Cone down. Two seconds added.'); } if (k.hit && k.vx) { k.x += k.vx * dt; k.y += k.vy * dt; k.vx *= .9; k.vy *= .9; if (Math.abs(k.vx) + Math.abs(k.vy) < .02) k.vx = k.vy = 0; } });
+    co.cones.forEach((k) => { if (!k.hit && k.s != null && Math.abs(k.s - R.at.s) > 3) return; /* a standing cone far up or down the course can't be touched this step */ if (!k.hit && obb(c, k.x, k.y, .1)) { k.hit = 1; k.vx = Math.cos(c.va) * Math.abs(c.v) * .8 + (Math.random() - .5); k.vy = Math.sin(c.va) * Math.abs(c.v) * .8 + (Math.random() - .5); R.hits++; sfx('cone'); coach('Cone down. Two seconds added.'); } if (k.hit && k.vx) { k.x += k.vx * dt; k.y += k.vy * dt; k.vx *= .9; k.vy *= .9; if (Math.abs(k.vx) + Math.abs(k.vy) < .02) k.vx = k.vy = 0; } });
+    // sounds that teach (Step F): every cone pair you pass clean plays the next note up, so a clean run has a rhythm;
+    // a cone down breaks it
+    { const prs = co._pairs || (co._pairs = co.cones.reduce((o, k, i) => { if (i % 2 === 0 && k.s != null && co.cones[i + 1] && co.cones[i + 1].s === k.s) o.push(i); return o; }, []));
+      while ((R.cr || 0) < prs.length && R.at.s > co.cones[prs[R.cr || 0]].s + .15) { const i = prs[R.cr || 0]; R.cr = (R.cr || 0) + 1; if (co.cones[i].hit || co.cones[i + 1].hit) { R.run = 0; continue; } R.run = (R.run || 0) + 1; if (R.run >= 2 && R.t - (R.noteT || 0) > .13) { R.noteT = R.t; sfx('note', R.run); } } }
     if (R.at.d > co.hw + 2.2) { R.end = 'off'; }
     if (dr.id === 'brake') { if (!R.lit && c.x >= co.light) { R.lit = 1; R.vAtLight = mph; coach(mph < 31 ? 'Under 35 at the light. You need the speed for this one.' : co.side < 0 ? 'Left lane blocked! Brake hard and steer right.' : 'Right lane blocked! Brake hard and steer left.'); sfx('cue'); }
       if (R.lit) { if (c.brk > .05 && R.firstBrake == null) R.firstBrake = R.t; if (c.abs) { R.absT += dt; if (Math.abs(c.steer) > .25) R.absSteer = 1; } }
@@ -195,7 +199,7 @@ export function installDrills(H) {
   function endPursuit(how) { const P = R.pur; if (P.end) return; P.end = how; hideCue(); finish(how !== 'crash'); }
   function showCue() { const el = $('drCue'); el.hidden = false; el.innerHTML = '<small>CALL IT OUT · ' + H.esc(R.pur.cue ? 'which is right?' : '') + '</small>' + R.pur.cue.opts.map((o, i) => '<button type="button" data-c="' + i + '"><b>' + (i + 1) + '</b> ' + H.esc(o[0].charAt(0).toUpperCase() + o[0].slice(1)) + '</button>').join(''); el.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => answerCue(+b.dataset.c)); }
   function hideCue() { const el = root && $('drCue'); if (el) el.hidden = true; }
-  function answerCue(i) { const P = R.pur; if (!P || !P.cue) return; const o = P.cue.opts[i]; if (!o) return; P.cue = null; P.nextCue = R.t + 5 + Math.random() * 2; hideCue(); if (o[1]) { P.calls++; coach(H.cs() + ': ' + o[0].charAt(0).toUpperCase() + o[0].slice(1) + '.'); H.beep(1200, .03, 'square', .02); } else coach('Wrong direction on the radio. Your backup is now heading the wrong way.'); }
+  function answerCue(i) { const P = R.pur; if (!P || !P.cue) return; const o = P.cue.opts[i]; if (!o) return; P.cue = null; P.nextCue = R.t + 5 + Math.random() * 2; hideCue(); if (o[1]) { P.calls++; coach(H.cs() + ': ' + o[0].charAt(0).toUpperCase() + o[0].slice(1) + '.'); sfx('key'); } else { sfx('garble'); coach('Wrong direction on the radio. Your backup is now heading the wrong way.'); } }
   function showDec(dec) { const el = $('drDec'), opts = dec.opts.slice().sort(() => Math.random() - .5); el.hidden = false; el.innerHTML = '<div><small>DECISION · PURSUIT POLICY</small><p>' + H.esc(dec.text) + '</p>' + opts.map((o, k) => '<button type="button" data-k="' + k + '">' + H.esc(o[0]) + '</button>').join('') + '</div>';
     el.querySelectorAll('[data-k]').forEach((b) => b.onclick = () => { const o = opts[+b.dataset.k], P = R.pur; el.hidden = true; R.paused = false; P.ask = null; last = performance.now(); P.judge.push(o[2]);
       if (o[1] === 'term') terminate(); else if (o[1] === 'air') { P.air = 1; coach('Air One: We have the vehicle. Ground units, back it down. We will guide you in.'); } else if (o[1] === 'bad') { P.ordered = 1; terminate("Sgt. Castillo: Negative. That's how people get hurt. Terminate."); } else coach('Staying with it. Keep your distance and keep calling it.'); }); }
@@ -301,7 +305,11 @@ export function installDrills(H) {
   function audioOn() { if (!S.sound || au) return; const a = H.audio(); if (!a) return; try { const o = a.createOscillator(), f = a.createBiquadFilter(), gg = a.createGain(); o.type = 'sawtooth'; f.type = 'lowpass'; f.frequency.value = 420; o.connect(f).connect(gg).connect(a.destination); gg.gain.value = 0; o.start();
       const n = a.createBuffer(1, a.sampleRate, a.sampleRate), d = n.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; const s = a.createBufferSource(); s.buffer = n; s.loop = true; const bf = a.createBiquadFilter(); bf.type = 'bandpass'; bf.frequency.value = 2400; bf.Q.value = 6; const sq = a.createGain(); sq.gain.value = 0; s.connect(bf).connect(sq).connect(a.destination); s.start();
       const ao = a.createOscillator(); ao.type = 'square'; ao.frequency.value = 52; const ab = a.createGain(); ab.gain.value = 0; ao.connect(ab).connect(a.destination); ao.start(); const so = a.createOscillator(); so.type = 'triangle'; so.frequency.value = 700; const sg = a.createGain(); sg.gain.value = 0; so.connect(sg).connect(a.destination); so.start(); au = { o, g: gg, sq, ab, so, sg, stop: () => { [o, s, ao, so].forEach((x) => { try { x.stop(); } catch (e) {} }); } }; } catch (e) { au = null; } }
-  function sfx(k) { if (k === 'cone') H.beep(330, .08, 'triangle', .04); else if (k === 'cue') { H.beep(880, .12, 'square', .03); H.beep(660, .16, 'square', .03, .12); } else if (k === 'gold') { [784, 988, 1175, 1568].forEach((f, i) => H.beep(f, .16, 'triangle', .05, i * .09)); } else if (k === 'done') { H.beep(660, .12, 'triangle', .04); H.beep(880, .2, 'triangle', .04, .1); } else H.beep(220, .3, 'sawtooth', .03); }
+  // the right move sounds right, and every mistake shares one small, dull sound you learn to avoid
+  const NOTES = [523, 587, 659, 784, 880, 1047, 1175, 1319, 1568];
+  function sfx(k, n) { if (k === 'note') H.beep(NOTES[Math.min(NOTES.length - 1, (n - 2) % 9)], .07, 'triangle', .02); else if (k === 'abs') H.beep(92, .03, 'square', .026);
+    else if (k === 'key') { H.beep(1850, .012, 'square', .03); H.beep(1400, .022, 'square', .022, .028); } else if (k === 'oops' || k === 'garble') { H.beep(k === 'garble' ? 310 : 196, .06, k === 'garble' ? 'sawtooth' : 'square', .026); H.beep(k === 'garble' ? 247 : 147, .1, k === 'garble' ? 'sawtooth' : 'square', .022, .06); }
+    else if (k === 'cone') { H.beep(160, .07, 'square', .03); H.beep(118, .11, 'triangle', .03, .05); } else if (k === 'cue') { H.beep(880, .12, 'square', .03); H.beep(660, .16, 'square', .03, .12); } else if (k === 'gold') { [784, 988, 1175, 1568].forEach((f, i) => H.beep(f, .16, 'triangle', .05, i * .09)); } else if (k === 'done') { H.beep(660, .12, 'triangle', .04); H.beep(880, .2, 'triangle', .04, .1); } else H.beep(220, .3, 'sawtooth', .03); }
 
   // ---------- screen ----------
   // elements are looked up once per course opening, and the HUD only writes what changed (it runs every frame)
