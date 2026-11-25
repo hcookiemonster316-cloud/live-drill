@@ -13,6 +13,12 @@ export function installFinale(H) {
   // the people who remember you well: good deeds from memory.js, and regulars who count you as a friend
   function helpers() {
     const out = [], seen = new Set(), add = (name, icon, why) => { if (!name || seen.has(name)) return; seen.add(name); out.push({ name, icon, why }); };
+    // every arc you finished brings someone (Step D, "a final shift you earned"): partner stories first, so their reason is the one shown
+    const PC = S.pcase || {}, PWHY = { walsh: { talk: 'told the class about his pursuit, because you stood with him', quiet: 'kept his pursuit to himself, but he rode with you all the same' }, park: { report: 'reported his accident and kept his badge' }, castillo: { both: 'took the court date and the night off, like you told her', sleep: 'finally slept before a court date, because you covered for her' } }, PNAME = { walsh: 'Ofc. Bernie Walsh', park: 'Ofc. Theo Park', castillo: 'Sgt. Dana Castillo' };
+    Object.keys(PWHY).forEach((k) => { const o = PC[k] && PC[k].out, w = o && PWHY[k][o]; if (w) add(PNAME[k], '👮', w); });
+    (H.sagasDone ? H.sagasDone() : []).forEach((s) => add(s.name, '📜', 'you saw "' + s.title + '" through to the end'));
+    Object.keys(S.arcs || {}).filter((id) => S.arcs[id] >= 5).forEach((id) => { const n = (H.NPCS || []).find((x) => x.id === id); if (n) add(n.name, n.icon || '⭐', 'you were there for the whole story'); });
+    if (S.offN && S.offN.study >= 3) add('Cadets Navarro and Pike', '📚', 'your study group, ' + S.offN.study + ' evenings of flash rounds');
     const deeds = (H.MEM && H.MEM.deeds) || [];
     deeds.slice().reverse().forEach((d) => { if (!d.who) return; if (d.k === 'kept') add(d.who, '🏠', 'you kept your word'); else if (d.k === 'help') add(d.who, '🤝', 'you helped at ' + (d.where || 'her door')); else if (d.k === 'deeswin') add(d.who, '☕', 'you talked someone down'); });
     (H.NPCS || []).filter((n) => (S.npc[n.id] || 0) >= 3).sort((a, b) => (S.npc[b.id] || 0) - (S.npc[a.id] || 0)).forEach((n) => add(n.name, n.icon || '⭐', (S.npc[n.id] >= 6 ? 'a close friend' : 'a friend') + ' from ' + (n.role || 'the beat')));
@@ -26,7 +32,7 @@ export function installFinale(H) {
   // a stage's opening: the time, what dispatch sends you to, and now and then someone you helped
   function beat(i, n, qs) {
     const les = qs && qs[0] && qs[0].les != null ? qs[0].les : i % CALLFOR.length, lines = [['narr', clock(i, n) + ' hours. Dispatch: ' + CALLFOR[les % CALLFOR.length]]];
-    if (i % 12 === 6) { const h = helpers(); if (h.length) { const p = h[(i / 12 | 0) % h.length];
+    if (i % 4 === 2) { const h = helpers(), at = (i - 2) / 4; if (at < h.length) { const p = h[at]; /* each person you earned turns up once, in order, through the night */
       lines.push(['narr', rnd([p.name + ' waves from the sidewalk as you roll past. "Good luck tonight, officer!"', p.name + ' left a coffee for you at the front desk. The note says, "For your last night. Thank you."', 'Over the radio, dispatch adds: "' + p.name + ' called just to say good luck. That doesn\'t happen often."', p.name + ' flashes the porch light twice as you drive by. Everybody on the block knows it\'s your last shift.'])]); } }
     return lines;
   }

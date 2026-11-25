@@ -54,7 +54,11 @@
   "finale.js": [
    "t95",
    "t98",
+   "tfinal",
    "trecord"
+  ],
+  "friends.js": [
+   "tfinal"
   ],
   "groups.js": [
    "t98"
@@ -138,12 +142,18 @@
    "t76",
    "tdecor"
   ],
+  "sagas.js": [
+   "tfinal"
+  ],
   "score.js": [
    "t77",
    "tmood"
   ],
   "scoredata.js": [
    "t77"
+  ],
+  "sergeant.js": [
+   "tsergeant"
   ],
   "shiftarc.js": [
    "tarc"
