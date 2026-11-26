@@ -38,7 +38,8 @@ const { chromium } = require('playwright');
   const t2 = await beat(); console.log('beat', t2); const r2 = await play();
   const ends = await a.evaluate(async (id) => { const m = await import('./seasons.js'), c = m.SEASONS.find((s) => s.id === id); return c.beats[2].map((x) => Array.isArray(x) && typeof x[1] === 'object' ? x[1] : null).filter(Boolean)[0]; }, id);
   const said = ends && ends[pk]; if (!said || r2.txt.indexOf(said.slice(0, 40)) < 0) errs.push('the ending did not remember the choice');
-  await a.waitForFunction(() => Object.keys(window.__pc.S.titles || {}).some((t) => /Veteran/.test(t)), null, { timeout: 8000 }).catch(() => {}); // the scene's end runs as the box closes
+  await free(); /* if the last scene was cut off, the chapter still closes on the next free tick */
+  await a.waitForFunction(() => Object.keys(window.__pc.S.titles || {}).some((t) => /Veteran/.test(t)), null, { timeout: 12000 }).catch(() => {}); // the scene's end runs as the box closes
   const fin = await a.evaluate((id) => { const S = window.__pc.S; return { titles: Object.keys(S.titles || {}).filter((t) => /Veteran/.test(t)), beat: S.sea[id + new Date().getFullYear()].beat }; }, id);
   console.log('finale', JSON.stringify(fin)); if (!fin.titles.length || fin.beat !== 3) errs.push('the finale did not close the chapter');
   if (await beat()) errs.push('a fourth beat played');

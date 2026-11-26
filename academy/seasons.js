@@ -79,10 +79,10 @@ export function installSeasons(H) {
       const sp = b[0] === 'WHO' ? who : b[0] === 'PT' ? PT : b[0], tx = typeof b[1] === 'object' ? b[1][r.pick] || b[1][Object.keys(b[1])[0]] : b[1]; out.push([sp, tx]); if (sp !== 'narr') asker = sp; }
     return out; }
   // the beats: the first shift of the season (once you've cleared a call), then after its calls; never in the middle of anything
-  function tick(force) { const c = now(), r = rec(c); if (r.beat >= 3 || !H.free() || (!force && (H.shiftCalls() < 1 || H.onStreetFor() < 30000 || Date.now() - (r.last || 0) < 4 * 60000 || r.calls < NEED[r.beat]))) return false;
+  function tick(force) { const c = now(), r = rec(c); if (r.beat >= 3 && !r.closed && H.free()) { if ((S.titles || {})[c.name + ' Veteran']) { r.closed = 1; H.saveS(); } else finale(c, r); return false; } /* the last scene was cut off (a call, a story): the chapter still closes */ if (r.beat >= 3 || !H.free() || (!force && (H.shiftCalls() < 1 || H.onStreetFor() < 30000 || Date.now() - (r.last || 0) < 4 * 60000 || r.calls < NEED[r.beat]))) return false;
     const i = r.beat, ls = lines(c, i); r.beat++; r.last = Date.now(); H.saveS(); if (H.music && H.music.feature) H.music.feature('story', 'season_' + c.id);
     H.dialogue(ls, () => { H.stat('seasonBeat'); if (i === 2) finale(c, r); }, { kicker: c.icon + ' ' + c.name.toUpperCase() + ' · ' + ['IT BEGINS', 'A CHOICE', 'HOW IT ENDED'][i] }); return c.id + ':' + i; }
-  function finale(c, r) { S.titles = S.titles || {}; const t = c.name + ' Veteran'; S.titles[t] = 1; H.stat('seasonCh'); H.award(150, c.name); H.banner(c.icon, c.name + ': chapter closed', 'Title earned: ' + t + '. The city remembers how you handled it.'); H.saveS(); }
+  function finale(c, r) { if (r.closed) return; r.closed = 1; S.titles = S.titles || {}; const t = c.name + ' Veteran'; S.titles[t] = 1; H.stat('seasonCh'); H.award(150, c.name); H.banner(c.icon, c.name + ': chapter closed', 'Title earned: ' + t + '. The city remembers how you handled it.'); H.saveS(); }
   // for the journal: where you are in this season's story
   function status() { const c = now(), r = rec(c); return { id: c.id, name: c.name, icon: c.icon, beat: r.beat, calls: r.calls, next: r.beat < 3 ? NEED[r.beat] : null, pick: r.pick, track: 'season_' + c.id }; }
   const due = () => { const r = rec(now()); return r.beat < 3 && r.calls >= NEED[r.beat]; }; // has the season's next part earned its place?
