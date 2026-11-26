@@ -1,4 +1,5 @@
 // Patrol City world: district maps (tiles, buildings, props) and the isometric art, all drawn in code.
+import { pixelSign, SIGN_PX } from './pixelsign.js';
 import { fromLook as folkFromLook, rgba as folkRGBA, pixelize, SW as FSW, SH as FSH, OX as FOX, OY as FOY } from './pixelfolk.js';
 import { DISTRICTS, LANDMARKS } from './data.js';
 
@@ -643,10 +644,9 @@ export function drawBuilding(b, night, sun) {
   // sign on the front (left) face
   if (b.sign) {
     const [px, py] = tx(up([Dp[0] + (C[0] - Dp[0]) * .5, Dp[1] + (C[1] - Dp[1]) * .5], Math.min(h - 8, st === 'shop' || st === 'diner' ? 28 : h * .78)));
-    g.save(); g.translate(px, py); g.transform(1, .5, 0, 1, 0, 0);
-    g.font = '800 ' + (b.sign.length > 6 ? 10 : 12) + 'px "Meridian",system-ui,sans-serif'; const tw = g.measureText(b.sign).width + 10;
-    g.fillStyle = night ? 'rgba(10,16,30,.92)' : 'rgba(10,16,30,.85)'; g.fillRect(-tw / 2, -9, tw, 15);
-    g.fillStyle = b.sign === 'POLICE' ? '#f5b800' : night ? '#ffe9a8' : '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(b.sign, 0, -1.5); g.restore();
+    // a pixel-art sign from the game's own 5x7 letters (pixelsign.js), drawn once and copied on the same pixel grid as the people
+    const sp = pixelSign(b.sign, night, b.sign === 'POLICE'), u = Math.max(1, Math.round(SIGN_PX * RES)) / RES, sw = sp.lw * u, shh = sp.lh * u; // each sign pixel covers a whole number of canvas pixels, so the letters stay crisp
+    g.save(); g.translate(Math.round(px * RES) / RES, Math.round(py * RES) / RES); g.transform(1, .5, 0, 1, 0, 0); const sm = g.imageSmoothingEnabled; g.imageSmoothingEnabled = false; g.drawImage(sp, Math.round(-sw / 2 * RES) / RES, Math.round((-shh / 2 - 1.5) * RES) / RES, sw, shh); g.imageSmoothingEnabled = sm; g.restore();
     if (night) winLit.push([px + minX, py + minY]);
   }
   // edge highlight

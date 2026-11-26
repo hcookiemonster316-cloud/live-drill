@@ -155,6 +155,9 @@
   "patrolops.js": [
    "t85"
   ],
+  "pixelsign.js": [
+   "tsign"
+  ],
   "polish.js": [
    "t79",
    "tptn",

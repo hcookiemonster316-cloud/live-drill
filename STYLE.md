@@ -34,6 +34,8 @@ is the cool thing.**
   figures; the pixel people use the darkest step of their own ramp). Signs, props and trims share that ink line.
 - People are pixel sprites (pixelfolk.js): flat shapes snapped to hand-style 8-step ramps, five drawings per pose,
   mirrored for the left-facing three with the light kept on the upper left.
+- Building signs are pixel art from our own 5x7 letters (pixelsign.js) on a plate with the ink outline, at exactly
+  twice the people's pixel size, so they sit on the same grid. Never draw sign text with a font.
 - Named characters each have one signature silhouette element nobody else has (folkcast.js).
 
 **Faces.** Six expressions, used in dialogue: calm, worried, angry, laugh, hurt, proud. They change a few pixels of
