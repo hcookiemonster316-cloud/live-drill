@@ -153,10 +153,7 @@ export function installCity(H) {
 
   // ================= 8. seasons =================
   const month = new Date().getMonth(), season = month === 11 || month === 0 ? 'holiday' : month >= 5 && month <= 7 ? 'summer' : 'school';
-  const SEASON_CALLS = { holiday: [['Packages stolen from a porch', 3, 'houses', 'Resident\'s delivery was taken off the porch this afternoon.'], ['Holiday market: lost wallet', 3, 'any', 'A shopper lost a wallet near the market stalls.']],
-    summer: [['Lost tourist at the waterfront', 3, 'any', 'Visitors can\'t find their hotel and their phone is dead.'], ['Heat exhaustion at the bus stop', 2, 'any', 'Older man feeling dizzy in the heat.']],
-    school: [['Speeding in the school zone at dismissal', 2, 'any', 'Crossing guard reports cars flying through the zone.'], ['School bus stop: car passing a stopped bus', 2, 'any', 'Bus driver reports a car passed with the stop arm out.']] };
-  const seasonCall = () => (Math.random() < .14 ? rnd(SEASON_CALLS[season]) : null);
+  // the season's calls and story live in seasons.js (one calendar of chapters); here, just how the city looks
   const seasonLook = (p) => { if (season === 'summer' && p.ph % 4 === 0) p.acc = 'sunhat'; if (season === 'holiday' && p.ph % 5 === 0) p.acc = 'beanie'; return p; };
   function drawSeason(ctx, sx, sy, p, now) { if (season !== 'holiday' || p.t !== 'lamp') return; const k = Math.floor(now / 500); ['#ef4444', '#22c55e', '#f5b800', '#3b82f6'].forEach((c, i) => { ctx.fillStyle = (i + k) % 2 ? c : 'rgba(255,255,255,.25)'; ctx.fillRect(sx - 4 + i * 3, sy - 34 + (i % 2), 2, 2); }); }
 
@@ -171,5 +168,5 @@ export function installCity(H) {
     if (live && live.role && !H.busy()) for (const k of live.tasks) if (Math.hypot(k.x - H.P.x, k.y - H.P.y) < 1.3) { taskRun(k); break; }
     t -= dt; if (t > 0) return; t = 1; liveTick(1); watchTick(); if (onBeat()) beatAdd('presence', 1); if (isWeekend()) meetWatch();
   }
-  return { startLive, tick, draw, beatPanel, beatAdd, beatMult, onBeat, shareCard, animalPanel, animalMult, hasAnimal, openCase, casesPanel, meetPanel, onPT, seasonCall, seasonLook, drawSeason, season, pickRole: () => (live ? pickRole() : H.toast('No district incident right now. Dispatch will call one out.')), get live() { return live; } };
+  return { startLive, tick, draw, beatPanel, beatAdd, beatMult, onBeat, shareCard, animalPanel, animalMult, hasAnimal, openCase, casesPanel, meetPanel, onPT, seasonLook, drawSeason, season, pickRole: () => (live ? pickRole() : H.toast('No district incident right now. Dispatch will call one out.')), get live() { return live; } };
 }

@@ -18,9 +18,9 @@ export function createScore(getCtx, synth) {
   const bags = {}, opened = {}, plan = {}, hist = [], resume = {}, lastOf = {};
   // where you are, your unit and your shift add their own arrangements: the district's and the shift's on patrol, the unit's
   // on patrol, calls and side cases; each is in the bag twice, and arriving somewhere new plays its theme next
-  let here = { d: null, u: null, s: null };
+  let here = { d: null, u: null, s: null, n: null };
   const extra = (mood) => { const o = [], add = (id) => { if (id && TRACKS[id]) o.push(id, id); };
-    if (mood === 'day' || mood === 'night') { add(CONTEXT.district(here.d)); add(CONTEXT.shift(here.s)); add(CONTEXT.unit(here.u)); }
+    if (mood === 'day' || mood === 'night') { add(CONTEXT.district(here.d)); add(CONTEXT.shift(here.s)); add(CONTEXT.unit(here.u)); add(CONTEXT.season(here.n)); } // the season's arrangement too
     else if (mood === 'call' || mood === 'side') add(CONTEXT.unit(here.u)); else if (mood === 'water' && here.u === 'marine') add(CONTEXT.unit('marine')); return o; };
   const pool = (mood) => (POOLS[mood] || POOLS.day).concat(extra(mood)).filter((id) => !bad[id]);
   function draw(mood) { const P = pool(mood); if (!P.length) return null; let b = bags[mood];
@@ -65,9 +65,11 @@ export function createScore(getCtx, synth) {
       if (live >= 0 && decks[live].el.paused && ready) { const p = decks[live].el.play(); if (p && p.catch) p.catch(() => {}); }
       api.set(mood || cur || 'title');
     },
-    context(c) { const nd = c.d != null && c.d !== here.d, nu = c.u !== here.u, ns = c.s !== here.s; if (!nd && !nu && !ns) return; here = { d: c.d, u: c.u, s: c.s };
+    context(c) { const nd = c.d != null && c.d !== here.d, nu = c.u !== here.u, ns = c.s !== here.s, nn = c.n !== here.n; if (!nd && !nu && !ns && !nn) return; here = { d: c.d, u: c.u, s: c.s, n: c.n };
       for (const k in bags) delete bags[k]; // rebuild the bags with the new arrangements in them
       const lead = nd ? CONTEXT.district(c.d) : nu ? CONTEXT.unit(c.u) : CONTEXT.shift(c.s); if (lead && TRACKS[lead]) { plan.day = plan.night = lead; } if (nd && on && ready && !failed && (cur === 'day' || cur === 'night') && performance.now() - lastJump > 15000) jump(cur); }, // a new district's theme fades in on arrival
+    // a story moment asks for one arrangement next (a season's beat plays the season's own)
+    feature(mood, id) { if (!TRACKS[id] || bad[id]) return; plan[mood] = id; if (on && ready && !failed && cur === mood) jump(mood); },
     set(mood) {
       if (!on || mood === cur) return; cur = mood;
       if (!ready || failed) { synth.set ? synth.set(mood) : synth.start(mood); return; }

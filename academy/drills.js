@@ -7,6 +7,7 @@
 // not just speed. Doing the technique right counts the fact as learned (the same record a right answer makes), and doing
 // it wrong brings that fact back for review. The module loads only when the course opens, so it costs the city nothing.
 import { iso, vehicle, drawPropFast } from './world.js';
+import { installCourseFx } from './coursefx.js';
 
 const G = 1.65;               // one g in tiles per second squared (a tile is about 19.5 feet)
 const MPH = 0.0752;           // tiles per second in one mile per hour
@@ -73,6 +74,7 @@ const PDEC = [
 
 export function installDrills(H) {
   const S = H.S; S.drills = S.drills || {};
+  const CF = installCourseFx({ S, facts: (ls) => H.facts(ls), record: (q, ok) => H.record(q, ok) }); // every driving fact, checked by what you did
   let root = null, cv = null, g = null, raf = 0, D = null, R = null, last = 0, keys = {}, touch = {}, au = null;
 
   // ---------- the car ----------
@@ -107,6 +109,7 @@ export function installDrills(H) {
     const vmag = Math.abs(c.v); let nv = c.v + along * dt; if (brakeA > 0) { const d = brakeA * dt; nv = Math.abs(nv) <= d ? 0 : nv - Math.sign(nv) * d; }
     nv -= c.v * dt * (.04 + (R.under ? .5 : 0)); if (Math.abs(nv) < .02 && !c.gas) nv = 0; c.v = nv;
     if (Math.abs(dva) > 2.2 && vmag > 1.5) { R.end = 'spin'; }
+    CF.rec(R, c, dt, { along, brakeA, A, latDemand, latCap });
     const sp = Math.abs(c.v); c.x += Math.cos(c.va) * sp * dt; c.y += Math.sin(c.va) * sp * dt;
     // weight transfer you can see: the nose dives under braking and squats on the gas, the body rolls to the outside
     const longA = (c.v - (R.pv == null ? c.v : R.pv)) / dt * dirv, dvaT = R.pva == null ? 0 : Math.atan2(Math.sin(c.va - R.pva), Math.cos(c.va - R.pva)), latA = Math.max(-A * 1.08, Math.min(A * 1.08, sp * dvaT / dt)); R.pv = c.v; R.pva = c.va;
@@ -234,7 +237,8 @@ export function installDrills(H) {
     const best = S.drills[dr.id] || {}, newBest = ok && (best.m == null || medal > best.m || (medal === best.m && t < best.t)); if (R.daily && ok) { const k = R.daily.key, tt = Math.round(t * 10) / 10, D0 = S.daily && S.daily.key === k ? S.daily : null; if (!D0 || tt < D0.t) { S.daily = { key: k, t: tt, m: medal }; const n = H.net && H.net(); if (n && n.uid) n.gset('mmo/dd/' + k.replace(/-/g, '') + '/' + n.uid, { c: S.cs, t: tt, m: medal }).catch(() => {}); } }
     if (!R.daily && newBest) { S.drills[dr.id] = { m: medal, t: Math.round(t * 10) / 10 }; if (R.trace && R.trace.length > 5) { S.ghosts = S.ghosts || {}; S.ghosts[dr.id] = R.trace; } }
     if (!R.daily && ok && medal > (best.m || 0)) { const rp = [0, 15, 30, 60][medal] - [0, 15, 30, 60][best.m || 0]; if (rp > 0) H.award(rp, 'Driving course: ' + dr.name + ' ' + ['', 'bronze', 'silver', 'gold'][medal]); H.stat('drill' + ['', 'B', 'S', 'G'][medal]); }
-    H.save(); sfx(medal === 3 ? 'gold' : ok ? 'done' : 'fail'); showResult(ok, medal, t, ck); }
+    const cfl = ok && !R.daily && !dr.pursuit ? CF.judge(R, dr) : [];
+    H.save(); sfx(medal === 3 ? 'gold' : ok ? 'done' : 'fail'); showResult(ok, medal, t, ck, cfl); }
   function factFor(les, re) { return (H.facts([les]) || []).find((f) => re.test(f.text)); }
 
   // ---------- drawing ----------
@@ -386,10 +390,10 @@ export function installDrills(H) {
       '<p class="drKeys">Keys: ↑ gas · ↓ or Space brake (hold to press harder) · ← → steer' + (dr.id === 'corner' ? ' · E signal' : dr.id === 'night' ? ' · H high beams' : dr.id === 'emerg' ? ' · L lights and siren' : dr.pursuit ? ' · 1 2 3 radio call-outs · T end the pursuit' : '') + ' · R retry</p><div class="acts"><button type="button" class="go" id="drGo">Drive</button></div></div>';
     $('drGo').onclick = () => { card.hidden = true; R.paused = false; last = performance.now(); audioOn(); if (dr.pursuit) { R.lights = true; const lb = root.querySelector('[data-p="lts"]'); if (lb) lb.classList.add('on'); } coach(dr.pursuit ? 'In pursuit. Six seconds back. Call it as it moves.' : dr.id === 'night' ? 'Posted 45. Your lights are your limit.' : dr.id === 'emerg' ? 'Lights and siren first. Then go.' : dr.reverse ? 'In reverse. Look back, small inputs, slow.' : dr.id === 'brake' ? 'Get up to 35 before the light.' : dr.id === 'corner' ? 'Build to 35 and hold it.' : 'Hold about 25 into the curve.'); };
   }
-  function showResult(ok, medal, t, ck) { const dr = R.dr, card = $('drCard'), i = DRILLS.indexOf(dr), nx = DRILLS[i + 1];
+  function showResult(ok, medal, t, ck, cfl) { const dr = R.dr, card = $('drCard'), i = DRILLS.indexOf(dr), nx = DRILLS[i + 1];
     card.hidden = false; card.innerHTML = '<div><span class="tag">' + H.esc(dr.name.toUpperCase()) + '</span><div class="medal">' + (ok ? ['', '🥉', '🥈', '🥇'][medal] : '↺') + '</div><h2 style="text-align:center">' + (ok ? ['', 'Bronze', 'Silver', 'Gold'][medal] + ' · ' + t.toFixed(1) + 's' : 'Run again') + '</h2>' +
       (ok && medal < 3 && ck.every(Boolean) ? '<p style="text-align:center">Clean technique. Gold is ' + dr.par[0] + 's: same moves, more confidence.</p>' : '') +
-      '<ul>' + dr.fx.map(([, label], k) => '<li><i>' + (ck[k] ? '✅' : '◻️') + '</i><span>' + H.esc(label) + '</span></li>').join('') + '</ul>' +
+      '<ul>' + dr.fx.map(([, label], k) => '<li><i>' + (ck[k] ? '✅' : '◻️') + '</i><span>' + H.esc(label) + '</span></li>').join('') + '</ul>' + CF.html(cfl, H.esc) +
       (ok ? '' : '<p>' + H.esc(R.end === 'crash' ? (dr.id === 'night' ? 'You hit the stopped car. You were overdriving your headlights: at that speed you could not stop inside what they lit. Slow down, or use your high beams when the road is clear.' : R.crashWith === 'cross' ? 'That driver never heard you. A siren is not a shield: slow down at every red light, look, and clear each lane before you cross.' : 'You hit the car ahead. Leave a gap, and give drivers time to see your lights and move over.') : R.end === 'spin' ? 'The car swapped ends. In a slide, braking makes it worse: get off both pedals and steer where you want to go.' : R.end === 'roll' ? 'Tall vehicles carry their weight high, so they roll more in a turn. Less speed into the corner.' : dr.id === 'brake' ? (R.vAtLight != null && R.vAtLight < 31 ? 'Reach 35 mph before the light, then brake hard and keep the pressure on.' : 'Brake hard the moment the light turns and keep steering for the open lane.') : 'Stay between the cones and keep it smooth.') + '</p>') +
       '<div class="acts"><button type="button" class="go" id="drAgain">Retry</button>' + (nx && ok ? '<button type="button" id="drNext">Next: ' + H.esc(nx.name) + '</button>' : '') + '<button type="button" id="drMenu">Course</button>' + (ok && medal === 3 ? '<button type="button" id="drShare">Share</button>' : '') + '</div></div>';
     if ($('drShare')) $('drShare').onclick = () => H.share({ kick: 'DRIVING COURSE', icon: '🥇', title: 'Gold · ' + dr.name, sub: S.cs + ' · ' + t.toFixed(1) + ' seconds' + (R.daily ? ' · today\'s drill' : ''), rows: dr.fx.map(([, label], k) => [ck[k] ? '✅' : '◻️', label]).slice(0, 4), file: 'gold-' + dr.id });
@@ -403,5 +407,5 @@ export function installDrills(H) {
   function golds() { return DRILLS.filter((d) => (S.drills[d.id] || {}).m === 3).length; }
   // a pursuit from the street: the same drill, with the street's own decisions and car, and the result handed back
   function pursuit(o, onDone) { CITY = { decisions: o.decisions, color: o.color, onDone }; open('pursuit'); CITY = null; }
-  return { open, openDaily, today, close, menuHtml, bindMenu, golds, DRILLS, pursuit, get state() { return R; }, press: (k) => Object.assign(keys, k) }; // press: for the scripted driver in tests
+  return { open, openDaily, today, close, menuHtml, bindMenu, golds, DRILLS, pursuit, coverage: () => CF.coverage(DRILLS), bench: (n) => { const t0 = performance.now(); for (let i = 0; i < n; i++) draw(t0); return (performance.now() - t0) / n; }, get state() { return R; }, press: (k) => Object.assign(keys, k) }; // press: for the scripted driver in tests
 }

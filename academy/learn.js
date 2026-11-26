@@ -98,6 +98,9 @@ export const examOrder = () => shuffle(FACTS.map((f) => f.id));
 export function examQs(ids) { return ids.map((id) => FACT_BY_ID.get(id)).filter(Boolean).map(factQuestion); }
 // the practice exam: every fact's id, and n facts drawn at random from the whole chapter (single-answer questions only)
 export const allFactIds = () => FACTS.map((f) => f.id);
+export const allFacts = () => FACTS;
+// facts taught in staged scenes (stage.js): kept out of the plain quiz until you've met them in their scene
+let STAGED = null; export function setStaged(s) { STAGED = s; }
 export function examQsSingle(ids) { return ids.map((id) => { const f = FACT_BY_ID.get(id); if (!f) return null; const ok = f.qs.filter((k) => POOL[k] && !Array.isArray(POOL[k][2])); return ok.length ? factQFixed(id, ok[Math.floor(Math.random() * ok.length)], Math.random) : null; }).filter(Boolean); }
 export function drawIds(n) { return shuffle(FACTS.filter((f) => f.qs.some((k) => POOL[k] && !Array.isArray(POOL[k][2])))).slice(0, n).map((f) => f.id); }
 export function factQ(id) { const f = FACT_BY_ID.get(id); return f ? factQuestion(f) : null; }
@@ -110,7 +113,7 @@ export function pickFacts(S, lessons, n, opts) {
   const take = (list) => { for (const f of list) { if (out.length >= n) return; if (used.has(f.id)) continue; used.add(f.id); out.push(f); } };
   // facts you haven't mastered yet, the ones you've seen least recently first (never-seen first): you work through all of them,
   // and a missed fact comes back after the others instead of right away
-  const fresh = (list) => shuffle(list.filter((f) => !done[f.id])).sort((a, b) => (seen[a.id] || 0) - (seen[b.id] || 0));
+  const fresh = (list) => shuffle(list.filter((f) => !done[f.id] && !(STAGED && !opts.exam && STAGED.has(f.id) && !seen[f.id]))).sort((a, b) => (seen[a.id] || 0) - (seen[b.id] || 0));
   take(dueReviews(S, lessons)); // a fact you missed comes back a few minutes later, ahead of new ones
   take(fresh(factList(lessons)));
   if (out.length < n && !opts.exam && opts.wide !== false) take(fresh(FACTS));

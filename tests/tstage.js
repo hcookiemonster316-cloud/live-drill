@@ -1,0 +1,33 @@
+// the last facts, staged, and teach it back: facts no decision covers are taught in short scenes (court day, a
+// briefing, a partner's story) and kept out of the plain quiz until met; late in the game a newer cadet asks how you do
+// something and you explain it from pieces, and the game checks the idea
+const { chromium } = require('playwright');
+(async () => { const b = await chromium.launch(); const a = await b.newPage({ viewport: { width: 420, height: 860 } }); const errs = []; a.on('pageerror', (e) => errs.push(e.message));
+  await a.goto('http://localhost:8765/academy/?mock&skiptitle');
+  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Adam-12', home: 0, unlocked: [0, 1, 2, 3, 4], cleared: [0, 1, 2], shift: 'day', unit: 'patrol', xp: 6000, calls: 130, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 6 }, vpart: 'walsh', cfg: { callCine: false, text: 'instant' }, teach: { done: {}, n: 0, last: Date.now() } }))); // the test plays Rivera itself; she shouldn't also turn up on her own
+  await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.evaluate(() => { const m = document.getElementById('mDone'); if (m) m.click(); }); await a.waitForFunction(() => window.__pc && window.__pc.STAGE, null, { timeout: 20000 });
+  const free = async () => { for (let i = 0; i < 40; i++) { if (await a.evaluate(() => { const pc = window.__pc; pc.closeModal(); document.querySelectorAll('.lorePop [data-a="ok"], .tCard').forEach((x) => x.click()); const d = document.getElementById('dlg'); if (!d.hidden) d.click(); if (pc.curCall) pc.dropCall(); return pc.free; })) return true; await a.waitForTimeout(400); } errs.push('street never free'); return false; };
+  const play = async (pick, maxQ) => { let q = 0, txt = ''; for (let i = 0; i < 80; i++) { await a.waitForTimeout(380); const st = await a.evaluate((pk) => { const d = document.getElementById('dlg'); if (d.hidden) return 'done'; const t = d.innerText; const qb = [...d.querySelectorAll('.dlgOpts.q [data-k]:not([disabled])')]; if (qb.length) { qb.find((x) => +x.dataset.k === window.__curQ.c).click(); return 'q|' + t.slice(0, 120); } const bs = [...d.querySelectorAll('.dlgOpts:not(.q) [data-k]')]; if (bs.length) { (bs.find((x) => x.textContent.indexOf(pk) >= 0) || bs[0]).click(); return 'c'; } d.click(); return 'n|' + t.slice(0, 200); }, pick || ''); if (st === 'done') break; if (st.startsWith('q')) q++; txt += ' ' + st; } return { q, txt }; };
+  await free();
+  const s = await a.evaluate(() => { const pc = window.__pc, set = pc.STAGE.set(), all = pc.L.allFacts(); let leak = 0; for (let i = 0; i < 40; i++) pc.L.pickFacts(pc.S, all.map((f) => f.les).filter((v, j, arr) => arr.indexOf(v) === j), 3).forEach((q) => { if (set.has(q.fid) && !(pc.S.fseen || {})[q.fid]) leak++; }); return { staged: set.size, total: all.length, leak }; });
+  console.log('staged', JSON.stringify(s)); if (s.staged < 60 || s.staged > 140) errs.push('staged set looks wrong: ' + s.staged); if (s.leak) errs.push(s.leak + ' staged facts came up as plain quiz before their scene');
+  // a staged scene between calls
+  const k = await a.evaluate(() => window.__pc.STAGE.tick(true)); console.log('scene kind', k); if (!k) errs.push('no staged scene played');
+  const r1 = await play(); console.log('questions', r1.q); if (r1.q < 1 || r1.q > 3) errs.push('a staged scene asked ' + r1.q + ' questions');
+  // the courtroom, staged around the case
+  await free(); const ct = await a.evaluate(() => { const pc = window.__pc, set = pc.STAGE.set(), f = pc.L.allFacts().find((x) => set.has(x.id) && /Brower/.test(x.text)); if (!f) return null; const sc = pc.STAGE.lines(f); pc.dialogue(sc.lines, () => { window.__ctDone = 1; }, { kicker: sc.kicker }); return { kind: sc.kind, kicker: sc.kicker, fid: f.id }; });
+  console.log('court', JSON.stringify(ct)); if (!ct || ct.kind !== 'court') errs.push('Brower is not a courtroom scene');
+  const r2 = await play(); if (!/18-wheeler|blind curve/.test(r2.txt)) errs.push('the courtroom is not staged around the case'); if (ct && !(await a.evaluate((id) => !!(window.__pc.S.facts || {})[id], ct.fid))) errs.push('the courtroom did not teach its fact');
+  await a.screenshot({ path: 'tstage.png' });
+  // teach it back: a good explanation
+  await free(); await a.evaluate(() => window.__pc.TEACH.play('abs')); await play();
+  await a.waitForSelector('.tbChip', { timeout: 8000 }).catch(() => errs.push('no explanation builder'));
+  await a.evaluate(() => { const want = ['Push the brake hard and keep it down', 'Let the ABS do the pumping for you', 'Keep steering where you want to go']; want.forEach((w) => [...document.querySelectorAll('.tbChip')].find((x) => x.textContent.indexOf(w) >= 0).click()); });
+  await a.waitForTimeout(300); await a.screenshot({ path: 'tteach.png' }); await a.click('#tbSay'); const r3 = await play();
+  const t1 = await a.evaluate(() => !!(window.__pc.S.teach || {}).done && !!window.__pc.S.teach.done.abs); console.log('taught abs', t1, '|', r3.txt.match(/stops straight[^|]*/) ? 'she stopped straight' : ''); if (!t1) errs.push('a good explanation did not count');
+  // a bad one: the mistake gets named, and you can walk away
+  await free(); await a.evaluate(() => window.__pc.TEACH.play('back')); await play(); await a.waitForSelector('.tbChip', { timeout: 8000 });
+  await a.evaluate(() => { ['Trust the backup camera and go', 'Go slow, slower than feels right', 'Turn your body and look out the back'].forEach((w) => [...document.querySelectorAll('.tbChip')].find((x) => x.textContent.indexOf(w) >= 0).click()); }); await a.click('#tbSay'); const r4 = await play();
+  if (!/camera can.t see/.test(r4.txt)) errs.push('the mistake was not named'); const t2 = await a.evaluate(() => !!window.__pc.S.teach.done.back); if (t2) errs.push('a bad explanation counted');
+  await a.waitForSelector('#tbLater', { timeout: 6000 }).then(() => a.click('#tbLater')).catch(() => errs.push('no way to walk away from the builder'));
+  console.log(errs.length ? 'ERRORS ' + errs.join(' / ') : 'no errors'); await b.close(); process.exit(errs.length ? 1 : 0); })();

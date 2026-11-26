@@ -185,6 +185,9 @@
   "scoredata.js": [
    "t77"
   ],
+  "seasons.js": [
+   "tseason"
+  ],
   "sergeant.js": [
    "tsergeant"
   ],
@@ -197,8 +200,14 @@
   "special.js": [
    "tspecial"
   ],
+  "stage.js": [
+   "tstage"
+  ],
   "subjects.js": [
    "t96"
+  ],
+  "teach.js": [
+   "tstage"
   ],
   "together.js": [
    "tsq"

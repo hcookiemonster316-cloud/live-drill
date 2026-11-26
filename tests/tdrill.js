@@ -14,7 +14,7 @@ const OUT = process.argv[2] || 'tests/out';
   await a.click('#mDrive'); await a.waitForSelector('[data-drill="brake"]'); await a.screenshot({ path: OUT + '/drill_menu.png' });
   const st = () => a.evaluate(() => { const R = window.__pc.DRV.state; if (!R) return null; const c = R.car; return { mph: Math.abs(c.v) / 0.0752, x: c.x, y: c.y, h: c.h, lit: !!R.lit, done: !!R.done, s: R.at.s, off: R.at.off, side: R.dr.course.side, abs: c.abs, slip: c.slip, t: R.t }; });
   const key = async (k, down) => { if (down) await a.keyboard.down(k); else await a.keyboard.up(k); };
-  const result = async (name) => { await a.waitForSelector('#drCard:not([hidden]) #drAgain', { timeout: 20000 }); await a.screenshot({ path: OUT + '/drill_' + name + '_result.png' }); const r = await a.evaluate(() => ({ head: document.querySelector('#drCard h2').textContent, checks: [...document.querySelectorAll('#drCard li')].map((l) => l.textContent), best: window.__pc.S.drills })); console.log(name, r.head, '|', r.checks.join(' | ')); return r; };
+  const result = async (name) => { await a.waitForSelector('#drCard:not([hidden]) #drAgain', { timeout: 20000 }); await a.screenshot({ path: OUT + '/drill_' + name + '_result.png' }); const r = await a.evaluate(() => ({ head: document.querySelector('#drCard h2').textContent, checks: [...document.querySelectorAll('#drCard li:not(.ok):not(.no)')].map((l) => l.textContent), cf: [...document.querySelectorAll('#drCard .cfList li')].map((l) => l.className + ':' + l.textContent.slice(0, 50)), best: window.__pc.S.drills })); console.log(name, r.head, '|', r.checks.join(' | ')); return r; };
 
   // the scripted drivers run inside the page, every frame, so a slow machine cannot make them late
   const autopilot = (mode) => a.evaluate((mode) => new Promise((done) => { const D = window.__pc.DRV, st = { phase: 0 };
@@ -28,6 +28,8 @@ const OUT = process.argv[2] || 'tests/out';
       D.press(k); requestAnimationFrame(tick); }; requestAnimationFrame(tick); }), mode);
 
   const fails = [];
+  // every driving fact (Lessons 3.1 to 4.2) is checked on the course by what you did
+  const cov = await a.evaluate(() => window.__pc.DRV.coverage()); console.log('course coverage', JSON.stringify(cov)); Object.keys(cov).forEach((l) => { if (cov[l][0] < cov[l][1]) fails.push('lesson ' + l + ' has ' + (cov[l][1] - cov[l][0]) + ' facts the course does not check'); });
   // 1) threshold stop: build to 35, brake hard at the light and steer into the open lane, hold the pedal
   await a.click('[data-drill="brake"]'); await a.waitForSelector('#drGo'); await a.screenshot({ path: OUT + '/drill_brake_brief.png' }); await a.click('#drGo');
   await autopilot('brake'); const r1 = await result('brake');
@@ -56,8 +58,10 @@ const OUT = process.argv[2] || 'tests/out';
   await a.evaluate(() => document.getElementById('drX').click()); await a.waitForTimeout(300); const after = await a.evaluate(() => ({ open: !!document.getElementById('drill'), paused: window.__pc.dbg().paused, facts: Object.keys(window.__pc.S.facts || {}).length }));
   console.log('after', JSON.stringify(after));
   if (!/Gold|Silver|Bronze/.test(r1.head) && !/Gold|Silver|Bronze/.test(r2.head)) fails.push('no drill finished with a medal'); // a scripted driver on a loaded machine can miss one, never both
+  [r1, r2].forEach((r, i) => { if (/Gold|Silver|Bronze/.test(r.head)) { console.log('from the book', r.cf.length, r.cf.slice(0, 2).join(' / ')); if (r.cf.length < 1 || r.cf.length > 6) fails.push('run ' + (i + 1) + ' named ' + r.cf.length + ' book facts'); } });
+  const cfRec = await a.evaluate(() => Object.keys(window.__pc.S.fseen || {}).length + Object.keys(window.__pc.S.facts || {}).length); if (!cfRec) fails.push('course facts were not recorded');
   if (after.open || after.paused) fails.push('course did not close cleanly');
   if (!(back.s > .3)) fails.push('backing did not move along the course');
   if (!after.facts) fails.push('no fact credited by technique');
-  if (fails.length) errs.push('FAIL ' + fails.join('; ')); console.log(errs.join('\n') || 'no errors'); // the runner reads the last line await b.close(); process.exit(fails.length || errs.length ? 1 : 0);
+  if (fails.length) errs.push('FAIL ' + fails.join('; ')); console.log(errs.join('\n') || 'no errors'); /* the runner reads the last line */ await b.close(); process.exit(fails.length || errs.length ? 1 : 0);
 })();

@@ -24,6 +24,10 @@ const EVENTS = [
   { id: 'turkeytrot', d: 0, name: 'Turkey Trot & Food Drive', icon: '🦃', at: 'Founders Park', win: [[11, 14], [11, 30]], blurb: 'A 5K through downtown and a food drive at the finish line. Road closures, runners and a lot of canned goods.' },
   { id: 'toydrive', d: 4, name: 'Blue Holiday Toy Drive', icon: '🎁', at: 'Justice Plaza', win: [[12, 1], [12, 24]], blurb: 'Officers collect and deliver toys for families across the county. Wrapping tables on Justice Plaza.' },
   { id: 'newyear', d: 0, name: 'New Year on the Bayfront', icon: '🎆', at: 'Bayfront Tower', win: [[12, 26], [1, 2]], blurb: 'Fireworks off the bay at midnight. Big crowds, safe rides home and a sober-driver tent.' },
+  { id: 'fogwatch', d: -1, name: 'Causeway Fog Watch', icon: '🌫', at: null, win: [[1, 10], [2, 14]], blurb: 'Fog off the bay most mornings. Low beams, longer gaps and flares at the bridge approaches, in every district.' },
+  { id: 'springbreak', d: 2, name: 'Spring Break on the Beach', icon: '🏖', at: 'Riverside Park', win: [[3, 1], [4, 10]], blurb: 'Out-of-state plates, crowded crosswalks and a beach lot that fills by nine. Pedestrian safety and traffic posts needed.' },
+  { id: 'gradnight', d: 0, name: 'Project Graduation', icon: '🎓', at: 'Founders Plaza', win: [[5, 15], [6, 5]], blurb: 'Graduation week. Escorted cruises, buckle-up checks and a sober ride home for every senior.' },
+  { id: 'backtoschool', d: -1, name: 'Back to School Week', icon: '🏫', at: null, win: [[8, 5], [8, 25]], blurb: 'School zones are live again. Crossing guards, bus stops and the pickup line, in every district.' },
   { id: 'july4', d: 2, name: 'Fourth of July on the River', icon: '🎆', at: 'Riverside Park', date: [7, 4], blurb: 'Fireworks over the river. The busiest night of the year.' }
 ];
 export function eventOfWeek(d) {
@@ -44,6 +48,10 @@ export const EV_GEAR = {
   turkeytrot: { outfit: 'Turkey Trot race bib and cap', look: { hat: 'cap', hatCol: '#b45309', cord: '#b45309' }, skin: { stripe: '#b45309', text: 'TURKEY TROT' } },
   toydrive: { outfit: 'Toy drive holiday cord', look: { cord: '#dc2626', brass: true, hat: 'cap', hatCol: '#166534' }, skin: { stripe: '#16a34a', text: 'TOY DRIVE' } },
   newyear: { outfit: 'New Year gold cord and shine', look: { cord: '#f5b800', brass: true, shine: 1 }, skin: { stripe: '#facc15', text: 'HAPPY NEW YEAR' } },
+  fogwatch: { outfit: 'Fog watch reflective vest', look: { vest: true, hat: 'cap', hatCol: '#64748b' }, skin: { stripe: '#94a3b8', text: 'FOG WATCH' } },
+  springbreak: { outfit: 'Beach patrol boonie', look: { hat: 'boonie', hatCol: '#0891b2' }, skin: { stripe: '#06b6d4', text: 'SPRING BREAK' } },
+  gradnight: { outfit: 'Project Graduation cord', look: { cord: '#7c3aed', brass: true }, skin: { stripe: '#7c3aed', text: 'GRAD NIGHT' } },
+  backtoschool: { outfit: 'Crossing guard vest and cap', look: { vest: true, hat: 'cap', hatCol: '#eab308' }, skin: { stripe: '#eab308', text: 'SCHOOL ZONE' } },
   july4: { outfit: 'Fourth of July cord and shine', look: { cord: '#dc2626', brass: true, shine: 1 }, skin: { stripe: '#dc2626', text: 'JULY 4TH' } }
 };
 // daily challenges: three a day, picked from the date, measured by the same counters as trophies
@@ -66,6 +74,18 @@ const TASKS = {
   newyear: [['🎆', 'Fireworks crowd', 'People are pressing toward the seawall for a better view.', [['Calmly open a second viewing area and keep the seawall clear', 1], ['Shout at everyone to move', 0], ['Let them climb the wall', 0]]],
     ['🚕', 'Safe ride', 'A man fumbles his car keys and can barely stand.', [['Keep him out of the car and help him get a safe ride home', 1], ['Tell him to drive slowly', 0], ['Ignore it', 0]]],
     ['👂', 'Noise complaint', 'A neighbor says the party next door is shaking her windows.', [['Talk to the host, ask them to turn it down, and check on the neighbor', 1], ['Shut the party down immediately', 0], ['Tell her it\'s New Year\'s', 0]]]],
+  fogwatch: [['🔦', 'Flares at the approach', 'Cars are coming off the causeway too fast to see the stopped truck.', [['Set flares well back and slow them before the bridge', 1], ['Park mid-lane with your high beams aimed at them', 0], ['Wave them around the truck with your flashlight', 0]]],
+    ['🌫', 'Fog crawl', 'A driver crawls across the bridge with his high beams up.', [['Pull alongside and tell him to switch to low beams', 1], ['Tell him to speed up so the line keeps moving', 0], ['Follow close behind him so others can see you', 0]]],
+    ['🚦', 'Lost signal', 'The fog has the lights at Bay and 1st almost invisible.', [['Post at the corner and direct traffic through by hand', 1], ['Leave it; the signal itself is still working fine', 0], ['Light up your bar and park in the middle of it', 0]]]],
+  springbreak: [['🏖', 'Mid-block crossing', 'A group with coolers is crossing between parked cars.', [['Walk them to the crosswalk and stay until they cross', 1], ['Let them go; it\'s only for a few weeks a year', 0], ['Sound your horn so they hurry across faster', 0]]],
+    ['🚦', 'Blocked box', 'Cars are stuck in the middle of the beach intersection.', [['Hold the cross street and clear the box a lane at a time', 1], ['Wave everyone through on red to empty the road', 0], ['Write every driver in the box a ticket right now', 0]]],
+    ['❓', 'Lost visitors', 'A family can\'t find their rental and their phone is dead.', [['Get the address, call the rental desk and walk them there', 1], ['Point toward the beach and tell them to keep walking', 0], ['Give them the station number and head back out', 0]]]],
+  gradnight: [['🎓', 'Buckle-up check', 'A car of seniors pulls out of the lot. Nobody in back is buckled.', [['Stop them politely and have everyone buckle before they go', 1], ['Wave; it\'s graduation, so let them go on their way', 0], ['Follow them home with your lights off to keep watch', 0]]],
+    ['🚕', 'Ride home', 'A senior who has been up since five is about to drive home.', [['Find a parent or a friend to drive, and hold his keys', 1], ['Tell him to roll the windows down and turn the radio up', 0], ['Follow him home so he stays awake on the way there', 0]]],
+    ['🚗', 'Cruise line', 'Forty cars are lining up for the escorted cruise.', [['Brief the drivers, set the speed and lead with lights on', 1], ['Let them line up however they like and ride at the back', 0], ['Cancel it and send every car home a different way', 0]]]],
+  backtoschool: [['🚸', 'School zone', 'Cars are doing forty through the zone at dismissal.', [['Post where they can see you and stop the fastest few', 1], ['Park out of sight and let the speeding sort itself out', 0], ['Stand in the road and wave your arms at the drivers', 0]]],
+    ['🚌', 'Stop arm', 'A driver nearly passes a bus with its stop arm out.', [['Stop the driver and explain the law on the stop arm', 1], ['Honk to warn the kids and keep driving your route', 0], ['Follow the bus for the rest of its morning route', 0]]],
+    ['🎒', 'Pickup line', 'A parent is backing out of the lot right behind a kid.', [['Stop them, then get the whole lot pulling straight through', 1], ['Shout across the lot at the parent to stop backing', 0], ['Leave it to the crossing guard; it\'s her school lot', 0]]]],
   hurricane: [['🧱', 'Sandbags', 'Residents are filling sandbags at the fire station.', [['Help and show them how to stack them like bricks', 1], ['Supervise from the car', 0], ['Tell them it won\'t flood', 0]]],
     ['👵', 'Wellness check', 'An older resident lives alone and hasn\'t answered her phone.', [['Knock, check on her, and make sure she has a plan and supplies', 1], ['Leave a voicemail', 0], ['Assume she left town', 0]]],
     ['🛣️', 'Evacuation route', 'Cars are lining up toward the highway.', [['Direct traffic onto the marked evacuation route', 1], ['Let people take shortcuts through neighborhoods', 0], ['Close the road', 0]]]]
@@ -137,7 +157,7 @@ export function installEvents(H) {
     const k = weekKey() + ev.id, mine = S.evMine[k] || 0, pct = Math.min(100, Math.round(evSum / GOAL * 100));
     H.openModal('<div class="sceneHead"><b>THIS WEEK IN PORT MERIDIAN · ' + season().icon + ' ' + season().name.toUpperCase() + '</b><h2>' + ev.icon + ' ' + H.esc(ev.name) + '</h2><p>' + H.esc(ev.blurb) + '</p></div>' +
       '<div class="evBar"><small>City goal: ' + evSum + ' / ' + GOAL + ' tasks by everyone on the server</small><div><i style="width:' + pct + '%"></i></div><small>Your tasks this week: ' + mine + ' · rewards at 5 and 15</small></div>' +
-      '<p class="lkSum">' + (ev.d === -1 ? 'Happening in every district.' : 'Happening in ' + H.esc(H.dname(ev.d)) + (ev.at ? ' around ' + H.esc(ev.at) : '') + '. Look for the task markers.') + '</p><p class="lkSum">Today\'s weather: ' + WX.label + '</p>' +
+      '<p class="lkSum">' + (ev.d === -1 ? 'Happening in every district.' : 'Happening in ' + H.esc(H.dname(ev.d)) + (ev.at ? ' around ' + H.esc(ev.at) : '') + '. Look for the task markers.') + '</p><p class="lkSum">Today\'s weather: ' + WX.label + '</p>' + (() => { const c = H.seasonStatus && H.seasonStatus(); if (!c) return ''; return '<p class="lkSum"><b>' + c.icon + ' This season\'s chapter: ' + H.esc(c.name) + '.</b> ' + (c.beat >= 3 ? 'Closed. The city remembers how you handled it.' : c.beat === 0 ? 'It starts on your next shift.' : 'Part ' + c.beat + ' of 3 played; ' + (c.calls >= c.next ? 'the next part finds you on patrol.' : (c.next - c.calls) + ' more of the season\'s calls before the next part.')) + '</p>'; })() +
       '<div class="qAct"><button type="button" id="mClose">Close</button></div>');
     H.$('mClose').onclick = H.closeModal;
   }

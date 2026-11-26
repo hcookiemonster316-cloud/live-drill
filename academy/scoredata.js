@@ -167,6 +167,21 @@ export const TRACKS = {
     band: { rhodes: { pat: 'push', v: .024 }, bass: { pat: 'funk', v: .08 } }, drums: { pat: 'lowride', v: .6 }, lead: { voice: 'vibes', v: .032, oct: 12 }, leadB: { voice: 'flute', v: .036, oct: 12 } },
   water_2: { name: 'Slow Wake', bpm: 74, root: 60, scale: 'dor', form: true, intro: 'band', outro: 'motif', outroTheme: SUB.outH, swing: .2, prog: JF.night, progB: JF.porch, theme: JT.heart, themeB: JT.main,
     band: { rhodes: { pat: 'ballad', v: .028 }, vamp: { v: .012 }, bass: { pat: 'walk', v: .07 } }, drums: { pat: 'jazz', v: .45 }, lead: { voice: 'flute', v: .036, oct: 12 }, leadB: { voice: 'sax', v: .034, oct: 0 } },
+  // ---- seasons: each chapter of the year has its own arrangement of the hook (it joins patrol and plays at the chapter's beats) ----
+  season_fog: { name: 'Fog Line (January)', bpm: 70, root: 60, scale: 'dor', form: true, swing: .14, prog: JF.night, progB: JF.porch, theme: JT.main, themeB: JT.calm, intro: 'motif', introTheme: SUB.inM, outro: 'motif', outroTheme: SUB.outH,
+    band: { rhodes: { pat: 'ballad', v: .026 }, vamp: { v: .012 }, bass: { pat: 'whole', v: .07 } }, drums: { pat: 'brush', v: .4 }, drone: { v: .016 }, lead: { voice: 'flute', v: .036, oct: 12 }, leadB: { voice: 'vibes', v: .03, oct: 12 } },
+  season_spring: { name: 'Causeway Traffic (Spring Break)', bpm: 112, root: 67, scale: 'mix', form: true, swing: .08, prog: JF.vamp, progB: JF.lift, theme: JT.main, themeB: MEL.party, intro: 'drums', outro: 'hits',
+    band: { clav: { v: .018 }, horns: { v: .018 }, bass: { pat: 'funk', v: .095 } }, drums: { pat: 'bossa', v: .7 }, lead: { voice: 'vibes', v: .034, oct: 12 }, leadB: { voice: 'horns', v: .03, oct: 12 } },
+  season_grad: { name: 'Tassels (Graduation)', bpm: 86, root: 65, scale: 'maj', form: true, swing: .12, prog: JF.porch, progB: JF.lift, theme: JT.heart, themeB: JT.main, intro: 'motif', introTheme: SUB.inH, outro: 'motif', outroTheme: SUB.outH,
+    band: { rhodes: { pat: 'push', v: .026 }, bass: { pat: 'walk', v: .07 } }, drums: { pat: 'brush', v: .5 }, lead: { voice: 'piano', v: .036, oct: 12 }, leadB: { voice: 'sax', v: .036, oct: 0 } },
+  season_fourth: { name: 'The Long Fourth', bpm: 120, root: 62, scale: 'maj', form: true, swing: .04, prog: JF.lift, progB: JF.vamp, theme: JT.main, themeB: JT.units, intro: 'hits', outro: 'hits',
+    band: { horns: { v: .022 }, clav: { v: .012 }, bass: { pat: 'octaves', v: .09 } }, drums: { pat: 'march', v: .8 }, lead: { voice: 'brass', v: .032, oct: 12 }, leadB: { voice: 'horns', v: .03, oct: 12 } },
+  season_school: { name: 'First Bell (Back to School)', bpm: 100, root: 67, scale: 'maj', form: true, swing: .14, prog: JF.porch, progB: JF.vamp, theme: MEL.hallpass, themeB: JT.main, intro: 'bass', outro: 'motif', outroTheme: SUB.outM,
+    band: { clav: { v: .016 }, rhodes: { pat: 'funk', v: .022 }, bass: { pat: 'funk', v: .085 } }, drums: { pat: 'shuffle', v: .7 }, lead: { voice: 'flute', v: .036, oct: 12 }, leadB: { voice: 'vibes', v: .032, oct: 12 } },
+  season_storm: { name: 'Landfall (The Storm)', bpm: 76, root: 60, scale: 'min', form: true, swing: .06, prog: JF.dark, progB: JF.chaseB, theme: JT.main, themeB: JT.heartFrag, intro: 'drums', outro: 'band',
+    band: { wah: { v: .014 }, vamp: { v: .014 }, bass: { pat: 'octaves', v: .09 } }, drums: { pat: 'half', v: .8 }, drone: { v: .02 }, lead: { voice: 'strings', v: .034, oct: 12 }, leadB: { voice: 'mute', v: .034, oct: 12 } },
+  season_holiday: { name: 'Holiday Rush', bpm: 108, root: 65, scale: 'maj', form: true, swing: .24, prog: JF.porch, progB: JF.lift, theme: JT.main, themeB: JT.heart, intro: 'band', outro: 'motif', outroTheme: SUB.outM,
+    band: { rhodes: { pat: 'push', v: .024 }, bass: { pat: 'walk', v: .08 } }, drums: { pat: 'jazz', v: .6 }, lead: { voice: 'vibes', v: .038, oct: 12 }, leadB: { voice: 'sax', v: .038, oct: 0 } },
   // ---- districts: each place has its own arrangement of the hook (heard first when you arrive) ----
   dist_0: { name: 'Founders Square (Central)', bpm: 104, root: 65, scale: 'mix', form: true, swing: .1, prog: JF.vamp, progB: JF.lift, theme: MEL.founders, themeB: JT.main, intro: 'hits', outro: 'motif',
     band: { rhodes: { pat: 'funk', v: .026 }, horns: { v: .02 }, clav: { v: .014 }, bass: { pat: 'funk', v: .095 } }, drums: { pat: 'funk', v: .8 }, lead: { voice: 'horns', v: .03, oct: 12 }, leadB: { voice: 'sax', v: .04, oct: 0 }, counter: { voice: 'vibes', v: .018, oct: 12 } },
@@ -208,13 +223,13 @@ export const TRACKS = {
 const BASE = { title: ['Port Meridian', 72], day: ['Day Watch', 100], night: ['Night Watch', 78], inside: ['Indoors', 70], story: ['The Gray Sedan', 64], side: ['Side Case', 104],
   call: ['En Route', 112], urgent: ['Priority One', 136], scene: ['On Scene', 84], debrief: ['Debrief', 76], friend: ['Neighbors', 80], water: ['Marine Patrol', 84] };
 // which arrangements belong to a place, a unit and a shift (the score player adds them to the rotation)
-export const CONTEXT = { district: (d) => 'dist_' + d, unit: (u) => (u && u !== 'patrol' ? 'unit_' + u : null), shift: (s) => 'shift_' + (s || 'day') };
+export const CONTEXT = { district: (d) => 'dist_' + d, unit: (u) => (u && u !== 'patrol' ? 'unit_' + u : null), shift: (s) => 'shift_' + (s || 'day'), season: (n) => (n ? 'season_' + n : null) };
 // the cinematic layer, on every track (owner's call): the band plays as before, and an orchestra plays with it. Strings
 // hold the chords from the first A, a choir joins for the bridge and the last A, timpani mark every new section and
 // roll into the last A, and the openings and endings are film-like (a swell from near silence, a last chord that
 // rings). How much orchestra depends on the mood: fuller for story, title and urgent tracks, lighter for patrol and
 // indoors, so the city still sounds like a cop show and every scene sounds like a film.
-const WEIGHT = (id) => /^(title|story|urgent|scene|debrief|unit_neg|shift_night|dist_4|unit_det)/.test(id) ? 1 : /^(call|side|dist|unit|shift)/.test(id) ? .8 : .6;
+const WEIGHT = (id) => /^(title|story|urgent|scene|debrief|unit_neg|shift_night|dist_4|unit_det)/.test(id) ? 1 : /^(call|side|dist|unit|shift|season)/.test(id) ? .8 : .6;
 for (const id in TRACKS) { const t = TRACKS[id], w = WEIGHT(id); if (/^title_/.test(id)) { t.cinema = 1; continue; }
   t.cinema = w; if (!t.strings) t.strings = { v: .02 * w + .006 }; if (!t.strings2) t.strings2 = { v: t.strings.v * 1.45 };
   if (!t.choir) t.choirB = { v: .009 * w + .004 }; if (!t.choir2) t.choir2 = { v: .013 * w + .005 };

@@ -570,7 +570,7 @@ export function installVariety(H) {
 
   return {
     pick, hold, pickCall, logEvent, heat, dispatcher, dispatchText, caller, callerLines, complication, midChoice, wrapChoice, afterLines, afterScene, enRoute,
-    wantPair, offerPair, otherOutcome, mixQs, formatQ, actify, decisionQ, ACTS, sceneMini, miniLine, GAMES, tick, onShift, partner, questSeq, questDone, questShape, stepShape, offerOK, splitLong,
+    wantPair, offerPair, otherOutcome, mixQs, formatQ, actify, decisionQ, decisionsFor, ACTS, sceneMini, miniLine, GAMES, tick, onShift, partner, questSeq, questDone, questShape, stepShape, offerOK, splitLong,
     cond: () => COND[S.vcond || 'normal'], aKey, warmDecisions
   };
 }
