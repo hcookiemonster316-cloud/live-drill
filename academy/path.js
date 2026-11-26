@@ -8,9 +8,10 @@ export function installPath(H) {
   // the single most useful next thing to do
   function nextStep() {
     const cl = S.cleared || [], here = H.did();
-    for (let d = 0; d < H.DISTRICTS.length; d++) {
-      if (cl.includes(d)) continue; const f = facts(d), D = H.DISTRICTS[d];
-      if (!S.unlocked.includes(d)) return { icon: '🚓', t: 'Transfer to ' + D.name, s: 'Your next district is open. Head for the district line on your map.' };
+    if (S.xferOpen > 0) return { icon: '🚓', t: 'Choose your next district', s: 'Your transfer orders are signed. Pick any district on the City map, or cross a district line.' };
+    const order = [here].concat(H.DISTRICTS.map((x, i) => i).filter((i) => i !== here)); // where you are first, then the rest
+    for (const d of order) {
+      if (cl.includes(d) || !S.unlocked.includes(d)) continue; const f = facts(d), D = H.DISTRICTS[d];
       if (f.done < f.total) return { icon: '📚', t: 'Learn ' + (f.total - f.done) + ' more fact' + (f.total - f.done === 1 ? '' : 's') + ' in ' + D.name, s: (d === here ? '' : 'Go back to ' + D.name + '. ') + 'Calls, drills and the people on your beat all teach them.' };
       return { icon: '🏁', t: 'Pass ' + D.name + '\'s Final Call', s: 'Every fact is learned. The Final Call clears the district.' };
     }

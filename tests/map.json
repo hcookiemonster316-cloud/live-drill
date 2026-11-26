@@ -150,7 +150,8 @@
    "t101",
    "t99",
    "tpexam",
-   "tready"
+   "tready",
+   "txfer"
   ],
   "patrolops.js": [
    "t85"

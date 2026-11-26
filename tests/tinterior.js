@@ -17,7 +17,8 @@ const { chromium } = require('playwright');
         while (q.length) { const [x, y] = q.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, k = ny * N + nx; if (!reach.has(k) && ok(nx, ny)) { reach.add(k); q.push([nx, ny]); } } }
         const near = (x, y) => { x = Math.floor(x); y = Math.floor(y); return reach.has(y * N + x) || [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => reach.has((y + dy) * N + x + dx)); };
         const spots = I.staff.map((t) => ['staff', t.x, t.y]).concat(I.citz.map(([x, y]) => ['citizen', x, y]), I.infos.map(([x, y]) => ['info', x, y]), I.caches.map((t) => ['cache', t.x, t.y]), I.secrets.map((t) => ['secret', t.x, t.y]), (I.details || []).map((t) => ['detail', t.x, t.y]));
-        spots.forEach(([w, x, y]) => { if (!near(x, y)) out.bad.push(I.key + ' v' + v + ' ' + w); }); }
+        spots.forEach(([w, x, y]) => { if (!near(x, y)) out.bad.push(I.key + ' v' + v + ' ' + w); });
+        /* no room or corner cut off by furniture: every bit of floor is reachable */ let cut = 0; for (let y = I.oy; y < I.oy + I.h; y++) for (let x = I.ox; x < I.ox + I.w; x++) if (I.walkable(x, y) && !reach.has(y * N + x)) cut++; if (cut) out.bad.push(I.key + ' v' + v + ' ' + cut + ' floor tiles cut off'); }
       out.looks += seen.size; }
     return out; });
   console.log('variations: ' + vr.kinds + ' interiors, ' + vr.looks + ' distinct looks; unreachable:', vr.bad.slice(0, 8).join(', ') || 'none'); if (vr.bad.length) errs.push(vr.bad.length + ' unreachable spots: ' + vr.bad.slice(0, 5).join(', ')); if (vr.looks < vr.kinds * 4) errs.push('variations look too alike: ' + vr.looks);

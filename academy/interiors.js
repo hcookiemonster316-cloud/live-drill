@@ -644,6 +644,22 @@ export function buildInterior(lot, outW, idx) {
       const spot = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1]].map(([dx, dy]) => [px0 + dx, py0 + dy]).find(([x, y]) => at(x, y) === T.PLAZA && !I.blocked.has(y * N + x) && !(I.door && x === Math.floor(I.door[0]) && Math.abs(y - I.door[1]) < 2.5))
         || I.walk.filter(([x, y]) => !I.blocked.has(y * N + x) && !(I.door && Math.abs(x + .5 - I.door[0]) + Math.abs(y + .5 - I.door[1]) < 3)).sort((u, v) => Math.hypot(u[0] - px0, u[1] - py0) - Math.hypot(v[0] - px0, v[1] - py0))[0]; /* a full corner: the nearest free floor */
       if (spot) { I.props.push({ t: 'furn', k: 'detail', obj: dt[0], x: spot[0] + .5, y: spot[1] + .5, block: true }); I.blocked.add(spot[1] * N + spot[0]); I.walk = I.walk.filter(([x, y]) => x !== spot[0] || y !== spot[1]); I.details = [{ x: spot[0] + .5, y: spot[1] + .5, text: dt[1], id: key }]; } } }
+  // nothing walls a room off: every bit of floor must be reachable from the door. Where furniture closes a room or a
+  // corner, the piece in the gap comes out (a gap in the counter, a missing chair); where an inner wall does, it gets a
+  // doorway. Staff and the things you look for stay put.
+  if (I.door) for (let pass = 0; pass < 40; pass++) {
+    const s0 = (Math.floor(I.door[1]) - 1) * N + Math.floor(I.door[0]), reach = new Set([s0]), q = [s0], free = (k) => g[k] === T.PLAZA && !I.blocked.has(k);
+    while (q.length) { const k = q.pop(); for (const d of [1, -1, N, -N]) { const k2 = k + d; if (!reach.has(k2) && free(k2)) { reach.add(k2); q.push(k2); } } }
+    const lost = new Set(); for (let y = oy; y < oy + h; y++) for (let x = ox; x < ox + w; x++) { const k = y * N + x; if (free(k) && !reach.has(k)) lost.add(k); }
+    if (!lost.size) break;
+    const nb = (k, S) => [1, -1, N, -N].some((d) => S.has(k + d)), keyOf = (pp) => Math.floor(pp.y) * N + Math.floor(pp.x);
+    const furn = I.props.filter((pp) => pp.t === 'furn' && pp.block && !pp.wall && pp.k !== 'detail' && I.blocked.has(keyOf(pp)));
+    let pick = furn.find((pp) => nb(keyOf(pp), lost) && nb(keyOf(pp), reach)), wallGap = false;
+    if (!pick) { pick = I.props.find((pp) => pp.wall && pp.h === 34 && (() => { const k = keyOf(pp); return (lost.has(k - 1) || lost.has(k + 1)) && (reach.has(k - 1) || reach.has(k + 1)) || (lost.has(k - N) || lost.has(k + N)) && (reach.has(k - N) || reach.has(k + N)); })()); wallGap = !!pick; }
+    if (!pick) pick = furn.find((pp) => nb(keyOf(pp), lost)) || furn.find((pp) => nb(keyOf(pp), reach) && [1, -1, N, -N].some((d) => !free(keyOf(pp) + d) && nb(keyOf(pp) + d, lost)));
+    if (!pick) break;
+    const k = keyOf(pick); I.props.splice(I.props.indexOf(pick), 1); I.blocked.delete(k); if (wallGap) { g[k] = T.PLAZA; I.mat[k] = 1; } I.walk.push([k % N, Math.floor(k / N)]); (I.opened = I.opened || []).push(pick.k);
+  }
   I.quiet = I.walk.slice();
   I.spawn = [I.door[0], I.door[1] - 1];
   I.walkable = (x, y) => at(x, y) === T.PLAZA && !I.blocked.has(y * N + x);
@@ -737,14 +753,31 @@ function detailObj(g, p, sx, sy, t) { shadow(g, sx, sy, 9);
 // light through the doorway with dust drifting in it
 function beam(g, sx, sy, t) { g.save(); g.globalCompositeOperation = 'lighter'; const gr = g.createLinearGradient(sx, sy + 14, sx, sy - 34); gr.addColorStop(0, 'rgba(255,240,200,.10)'); gr.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(sx - 16, sy + 12); g.lineTo(sx + 16, sy + 12); g.lineTo(sx + 9, sy - 34); g.lineTo(sx - 9, sy - 34); g.closePath(); g.fill();
   for (let i = 0; i < 7; i++) { const k = ((t / 6000 + i * .143) % 1), x = sx + Math.sin(i * 2.3 + t / 2400) * 9 * (1 - k * .4), y = sy + 8 - k * 40; g.fillStyle = 'rgba(255,246,220,' + (.5 * Math.sin(k * Math.PI)).toFixed(3) + ')'; g.fillRect(x, y, 1, 1); } g.restore(); }
-const FPX = new Map(), WPX = new Map();
+const FPX = new Map(), WPX = new Map(), LPX = new Map();
+// an animated piece as pixel art each step: drawn at one world unit a pixel, then the deep-ink outline around its shape
+// (the same outline the cached furniture gets), on a small canvas kept on the CPU so reading it back is cheap
+function pixLive(paint, reuse, noInk) {
+  const W = 120, H = 150, c = reuse || Object.assign(document.createElement('canvas'), { width: W, height: H }), g = c.getContext('2d', { willReadFrequently: true });
+  c.lw = W; c.lh = H; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H); g.save(); g.translate(0, 0); paint(g); g.restore();
+  const im = g.getImageData(0, 0, W, H), d = im.data, solid = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) { const a = d[i * 4 + 3]; if (a >= 110) { solid[i] = 1; d[i * 4 + 3] = 255; } else if (a) d[i * 4 + 3] = 0; }
+  if (!noInk) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; if (solid[i]) continue;
+    if ((x > 0 && solid[i - 1]) || (x < W - 1 && solid[i + 1]) || (y > 0 && solid[i - W]) || (y < H - 1 && solid[i + W])) { const o = i * 4; d[o] = 11; d[o + 1] = 15; d[o + 2] = 28; d[o + 3] = 255; } }
+  g.putImageData(im, 0, 0); return c;
+}
 export function drawFurn(g, p, sx, sy, t, wallCol) {
   if (p.k === 'detail') return detailObj(g, p, sx, sy, t);
   if (p.k === 'beam') return beam(g, sx, sy, t);
-  if (p.k === 'wall' && p.deco !== 5 && typeof document !== 'undefined') { // walls stay smooth, but each kind is drawn once at the screen's resolution (they were shapes every frame)
-    const wk = (p.h || 58) + '|' + p.deco + '|' + (p.face || '') + '|' + (wallCol || '') + '|' + RES; let c = WPX.get(wk);
-    if (!c) { if (WPX.size > 400) WPX.clear(); const [cv, cg] = hiCanvas(80, 120, RES); furnShape(cg, p, 40, 108, 0, wallCol); c = trimSprite(cv); WPX.set(wk, c); }
-    g.drawImage(c, sx - 40 + c.ox, sy - 108 + c.oy, c.lw, c.lh); return; }
+  const smoothOff = (c, x, y) => { const sm = g.imageSmoothingEnabled; g.imageSmoothingEnabled = false; g.drawImage(c, x, y, c.lw, c.lh); g.imageSmoothingEnabled = sm; };
+  if ((p.k === 'wall' || p.k === 'v' || p.k === 'U') && p.deco !== 5 && typeof document !== 'undefined') { // walls on the same pixel grid as the furniture (one world unit a pixel), drawn once per kind;
+    // no ink outline, so a run of wall tiles still reads as one wall with no seams
+    const wk = p.k + '|' + (p.h || 58) + '|' + p.deco + '|' + (p.face || '') + '|' + (wallCol || ''); let c = WPX.get(wk);
+    if (!c) { if (WPX.size > 400) WPX.clear(); const [cv, cg] = hiCanvas(80, 120, 1); furnShape(cg, p, 40, 108, 0, wallCol); c = trimSprite(cv); c.lw = c.width; c.lh = c.height; WPX.set(wk, c); }
+    smoothOff(c, sx - 40 + c.ox, sy - 108 + c.oy); return; }
+  if ((LIVE.has(p.k) || p.life || p.k === 'wall') && typeof document !== 'undefined') { /* (a wall here has animated decor: no outline, so it stays seamless) */ // animated pieces: pixel art too, redrawn at most ten times a second (their animations step slower than that)
+    const key = p.k + '|' + (p.seed || 0) + '|' + (p.ax || 'x') + (p.fl ? 'f' : '') + '|' + (p.life || '') + '|' + (wallCol || ''), fr = Math.floor(t / 100); let e = LPX.get(key);
+    if (!e || e.fr !== fr) { e = { fr, c: pixLive((bg) => furnTurned(bg, p, 60, 130, t, wallCol), e && e.c, p.k === 'wall') }; if (LPX.size > 200) LPX.clear(); LPX.set(key, e); }
+    smoothOff(e.c, sx - 60, sy - 130); return; }
   if (p.k === 'wall' || p.k === 'v' || p.k === 'U' || p.k === 'door' || LIVE.has(p.k) || p.life || typeof document === 'undefined') return furnTurned(g, p, sx, sy, t, wallCol);
   // pixel art, drawn once per piece, seed and direction (it was every frame as shapes)
   const key = p.k + '|' + (p.seed || 0) + '|' + (p.ax || 'x') + (p.fl ? 'f' : ''); let c = FPX.get(key);

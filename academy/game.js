@@ -898,7 +898,7 @@ let AMBT = 0; // the scenes that find you between calls (staged facts, teach it 
 const HK = installHooks({ S, esc: (x) => esc(x), saveS: () => saveS(), las: () => LAS.hook(), fail: () => FAIL.hook(), shiftNo: () => MEM.shiftNo, activeQ: () => (W ? activeQ() : null), later: (f, ms) => setTimeout(f, ms),
   newFace: () => { const r = regs.find((x) => !x.n.cat && !(S.npc || {})[x.n.id]); return r ? { id: r.n.id, name: r.n.name, where: placeName(r) } : null; },
   faceCalls: (id) => { const r = regs.find((x) => x.n.id === id); if (!r) return; PINGS.push({ x: r.x, y: r.y, t: performance.now(), c: '#f5c542' }); r.waveT = performance.now() + 9000; radio('Dispatch', r.n.name + ' called the desk asking for you. They\'re at ' + placeName(r) + '.'); } });
-// Night Shift mode (Step E): a short, hard, random shift from the title screen
+// Shift Rotation mode (Step E): a short, hard, scored shift from the title screen, after graduating
 const NR = installNightRun({ S, share: (o) => share(o), esc: (x) => esc(x), saveS: () => saveS(), banner: (a, b, c) => banner(a, b, c), travel: (d, then) => travel(d, then), did: () => W.did, dname: (d) => DISTRICTS[d].name, setClock: (m) => { clock = m; },
   weather: (k) => { FX.rain = k === 'rain' || k === 'storm'; FX.storm = k === 'storm'; FX.fog = k === 'fog'; if (k === 'storm') FX.wind = Math.max(FX.wind || 0, .8); } });
 const COURT = installCourt({ S, partnerNote: (k) => { if (PART.remember(null, null, { court: k })) ptnHud(true); }, toast: (m) => toast(m), walked: (p) => MEM.walked(p), lessonQ: (les) => { const f = L.fact(S, les); return f ? f.id : null; }, blockAt: (x, y, n) => { if (x == null || !W) return; const bx = Math.floor((x - 2) / 11), by = Math.floor((y - 2) / 11), d = ((S.btrust = S.btrust || {})[W.did] = S.btrust[W.did] || {}), k = bx + ',' + by, was = d[k] || 0; if (bx < 0 || by < 0 || bx > 12 || by > 12) return; d[k] = Math.max(-10, Math.min(10, was + n)); REC.moved(W.did, k, was, d[k]); }, did: () => W && W.did, watch: (w) => WL.court(w), shift: () => MEM.shiftNo, saveS: () => saveS(), free: () => streetFree(), sayAs: (...a) => sayAs(...a), factQ: (id) => L.factQ(id), dialogue: (...a) => dialogue(...a), trust: (d, n) => { S.trust[d] = Math.max(0, Math.min(100, (S.trust[d] == null ? 50 : S.trust[d]) + n)); }, award: (...a) => award(...a), stat: (...a) => stat(...a), debrief: (o) => POL.debrief(Object.assign({ prio: 2, resp: 0, wrap: 'case', role: 'Witness for the State', xp: 0 }, o), () => closeModal()) });
@@ -2473,13 +2473,13 @@ function districtBoard(tabs) {
   const rows = DISTRICTS.map((d) => {
     const un = S.unlocked.includes(d.id), cl = S.cleared.includes(d.id), m = L.districtMastery(S, d.id), here = W.did === d.id;
     return '<div class="dRow' + (here ? ' here' : '') + (un ? '' : ' locked') + '" style="--dc:' + d.color + '"><div class="dHead"><b>' + (un ? '' : '🔒 ') + esc(d.name) + '</b><span>' + esc(d.unit) + '</span></div>' +
-      (un ? '<div class="dFacts"><b>' + m.facts.done + '</b> of ' + m.facts.total + ' facts completed</div><div class="dLes">' + d.lessons.map((l, k) => { const x = m.lessons[k].facts; return '<div class="dL"><span>' + esc(L.lessonName(l)) + ' <em>' + x.done + '/' + x.total + '</em></span><i><b style="width:' + Math.round(x.total ? x.done / x.total * 100 : 0) + '%" class="' + (x.done >= x.total ? 'ok' : '') + '"></b></i></div>'; }).join('') + '</div>' : '<p class="dLock">Complete every fact in the district before it and pass its Final Call.</p>') +
-      '<div class="dAct">' + (cl ? '<span class="cleared">★ District cleared</span>' : '') + (un && !here ? '<button type="button" data-go="' + d.id + '">Patrol here</button>' : '') + (here && m.facts.done < m.facts.total ? '<button type="button" data-drill="1">Fact drill with Navarro</button>' : '') + (here && !cl ? '<button type="button" data-final="1" ' + (m.ready ? '' : 'disabled') + '>' + (m.ready ? 'Take the District Final Call' : 'Final Call · ' + (m.facts.total - m.facts.done) + ' facts to go') + '</button>' : '') + '</div></div>';
+      (un ? '<div class="dFacts"><b>' + m.facts.done + '</b> of ' + m.facts.total + ' facts completed</div><div class="dLes">' + d.lessons.map((l, k) => { const x = m.lessons[k].facts; return '<div class="dL"><span>' + esc(L.lessonName(l)) + ' <em>' + x.done + '/' + x.total + '</em></span><i><b style="width:' + Math.round(x.total ? x.done / x.total * 100 : 0) + '%" class="' + (x.done >= x.total ? 'ok' : '') + '"></b></i></div>'; }).join('') + '</div>' : (S.xferOpen ? '<p class="dLock">Your transfer orders are signed. You can choose this district.</p>' : '<p class="dLock">Pass any district\'s Final Call to earn a transfer, then choose where you go.</p>')) +
+      '<div class="dAct">' + (cl ? '<span class="cleared">★ District cleared</span>' : '') + (un && !here ? '<button type="button" data-go="' + d.id + '">Patrol here</button>' : '') + (!un && S.xferOpen ? '<button type="button" data-xf="' + d.id + '">Transfer here</button>' : '') + (here && m.facts.done < m.facts.total ? '<button type="button" data-drill="1">Fact drill with Navarro</button>' : '') + (here && !cl ? '<button type="button" data-final="1" ' + (m.ready ? '' : 'disabled') + '>' + (m.ready ? 'Take the District Final Call' : 'Final Call · ' + (m.facts.total - m.facts.done) + ' facts to go') + '</button>' : '') + '</div></div>';
   }).join('');
-  openModal('<div class="uNow" style="--uc:' + U().color + '"><span>' + U().icon + '</span><div><b>' + esc(unitName(U())) + '</b><small>' + esc(U().perk) + '</small></div><button type="button" id="uSw">Switch unit</button></div><div class="sceneHead"><b>CITY MAP · DISTRICTS</b><h2>Complete every fact to unlock the Final Call</h2><p>A fact is complete once you get its check right: at study points, on calls, with citizens and regulars, or in a fact drill. Pass a district\'s Final Call to transfer to the next district.</p></div>' + (S.cleared.length >= 5 ? '<div class="dExam"><b>' + CHAPTER.exam + '</b><span>' + (S.graduated ? '★ Passed' : 'Every district cleared. Facts from the whole chapter, 85% to pass.') + '</span><button type="button" data-exam="1">' + (S.graduated ? 'Retake the exam' : 'Take the Chapter Exam') + '</button></div>' : '') + '' + (tabs || '') + '<div class="dList">' + rows + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
+  openModal('<div class="uNow" style="--uc:' + U().color + '"><span>' + U().icon + '</span><div><b>' + esc(unitName(U())) + '</b><small>' + esc(U().perk) + '</small></div><button type="button" id="uSw">Switch unit</button></div><div class="sceneHead"><b>CITY MAP · DISTRICTS</b><h2>Complete every fact to unlock the Final Call</h2><p>A fact is complete once you get its check right: at study points, on calls, with citizens and regulars, or in a fact drill. Pass a district\'s Final Call to transfer to any district you choose.</p></div>' + (S.cleared.length >= 5 ? '<div class="dExam"><b>' + CHAPTER.exam + '</b><span>' + (S.graduated ? '★ Passed' : 'Every district cleared. Facts from the whole chapter, 85% to pass.') + '</span><button type="button" data-exam="1">' + (S.graduated ? 'Retake the exam' : 'Take the Chapter Exam') + '</button></div>' : '') + '' + (tabs || '') + '<div class="dList">' + rows + '</div><div class="qAct"><button type="button" class="ghost" id="mClose">Close</button></div>');
   $('mClose').onclick = closeModal; $('uSw').onclick = unitPicker; document.querySelectorAll('[data-j]').forEach((b) => b.onclick = () => { jTab = b.dataset.j; journal(); }); document.querySelectorAll('[data-tr]').forEach((b) => b.onclick = () => { S.track = b.dataset.tr; saveS(); beep(660, .06, 'triangle', .04); journal(); });
   document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { closeModal(); S.home = S.home == null ? +b.dataset.go : S.home; saveS(); clock = 0; travel(+b.dataset.go); });
-  const fb = document.querySelector('[data-final]'); if (fb) fb.onclick = () => { closeModal(); finalCall(); };
+  const fb = document.querySelector('[data-final]'); if (fb) fb.onclick = () => { closeModal(); finalCall(); }; xferWire();
   const dr = document.querySelector('[data-drill]'); if (dr) dr.onclick = () => { closeModal(); factDrill(); };
   const ex = document.querySelector('[data-exam]'); if (ex) ex.onclick = () => { closeModal(); chapterExam(); };
 }
@@ -2514,21 +2514,26 @@ function stagedRun(key, cfg) {
 }
 // the District Final Call: a major incident built from this district's facts, played in five short stages
 const FINAL_BEATS = [['narr', 'Staging. Units pull up two blocks out and wait for a plan.'], ['narr', 'The perimeter goes up. Tape, cones, a lane closed.'], ['narr', 'Contact. Someone at the scene wants to talk, right now.'], ['narr', 'Evidence and witnesses. Nobody leaves without a name.'], ['narr', 'Wrap-up. Command wants it by the book before anyone clears.']];
+// transfer orders: passing a district's Final Call earns one, and you choose which district it opens (any you
+// haven't opened yet), from the pass screen, the City map or a district line
+function xferButtons() { return DISTRICTS.filter((d) => !S.unlocked.includes(d.id)).map((d) => '<button type="button" data-xf="' + d.id + '" title="' + esc(d.unit) + '">Transfer to ' + esc(d.name) + '</button>').join(''); }
+function xferTo(d, then) { if (!S.xferOpen || S.unlocked.includes(d)) return false; S.unlocked.push(d); S.xferOpen--; S.home = d; saveS(); closeModal(); if (then) then(); clock = 0; banner('🚓', 'Transfer approved', DISTRICTS[d].name + '. ' + DISTRICTS[d].unit + '.'); travel(d); return true; }
+function xferWire(then) { document.querySelectorAll('[data-xf]').forEach((b) => b.onclick = () => xferTo(+b.dataset.xf, then)); }
 function finalCall() {
   const m = L.districtMastery(S, W.did); if (!m.ready) { toast('Complete every fact in ' + W.D.name + ' first (' + m.facts.done + '/' + m.facts.total + ').'); return; }
-  const nx = (W.did + 1) % 5, cid = sayAs('ic', { name: 'Incident Command', icon: '🛡️', role: W.D.name + ' · Final Call' }), did = W.did;
+  const cid = sayAs('ic', { name: 'Incident Command', icon: '🛡️', role: W.D.name + ' · Final Call' }), did = W.did;
   music.set && music.start('urgent');
   stagedRun('final' + did, { total: 15, kicker: 'DISTRICT FINAL CALL · ' + W.D.name.toUpperCase(), speakers: ['castillo', 'okonkwo', cid], pick: (k) => L.pickFacts(S, W.D.lessons, k, { exam: true }),
     intro: (run, n) => [['narr', 'Major incident. ' + W.D.name + '. Every unit in the district is rolling.'], ['okonkwo', '(over the radio) ' + S.cs + ', this is your Final Call. Everything you learned in ' + W.D.name + '. ' + n + ' short stages, three questions each. Thirteen of fifteen by the book and you transfer out.'],
       ['choice', [{ t: 'Copy. Show me the scene.', reply: [['castillo', 'Breathe. Slow is smooth. Smooth is fast.']] }, { t: 'Request a moment to check my notes', reply: [['navarro', '(over the radio) You know this. You studied every single fact. Go.']] }], 'Ready?']],
     beat: (i) => [FINAL_BEATS[i % FINAL_BEATS.length]],
     done: (r) => {
-      const pass = r.right / r.n >= 13 / 15 - 1e-9; if (pass) { if (!S.cleared.includes(did)) S.cleared.push(did); if (!S.unlocked.includes(nx)) S.unlocked.push(nx); stat('finals'); } saveS();
+      const pass = r.right / r.n >= 13 / 15 - 1e-9; const fresh = pass && !S.cleared.includes(did); if (pass) { if (fresh) S.cleared.push(did); if (fresh && DISTRICTS.some((d) => !S.unlocked.includes(d.id))) S.xferOpen = (S.xferOpen || 0) + 1; stat('finals'); } saveS(); /* a pass earns a transfer: you choose which district */
       const allDone = S.cleared.length >= 5;
-      openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'DISTRICT CLEARED · TRANSFER APPROVED' : 'FINAL CALL · NOT YET') + '</b><h2>' + r.right + ' of ' + r.n + ' by the book</h2><p>' + (pass ? (allDone ? 'Every district cleared. The ' + CHAPTER.exam + ' is open on the City map.' : 'Transfer orders are signed: ' + esc(DISTRICTS[nx].name) + ' is open. ' + esc(DISTRICTS[nx].unit) + '.') : 'You need 13 of 15. Review the facts you missed and come back.') + '</p></div><div class="qAct">' + (pass && !allDone ? '<button type="button" id="mGo">Transfer to ' + esc(DISTRICTS[nx].name) + '</button>' : '') + '<button type="button" class="' + (pass && !allDone ? 'ghost' : '') + '" id="mDone">' + (pass && !allDone ? 'Stay in ' + esc(W.D.name) + ' for now' : 'Back to patrol') + '</button></div>');
+      openModal('<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + (pass ? 'DISTRICT CLEARED · TRANSFER APPROVED' : 'FINAL CALL · NOT YET') + '</b><h2>' + r.right + ' of ' + r.n + ' by the book</h2><p>' + (pass ? (allDone ? 'Every district cleared. The ' + CHAPTER.exam + ' is open on the City map.' : S.xferOpen ? 'Transfer orders are signed. Choose any district to patrol next:' : 'Every district is already open to you. Patrol any of them from the City map.') : 'You need 13 of 15. Review the facts you missed and come back.') + '</p></div><div class="qAct">' + (pass && !allDone && S.xferOpen ? xferButtons() : '') + '<button type="button" class="' + (pass && !allDone && S.xferOpen ? 'ghost' : '') + '" id="mDone">' + (pass && !allDone && S.xferOpen ? 'Decide later (City map)' : 'Back to patrol') + '</button></div>');
       if (pass) { good(); music.sting('promo'); shake(6, .5); }
       $('mDone').onclick = () => { closeModal(); award(pass ? 300 : 40, pass ? 'district cleared' : 'final call attempt'); if (pass) queueLoot('District cleared: ' + W.D.name, 1, 'r'); };
-      if ($('mGo')) $('mGo').onclick = () => { closeModal(); award(300, 'district cleared'); queueLoot('District cleared: ' + W.D.name, 1, 'r'); S.home = nx; saveS(); clock = 0; travel(nx); };
+      xferWire(() => { award(300, 'district cleared'); queueLoot('District cleared: ' + W.D.name, 1, 'r'); });
     } });
 }
 // after all five districts: the Vehicle Operations Final Exam, facts from the whole chapter, 85% to pass, in stages of three
@@ -2549,7 +2554,8 @@ function chapterExam() {
 }
 function gatePrompt(g) { PREM.buzz('gate');
   const d = DISTRICTS[g.to];
-  if (!S.unlocked.includes(g.to)) { toast('🔒 ' + d.name + ' is locked. Complete every fact in ' + W.D.name + ' and pass its Final Call to transfer.'); return; }
+  if (!S.unlocked.includes(g.to) && S.xferOpen) { openModal('<div class="sceneHead"><b>DISTRICT LINE · TRANSFER ORDERS</b><h2>Transfer to ' + esc(d.name) + '?</h2><p>' + esc(d.unit) + '. ' + esc(d.blurb) + ' Your orders let you open any district; this uses them here.</p></div><div class="qAct"><button type="button" data-xf="' + g.to + '">Transfer to ' + esc(d.name) + '</button><button type="button" class="ghost" id="gMap">Choose on the City map</button><button type="button" class="ghost" id="gNo">Stay here</button></div>'); xferWire(); $('gMap').onclick = () => { closeModal(); districtBoard(); }; $('gNo').onclick = closeModal; return; }
+  if (!S.unlocked.includes(g.to)) { toast('🔒 ' + d.name + ' is locked. Pass a district\'s Final Call to earn a transfer, then choose where you go.'); return; }
   openModal('<div class="sceneHead"><b>DISTRICT LINE</b><h2>Head into ' + esc(d.name) + '?</h2><p>' + esc(d.unit) + '. ' + esc(d.blurb) + '</p></div><div class="qAct"><button type="button" id="gGo">Patrol ' + esc(d.name) + '</button><button type="button" class="ghost" id="gNo">Stay here</button></div>');
   $('gGo').onclick = () => { closeModal(); travel(g.to); }; $('gNo').onclick = closeModal;
 }
@@ -3095,7 +3101,7 @@ function startScreen() {
   draw(); $('start').hidden = false;
 }
 function rollCall() {
-  if (S.nightRun === 1 && S.tutDone) { NR.begin(); return; } // a Night Shift run starts right away: no roll call
+  if (S.nightRun === 1 && S.tutDone) { NR.begin(); return; } // a Shift Rotation run starts right away: no roll call
   if (S.promoted && S.tutDone) return pendingCeremony(() => rollCall()); // a promotion earned last session is pinned before roll call
   const d = W.D;
   // a brand-new cadet gets the sergeant, not a rulebook: the guided shift teaches the controls, and unit perks and lesson lists start showing from the second roll call
@@ -3294,9 +3300,22 @@ function credits(back) {
   const r = el.querySelector('.crRoll'); r.style.animationDuration = Math.max(30, roll.length * 2.4) + 's'; r.addEventListener('animationend', () => back());
   $('crBack').onclick = (e) => { e.stopPropagation(); feSound('back'); back(); };
 }
+// ---- Shift Rotation: what it is, before you start (only after graduating) ----
+function rotationInfo(go, back) {
+  const el = fe(); el.hidden = false; el.onclick = null; el.className = 'fe menuBg'; const nx = ['Day shift', 'Midshift', 'Night shift'][(S.nightRuns || 0) % 3];
+  el.innerHTML = '<div class="feCard"><div class="feHead"><span>After graduation</span><h2>Shift Rotation</h2></div><div class="rotInfo">' +
+    '<p>One short, hard shift for a score. Each run rotates to the next shift: day, mid, then night.</p>' +
+    '<p>You start right away (no roll call) in a random district you\'ve opened, in rough weather, and calls come faster.</p>' +
+    '<p>Everything you do still counts for your career, and your own shift is kept. At end of watch you get a score and your best.</p>' +
+    '<p class="rotNext"><b>Next up:</b> ' + nx + (S.nightBest ? ' · <b>Best:</b> ' + S.nightBest : '') + '</p></div>' +
+    '<div class="feBtns"><button type="button" class="feBtn" id="rotBack">Back</button><button type="button" class="feBtn pri" id="rotGo">Start the shift</button></div></div>';
+  $('rotBack').onclick = () => { feSound('back'); back(); };
+  $('rotGo').onclick = () => { feSound('ok'); S.nightRun = 1; saveS(); el.hidden = true; el.innerHTML = ''; el.className = 'fe'; go(); };
+  setTimeout(() => $('rotGo') && $('rotGo').focus({ preventScroll: true }), 50);
+}
 // ---- main menu on the title screen ----
 function mainMenu(go) {
-  const t = $('title'), has = !!S.cs, items = [[has ? 'Continue' : 'Begin Your Career', go, has ? S.cs + ' · ' + L.rankOf(S.xp).name : 'Port Meridian is waiting'], ...(has && S.tutDone ? [['Night Shift', () => { S.nightRun = 1; saveS(); go(); }, 'One short, hard shift' + (S.nightBest ? ' · best ' + S.nightBest : '')]] : []), ['Settings', () => settingsPanel(menuBack)], ['Trophies', () => trophyRoom(menuBack), (S.trophies ? Object.keys(S.trophies).length : 0) + ' / ' + TROPHIES.length], ['Credits', () => credits(menuBack)]];
+  const t = $('title'), has = !!S.cs, items = [[has ? 'Continue' : 'Begin Your Career', go, has ? S.cs + ' · ' + L.rankOf(S.xp).name : 'Port Meridian is waiting'], ...(has && S.graduated ? [['Shift Rotation', () => rotationInfo(go, menuBack), 'A scored challenge shift' + (S.nightBest ? ' · best ' + S.nightBest : '')]] : []), ['Settings', () => settingsPanel(menuBack)], ['Trophies', () => trophyRoom(menuBack), (S.trophies ? Object.keys(S.trophies).length : 0) + ' / ' + TROPHIES.length], ['Credits', () => credits(menuBack)]];
   function menuBack() { const el = fe(); el.hidden = true; el.innerHTML = ''; el.className = 'fe'; t.querySelector('.tiMenu button') && t.querySelector('.tiMenu button').focus(); }
   const m = t.querySelector('.tiMenu'); { const old = t.querySelector('.tiCont'); if (old) old.remove(); if (has) m.insertAdjacentHTML('beforebegin', ON.continueCard()); }
   m.innerHTML = items.map((x, i) => '<button type="button" data-i="' + i + '"' + (i === 0 ? ' class="pri"' : '') + '><b>' + esc(x[0]) + '</b>' + (x[2] ? '<small>' + esc(x[2]) + '</small>' : '') + '</button>').join('');
