@@ -71,7 +71,7 @@ export const SIDE_CAST = {
   walkin: { name: 'Darnell Price', icon: '🧥', role: 'Ready to turn himself in' },
   pd: { name: 'Assistant Public Defender Cho', icon: '📂', role: 'Public Defender' },
   propoff: { name: 'Sgt. Ibarra', icon: '🗃️', role: 'Property records, County Records Annex' },
-  juror: { name: 'Mrs. Whitfield', icon: '🧾', role: 'Magnolia Terrace' },
+  juror: { name: 'Mrs. Whitlock', icon: '🧾', role: 'Magnolia Terrace' },
   admin: { name: 'Clerk Fernandez', icon: '🗄️', role: 'Jury office, County Administration' },
   newsie: { name: 'Sal', icon: '📰', role: 'Courthouse Newsstand' },
   asa: { name: 'ASA Morrow', icon: '⚖️', role: 'State Attorney\'s Office' },
@@ -401,7 +401,7 @@ export const SIDE2 = [
       { at: 'Courthouse Newsstand', who: 'newsie', goal: 'Spread the word at the Courthouse Newsstand', say: [['newsie', 'Courts don\'t call asking for gift cards. Everybody knows that. Well, everybody should.'],
         ['choice', [
           { t: 'Post a warning at the newsstand and the clerk\'s office', set: 'juryWarn', trust: 2, reply: [['newsie', 'Taped it up right next to the lottery numbers. Best spot in the place.']] },
-          { t: 'Just tell Mrs. Whitfield to call the clerk next time', reply: [['juror', '(over the radio) I will. Thank you, dear.']] }]]] }
+          { t: 'Just tell Mrs. Whitlock to call the clerk next time', reply: [['juror', '(over the radio) I will. Thank you, dear.']] }]]] }
     ], reward: { rp: 120, loot: 'u' } },
   { id: 'otherside', d: 4, title: 'The Other Side', giver: 'barnes', req: [4, 2], blurb: 'A defense attorney wants your honest account of an arrest.',
     offer: [['barnes', 'Cadet, I\'m defending a man you helped arrest. I\'m not trying to trick you. Your report says you read him his rights before you questioned him. Was that before or after he volunteered that statement in the car? You can talk to the prosecutor first if you want.']],

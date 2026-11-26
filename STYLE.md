@@ -75,7 +75,7 @@ shouts, never makes a threat he can be quoted on.
 **District casts** (academy/districts.js). Each district has its own dispatcher, sergeant and officer, and you
 should know who's talking without a name:
 - Central: **Velvet Hale** (dispatch) says sugar, hon, baby, and never rushes. **Castillo** runs roll call.
-- Eastside: **Winnie Pham** (dispatch) numbers everything ("One, you're closest. Two..."). **Sgt. Teddy Vargas**
+- Eastside: **Winnie Drummond** (dispatch) numbers everything ("One, you're closest. Two..."). **Sgt. Teddy Vargas**
   talks like a coach at halftime and may use exclamation marks. **Cpl. Ana Duarte** uses short sentences and calls
   everyone "Cadet".
 - Riverside: **Nadia Coleman** (dispatch) speaks in full sentences and says "whom" when it's correct. **Sgt. Ray

@@ -19,7 +19,7 @@ export const DCAST = [
       rollcall: ['Coffee\'s in the back. It\'s terrible. Drink it anyway, you\'ll need it.', 'Nobody does anything heroic today. We do it right. That\'s harder.', 'Write it down while it\'s fresh. Your memory is not as good as you think it is.', 'If you\'re not sure, slow down. Nobody ever got hurt slowing down.', 'Questions? Good. Ask them now, not on the radio.'] },
     ofc: [] },
   { // ---------- 1 Eastside ----------
-    disp: { id: 'disp_pham', name: 'Winnie Pham', short: 'Pham', icon: '🎧', role: 'Eastside dispatch',
+    disp: { id: 'disp_drummond', name: 'Winnie Drummond', short: 'Drummond', icon: '🎧', role: 'Eastside dispatch',
       look: { shirt: '#0e7490', pants: '#1f2937', hat: 'headset', hair: '#1a1a1a', skin: '#e0b48f' },
       want: 'Every unit home by end of watch. She keeps a tally on a sticky note and it has never been broken.', fear: 'A unit that doesn\'t answer the second time she calls it.',
       contradiction: 'Fastest voice on the radio, slowest driver in the county. She takes the bus.', tell: 'She numbers things. "One, you\'re closest. Two, it\'s a mess. Three, be nice."',
@@ -120,7 +120,7 @@ export const DINTRO = {
     ['vargas', 'Eastside\'s fourth in the county on response times. Fourth. When I got here we were dead last. You want to know the secret?'],
     ['choice', [{ t: 'Ask him what the secret is', set: 'vargasSecret', reply: [['vargas', 'Nobody drives like they\'re late. You\'re not late. You\'re on time and alive. Everything else is just traffic.']] },
       { t: 'Ask what the whiteboard is for', set: 'vargasBoard', reply: [['vargas', 'Wins. Little ones count. Especially little ones. Big ones you remember on your own.']] }], 'Sgt. Vargas'],
-    ['disp_pham', '(on the radio) Eastside, this is Pham. One, welcome. Two, I keep a tally of every unit home at end of watch. Three, don\'t be the one that breaks it.'],
+    ['disp_drummond', '(on the radio) Eastside, this is Drummond. One, welcome. Two, I keep a tally of every unit home at end of watch. Three, don\'t be the one that breaks it.'],
     ['duarte', '(on the radio) Duarte. I\'m the one on the bike. I don\'t wave. If you wave first I might.'],
     ['vargas', 'She waves. She pretends she doesn\'t. Okay! Hands in. "Eastside" on three. One, two... nobody\'s putting their hand in. Fine. Go get me a win.'],
     ['castillo', '(on the radio) Castillo. Heard you landed in Eastside. Vargas is loud. He\'s also the best sergeant I ever worked for. Don\'t tell him I said that.']],

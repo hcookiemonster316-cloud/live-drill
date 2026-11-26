@@ -75,12 +75,23 @@ NOTES.forEach((n) => { if (!LORE.some((o) => o.id === n.id)) LORE.push({ id: n.i
 // older side cases hand the radio to the district's own officer instead of Sgt. Castillo
 (() => { const nm = { duarte: 'Cpl. Duarte', whitfield: 'Sgt. Whitfield', saito: 'Sgt. Saito' }, swap = (to) => (L) => (L || []).forEach((l) => { if (!Array.isArray(l)) return; if (l[0] === 'choice') return l[1].forEach((o) => swap(to)(o.reply)); if (l[0] === 'castillo') l[0] = to; if (typeof l[1] === 'string') l[1] = l[1].replace(/Sgt\. Castillo|Castillo/g, nm[to]); });
   for (const to in RECAST) RECAST[to].forEach((id) => { const q = SIDE.find((x) => x.id === id); if (!q) return; const sw = swap(to); sw(q.offer); q.steps.forEach((st) => { if (st.who === 'castillo') st.who = to; st.goal = st.goal.replace(/Sgt\. Castillo|Castillo/g, nm[to]); sw(st.say); sw(st.after); }); }); })();
+// every side case, expanded (sidex.js): its original steps stay, in order, with new ones around them
+for (const id in EXPAND) { const q = SIDE.find((x) => x.id === id); if (!q || q.expanded) continue; const e = EXPAND[id], orig = q.steps.slice();
+  if (e.offer) q.offer = (q.offer || []).concat(e.offer);
+  q.steps = e.steps.map((st) => { if (st.o == null) return st; const b = orig[st.o]; if (!b) return null; const { o, pre, add, ...rest } = st; return Object.assign(b, rest, { say: (pre || []).concat(rest.say || b.say || [], add || []) }); }).filter(Boolean); q.expanded = 1; }
+for (const k in EXP_MEMORY) TALE_MEMORY[k] = (TALE_MEMORY[k] || []).concat(EXP_MEMORY[k]);
+// the side cases outside Central belong to that district's sergeant, in person too (Castillo is your training officer;
+// she stays in the main story, the sagas and her own stories)
+(() => { const sw = (L, to, nm) => (L || []).forEach((l) => { if (!Array.isArray(l)) return; if (l[0] === 'choice') return l[1].forEach((o) => sw(o.reply, to, nm)); if (l[0] === 'castillo') { l[0] = to; if (typeof l[1] === 'string') l[1] = l[1].replace(/Sgt\. Castillo|Castillo/g, nm); } });
+  SIDE2.concat(SIDE.filter((q) => ['wallet', 'clock', 'ghostcar', 'ruth', 'gameday', 'garden', 'lunch', 'whistle', 'exhibit', 'pike'].includes(q.id))).forEach((q0) => { const q = SIDE.find((x) => x.id === q0.id) || q0; if (!(q.d >= 1) || /^(ledger|rival)/.test(q.id)) return; const sg = sergeantOf(q.d), to = sg.id, nm = 'Sgt. ' + sg.short;
+    sw(q.offer, to, nm); (q.steps || []).forEach((st) => { if (st.who === 'castillo') st.who = to; if (st.npc === 'castillo') st.npc = to; st.goal = st.goal.replace(/Sgt\. Castillo|Castillo/g, nm); sw(st.say, to, nm); sw(st.after, to, nm); }); }); })();
 // every district runs its own radio: in side stories outside Central, Castillo's radio lines go to that district's
 // sergeant (she's your training officer, not every district's supervisor). Lines where she's there in person stay hers.
 (() => { const radioSwap = (L, to) => (L || []).forEach((l) => { if (!Array.isArray(l)) return; if (l[0] === 'choice') return l[1].forEach((o) => radioSwap(o.reply, to)); if (l[0] === 'castillo' && typeof l[1] === 'string' && /^\(over the radio\)/.test(l[1])) l[0] = to; });
   SIDE.forEach((q) => { if (q.d == null || q.d < 1) return; const to = sergeantOf(q.d).id; radioSwap(q.offer, to); (q.steps || []).forEach((st) => { radioSwap(st.say, to); radioSwap(st.after, to); }); }); })();
 MAIN_ADDS.forEach((m) => { for (const ch of CHAPTERS) { const st = ch.steps.find((x) => x.goal === m.goal); if (!st) continue; if (m.add) st.say = m.pre ? m.add.concat(st.say || []) : (st.say || []).concat(m.add); if (m.give) st.give = m.give; if (m.take) st.take = m.take; if (m.twist) st.twist = m.twist; break; } }); LORE2.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); }); LORE_PLACES.concat(LORE_PEOPLE).forEach((e) => { if (!LORE.some((o) => o.id === e.id || o.when === e.when)) LORE.push(e); });
 import { DCAST, DPEOPLE, DINTRO, dcast, sergeantOf, officerOf } from './districts.js';
+import { EXPAND, EXP_CAST, EXP_MEMORY } from './sidex.js';
 import { createMusic } from './music.js';
 import { createScore } from './score.js';
 import { BRANCHES, SKILLS, skillById, skillPoints, canLearn } from './skills.js';
@@ -1400,7 +1411,7 @@ function applyChoice(o) {
 //   ['q', question, speakerId]    a chapter question asked inside the scene; the speaker reacts to the answer
 //   ['fx', fn]                    run something mid-scene
 // opts: { focus: [x, y], zoom, kicker } frames the camera on the scene and labels it.
-const TEMP = Object.assign({}, SIDE_CAST, SAGA_CAST, TALE_CAST, ACT2_CAST, SIG_CAST); Object.keys(DPEOPLE).forEach((k) => { if (k === 'castillo' || k === 'velvet') return; const p = DPEOPLE[k]; TEMP[k] = { name: p.name, icon: p.icon, role: p.role, look: p.look }; }); // the district casts
+const TEMP = Object.assign({}, SIDE_CAST, SAGA_CAST, TALE_CAST, ACT2_CAST, SIG_CAST, EXP_CAST); Object.keys(DPEOPLE).forEach((k) => { if (k === 'castillo' || k === 'velvet') return; const p = DPEOPLE[k]; TEMP[k] = { name: p.name, icon: p.icon, role: p.role, look: p.look }; }); // the district casts
 // after a right answer: praise, then a tip about something else worth doing nearby
 function hintLine() {
   const opts = [], nm = (id) => giverName(id);

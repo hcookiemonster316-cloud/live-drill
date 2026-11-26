@@ -202,7 +202,7 @@ export function installWays(H) {
     else if (k === 'look') rp = Math.round(rp * 1.2);
     else rp = Math.round(rp * 1.1);
     H.saveS();
-    const end = q.sig ? ({ talk: 'You closed it by talking it through.', look: 'You closed it by finding the cause.', book: 'You closed it by the book.' })[k] : (ENDS[q.id] && ENDS[q.id][k]) || GEN[k].end;
+    const end = q.sig ? ({ talk: 'You closed it by talking it through.', look: 'You closed it by finding the cause.', book: 'You closed it by the book.' })[k] : (!q.expanded && ENDS[q.id] && ENDS[q.id][k]) || GEN[k].end; /* an expanded case already shows its own ending (sidex.js), so it gets the plain line for the way you closed it */
     return { html: '<p class="chWay"><b>' + H.esc(GEN[k].kick) + '</b> ' + H.esc(end) + '</p>', rp };
   }
   // how you tend to work, for the case journal
