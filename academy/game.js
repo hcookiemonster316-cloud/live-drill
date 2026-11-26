@@ -1480,12 +1480,12 @@ function dialogue(lines, done, opts) { QUIET_T = Date.now();
   const panel = box.querySelector('.dlgPanel'), body = box.querySelector('.dlgBody'), plate = box.querySelector('.dlgPlate'), portW = box.querySelector('.dlgPortWrap'), port = box.querySelector('.dlgPort'), cvp = box.querySelector('.dlgCv'), ico = box.querySelector('.dlgIco'), emo = box.querySelector('.dlgEmo'), mem = box.querySelector('.dlgMem'), logBox = box.querySelector('.dlgLogBox');
   const ctl = (c) => box.querySelector('[data-c="' + c + '"]'); ctl('auto').classList.toggle('on', auto); if (opts.noSkip) ctl('skip').hidden = true; if (opts.noLeave) ctl('leave').hidden = true;
   // the live portrait: the speaker's own character, breathing, nodding when they talk
-  const pg = cvp.getContext('2d'); let pLook = null, pTalk = 0, pNod = 0, pTilt = 0, pRaf = 0;
+  const pg = cvp.getContext('2d'); let pLook = null, pTalk = 0, pNod = 0, pTilt = 0, pRaf = 0, pAway = 0, pShake = 0;
   const drawPort = (now) => {
     if (!alive) return; pRaf = requestAnimationFrame(drawPort); pg.setTransform(2, 0, 0, 2, 0, 0); pg.clearRect(0, 0, 96, 96); if (!pLook) return;
-    pNod *= .9; pTilt += ((pTalk && full.trim().slice(-1) === '?' ? .06 : 0) - pTilt) * .08;
+    pNod *= .9; pShake *= .95; pTilt += ((pTalk && full.trim().slice(-1) === '?' ? .06 : 0) + pAway - pTilt) * .08; const shk = pShake > .05 ? Math.sin(now / 55) * .08 * pShake : 0; /* gestures: a nod, looking away, a slow head shake */
     const bob = (typing ? Math.abs(Math.sin(now / 90)) * 1.6 : Math.sin(now / 900) * .6) + pNod * 3, s = pLook.kid ? 2.9 : 3.4;
-    pg.save(); pg.translate(48, 96); pg.rotate(pTilt); pg.translate(-48, -96);
+    pg.save(); pg.translate(48, 96); pg.rotate(pTilt + shk); pg.translate(-48, -96);
     if (pLook.cat) { pg.translate(48, 72 - bob); pg.scale(3.4, 3.4); cat(0, 0, now, pg); }
     else if (PIXELFOLK) { // the speaker's own pixel sprite, head and shoulders, turned toward the text
       const ps = 4.2, c = pLook._spr || (pLook._spr = portraitOf(pLook)); if (c) { pg.imageSmoothingEnabled = false; pg.drawImage(c, 50 - FOX * ps, 40 + 38.6 * ps - FOY * ps - bob, FSW * ps, FSH * ps); } }
@@ -1509,6 +1509,10 @@ function dialogue(lines, done, opts) { QUIET_T = Date.now();
   const show = () => {
     const ln = seq[i]; panel.classList.remove('dlgNarr', 'dlgQuiz'); showEmote('');
     if (ln[0] === 'fx') { let add = null; try { add = ln[1](res); } catch (e) {} if (Array.isArray(add) && add.length && Array.isArray(add[0])) seq.splice(i + 1, 0, ...add); return next(); }
+    // ['beat', { ms }]: a silence. The box dims, the music drops to a hush and taps wait, then the scene goes on (the
+    // biggest moments get one before the line that matters)
+    if (ln[0] === 'beat') { const o = ln[1] || {}, ms = skipping ? 0 : Math.min(4000, o.ms || 1800); box.onclick = null; box.classList.add('dlgHush'); document.body.classList.add('hushOn'); if (S.sound && o.hush !== false) music.volume(S.cfg.music * .16);
+      setTimeout(() => { if (!alive) return; box.classList.remove('dlgHush'); document.body.classList.remove('hushOn'); if (S.sound && o.hush !== false) music.volume(S.cfg.music); box.onclick = click; next(); }, ms); return; }
     // ['gate', need, haltLines]: missed the fact check? the conversation stops here and picks back up next time
     if (ln[0] === 'gate') { if (res.right < ln[1]) { seq = seq.slice(0, i + 1).concat(ln[2] || []); res.halted = true; } return next(); }
     // ['wait', fn(res, resume)]: hand the scene to something else (a mini-game) and pick it back up when it's done
@@ -1578,6 +1582,7 @@ function dialogue(lines, done, opts) { QUIET_T = Date.now();
       while (!mood && seq[i + 1] && seq[i + 1][0] === ln[0] && typeof seq[i + 1][1] === 'string' && seq[i + 1].length === 2 && !/^\(over the radio\)/.test(seq[i + 1][1]) === !radio && (text + seq[i + 1][1]).length < 200 && !narr === !(seq[i + 1][0] === 'narr')) { i++; text = text + ' ' + seq[i][1].replace(/^\(over the radio\)\s*/, ''); }
     }
     full = text.replace(/^\(over the radio\)\s*/, '');
+    { const gs = (ln[2] && ln[2].gesture) || (/^\((nods|a small nod)/i.test(full) ? 'nod' : /^\([^)]*(looks? away|not looking at you|stares at|looks out|looks down)/i.test(full) ? 'away' : /^\([^)]*shakes? (his|her|their) head/i.test(full) ? 'shake' : ''); pAway = gs === 'away' ? -.15 : 0; if (gs === 'nod') pNod = 1.2; if (gs === 'shake') pShake = 1; }
     const st = setSpeaker(narr ? null : id, c, radio, mood || '', narr || radio ? '' : (ln[2] && ln[2].expr) || exprOf(full) || (ln[2] && ln[2].react === 'bad' ? 'angry' : ln[2] && ln[2].react === 'good' ? 'calm' : ''));
     if (!narr) lastC = c;
     if (!narr) lastName = (c.name || '').replace(/\s*\(.*\)$/, '').split(' ').filter((w) => !/^(Mr|Mrs|Ms|Dr|Sgt|Lt|Det|Judge|Father|Pastor|Coach|Captain|Tía|Doña|Miss)\.?$/.test(w))[0] || c.name;
@@ -2202,7 +2207,7 @@ function ceremony(rank, done) { done = done || (() => {}); if (S.cfg && S.cfg.ce
   if (pt) { const id = sayAs('partner', { name: PT[pt][0], icon: '👮', role: 'Your partner', look: LOOK[pt] }); L.push(['narr', PT[pt][0] + ' is leaning on the back wall.'], [id, PT[pt][1]]); }
   friends.forEach((n, i) => L.push(['narr', n.name + (i ? ' came too.' : ' showed up in their good jacket.')]));
   L.push(['navarro', 'Pike owes me five dollars. I said you\'d get there first.'], ['pike', 'I said I\'d get there first. Different bet.'],
-    ['castillo', 'Hold still.'], ['narr', 'Sgt. Castillo pins it to your collar. Her hands are steady. She doesn\'t make a speech.'], ['castillo', 'Earned it. Back on the street tomorrow.']);
+    ['castillo', 'Hold still.'], ['narr', 'Sgt. Castillo pins it to your collar. Her hands are steady. She doesn\'t make a speech.'], ['beat', { ms: 1500 }], ['castillo', 'Earned it. Back on the street tomorrow.']);
   dialogue(L, () => { setTimeout(() => radio('Dispatch', 'All units, help me congratulate ' + S.cs + ', ' + rank + ' as of today. Try to keep up.'), 2500); done(); }); }
 function pendingCeremony(done) { const r = S.promoted; if (!r || !S.tutDone) return done(); S.promoted = null; saveS(); ceremony(r, done); }
 // ---------- shift orders: three objectives a shift ----------

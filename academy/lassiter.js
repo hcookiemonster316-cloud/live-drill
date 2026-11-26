@@ -55,9 +55,9 @@ const LETTER = (f) => [['narr', 'Roll call. There\'s an envelope in your box. Co
   ['lassiter', 'Cadet. They give you one sheet and a short pencil in here, so I\'ll be quick.'],
   f.lasAsk ? ['lassiter', 'You asked me if I had a minute, that first day at the curb. I keep thinking about that.'] : f.lasCoffee ? ['lassiter', 'You took the coffee. I knew you would. Don\'t take the next thing. There\'s always a next thing.'] : ['lassiter', 'You never once gave me what I wanted from you. I don\'t know if that makes you good or just careful.'],
   f.lasWant ? ['lassiter', 'Don\'t tell her what I said about the car and the beat. Or do. I don\'t know anymore.'] : ['lassiter', 'Tell Dana the photo was mine. She can keep it. I don\'t have a wall in here.'],
-  ['lassiter', 'Your report was clean. I read it four times. I hated every word, and I couldn\'t find a single mistake. - V.'],
+  ['beat', { ms: 1800 }], ['lassiter', 'Your report was clean. I read it four times. I hated every word, and I couldn\'t find a single mistake. - V.'],
   ['choice', [{ t: 'Log the letter and tell your sergeant', las: 'logged', good: 1 }, { t: 'Keep the letter in your locker', las: 'kept' }, { t: 'Write him back to close the loop', las: 'wrote' }]]];
-const LETTER_END = { logged: [['castillo', 'Contact from a defendant goes in the file, every time. Thank you for bringing it to me.'], ['castillo', '(reading it) ...Week nine. He still writes his V the same way.']],
+const LETTER_END = { logged: [['castillo', 'Contact from a defendant goes in the file, every time. Thank you for bringing it to me.'], ['beat', { ms: 1600 }], ['castillo', '(reading it) ...Week nine. He still writes his V the same way.', { gesture: 'away' }]],
   kept: [['narr', 'You put it in your locker. Two days later Castillo asks if anything came for you from the jail.'], ['castillo', 'Anything a defendant sends the arresting officer gets logged. All of it. Bring it in.']],
   wrote: [['castillo', 'You don\'t write back to a defendant in your own case. Ever. Anything you say becomes something the defense reads.'], ['castillo', 'Log it. I\'ll tell the prosecutor before somebody else does.']] };
 
