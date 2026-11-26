@@ -505,7 +505,7 @@ let SUNLEN = 0; export function setSun(len) { SUNLEN = len || 0; }
 // the long sun shadow under people and cars: the same soft ellipse for every figure of a size at this sun angle, so it's
 // drawn once into a small cached sprite and stamped, instead of a rotated path fill per figure per frame
 const CSHC = new Map();
-function castShadow(g, sx, sy, w, k) { if (!SUNLEN) return; const L = SUNLEN * k; g.save(); g.translate(sx + L * .42, sy + L * .21); g.rotate(.46); g.fillStyle = 'rgba(10,16,30,.20)'; g.beginPath(); g.ellipse(0, 0, L * .5 + w * .4, w * .45, 0, 0, Math.PI * 2); g.fill(); g.restore(); }
+function castShadow(g, sx, sy, w, k) { if (!SUNLEN) return; const L = SUNLEN * k; g.save(); g.translate(sx + L * .42, sy + L * .21); g.rotate(.46); g.fillStyle = 'rgba(10,16,30,.20)'; g.beginPath(); g.ellipse(0, 0, L * .5 + w * .4, w * .45, 0, 0, Math.PI * 2); g.fill(); g.restore(); } /* (a cached sprite was measured slower than this small fill, 0.57 vs 0.42 ms for 120: kept as a fill) */
 export function hiCanvas(w, h, k) { k = k || 1; const c = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(1, 1); c.width = Math.ceil(w * k); c.height = Math.ceil(h * k); c.lw = c.width / k; c.lh = c.height / k; const g = c.getContext('2d'); g.scale(k, k); return [c, g]; }
 export function drawBuilding(b, night, sun) {
   const R = rng(b.x * 131 + b.y * 977 + b.h);
@@ -833,10 +833,29 @@ function folkSprite(o, t, key) {
   if (FXW && ![...FXJOB.values()].some((j) => j.k === k) && FXJOB.size < 24) { const id = ++FXN; FXJOB.set(id, { k, lk, bare: !!o.sit }); try { FXW.postMessage({ id, D: o.wave ? Object.assign({}, D, { pose: 'up', wavePh: fr - 8 }) : gp ? Object.assign({}, D, { pose: gp }) : D, d, ph: mv ? (fr + .5) / 8 * TAU : 0, mv, ss: o.folk ? 4 : 3 }); } catch (e) { FXJOB.delete(id); FXW = null; } }
   return FX.get(lk + '|' + d + '|8') || first;
 }
+// weight (art guide: walks bounce, nothing floats): a person you pass as o.ent leans forward and stretches a touch as
+// they push off, dips and squashes as they stop, and turns with a quick pinch instead of snapping to the new facing.
+// A transform on the cached sprite, so it costs nothing to draw; off with "Reduced motion".
+const WST = new WeakMap(); let MOTION = true; export function setMotion(on) { MOTION = on !== false; }
+export function weightOf(e, o, t) {
+  if (!e || !MOTION || o.sit) return null; const mv = !!o.moving, fk = (o.face || 1) + (o.back ? 'b' : ''); e = WST.get(e) || (WST.set(e, {}), WST.get(e)); /* state kept off the object, so nothing that copies or saves it sees it */
+  if (e._wm === undefined) { e._wm = mv; e._wf = fk; return null; }
+  if (e._wm !== mv) { e._wm = mv; e._wt = t; } if (e._wf !== fk) { e._wf = fk; e._ft = t; }
+  const a = t - (e._wt || -1e9), b = t - (e._ft || -1e9); if (a > 240 && b > 110) return null;
+  let dx = 0, dy = 0, sy = 1, sx = 1;
+  if (mv && a < 170) { const k = 1 - a / 170; dx = (o.back ? -1 : 1) * (o.face || 1) * 1.1 * k; sy = 1 + .05 * k; } // push-off: lean in, a touch taller
+  else if (!mv && a < 240) { const k = Math.sin(a / 240 * Math.PI); dy = 1.1 * k; sy = 1 - .06 * k; } // the settle: down, squash, back up
+  if (b < 110) sx = 1 - .32 * Math.sin(b / 110 * Math.PI); // the turn: the figure pinches and opens to its new side
+  return { dx, dy, sy, sx: sx * (2 - sy) };
+}
 export function personPixel(g, sx, sy, o, t, key) {
   const c = folkSprite(o, t, key); if (!c) return; const s = (o.s || 1) * FSCALE, sm = g.imageSmoothingEnabled;
   if (!o.sit) castShadow(g, sx, sy, 9 * (o.s || 1) * .75, .9 * (o.s || 1) * .75);
-  if (sm) g.imageSmoothingEnabled = false; g.drawImage(c, sx - FOX * s, sy - FOY * s, FSW * s, FSH * s); if (sm) g.imageSmoothingEnabled = true;
+  const w = o.ent ? weightOf(o.ent, o, t) : null;
+  if (sm) g.imageSmoothingEnabled = false;
+  if (w) { const ws = FSW * s * w.sx, hs = FSH * s * w.sy; g.drawImage(c, sx + w.dx - FOX * s * w.sx, sy + w.dy - FOY * s * w.sy, ws, hs); }
+  else g.drawImage(c, sx - FOX * s, sy - FOY * s, FSW * s, FSH * s);
+  if (sm) g.imageSmoothingEnabled = true;
 }
 export function personFast(g, sx, sy, o, t, key, lod) {
   if (PIXELFOLK) return personPixel(g, sx, sy, o, t, key);
