@@ -807,14 +807,19 @@ let PHIT = 0; const IDLE_T = 3200, PCAP = navigator.deviceMemory && navigator.de
 // first is rasterized in a worker, so new walk frames and turns never stall the main thread.
 export let PIXELFOLK = !(typeof location !== 'undefined' && /[?&]classic\b/.test(location.search));
 export function setPixelFolk(on) { PIXELFOLK = !!on; }
-const FX = new Map(), FXFIRST = new Map(), FXJOB = new Map(), FXD = new Map(); let FXW = null, FXN = 0, FXT = -1, FXBUD = 0; const FXCAP = 2200;
-try { if (typeof Worker !== 'undefined' && typeof document !== 'undefined' && !(typeof location !== 'undefined' && /[?&]noworker\b/.test(location.search))) { FXW = new Worker(new URL('./folkw.js', import.meta.url), { type: 'module' }); FXW.onmessage = (e) => { const d = e.data, j = FXJOB.get(d.id); FXJOB.delete(d.id); if (!j) return; if (d.fail) { FXW = null; return; } fxStore(j.k, j.lk, new ImageData(d.a, d.w, d.h), j.bare); }; FXW.onerror = () => { FXW = null; }; } } catch (e) { FXW = null; }
+const FX = new Map(), FXFIRST = new Map(), FXJOB = new Map(), FXD = new Map();
+// jobs in flight, counted by sprite key and by look, so "is this already being painted?" is a lookup instead of
+// copying every pending job into an array and scanning it (that ran for each person, each frame, during warm-up)
+const FXK = new Map(), FXL = new Map(), bump = (m, k, d) => { const n = (m.get(k) || 0) + d; if (n > 0) m.set(k, n); else m.delete(k); };
+function jobSet(id, j) { FXJOB.set(id, j); bump(FXK, j.k, 1); bump(FXL, j.lk, 1); }
+function jobDel(id) { const j = FXJOB.get(id); if (!j) return null; FXJOB.delete(id); bump(FXK, j.k, -1); bump(FXL, j.lk, -1); return j; } let FXW = null, FXN = 0, FXT = -1, FXBUD = 0; const FXCAP = 2200;
+try { if (typeof Worker !== 'undefined' && typeof document !== 'undefined' && !(typeof location !== 'undefined' && /[?&]noworker\b/.test(location.search))) { FXW = new Worker(new URL('./folkw.js', import.meta.url), { type: 'module' }); FXW.onmessage = (e) => { const d = e.data, j = jobDel(d.id); if (!j) return; if (d.fail) { FXW = null; return; } fxStore(j.k, j.lk, new ImageData(d.a, d.w, d.h), j.bare); }; FXW.onerror = () => { FXW = null; }; } } catch (e) { FXW = null; }
 // ask the worker for someone's first frame before they're on screen (a walker just spawned, the regulars when a
 // district loads), so their first appearance doesn't build a sprite on the main thread
 export function folkWarm(o, key) { const gp = o.gest || '', lk = key + (gp ? '|g' + gp : ''); if (!PIXELFOLK || !FXW || !key || FXFIRST.has(lk) || FXJOB.size >= 160) return; // the worker clears a queue this size in well under a second
   let D = o.folk || FXD.get(key); if (!D) { D = folkFromLook(o); if (FXD.size > 3000) FXD.clear(); FXD.set(key, D); } if (gp) D = Object.assign({}, D, { pose: gp }); // a gesture is warmed as its own pose, so its first frame isn't drawn mid-play
-  const d = dir8Of(o), k = lk + '|' + d + '|8'; if (FX.has(k) || [...FXJOB.values()].some((j) => j.lk === lk)) return;
-  const id = ++FXN; FXJOB.set(id, { k, lk, bare: !!o.sit }); try { FXW.postMessage({ id, D, d, ph: 0, mv: false, ss: o.folk ? 4 : 3 }); } catch (e) { FXJOB.delete(id); } }
+  const d = dir8Of(o), k = lk + '|' + d + '|8'; if (FX.has(k) || FXL.has(lk)) return;
+  const id = ++FXN; jobSet(id, { k, lk, bare: !!o.sit }); try { FXW.postMessage({ id, D, d, ph: 0, mv: false, ss: o.folk ? 4 : 3 }); } catch (e) { jobDel(id); } }
 // a crisp pixel-art contact shadow (two soft tones) is baked under the feet, so a person is one image copy
 function fxShadow(im) { const a = im.data; for (let y = FOY - 3; y <= Math.min(FSH - 1, FOY + 2); y++) for (let x = 0; x < FSW; x++) { const u = (x + .5 - FOX - 1) / 8.5, v = (y + .5 - FOY) / 3.2, r = u * u + v * v; if (r > 1) continue; const k = (y * FSW + x) * 4; if (a[k + 3]) continue; a[k + 3] = r < .45 ? 92 : 52; } return im; }
 function fxStore(k, lk, im, bare) { const c = document.createElement('canvas'); c.width = FSW; c.height = FSH; c.getContext('2d').putImageData(bare ? im : fxShadow(im), 0, 0); if (FX.size > FXCAP) { let n = 200; for (const kk of FX.keys()) { FX.delete(kk); if (--n <= 0) break; } } FX.set(k, c); if (!FXFIRST.has(lk)) FXFIRST.set(lk, c); return c; }
@@ -830,7 +835,7 @@ function folkSprite(o, t, key) {
   const first = FXFIRST.get(lk);
   // a person's very first frame is drawn right away (they never pop in); the rest come from the worker
   if (!first || (!FXW && FXBUD > 0)) { if (FXBUD <= 0 && first) return first; FXBUD--; const DD = o.wave ? Object.assign({}, D, { pose: 'up', wavePh: fr - 8 }) : gp ? Object.assign({}, D, { pose: gp }) : D; return fxStore(k, lk, new ImageData(folkRGBA(DD, d, mv ? (fr + .5) / 8 * TAU : 0, mv, o.folk ? 4 : 3), FSW, FSH), o.sit); }
-  if (FXW && ![...FXJOB.values()].some((j) => j.k === k) && FXJOB.size < 24) { const id = ++FXN; FXJOB.set(id, { k, lk, bare: !!o.sit }); try { FXW.postMessage({ id, D: o.wave ? Object.assign({}, D, { pose: 'up', wavePh: fr - 8 }) : gp ? Object.assign({}, D, { pose: gp }) : D, d, ph: mv ? (fr + .5) / 8 * TAU : 0, mv, ss: o.folk ? 4 : 3 }); } catch (e) { FXJOB.delete(id); FXW = null; } }
+  if (FXW && !FXK.has(k) && FXJOB.size < 24) { const id = ++FXN; jobSet(id, { k, lk, bare: !!o.sit }); try { FXW.postMessage({ id, D: o.wave ? Object.assign({}, D, { pose: 'up', wavePh: fr - 8 }) : gp ? Object.assign({}, D, { pose: gp }) : D, d, ph: mv ? (fr + .5) / 8 * TAU : 0, mv, ss: o.folk ? 4 : 3 }); } catch (e) { jobDel(id); FXW = null; } }
   return FX.get(lk + '|' + d + '|8') || first;
 }
 // weight (art guide: walks bounce, nothing floats): a person you pass as o.ent leans forward and stretches a touch as
