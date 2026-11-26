@@ -13,9 +13,9 @@
     const sets = new Set(), reads = new Set(), lines = [];
     const walk = (L) => (L || []).forEach((l) => { if (!Array.isArray(l)) return; if (l[0] === 'choice') return l[1].forEach((o) => { if (o.set) sets.add(o.set); walk(o.reply); }); if (typeof l[1] === 'string') { lines.push(l); if (l[2] && l[2].if) reads.add(l[2].if); if (l[2] && l[2].unless) reads.add(l[2].unless); } });
     walk(q.offer); walk(e.offer); q.steps.forEach((s) => { walk(s.say); walk(s.after); });
-    e.steps.forEach((s) => { if (s.o != null) { walk(s.add); return; } walk(s.say); walk(s.after); if (s.onlyIf) reads.add(s.onlyIf); if (s.skipIf) reads.add(s.skipIf);
+    e.steps.forEach((s) => { if (s.o != null) { walk(s.pre); walk(s.say); walk(s.add); return; } walk(s.say); walk(s.after); if (s.onlyIf) reads.add(s.onlyIf); if (s.skipIf) reads.add(s.skipIf);
       if (!places[q.d].has(s.at)) errs.push(id + ': no place called "' + s.at + '" in district ' + q.d); if (s.who && !known.has(s.who)) errs.push(id + ': unknown person at a step: ' + s.who); });
-    e.steps.forEach((s) => (s.add || []).forEach((l) => { if (l[2] && l[2].if) reads.add(l[2].if); }));
+    e.steps.forEach((s) => (s.add || []).concat(s.pre || [], s.o != null ? s.say || [] : []).forEach((l) => { if (l[2] && l[2].if) reads.add(l[2].if); }));
     lines.forEach((l) => { if (!known.has(l[0])) errs.push(id + ': unknown speaker ' + l[0]); words += l[1].split(/\s+/).length; });
     if (![...sets].some((f) => reads.has(f))) errs.push(id + ': no choice changes anything later'); }
   console.log(n + ' cases expanded; steps ' + steps0 + ' -> ' + steps1 + '; about ' + words + ' words in them now');

@@ -90,8 +90,11 @@ for (const k in EXP_MEMORY) TALE_MEMORY[k] = (TALE_MEMORY[k] || []).concat(EXP_M
 (() => { const radioSwap = (L, to) => (L || []).forEach((l) => { if (!Array.isArray(l)) return; if (l[0] === 'choice') return l[1].forEach((o) => radioSwap(o.reply, to)); if (l[0] === 'castillo' && typeof l[1] === 'string' && /^\(over the radio\)/.test(l[1])) l[0] = to; });
   SIDE.forEach((q) => { if (q.d == null || q.d < 1) return; const to = sergeantOf(q.d).id; radioSwap(q.offer, to); (q.steps || []).forEach((st) => { radioSwap(st.say, to); radioSwap(st.after, to); }); }); })();
 MAIN_ADDS.forEach((m) => { for (const ch of CHAPTERS) { const st = ch.steps.find((x) => x.goal === m.goal); if (!st) continue; if (m.add) st.say = m.pre ? m.add.concat(st.say || []) : (st.say || []).concat(m.add); if (m.give) st.give = m.give; if (m.take) st.take = m.take; if (m.twist) st.twist = m.twist; break; } }); LORE2.forEach((e) => { if (!LORE.some((o) => o.id === e.id)) LORE.push(e); }); LORE_PLACES.concat(LORE_PEOPLE).forEach((e) => { if (!LORE.some((o) => o.id === e.id || o.when === e.when)) LORE.push(e); });
+// the rebuilt main story: new scenes play before the step they lead into (see mainx.js)
+for (const k in MAIN_PRE) { const j = k.indexOf('|'), ch = CHAPTERS.find((c) => c.d === +k.slice(0, j)), st = ch && ch.steps.find((x) => x.goal === k.slice(j + 1)); if (st && MAIN_PRE[k].length) st.pre = MAIN_PRE[k]; }
 import { DCAST, DPEOPLE, DINTRO, dcast, sergeantOf, officerOf } from './districts.js';
 import { EXPAND, EXP_CAST, EXP_MEMORY } from './sidex.js';
+import { MAIN_PRE, MAIN_CAST } from './mainx.js';
 import { createMusic } from './music.js';
 import { createScore } from './score.js';
 import { BRANCHES, SKILLS, skillById, skillPoints, canLearn } from './skills.js';
@@ -1340,7 +1343,10 @@ function learnFlowInit() { if (LF) return; LF = installLearnFlow({ S, L, DISTRIC
 function activeQ() {
   const t = S.track !== 'main' ? sideQ(S.track) : null, mk = (q) => ({ side: true, q, i: S.side[q.id], step: q.steps[S.side[q.id]], title: q.title });
   if (t && t.d === W.did && sideLive(t)) return mk(t);
-  const c = chap(); if (c) { const i = S.story[c.d] || 0; if (i < c.steps.length) return { side: false, q: c, i, step: c.steps[i], title: c.title }; }
+  const c = chap(); if (c) { const i = S.story[c.d] || 0; if (i < c.steps.length) {
+    // scenes added to a chapter play before the step they lead into (S.storyX counts them), so S.story keeps its old meaning for saves and unlocks
+    const pre = c.steps[i].pre; if (pre) { let x = (S.storyX && S.storyX[c.d]) || 0; while (x < pre.length && !stepOn(pre[x])) x++; if (x < pre.length) return { side: false, q: c, i, x, pre: true, step: pre[x], title: c.title }; }
+    return { side: false, q: c, i, step: c.steps[i], title: c.title }; } }
   const o = SIDE.find((q) => q.d === W.did && sideLive(q)); return o ? mk(o) : null;
 }
 const chStep = () => { const a = activeQ(); return a ? a.step : null; };
@@ -1411,7 +1417,7 @@ function applyChoice(o) {
 //   ['q', question, speakerId]    a chapter question asked inside the scene; the speaker reacts to the answer
 //   ['fx', fn]                    run something mid-scene
 // opts: { focus: [x, y], zoom, kicker } frames the camera on the scene and labels it.
-const TEMP = Object.assign({}, SIDE_CAST, SAGA_CAST, TALE_CAST, ACT2_CAST, SIG_CAST, EXP_CAST); Object.keys(DPEOPLE).forEach((k) => { if (k === 'castillo' || k === 'velvet') return; const p = DPEOPLE[k]; TEMP[k] = { name: p.name, icon: p.icon, role: p.role, look: p.look }; }); // the district casts
+const TEMP = Object.assign({}, SIDE_CAST, SAGA_CAST, TALE_CAST, ACT2_CAST, SIG_CAST, EXP_CAST, MAIN_CAST); Object.keys(DPEOPLE).forEach((k) => { if (k === 'castillo' || k === 'velvet') return; const p = DPEOPLE[k]; TEMP[k] = { name: p.name, icon: p.icon, role: p.role, look: p.look }; }); // the district casts
 // after a right answer: praise, then a tip about something else worth doing nearby
 function hintLine() {
   const opts = [], nm = (id) => giverName(id);
@@ -1455,7 +1461,7 @@ function portraitLook(id) {
   if (id === '@you') return { kit: kitWith(myKit(), myLooks()), skin: S.skin || '#c68e63', hair: '#1a1a1a' };
   const c = CAST[id]; if (c && c.look) return { kit: c.look, skin: c.skin, hair: '#1a1a1a', folk: FOLK[id] };
   const n = NPCS.find((x) => x.id === id); if (n) { if (n.cat) return { cat: true }; const lk = n.look || {}, r = regs.find((x) => x.n.id === id); return { kit: n.kit || npcKit(lk), hair: n.hair || lk.hair, skin: n.skin || lk.skin, ph: r ? r.ph : undefined, folk: FOLK[id] }; }
-  const t = TEMP[id]; if (t) { const h = hashStr(id); return { ph: h % 997, shirt: ['#c0392b', '#2e86de', '#16a085', '#8e44ad', '#e67e22', '#2c3e50', '#d35400', '#27ae60'][h % 8], skin: ['#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#ffdbac', '#a0662f'][(h >> 3) % 6], hair: ['#2b1d14', '#5a3825', '#1a1a1a', '#b07b3c', '#9a9a9a'][(h >> 5) % 5], kid: /age 9|teen|kid|child/i.test((t.name || '') + ' ' + (t.role || '')) }; }
+  const t = TEMP[id]; if (t) { const h = hashStr(id); return { ph: h % 997, shirt: ['#c0392b', '#2e86de', '#16a085', '#8e44ad', '#e67e22', '#2c3e50', '#d35400', '#27ae60'][h % 8], skin: ['#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#ffdbac', '#a0662f'][(h >> 3) % 6], hair: ['#2b1d14', '#5a3825', '#1a1a1a', '#b07b3c', '#9a9a9a'][(h >> 5) % 5], kid: /age 9|teen|kid|child/i.test((t.name || '') + ' ' + (t.role || '')), folk: FOLK[id] }; }
   return null;
 }
 // a speaker's accent colour and voice (pitch, timbre) stay the same every time you meet them
@@ -1727,15 +1733,15 @@ function playStep(st) {
   if (st.need && !S.qitems[st.need]) { const it = QITEMS[st.need]; toast('You need ' + (it ? it.icon + ' ' + it.name : 'something') + ' for this. Check Quest Items.'); storyCool = 4; return; }
   storyBusy = true; paused = true; P.path = [];
   const A = activeQ(), c = A.q, idx = A.i;
-  learnFlowInit(); if (!A.side && LF.gateStep(c, idx, st.who, () => { storyBusy = false; paused = false; storyCool = 4; })) return;
-  let nextI = idx + 1; while (nextI < c.steps.length && !stepOn(c.steps[nextI])) nextI++; let last = nextI >= c.steps.length;
+  learnFlowInit(); if (!A.side && !A.pre && LF.gateStep(c, idx, st.who, () => { storyBusy = false; paused = false; storyCool = 4; })) return;
+  let nextI = idx + 1; while (nextI < c.steps.length && !stepOn(c.steps[nextI])) nextI++; let last = !A.pre && nextI >= c.steps.length;
   const finish = () => {
     // a choice in this scene can open or close later steps (a route in a signature case), so the next step is worked out again here
-    nextI = idx + 1; while (nextI < c.steps.length && !stepOn(c.steps[nextI])) nextI++; last = nextI >= c.steps.length;
+    nextI = idx + 1; while (nextI < c.steps.length && !stepOn(c.steps[nextI])) nextI++; last = !A.pre && nextI >= c.steps.length;
     if (st.give) qGive(st.give); if (st.take) qTake(st.take);
     // every errand pays off: a delivery mid-case earns a little and the person remembers you for it
     if ((st.take || st.need) && !st.give && !st.twist && !last) { award(40, 'errand'); if (st.who) S.npc[st.who] = Math.min(6, (S.npc[st.who] || 0) + 1); }
-    if (A.side) S.side[c.id] = nextI; else S.story[c.d] = nextI; if (st.set) S.flags[st.set] = Date.now(); saveS(); ord('story'); storyBusy = false; paused = false; storyCool = 2;
+    S.storyX = S.storyX || {}; if (A.side) S.side[c.id] = nextI; else if (A.pre) S.storyX[c.d] = A.x + 1; else { S.story[c.d] = nextI; S.storyX[c.d] = 0; } if (st.set) S.flags[st.set] = Date.now(); saveS(); ord('story'); storyBusy = false; paused = false; storyCool = 2;
     const go = () => { if (last) (A.side ? sideDone(c) : chapterDone(c)); else { const nx = chStep(); if (nx) objectiveFlash(nx.goal); } };
     if (st.twist) { twistCard(st.twist); setTimeout(go, 1200); } else go();
   };
@@ -1756,7 +1762,7 @@ function playStep(st) {
   }
   seq = seq.concat(st.after || []);
   // a scene that ends without saying where to go next gets a closing line that points the way
-  const nx = !last ? c.steps[nextI] : null, endsQuiz = seq.length && (seq[seq.length - 1][0] === 'q' || seq[seq.length - 1][0] === 'gate');
+  const nx = A.pre ? (c.steps[idx].pre.slice(A.x + 1).find(stepOn) || c.steps[idx]) : !last ? c.steps[nextI] : null, endsQuiz = seq.length && (seq[seq.length - 1][0] === 'q' || seq[seq.length - 1][0] === 'gate');
   if (nx && (endsQuiz || !(st.after || []).length) && nx.goal && (st.who || 'castillo') !== nx.who) {
     const g = nx.goal.replace(/\.$/, ''), sp2 = st.who || 'castillo', radio = !(st.who) ? '(over the radio) ' : '';
     seq.push([sp2, radio + rnd(['Okay. If I were you, I\'d ', 'So here\'s what I\'d do next. I\'d ', 'Alright. Next thing I\'d do is ']) + g.charAt(0).toLowerCase() + g.slice(1) + '.']);
@@ -3405,7 +3411,7 @@ function trophyToast() {
   if (trBusy || !trQ.length) return; if (!quiet('trophy') || stageBusy() || !$('modal').hidden || !$('dlg').hidden) { setTimeout(trophyToast, 900); return; } trBusy = true; const t = trQ.shift(), [tn, col] = TIER[t[3]], el = $('trToast');
   el.innerHTML = '<span class="trCup" style="--c:' + col + '">🏆</span><div><small>Trophy unlocked · ' + tn + '</small><b>' + esc(t[1]) + '</b><em>' + esc(t[2]) + '</em></div>'; el.hidden = false; el.classList.remove('in'); void el.offsetWidth; el.classList.add('in');
   if (S.sound) [784, 988, 1175, 1568].forEach((f, i) => beep(f, .4, 'sine', .03, i * .07));
-  setTimeout(() => { el.classList.remove('in'); setTimeout(() => { el.hidden = true; trBusy = false; trophyToast(); }, 450); }, 4200);
+  setTimeout(() => { el.classList.remove('in'); setTimeout(() => { el.hidden = true; trBusy = false; /* a run of trophies leaves a gap so a waiting lore card or banner gets its turn */ if (loreQ.length || bannerQ.length) setTimeout(trophyToast, 1200); else trophyToast(); }, 450); }, 4200);
 }
 function trophyRoom(back) {
   S.trophies = S.trophies || {}; const n = TROPHIES.filter((t) => S.trophies[t[0]]).length, el = fe(); el.hidden = false; el.onclick = null; el.className = 'fe menuBg';
