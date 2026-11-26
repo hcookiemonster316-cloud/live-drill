@@ -95,6 +95,7 @@ for (const k in MAIN_PRE) { const j = k.indexOf('|'), ch = CHAPTERS.find((c) => 
 import { DCAST, DPEOPLE, DINTRO, dcast, sergeantOf, officerOf } from './districts.js';
 import { EXPAND, EXP_CAST, EXP_MEMORY } from './sidex.js';
 import { MAIN_PRE, MAIN_CAST } from './mainx.js';
+import { ARC_CAST } from './friendsx.js';
 import { createMusic } from './music.js';
 import { createScore } from './score.js';
 import { BRANCHES, SKILLS, skillById, skillPoints, canLearn } from './skills.js';
@@ -1417,7 +1418,7 @@ function applyChoice(o) {
 //   ['q', question, speakerId]    a chapter question asked inside the scene; the speaker reacts to the answer
 //   ['fx', fn]                    run something mid-scene
 // opts: { focus: [x, y], zoom, kicker } frames the camera on the scene and labels it.
-const TEMP = Object.assign({}, SIDE_CAST, SAGA_CAST, TALE_CAST, ACT2_CAST, SIG_CAST, EXP_CAST, MAIN_CAST); Object.keys(DPEOPLE).forEach((k) => { if (k === 'castillo' || k === 'velvet') return; const p = DPEOPLE[k]; TEMP[k] = { name: p.name, icon: p.icon, role: p.role, look: p.look }; }); // the district casts
+const TEMP = Object.assign({}, SIDE_CAST, SAGA_CAST, TALE_CAST, ACT2_CAST, SIG_CAST, EXP_CAST, MAIN_CAST, ARC_CAST); Object.keys(DPEOPLE).forEach((k) => { if (k === 'castillo' || k === 'velvet') return; const p = DPEOPLE[k]; TEMP[k] = { name: p.name, icon: p.icon, role: p.role, look: p.look }; }); // the district casts
 // after a right answer: praise, then a tip about something else worth doing nearby
 function hintLine() {
   const opts = [], nm = (id) => giverName(id);

@@ -130,7 +130,7 @@ export const LORE_PEOPLE = [
   F('moore', 'Bailiff Moore', 'Moore once caught a defendant mid-escape by simply standing in a doorway and saying "No." He has never needed to say anything else in nineteen years.'),
   F('barnes', 'Barnes & Ruiz', 'Barnes and Ruiz were rivals in law school. They opened a firm together because, as Ruiz puts it, "he was the only lawyer I trusted to tell me I was wrong."'),
   F('ray', 'Ray\'s Bond', 'Ray posted bond for his own brother in 1998 and watched him turn his life around. He opened Freedom Bail Bonds believing people deserve a second chance, and he checks on every client.'),
-  F('hattie', 'Clerk Hattie', 'Hattie has stamped more than a million court filings. She keeps the first one she ever stamped, from 1984, a parking ticket appeal. The man won.'),
+  F('hattie', 'Clerk Hattie', 'Hattie has stamped more than a million court filings. The first one she ever stamped, in 1985, was a license for a beagle named Admiral. The stamp was crooked.'),
   F('ramos', 'Ramos and the Pen Cap', 'Ramos found a pen cap in a patrol car back seat in 2001, left by a suspect who had used it to slip his cuffs. Every search he has done since starts with that seat.'),
   F('exhibita', 'Exhibit A', 'The courthouse cat was found as a kitten inside an evidence box in 2014. She was never logged out. Technically, she is still evidence.'),
   F('walt', 'Route 9', 'Walt drove the bus that evacuated Bayou Senior Apartments during the 2017 flood. Seven trips through rising water. Every resident remembers his name.'),
