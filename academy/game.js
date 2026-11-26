@@ -116,7 +116,7 @@ let QUIET_T = 0; // when the street last stopped being quiet (a dialogue, a card
 // zUser is the zoom the player chose; zMul is a short effect (a punch-in); cam.z eases toward zUser x zMul (or a cinematic's zoom)
 let EXA = null, EXK = null, exDirty = 0, exT = 0, REW = null, CITY = null;
 const weekKeyFn = () => { const d = new Date(), j = new Date(Date.UTC(d.getUTCFullYear(), 0, 1)), w = Math.ceil(((d - j) / 864e5 + j.getUTCDay() + 1) / 7); return d.getUTCFullYear() + 'w' + String(w).padStart(2, '0'); };
-let cam = { x: 0, y: 0, z: 1, zUser: 1, zMul: 1, free: false }, dpr = 1, cw = 0, ch = 0;
+let cam = { x: 0, y: 0, z: 1, zUser: 1, zMul: 1, free: false }, dpr = 1, DPRB = 1, cw = 0, ch = 0;
 const P = { x: 0, y: 0, path: [], face: 1, moving: false, inCar: false, dir: 0, onArrive: null };
 let OCOUNT = 0; let pcar = null, peds = [], traffic = [], citizens = [], infos = [], observes = [], call = null, scene = null, clock = 0, nextCall = 15, paused = false, toastT = 0;
 const shiftOf = () => SHIFTS.find((s) => s.id === S.shift) || SHIFTS[0];
@@ -284,37 +284,49 @@ function gbPaint(b, rx, ry, rw, rh, z, now) {
   g.fillStyle = '#0d1422'; g.fillRect(rx - b.x, ry - b.y, rw, rh); g.setTransform(z, 0, 0, z, -b.x, -b.y);
   const ok = chunksInto(g, rx / z, ry / z, (rx + rw) / z, (ry + rh) / z, now, b.miss); g.restore(); return ok;
 }
-function groundDraw(z, tx, ty) {
+// the ground buffer wraps around (a ring in both directions): world device pixel x lands at x mod width. Sliding the
+// view then paints only the strips that come into view; nothing is copied. (Before, every slide copied the whole
+// buffer, about twice the screen in pixels, into a second one: the 20-30 ms hitches on the street.)
+const gbMod = (v, m) => ((v % m) + m) % m;
+function gbSpan(a, w, m) { const p = gbMod(a, m); return p + w <= m ? [[a, w, p]] : [[a, m - p, p], [a + m - p, w - (m - p), 0]]; } // [world start, length, buffer start]
+function torPaint(b, rx, ry, rw, rh, z, now) { if (rw <= 0 || rh <= 0) return true; let ok = true; const W2 = b.c.width, H2 = b.c.height;
+  for (const [ax, aw, px] of gbSpan(rx, rw, W2)) for (const [ay, ah, py] of gbSpan(ry, rh, H2)) ok = gbPaint({ c: b.c, x: ax - px, y: ay - py, miss: b.miss }, ax, ay, aw, ah, z, now) && ok; return ok; }
+function torBlit(b, sx, sy, vw, vh, tx, ty, f) { const W2 = b.c.width, H2 = b.c.height; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (const [ax, aw, px] of gbSpan(sx, vw, W2)) for (const [ay, ah, py] of gbSpan(sy, vh, H2)) { if (f === 1) ctx.drawImage(b.c, px, py, aw, ah, ax + tx, ay + ty, aw, ah); else ctx.drawImage(b.c, px, py, aw, ah, ax * f + tx, ay * f + ty, aw * f, ah * f); } ctx.restore(); }
+let GPATH = ''; function groundDraw(z, tx, ty) { GPATH = '';
   if (G.canvas) { ctx.drawImage(G.canvas, -G.ox, -G.oy, G.canvas.lw || G.canvas.width, G.canvas.lh || G.canvas.height); return; }
-  const now = performance.now(), vw = cv.width, vh = cv.height; gMade = 0;
-  gbStable = z === gbZ ? gbStable + 1 : 0; gbZ = z;
+  const now = performance.now(); let vw = cv.width, vh = cv.height; gMade = 0;
+  // the buffer is kept at the zoom without dynamic resolution (zb): when the frame's resolution steps down or up, the
+  // same ground is drawn scaled (f) instead of repainting the whole buffer, which took 30-70 ms on a slow device and
+  // could keep the resolution stepping (each repaint made a slow frame)
+  const zb = cam.z * DPRB, f = z / zb;
+  gbStable = zb === gbZ ? gbStable + 1 : 0; gbZ = zb;
   const [cx0, cx1, cy0, cy1] = chunkRange(cam.x - vw / 2 / z - 80, cam.y - vh / 2 / z - 80, cam.x + vw / 2 / z + 80, cam.y + vh / 2 / z + 80);
-  if (gbStable < 2 || S.cfg && S.cfg.gbuf === false) { GB = null; chunksInto(ctx, cam.x - vw / 2 / z, cam.y - vh / 2 / z, cam.x + vw / 2 / z, cam.y + vh / 2 / z, now); }
+  if (gbStable < 2 || S.cfg && S.cfg.gbuf === false) { GPATH = 'direct'; GB = null; chunksInto(ctx, cam.x - vw / 2 / z, cam.y - vh / 2 / z, cam.x + vw / 2 / z, cam.y + vh / 2 / z, now); }
   else {
     // the screen, in device pixels measured from the iso origin
-    const sx = -tx, sy = -ty, m = Math.round(Math.max(vw, vh) * .2), bw = vw + m * 2, bh = vh + m * 2;
+    const sx = Math.floor(-tx / f), sy = Math.floor(-ty / f), vwb = Math.ceil(cw * DPRB) + 2, vhb = Math.ceil(ch * DPRB) + 2, /* sized from the screen at full resolution, so a resolution step never resizes (and repaints) it */ m = Math.round(Math.max(vwb, vhb) * .2), bw = vwb + m * 2, bh = vhb + m * 2; z = zb; vw = vwb; vh = vhb;
     if (GB && !GB.whole && GB.ver !== G.ver && GB.z === z && GB.G === G && GB.gen === G.gen && GB.c.width === bw && GB.c.height === bh && GB.miss) {
       // chunks that were missing have come in: paint just their rectangles, not the whole buffer again (on a fresh street
       // the chunks arrive one by one, and repainting everything for each one was most of the first seconds' ground cost)
       const left = []; GB.miss.slice().forEach((k) => { const c = G.chunks.get(k); if (!c) { left.push(k); return; } const x = Math.floor(-c.ox * z) - 1, y = Math.floor(-c.oy * z) - 1, w = Math.ceil(c.canvas.lw * z) + 2, h = Math.ceil(c.canvas.lh * z) + 2;
-        const x0 = Math.max(x, GB.x), y0 = Math.max(y, GB.y), x1 = Math.min(x + w, GB.x + bw), y1 = Math.min(y + h, GB.y + bh); if (x0 < x1 && y0 < y1) { GB.miss = []; gbPaint(GB, x0, y0, x1 - x0, y1 - y0, z, now); GB.miss.forEach((q) => { if (left.indexOf(q) < 0) left.push(q); }); } });
-      GB.miss = left; GB.whole = !left.length; GB.ver = G.ver;
+        const x0 = Math.max(x, GB.x), y0 = Math.max(y, GB.y), x1 = Math.min(x + w, GB.x + bw), y1 = Math.min(y + h, GB.y + bh); if (x0 < x1 && y0 < y1) { GB.miss = []; torPaint(GB, x0, y0, x1 - x0, y1 - y0, z, now); GB.miss.forEach((q) => { if (left.indexOf(q) < 0) left.push(q); }); } });
+      GB.miss = left; GB.whole = !left.length; GB.ver = G.ver; GPATH += 'miss';
     }
     if (!GB || GB.z !== z || GB.G !== G || GB.gen !== G.gen || GB.c.width !== bw || GB.c.height !== bh || (!GB.whole && GB.ver !== G.ver && !GB.miss)) {
       GB = { c: gbCanvas(GB && GB.c, bw, bh), x: sx - m, y: sy - m, z, G, gen: G.gen, ver: G.ver, miss: [] };
-      GB.whole = gbPaint(GB, GB.x, GB.y, bw, bh, z, now); GB.ver = G.ver;
+      GB.whole = torPaint(GB, GB.x, GB.y, bw, bh, z, now); GB.ver = G.ver; GPATH += 'full';
     } else if (sx < GB.x || sy < GB.y || sx + vw > GB.x + bw || sy + vh > GB.y + bh) {
-      // slide: copy what is still in view, then draw only the uncovered strips
-      const nx = sx - m, ny = sy - m, nb = { c: gbCanvas(GBX && GBX !== GB.c ? GBX : null, bw, bh), x: nx, y: ny, z, G, gen: G.gen, miss: (GB.miss || []).slice() };
-      const g = nb.c.g; g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#0d1422'; g.fillRect(0, 0, bw, bh); g.drawImage(GB.c, GB.x - nx, GB.y - ny);
-      const ox0 = Math.max(nx, GB.x), oy0 = Math.max(ny, GB.y), ox1 = Math.min(nx + bw, GB.x + bw), oy1 = Math.min(ny + bh, GB.y + bh); let ok = GB.whole;
-      if (ox0 >= ox1 || oy0 >= oy1) ok = gbPaint(nb, nx, ny, bw, bh, z, now);
-      else { ok = gbPaint(nb, nx, ny, bw, oy0 - ny, z, now) && ok; ok = gbPaint(nb, nx, oy1, bw, ny + bh - oy1, z, now) && ok; ok = gbPaint(nb, nx, oy0, ox0 - nx, oy1 - oy0, z, now) && ok; ok = gbPaint(nb, ox1, oy0, nx + bw - ox1, oy1 - oy0, z, now) && ok; }
-      GBX = GB.c; nb.whole = ok && !nb.miss.length; nb.ver = G.ver; GB = nb;
+      // slide: the buffer wraps around, so only the strips that just came into view are painted (no copy)
+      GB.sl = (GB.sl || 0) + 1;
+      const nx = sx - m, ny = sy - m, ox0 = Math.max(nx, GB.x), oy0 = Math.max(ny, GB.y), ox1 = Math.min(nx + bw, GB.x + bw), oy1 = Math.min(ny + bh, GB.y + bh); let ok = GB.whole; GB.x = nx; GB.y = ny;
+      if (ox0 >= ox1 || oy0 >= oy1) { GB.miss = []; ok = torPaint(GB, nx, ny, bw, bh, z, now); }
+      else { ok = torPaint(GB, nx, ny, bw, oy0 - ny, z, now) && ok; ok = torPaint(GB, nx, oy1, bw, ny + bh - oy1, z, now) && ok; ok = torPaint(GB, nx, oy0, ox0 - nx, oy1 - oy0, z, now) && ok; ok = torPaint(GB, ox1, oy0, nx + bw - ox1, oy1 - oy0, z, now) && ok; }
+      GB.whole = ok && !GB.miss.length; GB.ver = G.ver;
     }
     // keep chunks under the buffer marked as in use so the memory budget never drops them
     if (gbStable % 30 === 0) chunkRangeTouch(GB, z, now);
-    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(GB.c, GB.x + tx, GB.y + ty); ctx.restore();
+    torBlit(GB, sx, sy, vw, vh, tx, ty, f);
   }
   // chunks just outside the view are prepared in idle time (between frames), never inside a frame, so walking and driving stay smooth
   G.view = [cx0, cx1, cy0, cy1]; if (!G.idle) { G.idle = 1; idleSoon(groundAhead); }
@@ -563,13 +575,16 @@ const eachVisProp = (x0, y0, x1, y1, fn) => eachVisIn(W.props, '_pb', x0, y0, x1
 // the street lights near the view this frame: the night layer's three passes walk this short list instead of every light
 const VL = [], vlPush = (p) => VL.push(p);
 const DLIST = [], DCMP = (a, b) => a.d - b.d;
-function render(now) { RNOW = now; LBLR.length = 0; frameStart(); spriteResTick(false);
+// ?probe: where a frame's time goes (ground, building the draw list, drawing it, lighting, the top layer), kept for the
+// slowest frames, so hitches can be traced to a part of the frame (off by default, a skipped branch)
+const PROBE = /[?&]probe\b/.test(location.search), PRB = []; function probeRec(t, fresh) { const tot = t.reduce((a, b) => a + b, 0); PRB.push({ tot, t: t.map((x) => +x.toFixed(1)), fresh }); if (PRB.length > 900) PRB.shift(); }
+function render(now) { const pr0 = PROBE ? performance.now() : 0; RNOW = now; LBLR.length = 0; frameStart(); spriteResTick(false);
   const z = cam.z * dpr; RZ = z; ctx.setTransform(1, 0, 0, 1, 0, 0);
   // the camera lands on whole device pixels: crisper sprites, and the ground buffer copies 1:1 with no resampling
   const tx = Math.round(cv.width / 2 - cam.x * z), ty = Math.round(cv.height / 2 - cam.y * z);
   if (!GB || GB.z !== z || G.canvas || GB.G !== G) { ctx.fillStyle = '#0d1422'; ctx.fillRect(0, 0, cv.width, cv.height); }
   ctx.setTransform(z, 0, 0, z, tx, ty);
-  groundDraw(z, tx, ty);
+  groundDraw(z, tx, ty); const pr1 = PROBE ? performance.now() : 0;
   const vx0 = cam.x - cv.width / 2 / z - 120, vx1 = cam.x + cv.width / 2 / z + 120, vy0 = cam.y - cv.height / 2 / z - 300, vy1 = cam.y + cv.height / 2 / z + 140;
   // anchors of people, cars and props: their sprites reach at most ~80 px sideways, ~140 px up and ~30 px down, so the
   // test is that tight; the wider box above stays for the grid lookups (buildings are culled by their own bounds)
@@ -613,7 +628,8 @@ function render(now) { RNOW = now; LBLR.length = 0; frameStart(); spriteResTick(
   if (!ATTRACT && !RIDING) { const [sx, sy] = iso(P.x, P.y); list.push({ d: P.x + P.y, f: () => { if (P.boat) vehicle(ctx, sx, sy, P.dir, { kind: 'boat' }, now, NIGHT, call && call.accepted); else if (P.inCar && RIDE() !== 'car') rideArt(ctx, sx, sy, P.dir || 0, RIDE(), now, !!(P.path && P.path.length), riderFn(now), (call && call.accepted) || STOPLIGHTS); else if (P.inCar) { FEEL.wetLights(ctx, sx, sy, now); const rl = FEEL.rollIn(ctx, sx, sy), dip = P.pitch || 0; if (dip) { ctx.save(); const f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][P.dir & 3]; ctx.translate(sx, sy); ctx.rotate(dip * .035 * (f[0] > 0 ? 1 : -1)); ctx.translate(-sx, -sy + Math.abs(dip) * .8); } vehicle(ctx, sx, sy, P.dir, rankLvl() >= 4 ? myCruiser() : LIFE.ride(U().ride), now, NIGHT, (call && call.accepted) || STOPLIGHTS); if (dip) ctx.restore(); if (rl) ctx.restore(); } else { /* your officer goes through the same cached, finished sprite pipeline as everyone else (ink, rim light, breathing) */ const { kt, sk, rk, kk } = meLook(now); { const mic = now < MICT && !scene; personFast(ctx, sx, sy, { ent: P, kit: kt, moving: P.moving, face: P.face, back: P.back, stride: P.stride, glance: false, skin: sk, s: 1.08, rank: rk, mic, pet: S.unit === 'k9', gest: now < ACTP.until && !P.moving ? ACTP.g : undefined }, now, mic ? kk + '|mic' : kk, false); } } } }); }
   liveDraw(list, vis, now); if (!ATTRACT) storyCast(list, vis, now);
   ambienceGround(); vfxGround(now, vis); if (!ATTRACT) trailDraw(now);
-  list.sort(DCMP); for (let i = 0, n = list.length; i < n; i++) list[i].f(); /* 400 items: 56 -> 43 us a frame */
+  const pr2 = PROBE ? performance.now() : 0;
+  list.sort(DCMP); for (let i = 0, n = list.length; i < n; i++) list[i].f(); /* 400 items: 56 -> 43 us a frame */ const pr3 = PROBE ? performance.now() : 0;
   ambienceWorld(now); sirenWash(now);
   // fog: you see what is near you and the city fades to gray beyond it, a little further from the car than on foot
   if (FX.fog && !inside) { const [fx, fy] = iso(P.x, P.y), r0 = P.inCar ? 95 : 72, gr = ctx.createRadialGradient(fx, fy - 10, r0, fx, fy - 10, r0 + 250); gr.addColorStop(0, 'rgba(205,212,222,0)'); gr.addColorStop(1, 'rgba(205,212,222,' + (.55 + .35 * FX.fog).toFixed(2) + ')'); ctx.fillStyle = gr; ctx.fillRect(fx - 4000, fy - 4000, 8000, 8000); }
@@ -660,7 +676,8 @@ function render(now) { RNOW = now; LBLR.length = 0; frameStart(); spriteResTick(
     if (glowN) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(glc, 0, 0, cv.width, cv.height); }
     ctx.globalCompositeOperation = 'source-over';
   }
-  grade(); if (!ATTRACT) MOOD.draw(ctx, cv.width, cv.height, now); rainSnap(); renderTop(now, z, tx, ty);
+  const pr4 = PROBE ? performance.now() : 0; grade(); if (!ATTRACT) MOOD.draw(ctx, cv.width, cv.height, now); rainSnap(); renderTop(now, z, tx, ty);
+  if (PROBE) probeRec([pr1 - pr0, pr2 - pr1, pr3 - pr2, pr4 - pr3, performance.now() - pr4], fresh + "|made" + gMade + "|" + GPATH + "|z" + z.toFixed(3));
 }
 // everything above the color grade: rain, fog, sky effects, markers and the minimap
 // which regulars have a friendship story ready (the heart over their head): worked out twice a second, not every frame for everyone
@@ -3499,7 +3516,7 @@ function photoExit() { if (!PHOTO) return; cv.style.filter = ''; document.body.c
 
 // ---------- boot ----------
 const FAST = /[?&]skiptitle\b/.test(location.search); // test / dev: no logos or loading screens
-function resize(drs) { const q = (S.cfg || {}).quality || 'high', dev = window.devicePixelRatio || 1; dpr = q === 'ultra' ? Math.min(3, Math.max(dev, 3840 / Math.max(innerWidth, innerHeight))) : Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : 2, dev); const base = dpr; dpr = Math.max(Math.min(1, base), base * DRS.k);
+function resize(drs) { const q = (S.cfg || {}).quality || 'high', dev = window.devicePixelRatio || 1; dpr = q === 'ultra' ? Math.min(3, Math.max(dev, 3840 / Math.max(innerWidth, innerHeight))) : Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : 2, dev); const base = dpr; DPRB = base; dpr = Math.max(Math.min(1, base), base * DRS.k);
   { const want = Math.min(q === 'low' ? 1 : q === 'medium' ? 1.5 : q === 'ultra' ? 3 : 2, Math.ceil(base * 1.25 * 2) / 2); const gw = Math.min(2, want); if (gw !== GRES) { setGroundRes(gw); if (G && G.chunks) { G.chunks.clear(); G.gres = gw; G.gen = (G.gen || 0) + 1; } } RES_CAP = want; spriteResTick(true); } cw = innerWidth; ch = innerHeight; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; cam.zUser = S.zoom || (cw < 600 ? .85 : 1.15); if (!ZINIT) { ZINIT = 1; cam.z = cam.zUser; } }
 let ZINIT = 0;
 addEventListener('resize', resize); resize();
@@ -3579,7 +3596,7 @@ function lockedScreen() {
   try { net = await startNet(onPlayers); if (net && W && !ATTRACT) { if (net.chatOn) net.chatOn(W.did, chatIn); MG.watch(W.did); EVT.watch(); } if (net && W && !ATTRACT) Promise.resolve(net.join(W.did, S.shift, { cs: S.cs, unit: S.unit, flair: myTokens(), x: P.x, y: P.y, rank: L.rankOf(S.xp).name })).then(commsJoin).catch(() => {}); } catch (e) { net = null; }
   if (!net) $('hOn').textContent = 'Offline';
 })();
-window.__pc = { thanks: { at: (c, g) => thanksAt(c, g), get list() { return THANKS; } }, loopOf: (c, x) => loopOf(c, x), sweep: { spawn: (c) => sweepSpawn(c), tick: () => sweepTick(), row: (c) => sweepRow(c), set call(v) { call = v; } }, beatGuard: () => beatGuard(), set lastBeat(v) { LASTBEAT = v; }, quietTest: { set0: (t) => { SHIFT_T0 = t; }, banner: (a, b) => banner('📻', a, b), trophy: () => { trQ.push(TROPHIES[1]); trophyToast(); }, lore: () => { loreQ.push([LORE[0], LORE[1]]); lorePop(); }, get ctx() { return CTXK; } }, sirenLook: (f) => sirenLook(f), get peds() { return peds; }, get ACTP() { return ACTP; }, arrestLines: (c) => arrestLines(c), carWeight: (c, n) => carWeight(c, n), beat: (k) => beat(k), openModal: (h) => openModal(h), LAS, FAIL, LD, PEX, STAGE, TEACH, SEA, CS, idCard: () => idCard(), gestOf: (id) => gestOf(id), charMotif: (id) => charMotif(id), settings: () => settingsPanel(), get dlgExpr() { return DLG_EXPR; }, exprOf: (t) => exprOf(t), floatsDraw: (n) => floatsDraw(n), get FLOATS() { return FLOATS; }, revealAround: (x, y, r) => revealAround(x, y, r), get AMB() { return AMB; }, vfxGround: (n, v) => vfxGround(n, v), scoreAnswer: (q, a, r) => scoreAnswer(q, a, r), get GB() { return GB; }, gbReset: () => { GB = null; }, REC, BLD, OT, SGT, CERT, CAR, HK, NR, ST: () => ST(), callMult: (c) => callMult(c), purDec: () => purDec(), abil: () => ABIL, gp: (k) => gp(k), rollCall: () => rollCall(), endOfWatch: () => endOfWatch(), callWait: () => callWait(), locker: (t) => { locker(); const b = t && document.querySelector('.lkTabs [data-t=' + t + ']'); if (b) b.click(); }, toast: (m) => toast(m), scr: (x, y) => { const [ix, iy] = iso(x, y), r = cv.getBoundingClientRect(); return [r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z]; }, ptnHud: (p) => ptnHud(p), journalTab: (t) => { jTab = t; journal(); }, blockTrust: (n) => blockTrust(n), WL, PART, COURT, CASE, REPS, requestBackup: (c, n) => requestBackup(c, n), good: () => good(), get cam() { return cam; }, purStart: (c) => purStart(c), drivingCourse: () => drivingCourse(), drillsLoad: () => drillsLoad(), get DRV() { return DRV; }, get LF() { learnFlowInit(); return LF; }, TG, SARC, HANDS, ECHO, MOOD, PART, SPEC, WAYS, get free() { return streetFree(); }, get paused() { return paused; }, get observes() { return observes; }, get FX() { return FX; }, VAR, dialogue: (...x) => dialogue(...x), MEM, FIN, SUBJ, CAL, GRP, PATH, PACE, eachVisProp: (...a) => eachVisProp(...a), POLB: () => POL.barks, get curCall() { return call; }, dropCall: () => { call = null; callCard(); }, openCallScene: (c) => openCallSceneQ(c), L, OPSM, dispatchCall: () => dispatchCall(), DE, LV, gossip: () => gossipLine(), POL, EP, award: (n, w) => award(n, w), SAFE, ON, playStep: (st) => playStep(st), activeQ: () => activeQ(), SIDE, CHAPTERS, get storyBusy() { return storyBusy; }, chapterDone: (i) => chapterDone(CHAPTERS[i]), travel: (d, t) => travel(d, t), openCall: () => { call.accepted = true; openCallScene(call); }, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, chapterExam, PREM, COOP, REW, get CITY() { return CITY; }, get PUR() { return PUR; }, profileCard: (u, c) => profileCard(u, c), get myUid() { return myUid; }, get RIDING() { return RIDING; }, get LEFT() { return LEFT; }, districtBoard, goTo, load, get others() { return others; } };
+window.__pc = { drsSet: (k) => { DRS.k = k; resize(true); }, probe: () => PRB, thanks: { at: (c, g) => thanksAt(c, g), get list() { return THANKS; } }, loopOf: (c, x) => loopOf(c, x), sweep: { spawn: (c) => sweepSpawn(c), tick: () => sweepTick(), row: (c) => sweepRow(c), set call(v) { call = v; } }, beatGuard: () => beatGuard(), set lastBeat(v) { LASTBEAT = v; }, quietTest: { set0: (t) => { SHIFT_T0 = t; }, banner: (a, b) => banner('📻', a, b), trophy: () => { trQ.push(TROPHIES[1]); trophyToast(); }, lore: () => { loreQ.push([LORE[0], LORE[1]]); lorePop(); }, get ctx() { return CTXK; } }, sirenLook: (f) => sirenLook(f), get peds() { return peds; }, get ACTP() { return ACTP; }, arrestLines: (c) => arrestLines(c), carWeight: (c, n) => carWeight(c, n), beat: (k) => beat(k), openModal: (h) => openModal(h), LAS, FAIL, LD, PEX, STAGE, TEACH, SEA, CS, idCard: () => idCard(), gestOf: (id) => gestOf(id), charMotif: (id) => charMotif(id), settings: () => settingsPanel(), get dlgExpr() { return DLG_EXPR; }, exprOf: (t) => exprOf(t), floatsDraw: (n) => floatsDraw(n), get FLOATS() { return FLOATS; }, revealAround: (x, y, r) => revealAround(x, y, r), get AMB() { return AMB; }, vfxGround: (n, v) => vfxGround(n, v), scoreAnswer: (q, a, r) => scoreAnswer(q, a, r), get GB() { return GB; }, gbReset: () => { GB = null; }, REC, BLD, OT, SGT, CERT, CAR, HK, NR, ST: () => ST(), callMult: (c) => callMult(c), purDec: () => purDec(), abil: () => ABIL, gp: (k) => gp(k), rollCall: () => rollCall(), endOfWatch: () => endOfWatch(), callWait: () => callWait(), locker: (t) => { locker(); const b = t && document.querySelector('.lkTabs [data-t=' + t + ']'); if (b) b.click(); }, toast: (m) => toast(m), scr: (x, y) => { const [ix, iy] = iso(x, y), r = cv.getBoundingClientRect(); return [r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z]; }, ptnHud: (p) => ptnHud(p), journalTab: (t) => { jTab = t; journal(); }, blockTrust: (n) => blockTrust(n), WL, PART, COURT, CASE, REPS, requestBackup: (c, n) => requestBackup(c, n), good: () => good(), get cam() { return cam; }, purStart: (c) => purStart(c), drivingCourse: () => drivingCourse(), drillsLoad: () => drillsLoad(), get DRV() { return DRV; }, get LF() { learnFlowInit(); return LF; }, TG, SARC, HANDS, ECHO, MOOD, PART, SPEC, WAYS, get free() { return streetFree(); }, get paused() { return paused; }, get observes() { return observes; }, get FX() { return FX; }, VAR, dialogue: (...x) => dialogue(...x), MEM, FIN, SUBJ, CAL, GRP, PATH, PACE, eachVisProp: (...a) => eachVisProp(...a), POLB: () => POL.barks, get curCall() { return call; }, dropCall: () => { call = null; callCard(); }, openCallScene: (c) => openCallSceneQ(c), L, OPSM, dispatchCall: () => dispatchCall(), DE, LV, gossip: () => gossipLine(), POL, EP, award: (n, w) => award(n, w), SAFE, ON, playStep: (st) => playStep(st), activeQ: () => activeQ(), SIDE, CHAPTERS, get storyBusy() { return storyBusy; }, chapterDone: (i) => chapterDone(CHAPTERS[i]), travel: (d, t) => travel(d, t), openCall: () => { call.accepted = true; openCallScene(call); }, backupScene: (u, o) => backupScene(u, o), hourNow: () => hourNow(), giverPos: (q) => giverPos(q), doorSpot: (l) => doorSpot(l), S, cam, MG, LIFE, OFF, ACAD, EVT, motorPool, RIDE, trustMap, blockTrust, get FX() { return FX; }, get traffic() { return traffic; }, onPlayers: (a, u) => onPlayers(a, u), get others() { return others; }, closeModal: () => closeModal(), get citizens() { return citizens; }, get infos() { return infos; }, get observes() { return observes; }, citizenTalk: (c) => citizenTalk(c), infoPoint: (i) => infoPoint(i), observeScene: (o) => observeScene(o), streetLife: (e) => streetLife(e), dbg: () => ({ paused, storyBusy, storyCool, scene: !!scene, inside: !!inside, cine: document.body.className, overlays: [...document.body.children].filter((e) => !e.hidden && getComputedStyle(e).position === "fixed" && e.getBoundingClientRect().width > 300).map((e) => e.id || e.className).join(",") }), get W() { return W; }, get G() { return G; }, get scene() { return scene; }, get music() { return music; }, moodNow: () => moodNow(), activeQ: () => activeQ(), get peds() { return peds; }, P, stepTarget, promotion, endOfWatch, journal, locker, useAbility, get regs() { return regs; }, npcTalk, queueLoot, enterBuilding, exitBuilding, get inside() { return inside; }, get FX() { return FX; }, enterBoat, unitPicker, setClock: (m) => { clock = m; }, get pboat() { return pboat; }, tapAt: (x, y) => { const [ix, iy] = iso(x, y); const r = cv.getBoundingClientRect(); tap(r.left + r.width / 2 + (ix - cam.x) * cam.z, r.top + r.height / 2 + (iy - 20 - cam.y) * cam.z); }, dispatchCall, get call() { return call; }, finalCall, chapterExam, PREM, COOP, REW, get CITY() { return CITY; }, get PUR() { return PUR; }, profileCard: (u, c) => profileCard(u, c), get myUid() { return myUid; }, get RIDING() { return RIDING; }, get LEFT() { return LEFT; }, districtBoard, goTo, load, get others() { return others; } };
 
 window.__booted = true; { const bf = document.getElementById('bootFail'); if (bf) bf.remove(); } // the boot guard in index.html stands down
 // repeat visits open from the device's cache (skipped in tests so they always run the files on disk)
