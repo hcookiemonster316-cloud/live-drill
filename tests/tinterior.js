@@ -8,6 +8,19 @@ const { chromium } = require('playwright');
   // every plan gets a detail (checked by building each one)
   const all = await a.evaluate(async () => { const m = await import('./interiors.js'), keys = Object.keys(m.DETAILS), pc = window.__pc, out = { n: keys.length, missing: [] }; const kinds = Object.keys(m.ENTER).filter((k, i, arr) => arr.findIndex((x) => m.ENTER[x] === m.ENTER[k]) === i);
     for (const kind of kinds) { const I = m.buildInterior({ kind, name: kind, x: 0, y: 0 }, pc.W, 0); if (!I.details || !I.details.length) out.missing.push(I.key); else if (!I.props.some((p) => p.k === 'beam')) out.missing.push(I.key + ':beam'); } return out; });
+  // five variations of every interior: they differ (mirrored, the district's palette, extras), and everything you
+  // interact with can still be reached from the door
+  const vr = await a.evaluate(async () => { const m = await import('./interiors.js'), pc = window.__pc, N = 145, out = { bad: [], kinds: 0, looks: 0 }; const kinds = Object.keys(m.ENTER).filter((k, i, arr) => arr.findIndex((x) => m.ENTER[x] === m.ENTER[k]) === i);
+    for (const kind of kinds) { const seen = new Set(); out.kinds++;
+      for (let v = 0; v < 5; v++) { const I = m.buildInterior({ kind, name: kind, x: 0, y: 0, variant: v }, pc.W, 0); seen.add(I.wallCol + I.floor + I.rug + (I.door ? I.door[0] : '') + I.props.length);
+        const ok = (x, y) => I.walkable(x, y), start = [Math.floor(I.door[0]), Math.floor(I.door[1]) - 1], reach = new Set([start[1] * N + start[0]]), q = [start];
+        while (q.length) { const [x, y] = q.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, k = ny * N + nx; if (!reach.has(k) && ok(nx, ny)) { reach.add(k); q.push([nx, ny]); } } }
+        const near = (x, y) => { x = Math.floor(x); y = Math.floor(y); return reach.has(y * N + x) || [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => reach.has((y + dy) * N + x + dx)); };
+        const spots = I.staff.map((t) => ['staff', t.x, t.y]).concat(I.citz.map(([x, y]) => ['citizen', x, y]), I.infos.map(([x, y]) => ['info', x, y]), I.caches.map((t) => ['cache', t.x, t.y]), I.secrets.map((t) => ['secret', t.x, t.y]), (I.details || []).map((t) => ['detail', t.x, t.y]));
+        spots.forEach(([w, x, y]) => { if (!near(x, y)) out.bad.push(I.key + ' v' + v + ' ' + w); }); }
+      out.looks += seen.size; }
+    return out; });
+  console.log('variations: ' + vr.kinds + ' interiors, ' + vr.looks + ' distinct looks; unreachable:', vr.bad.slice(0, 8).join(', ') || 'none'); if (vr.bad.length) errs.push(vr.bad.length + ' unreachable spots: ' + vr.bad.slice(0, 5).join(', ')); if (vr.looks < vr.kinds * 4) errs.push('variations look too alike: ' + vr.looks);
   console.log('details', all.n, 'missing', all.missing.join(',') || 'none'); if (all.missing.length) errs.push('interiors without a detail or beam: ' + all.missing.join(','));
   for (let i = 0; i < 20; i++) { if (await a.evaluate(() => { const pc = window.__pc; pc.closeModal(); document.querySelectorAll('.lorePop [data-a="ok"], .tCard').forEach((x) => x.click()); const d = document.getElementById('dlg'); if (!d.hidden) d.click(); if (pc.curCall) pc.dropCall(); return pc.free; })) break; await a.waitForTimeout(400); }
   // walk into the diner (a counter with coffee) and up to the detail

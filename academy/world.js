@@ -668,10 +668,13 @@ const PPX = new Map(), PKEY_SKIP = new Set(['x', 'y', 't', 'on', 'rec', 'wall', 
 // one scratch canvas for every prop, kept on the CPU side: the full read-back below is the expensive part, and a
 // canvas made for reading answers it without a GPU round trip (and without making a new canvas per prop)
 let PXS = null;
-function propPix(q, night) {
+function propPix(q, night) { return pixArt((bg) => drawProp(bg, q, 60, 130, 0, night)); }
+// any smooth drawing, anchored at (60, 130) in a 120 x 150 box, turned into pixel art like the people (street props,
+// and the furniture inside buildings): drawn once at 3x, each target pixel takes its block's commonest color
+export function pixArt(paint) {
   const k = 3, W = 120, Hh = 150;
   if (!PXS) { const c = document.createElement('canvas'); c.width = W * k; c.height = Hh * k; PXS = c.getContext('2d', { willReadFrequently: true }); }
-  const bg = PXS; bg.setTransform(1, 0, 0, 1, 0, 0); bg.clearRect(0, 0, W * k, Hh * k); bg.save(); bg.setTransform(k, 0, 0, k, 0, 0); drawProp(bg, q, 60, 130, 0, night); bg.restore();
+  const bg = PXS; bg.setTransform(1, 0, 0, 1, 0, 0); bg.clearRect(0, 0, W * k, Hh * k); bg.save(); bg.setTransform(k, 0, 0, k, 0, 0); paint(bg); bg.restore();
   /* one read-back only: find the drawn box on the full read, then crop it out of the same pixels (a second getImageData stalls the GPU again) */
   const WK = W * k, HK = Hh * k, all = bg.getImageData(0, 0, WK, HK).data; let ya = -1, yb = -1, xa = WK, xb = -1;
   for (let y = 0; y < HK; y++) { let i = y * WK * 4 + 3; for (let x = 0; x < WK; x++, i += 4) if (all[i] > 8) { if (ya < 0) ya = y; yb = y; if (x < xa) xa = x; break; } }

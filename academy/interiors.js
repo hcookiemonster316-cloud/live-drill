@@ -4,7 +4,7 @@
 //   v vault wall  B bed  p pew  r rack  x crate  C cell bars  S stool  b booth seat  P plant  u couch  V tv
 //   J judge's bench  R railing  a altar  M mailboxes  K forklift  E fire engine  A car on a lift  U storage door  Z stairs
 //   @ staff  ? citizen with a question  i study point  * secret spot  $ lost & found  o something's off
-import { N, TW, TH, T, iso, person, personFast, drawProp, vehicle, hiCanvas, GRES } from './world.js';
+import { N, TW, TH, T, iso, person, personFast, drawProp, vehicle, hiCanvas, GRES, pixArt, RES, trimSprite } from './world.js';
 
 const PLANS = {
   hq: { name: 'Patrol HQ', floor: 'tile', floor2: 'carpet', rug: '#1f3a6b', wall: '#3d4f7a', blurb: 'Locker room, the roll call briefing room, the watch commander\'s office and the front desk.', plan: [
@@ -575,14 +575,28 @@ export const STAFF_LINES = (k) => (STAFF[k] || STAFF.office)[1];
 
 // furniture that blocks walking; anything else listed here can be walked over
 const FURN = 'LkdhjTcsFXBprxCSbPeuVJRaMKEAZGHINOQYgltqwyz=%^&~fmWo[{n';
+const ORIENT = new Set('LkdhjcsFXBprbeuVJRaMKGHINQYgqwz=^mW[{'); // pieces with a long side or a front
+// static pieces become cached pixel art (drawn once); the animated ones (screens, a TV, lights, a steaming pot) stay live
+const LIVE = new Set('kVQg~fEAqC');
 const SOFT = 'hjS';
 const WALLS = '#123456789vU';
 // ---------- building an interior as a small map ----------
+// five variations of every interior, in the style of its district: the layout mirrored on half of them, the walls,
+// floor and rug from the district's palette, and a few pieces along the back wall in the district's taste
+const ISTYLE = { civic: { wall: ['#3d4f7a', '#6b5b4e', '#4b5d73'], floor: ['marble', 'tile', 'carpet'], rug: ['#1f3a6b', '#7f1d1d', '#14532d'], extra: 'Pnh' },
+  commercial: { wall: ['#9a3412', '#0e7490', '#7c3aed'], floor: ['checker', 'lino', 'tile'], rug: ['#be185d', '#0e7490', '#b45309'], extra: 'PhP' },
+  downtown: { wall: ['#334155', '#475569', '#1e293b'], floor: ['marble', 'tile', 'carpet'], rug: ['#1e3a8a', '#334155', '#7f1d1d'], extra: 'Pnh' },
+  industrial: { wall: ['#57534e', '#78716c', '#44403c'], floor: ['concrete', 'lino', 'wood'], rug: ['#a16207', '#3f3f46', '#7c2d12'], extra: 'xHx' },
+  residential: { wall: ['#b0703f', '#8a8a5c', '#7b8794'], floor: ['wood', 'carpet', 'lino'], rug: ['#166534', '#9a3412', '#1d4ed8'], extra: 'PnP' } };
+const SWAPFLOOR = new Set(['tile', 'lino', 'carpet', 'marble', 'wood']); // a gym keeps its concrete and a diner its checkerboard
+const mixHex = (a, b, k) => { const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)), x = p(a), y = p(b); return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * k).toString(16).padStart(2, '0')).join(''); };
+export function variantOf(lot, outW) { return Math.abs(((lot.ox || lot.x || 0) * 7 + (lot.oy || lot.y || 0) * 13 + ((outW && outW.did) || 0) * 3)) % 5; }
 export function buildInterior(lot, outW, idx) {
-  const key = ENTER[lot.kind], pl = PLANS[key], rows = pl.plan, h = rows.length, w = rows[0].length;
+  const key = ENTER[lot.kind], pl = PLANS[key], vi = lot.variant != null ? lot.variant : variantOf(lot, outW), st = ISTYLE[(outW && outW.D && outW.D.theme) || 'civic'] || ISTYLE.civic, sv = vi - 2;
+  const rows = vi === 1 || vi === 3 ? pl.plan.map((r) => [...r].reverse().join('')) : pl.plan, h = rows.length, w = rows[0].length; // mirrored on variations 1 and 3
   const ox = Math.floor((N - w) / 2), oy = Math.floor((N - h) / 2);
   const g = new Uint8Array(N * N), at = (x, y) => (x < 0 || y < 0 || x >= N || y >= N ? 0 : g[y * N + x]), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < N && y < N) g[y * N + x] = v; };
-  const I = { inside: true, key, kind: lot.kind, name: lot.name || pl.name, blurb: pl.blurb, did: outW.did, D: outW.D, g, at, set, buildings: [], props: [], lots: [], lights: [], parking: [], walk: [], quiet: [], gates: [], secrets: [], staff: [], visitors: [], citz: [], infos: [], obs: [], caches: [], river: false, blocked: new Set(), floor: pl.floor, floor2: pl.floor2 || pl.floor, rug: pl.rug || '#334155', wallCol: pl.wall, w, h, ox, oy, mat: {} };
+  const I = { inside: true, key, kind: lot.kind, name: lot.name || pl.name, blurb: pl.blurb, did: outW.did, D: outW.D, g, at, set, buildings: [], props: [], lots: [], lights: [], parking: [], walk: [], quiet: [], gates: [], secrets: [], staff: [], visitors: [], citz: [], infos: [], obs: [], caches: [], river: false, blocked: new Set(), floor: sv >= 0 && SWAPFLOOR.has(pl.floor) ? st.floor[sv] : pl.floor, floor2: pl.floor2 || pl.floor, rug: sv >= 0 ? st.rug[sv] : pl.rug || '#334155', wallCol: sv >= 0 ? mixHex(pl.wall, st.wall[sv], .55) : pl.wall, variant: vi, w, h, ox, oy, mat: {} };
   const ch = (c, r) => (r < 0 || c < 0 || r >= h || c >= w ? ' ' : rows[r][c]);
   const isWall = (c, r) => WALLS.indexOf(ch(c, r)) >= 0;
   const kits = (STAFF[key] || STAFF.office)[0];
@@ -593,7 +607,7 @@ export function buildInterior(lot, outW, idx) {
       set(x, y, T.BLDG);
       const front = r === h - 1 || c === w - 1, border = r === 0 || c === 0 || front;
       const face = !isWall(c, r + 1) && ch(c, r + 1) !== ' ' ? 'y' : !isWall(c + 1, r) && ch(c + 1, r) !== ' ' ? 'x' : null;
-      I.props.push({ t: 'furn', k: k === '#' || /\d/.test(k) ? 'wall' : k, deco: /\d/.test(k) ? +k : 0, face, x: x + .5, y: y + .5, front, h: front ? 8 : border ? 64 : 46, wall: true, block: true });
+      I.props.push({ t: 'furn', k: k === '#' || /\d/.test(k) ? 'wall' : k, deco: /\d/.test(k) ? +k : 0, face, x: x + .5, y: y + .5, front, h: front ? 8 : border ? 64 : 34, wall: true, block: true }); // inner partitions stand lower than the outer walls, so a room reads at a glance
       continue;
     }
     set(x, y, T.PLAZA);
@@ -609,6 +623,19 @@ export function buildInterior(lot, outW, idx) {
     if (k === '$') I.caches.push({ x: x + .5, y: y + .5 });
     if (k === '*') { const s2 = SECRETS[key] || SECRETS.office; I.secrets.push({ id: 'in:' + outW.did + ':' + key + ':' + idx, name: s2[0], text: s2[1], x: x + .5, y: y + .5 }); }
   }
+  // the district's extras along the back wall (variations 2 to 4): only where nothing is in the way
+  if (sv >= 0) { const busy = new Set(); [I.citz, I.infos, I.obs].forEach((L) => L.forEach(([x, y]) => busy.add(Math.floor(y) * N + Math.floor(x)))); I.caches.concat(I.secrets).forEach((q) => busy.add(Math.floor(q.y) * N + Math.floor(q.x)));
+    const free = (x, y) => at(x, y) === T.PLAZA && !I.blocked.has(y * N + x) && !busy.has(y * N + x), spots = I.walk.filter(([x, y]) => at(x, y - 1) === T.BLDG && free(x, y) && free(x - 1, y) && free(x + 1, y) && free(x, y + 1) && free(x - 1, y + 1) && free(x + 1, y + 1) && !(I.door && Math.abs(x + .5 - I.door[0]) + Math.abs(y + .5 - I.door[1]) < 4));
+    let n = 0; for (let i = (vi * 3) % Math.max(1, spots.length); n < 3 && spots.length && i < spots.length * 2; i += Math.max(2, Math.floor(spots.length / 3))) { const [x, y] = spots[i % spots.length]; if (!free(x, y) || !free(x - 1, y) || !free(x + 1, y)) continue; const k = st.extra[n % st.extra.length];
+      I.props.push({ t: 'furn', k, x: x + .5, y: y + .5, block: SOFT.indexOf(k) < 0, seed: (x * 7 + y * 13) % 10 }); if (SOFT.indexOf(k) < 0) I.blocked.add(y * N + x); I.walk = I.walk.filter(([a, b]) => a !== x || b !== y); n++; } }
+  // orientation: every piece follows the line it's part of (a rail, a row of counters, pews, lockers), or runs along the
+  // wall it stands against; a rail corner runs both ways
+  { const at0 = (c, r) => ch(c - ox + 0, r), kindAt = (x, y) => ch(x - ox, y - oy);
+    I.props.forEach((q) => { if (q.t !== 'furn' || q.wall || !ORIENT.has(q.k)) return; const x = Math.floor(q.x), y = Math.floor(q.y), same = (dx, dy) => { const k2 = kindAt(x + dx, y + dy); return k2 === q.k || (q.k === 'R' && k2 === '_'); };
+      const ax = same(-1, 0) || same(1, 0), ay = same(0, -1) || same(0, 1), wallX = WALLS.indexOf(kindAt(x - 1, y)) >= 0 || WALLS.indexOf(kindAt(x + 1, y)) >= 0, wallY = WALLS.indexOf(kindAt(x, y - 1)) >= 0 || WALLS.indexOf(kindAt(x, y + 1)) >= 0;
+      const tbl = (dx, dy) => /[TdktJ]/.test(kindAt(x + dx, y + dy));
+      q.ax = ax && ay ? (q.k === 'R' ? 'xy' : 'x') : ay ? 'y' : ax ? 'x' : (q.k === 'h' || q.k === 'j') ? (tbl(-1, 0) || tbl(1, 0) ? 'y' : 'x') : wallX && !wallY ? 'y' : 'x';
+      if ('bphje'.indexOf(q.k) >= 0 && ((q.ax === 'x' && tbl(0, -1)) || (q.ax === 'y' && tbl(-1, 0)))) q.fl = 1; /* a seat faces its table: its back goes to the other side */ }); }
   // small life: a coffee maker steaming on the first counter, and light through the doorway with dust drifting in it
   { const cn = I.props.find((q) => q.k === 'c' || q.k === 'q'); if (cn) cn.life = 'coffee';
     if (I.door) I.props.push({ t: 'furn', k: 'beam', x: I.door[0], y: I.door[1] - 1.2, block: false }); }
@@ -630,6 +657,7 @@ const FLOORS = { tile: ['#d9dde3', '#cfd4db'], carpet: ['#4b5d7a', '#46577a'], l
 function drawFloor(I) {
   const pad = 80, x0 = I.ox - 1, y0 = I.oy - 1, x1 = I.ox + I.w, y1 = I.oy + I.h;
   const [c, g] = hiCanvas((x1 - x0 + y1 - y0 + 2) * TW / 2 + pad * 2, (x1 - x0 + y1 - y0 + 2) * TH / 2 + pad * 2, GRES), ox = -(x0 - y1 - 1) * TW / 2 + pad, oy = -(x0 + y0) * TH / 2 + pad;
+  const RB = []; // rug border segments
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     const v = I.at(x, y); if (!v) continue;
     const [sx, sy] = iso(x, y); const X = sx + ox, Y = sy + oy, m = I.mat[y * N + x] || 1;
@@ -640,28 +668,38 @@ function drawFloor(I) {
     g.fillStyle = kind === 'wood' ? (y % 2 ? F[0] : F[1]) : F[(x + y) % 2]; g.fill();
     if (kind === 'wood') { g.strokeStyle = 'rgba(0,0,0,.08)'; g.lineWidth = 1; g.stroke(); }
     if (kind === 'carpet' && (x * 7 + y * 3) % 5 === 0) { g.fillStyle = 'rgba(255,255,255,.04)'; g.fill(); }
-    if (m === 3) { // rug: inset diamond with a border
-      g.save(); g.translate(X, Y + TH / 2); g.scale(.92, .92); g.beginPath(); g.moveTo(0, -TH / 2); g.lineTo(TW / 2, 0); g.lineTo(0, TH / 2); g.lineTo(-TW / 2, 0); g.closePath(); g.fillStyle = I.rug; g.fill(); g.restore();
+    if (m === 3) { // rug: one connected piece, with its border only around the outside
+      g.save(); g.translate(X, Y + TH / 2); g.scale(1.04, 1.04); g.beginPath(); g.moveTo(0, -TH / 2); g.lineTo(TW / 2, 0); g.lineTo(0, TH / 2); g.lineTo(-TW / 2, 0); g.closePath(); g.fillStyle = I.rug; g.fill(); g.restore(); /* full squares that overlap a hair: a rug is one piece, no floor showing between its tiles */
       const edge = (dx, dy) => (I.mat[(y + dy) * N + x + dx] !== 3);
-      g.strokeStyle = 'rgba(245,184,0,.55)'; g.lineWidth = 2; g.beginPath();
-      if (edge(0, -1)) { g.moveTo(X, Y + 2); g.lineTo(X + TW / 2 - 4, Y + TH / 2); } if (edge(1, 0)) { g.moveTo(X + TW / 2 - 4, Y + TH / 2); g.lineTo(X, Y + TH - 2); }
-      if (edge(0, 1)) { g.moveTo(X, Y + TH - 2); g.lineTo(X - TW / 2 + 4, Y + TH / 2); } if (edge(-1, 0)) { g.moveTo(X - TW / 2 + 4, Y + TH / 2); g.lineTo(X, Y + 2); }
-      g.stroke();
+      // the border: full-length lines set a few units in from the rug's outer edge, so neighbouring tiles join into one line
+      const o = 3; /* collected and stroked after every tile, so the next tile's rug can't cover the join */
+      if (edge(0, -1)) RB.push([X, Y + o, X + TW / 2, Y + TH / 2 + o]); if (edge(1, 0)) RB.push([X + TW / 2, Y + TH / 2 - o, X, Y + TH - o]);
+      if (edge(0, 1)) RB.push([X, Y + TH - o, X - TW / 2, Y + TH / 2 - o]); if (edge(-1, 0)) RB.push([X - TW / 2, Y + TH / 2 + o, X, Y + o]);
     }
     // soft contact shadow along walls
     if (I.at(x, y - 1) === T.BLDG) { g.fillStyle = 'rgba(0,0,0,.10)'; g.beginPath(); g.moveTo(X, Y); g.lineTo(X + TW / 2, Y + TH / 2); g.lineTo(X + TW / 2 - 8, Y + TH / 2 + 4); g.lineTo(X - 8, Y + 4); g.closePath(); g.fill(); }
     if (I.at(x - 1, y) === T.BLDG) { g.fillStyle = 'rgba(0,0,0,.10)'; g.beginPath(); g.moveTo(X, Y); g.lineTo(X - TW / 2, Y + TH / 2); g.lineTo(X - TW / 2 + 8, Y + TH / 2 + 4); g.lineTo(X + 8, Y + 4); g.closePath(); g.fill(); }
   }
+  if (RB.length) { g.strokeStyle = 'rgba(245,184,0,.6)'; g.lineWidth = 2; g.lineCap = 'round'; g.beginPath(); RB.forEach(([a, b, c2, d]) => { g.moveTo(a, b); g.lineTo(c2, d); }); g.stroke(); }
   for (let y = I.oy + 2; y < I.oy + I.h - 1; y += 4) for (let x = I.ox + 2; x < I.ox + I.w - 1; x += 4) { const [sx, sy] = iso(x, y); const gr = g.createRadialGradient(sx + ox, sy + oy + TH / 2, 0, sx + ox, sy + oy + TH / 2, 90); gr.addColorStop(0, 'rgba(255,240,200,.16)'); gr.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = gr; g.fillRect(sx + ox - 90, sy + oy - 74, 180, 180); }
   return { canvas: c, ox, oy };
 }
 const sh = (hex, f) => { if (hex[0] !== '#') return hex; const n = parseInt(hex.slice(1), 16); const r = Math.min(255, Math.round((n >> 16) * f)), gg = Math.min(255, Math.round(((n >> 8) & 255) * f)), b = Math.min(255, Math.round((n & 255) * f)); return 'rgb(' + r + ',' + gg + ',' + b + ')'; };
 // an iso box on a tile: a and b are half-sizes in tiles along x and y, h is height in pixels; ox/oy shift it in tiles
+// a round piece (stool, pot, barrel, round table): a cylinder seen from the iso angle, r in tiles, h in pixels; lit on
+// the left like every prism, the right third in shade, a thin rim on top. taper < 1 narrows the bottom (a flower pot)
+function cyl(g, sx, sy, r, h, col, lift, taper) {
+  const rx = r * TW * .7071, ry = r * TH * .7071, up = lift || 0, tp = taper || 1, top = sy - up - h, bot = sy - up, bx = rx * tp, by = ry * tp;
+  g.beginPath(); g.ellipse(sx, bot, bx, by, 0, 0, Math.PI); g.lineTo(sx - rx, top); g.ellipse(sx, top, rx, ry, 0, Math.PI, 0, true); g.closePath(); g.fillStyle = sh(col, .8); g.fill();
+  g.save(); g.clip(); g.fillStyle = sh(col, .64); g.fillRect(sx + rx * .3, top - ry, rx, h + ry * 2 + 2); g.fillStyle = sh(col, .92); g.fillRect(sx - rx, top - ry, rx * .35, h + ry * 2 + 2); g.restore();
+  g.beginPath(); g.ellipse(sx, top, rx, ry, 0, 0, Math.PI * 2); g.fillStyle = col; g.fill(); g.strokeStyle = sh(col, 1.25); g.lineWidth = 1; g.beginPath(); g.ellipse(sx, top, rx - .5, ry - .5, 0, Math.PI, Math.PI * 2); g.stroke();
+}
+let MIR = false; // drawing a piece turned to the other axis (mirrored): its two visible sides swap shades so the light stays upper left
 function prism(g, sx, sy, a, b, h, col, lift, ox, oy) {
   const X = [TW / 2, TH / 2], Y = [-TW / 2, TH / 2], up = lift || 0, u0 = ox || 0, v0 = oy || 0, pt = (u, v, z) => [sx + X[0] * (u + u0) + Y[0] * (v + v0), sy + X[1] * (u + u0) + Y[1] * (v + v0) - z - up];
   const poly = (ps, f) => { g.beginPath(); ps.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fillStyle = f; g.fill(); };
-  poly([pt(-a, b, 0), pt(a, b, 0), pt(a, b, h), pt(-a, b, h)], sh(col, .78));
-  poly([pt(a, -b, 0), pt(a, b, 0), pt(a, b, h), pt(a, -b, h)], sh(col, .64));
+  poly([pt(-a, b, 0), pt(a, b, 0), pt(a, b, h), pt(-a, b, h)], sh(col, MIR ? .64 : .78));
+  poly([pt(a, -b, 0), pt(a, b, 0), pt(a, b, h), pt(a, -b, h)], sh(col, MIR ? .78 : .64));
   poly([pt(-a, -b, h), pt(a, -b, h), pt(a, b, h), pt(-a, b, h)], col);
   return pt;
 }
@@ -699,20 +737,37 @@ function detailObj(g, p, sx, sy, t) { shadow(g, sx, sy, 9);
 // light through the doorway with dust drifting in it
 function beam(g, sx, sy, t) { g.save(); g.globalCompositeOperation = 'lighter'; const gr = g.createLinearGradient(sx, sy + 14, sx, sy - 34); gr.addColorStop(0, 'rgba(255,240,200,.10)'); gr.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(sx - 16, sy + 12); g.lineTo(sx + 16, sy + 12); g.lineTo(sx + 9, sy - 34); g.lineTo(sx - 9, sy - 34); g.closePath(); g.fill();
   for (let i = 0; i < 7; i++) { const k = ((t / 6000 + i * .143) % 1), x = sx + Math.sin(i * 2.3 + t / 2400) * 9 * (1 - k * .4), y = sy + 8 - k * 40; g.fillStyle = 'rgba(255,246,220,' + (.5 * Math.sin(k * Math.PI)).toFixed(3) + ')'; g.fillRect(x, y, 1, 1); } g.restore(); }
+const FPX = new Map(), WPX = new Map();
 export function drawFurn(g, p, sx, sy, t, wallCol) {
   if (p.k === 'detail') return detailObj(g, p, sx, sy, t);
   if (p.k === 'beam') return beam(g, sx, sy, t);
+  if (p.k === 'wall' && p.deco !== 5 && typeof document !== 'undefined') { // walls stay smooth, but each kind is drawn once at the screen's resolution (they were shapes every frame)
+    const wk = (p.h || 58) + '|' + p.deco + '|' + (p.face || '') + '|' + (wallCol || '') + '|' + RES; let c = WPX.get(wk);
+    if (!c) { if (WPX.size > 400) WPX.clear(); const [cv, cg] = hiCanvas(80, 120, RES); furnShape(cg, p, 40, 108, 0, wallCol); c = trimSprite(cv); WPX.set(wk, c); }
+    g.drawImage(c, sx - 40 + c.ox, sy - 108 + c.oy, c.lw, c.lh); return; }
+  if (p.k === 'wall' || p.k === 'v' || p.k === 'U' || p.k === 'door' || LIVE.has(p.k) || p.life || typeof document === 'undefined') return furnTurned(g, p, sx, sy, t, wallCol);
+  // pixel art, drawn once per piece, seed and direction (it was every frame as shapes)
+  const key = p.k + '|' + (p.seed || 0) + '|' + (p.ax || 'x') + (p.fl ? 'f' : ''); let c = FPX.get(key);
+  if (!c) { if (FPX.size > 600) FPX.clear(); c = pixArt((bg) => furnTurned(bg, p, 60, 130, 0, wallCol)); FPX.set(key, c); }
+  if (c.width > 1) { const sm = g.imageSmoothingEnabled; g.imageSmoothingEnabled = false; g.drawImage(c, sx - 60 + c.x0, sy - 130 + c.y0, c.lw, c.lh); g.imageSmoothingEnabled = sm; }
+}
+// a piece in its direction: along x as drawn, along y mirrored (light kept upper left), a rail corner both ways
+function furnTurned(g, p, sx, sy, t, wallCol) {
+  if (p.ax === 'y' || p.ax === 'xy') { g.save(); g.translate(sx, 0); g.scale(-1, 1); g.translate(-sx, 0); MIR = true; try { furnShape(g, p, sx, sy, t, wallCol); } finally { MIR = false; g.restore(); } if (p.ax === 'y') return; }
+  furnShape(g, p, sx, sy, t, wallCol);
+}
+function furnShape(g, p, sx, sy, t, wallCol) {
   const k = p.k, wc = wallCol || '#7b8794';
   switch (k) {
-    case 'wall': prism(g, sx, sy, .5, .5, p.h || 58, wc); if (p.h > 8) { prism(g, sx, sy, .5, .5, 3, sh(wc, 1.25), p.h); deco(g, sx, sy, p, t); } return;
+    case 'wall': prism(g, sx, sy, .5, .5, p.h || 58, wc); if (p.h > 8) { prism(g, sx, sy, .51, .51, 4, sh(wc, .62)); /* a baseboard */ prism(g, sx, sy, .5, .5, 3, sh(wc, 1.25), p.h); prism(g, sx, sy, .52, .52, 1.2, sh(wc, 1.45), p.h + 3); /* a lit top edge */ deco(g, sx, sy, p, t); } return;
     case 'v': prism(g, sx, sy, .5, .5, p.h || 58, '#8e979f'); g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.arc(sx, sy - 30, 6, 0, Math.PI * 2); g.fill(); return;
     case 'U': prism(g, sx, sy, .5, .5, p.h || 58, wc); if (p.face) { onFace(g, sx, sy, p.face, -.38, .38, 0, 36, '#e2742b'); for (let z = 6; z < 34; z += 5) onFace(g, sx, sy, p.face, -.38, .38, z, z + 1, 'rgba(0,0,0,.18)'); } return;
     case 'door': g.fillStyle = 'rgba(245,184,0,.25)'; g.beginPath(); g.ellipse(sx, sy + TH / 2, 22, 10, 0, 0, Math.PI * 2); g.fill(); return;
     case 'L': shadow(g, sx, sy, 14); prism(g, sx, sy, .42, .3, 44, ['#5d6d7e', '#4b5d73', '#64748b'][p.seed % 3]); g.strokeStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.moveTo(sx, sy - 4); g.lineTo(sx, sy - 42); g.stroke(); g.fillStyle = '#cbd5e1'; g.fillRect(sx - 4, sy - 26, 2, 4); g.fillRect(sx + 3, sy - 22, 2, 4); return;
     case 'k': shadow(g, sx, sy, 14); prism(g, sx, sy, .45, .32, 15, '#6b5a48'); { const pt = prism(g, sx, sy, .16, .05, 13, '#1f2937', 15); const s0 = pt(-.13, .06, 3), s1 = pt(.13, .06, 11); g.fillStyle = Math.floor(t / 1500 + sx) % 3 ? '#38bdf8' : '#22c55e'; g.fillRect(s0[0], s1[1], s1[0] - s0[0], s0[1] - s1[1]); { const W0 = s1[0] - s0[0], H0 = s0[1] - s1[1], k0 = Math.floor(t / 420 + sx) % 4; g.fillStyle = 'rgba(8,20,40,.55)'; for (let i = 0; i < 3; i++) { const w = W0 * (.35 + ((i + k0) * 37 % 50) / 100); g.fillRect(s0[0] + 1, s1[1] + 1.5 + i * (H0 / 3.2), Math.max(1, w - 2), .9); } } /* lines of text scroll on the screen */ prism(g, sx, sy, .14, .06, 1, '#374151', 15, .2, .18); } return;
     case 'd': shadow(g, sx, sy, 14); prism(g, sx, sy, .45, .32, 15, '#8b6b4a'); g.fillStyle = '#f2f2f2'; g.fillRect(sx - 5, sy - 19, 8, 4); g.fillStyle = '#d97706'; g.fillRect(sx + 5, sy - 21, 3, 4); return;
-    case 'h': case 'j': prism(g, sx, sy, .16, .16, 8, k === 'j' ? '#7a4a2a' : '#374151'); prism(g, sx, sy, .16, .04, 18, k === 'j' ? '#7a4a2a' : '#374151', 0, 0, -.14); return;
-    case 'T': shadow(g, sx, sy, 16); prism(g, sx, sy, .42, .42, 14, '#9a7552'); if (p.seed % 2) { g.fillStyle = '#fff'; g.beginPath(); g.ellipse(sx - 4, sy - 16, 4, 2, 0, 0, Math.PI * 2); g.fill(); } return;
+    case 'h': case 'j': prism(g, sx, sy, .16, .16, 8, k === 'j' ? '#7a4a2a' : '#374151'); prism(g, sx, sy, .16, .04, 18, k === 'j' ? '#7a4a2a' : '#374151', 0, 0, p.fl ? .14 : -.14); return;
+    case 'T': shadow(g, sx, sy, 16); if (p.seed % 3 === 1) { cyl(g, sx, sy, .07, 12, '#4b3826'); cyl(g, sx, sy, .44, 3, '#9a7552', 11); } /* a round table */ else prism(g, sx, sy, .42, .42, 14, '#9a7552'); if (p.seed % 2) { g.fillStyle = '#fff'; g.beginPath(); g.ellipse(sx - 4, sy - 16, 4, 2, 0, 0, Math.PI * 2); g.fill(); } return;
     case 't': shadow(g, sx, sy, 12); g.fillStyle = '#4b5563'; g.fillRect(sx - 1.5, sy - 13, 3, 13); g.fillStyle = '#c9a77a'; g.beginPath(); g.ellipse(sx, sy - 14, 14, 7, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#e8d5b5'; g.beginPath(); g.ellipse(sx, sy - 15, 12, 6, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.ellipse(sx + 3, sy - 16, 3, 1.6, 0, 0, Math.PI * 2); g.fill(); return;
     case 'c': prism(g, sx, sy, .5, .4, 18, '#a8916f'); prism(g, sx, sy, .5, .42, 2, '#e8dcc6', 18); if (p.life === 'coffee') coffee(g, sx, sy, t, 20); return;
     case 'q': prism(g, sx, sy, .5, .4, 18, '#57534e'); prism(g, sx, sy, .5, .42, 2, '#d6d3d1', 18); if (p.seed % 3 === 0) { prism(g, sx, sy, .16, .12, 8, '#1f2937', 20); g.fillStyle = '#22c55e'; g.fillRect(sx - 3, sy - 29, 5, 2); } if (p.life === 'coffee') coffee(g, sx, sy, t, 20); return;
@@ -722,15 +777,15 @@ export function drawFurn(g, p, sx, sy, t, wallCol) {
     case 'X': prism(g, sx, sy, .45, .35, 14, '#5b4a3a'); prism(g, sx, sy, .42, .32, 8, '#bcd7e8', 14); g.fillStyle = '#f5b800'; g.fillRect(sx - 3, sy - 24, 3, 2); g.fillStyle = '#e5e7eb'; g.fillRect(sx + 4, sy - 22, 4, 2); g.fillStyle = '#111'; g.fillRect(sx - 9, sy - 22, 4, 2); return;
     case 'B': shadow(g, sx, sy, 16); prism(g, sx, sy, .45, .48, 10, '#e8e8f0'); prism(g, sx, sy, .4, .14, 4, '#ffffff', 10, -.04, -.3); prism(g, sx, sy, .46, .32, 3, ['#5b7fbf', '#b45309', '#047857'][p.seed % 3], 10, 0, .14); return;
     case 'u': prism(g, sx, sy, .45, .3, 6, '#9ca3af'); prism(g, sx, sy, .45, .3, 4, '#1e3a8a', 6); prism(g, sx, sy, .45, .3, 4, '#1e3a8a', 26); g.fillStyle = '#6b7280'; g.fillRect(sx - 15, sy - 32, 2, 32); g.fillRect(sx + 13, sy - 28, 2, 28); return;
-    case 'n': prism(g, sx, sy, .2, .2, 12, '#7a5a3a'); g.fillStyle = '#fde68a'; g.beginPath(); g.arc(sx, sy - 20, 4, 0, Math.PI * 2); g.fill(); return;
-    case 'p': prism(g, sx, sy, .5, .18, 10, '#7a4a2a'); prism(g, sx, sy, .5, .04, 22, '#6a3e22', 0, 0, -.16); return;
+    case 'n': cyl(g, sx, sy, .2, 12, '#7a5a3a'); cyl(g, sx, sy, .04, 6, '#d6c3a0', 12); g.fillStyle = '#fde68a'; g.beginPath(); g.arc(sx, sy - 20, 4, 0, Math.PI * 2); g.fill(); return;
+    case 'p': prism(g, sx, sy, .5, .18, 10, '#7a4a2a'); prism(g, sx, sy, .5, .04, 22, '#6a3e22', 0, 0, p.fl ? .16 : -.16); return;
     case 'r': shadow(g, sx, sy, 16); prism(g, sx, sy, .48, .32, 54, '#3d5a80'); [12, 28, 44].forEach((z, i) => prism(g, sx, sy, .4, .26, 9, ['#b08850', '#c19a6b', '#a07a48'][(i + p.seed) % 3], z - 9)); return;
-    case 'x': shadow(g, sx, sy, 12); prism(g, sx, sy, .36, .36, 22, '#b08850'); g.strokeStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.moveTo(sx - 10, sy - 6); g.lineTo(sx + 10, sy - 18); g.stroke(); if (p.seed % 2) prism(g, sx, sy, .22, .22, 12, '#c19a6b', 22); return;
+    case 'x': shadow(g, sx, sy, 12); if (p.seed % 4 === 3) { cyl(g, sx, sy, .3, 24, '#3f6f8f'); [5, 17].forEach((z) => { g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(sx - 13, sy - z, 26, 1.5); }); return; } /* a drum among the crates */ prism(g, sx, sy, .36, .36, 22, '#b08850'); g.strokeStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.moveTo(sx - 10, sy - 6); g.lineTo(sx + 10, sy - 18); g.stroke(); if (p.seed % 2) prism(g, sx, sy, .22, .22, 12, '#c19a6b', 22); return;
     case 'C': g.strokeStyle = '#4b5563'; g.lineWidth = 2; for (let i = -3; i <= 3; i++) { const a = [sx + i * 4.5, sy + i * 2.2 + 8]; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(a[0], a[1] - 46); g.stroke(); } g.fillStyle = '#4b5563'; g.fillRect(sx - 15, sy - 44, 30, 3); return;
     case 'S': g.fillStyle = '#c0392b'; g.beginPath(); g.ellipse(sx, sy - 10, 6, 3, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#9ca3af'; g.fillRect(sx - 1, sy - 10, 2, 10); return;
-    case 'b': prism(g, sx, sy, .45, .22, 10, '#b52a35'); prism(g, sx, sy, .45, .06, 26, '#9e2430', 0, 0, -.18); return;
-    case 'P': prism(g, sx, sy, .16, .16, 10, ['#8b5a2b', '#e5e7eb', '#1f2937'][p.seed % 3]); g.fillStyle = '#2f7a35'; [[-6, -16, 7], [5, -18, 7], [0, -24, 8], [-2, -30, 5]].forEach(([a, b, r]) => { g.beginPath(); g.arc(sx + a, sy + b, r, 0, Math.PI * 2); g.fill(); }); g.fillStyle = '#3f9142'; g.beginPath(); g.arc(sx + 2, sy - 22, 4, 0, Math.PI * 2); g.fill(); return;
-    case 'e': shadow(g, sx, sy, 16); prism(g, sx, sy, .45, .3, 10, ['#5b6b8a', '#7c2d12', '#365314'][p.seed % 3]); prism(g, sx, sy, .45, .07, 20, ['#4b5a78', '#6b2510', '#2d4410'][p.seed % 3], 0, 0, -.22); prism(g, sx, sy, .08, .3, 15, ['#4b5a78', '#6b2510', '#2d4410'][p.seed % 3], 0, .4, 0); return;
+    case 'b': prism(g, sx, sy, .45, .22, 10, '#b52a35'); prism(g, sx, sy, .45, .06, 26, '#9e2430', 0, 0, p.fl ? .18 : -.18); return;
+    case 'P': cyl(g, sx, sy, .19, 11, ['#b4532a', '#e5e7eb', '#1f2937'][p.seed % 3], 0, .72); /* a tapered pot */ g.fillStyle = '#2f7a35'; [[-6, -16, 7], [5, -18, 7], [0, -24, 8], [-2, -30, 5]].forEach(([a, b, r]) => { g.beginPath(); g.arc(sx + a, sy + b, r, 0, Math.PI * 2); g.fill(); }); g.fillStyle = '#3f9142'; g.beginPath(); g.arc(sx + 2, sy - 22, 4, 0, Math.PI * 2); g.fill(); return;
+    case 'e': shadow(g, sx, sy, 16); prism(g, sx, sy, .45, .3, 10, ['#5b6b8a', '#7c2d12', '#365314'][p.seed % 3]); prism(g, sx, sy, .45, .07, 20, ['#4b5a78', '#6b2510', '#2d4410'][p.seed % 3], 0, 0, p.fl ? .22 : -.22); prism(g, sx, sy, .08, .3, 15, ['#4b5a78', '#6b2510', '#2d4410'][p.seed % 3], 0, .4, 0); return;
     case 'V': prism(g, sx, sy, .3, .12, 10, '#3a2a1a'); prism(g, sx, sy, .34, .03, 22, '#111827', 10); g.fillStyle = Math.floor(t / 900) % 2 ? '#2563eb' : '#7c3aed'; g.fillRect(sx - 9, sy - 28, 16, 9); return;
     case 'J': prism(g, sx, sy, .5, .45, 30, '#6b4226'); prism(g, sx, sy, .52, .47, 3, '#8b5a2b', 30); return;
     case 'R': prism(g, sx, sy, .5, .07, 12, '#8b5a2b'); prism(g, sx, sy, .06, .06, 16, '#6b4226', 0, .44, 0); return;
@@ -744,13 +799,13 @@ export function drawFurn(g, p, sx, sy, t, wallCol) {
     case 'H': shadow(g, sx, sy, 10); prism(g, sx, sy, .3, .28, 34, '#94a3b8'); for (let z = 6; z < 34; z += 9) { g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(sx - 6, sy - z - 2, 8, 1.5); } return;
     case 'I': prism(g, sx, sy, .3, .26, 36, '#1e3a8a'); g.fillStyle = '#7dd3fc'; g.fillRect(sx - 6, sy - 30, 9, 7); g.fillStyle = '#f5b800'; g.fillRect(sx - 6, sy - 20, 9, 2); return;
     case 'N': prism(g, sx, sy, .38, .3, 46, ['#b91c1c', '#1d4ed8', '#047857'][p.seed % 3]); g.fillStyle = 'rgba(190,227,255,.7)'; g.fillRect(sx - 10, sy - 40, 12, 22); ['#f59e0b', '#ef4444', '#22c55e'].forEach((c, i) => { g.fillStyle = c; g.fillRect(sx - 8 + i * 3, sy - 36 + i * 6, 2, 3); }); return;
-    case 'O': prism(g, sx, sy, .18, .18, 22, '#e5e7eb'); g.fillStyle = 'rgba(147,197,253,.85)'; g.beginPath(); g.ellipse(sx, sy - 30, 6, 8, 0, 0, Math.PI * 2); g.fill(); return;
+    case 'O': prism(g, sx, sy, .18, .18, 22, '#e5e7eb'); cyl(g, sx, sy, .13, 13, '#93c5fd', 22); g.fillStyle = 'rgba(255,255,255,.45)'; g.fillRect(sx - 4, sy - 33, 2, 8); return; /* the water bottle */
     case 'Q': prism(g, sx, sy, .4, .3, 18, '#57534e'); prism(g, sx, sy, .16, .12, 14, '#111827', 18); g.fillStyle = '#7c2d12'; g.fillRect(sx + 4, sy - 22, 4, 4); if (Math.floor(t / 1600) % 3 === 0) { g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.arc(sx - 2, sy - 40 - (t % 1600) / 80, 2.5, 0, Math.PI * 2); g.fill(); } return;
     case 'Y': prism(g, sx, sy, .34, .28, 22, '#d1d5db'); prism(g, sx, sy, .3, .24, 3, '#6b7280', 22); g.fillStyle = '#22c55e'; g.fillRect(sx + 6, sy - 22, 2, 2); return;
     case 'g': prism(g, sx, sy, .45, .35, 20, '#9ca3af'); prism(g, sx, sy, .45, .37, 2, '#374151', 20); g.fillStyle = Math.floor(t / 400) % 2 ? '#f97316' : '#ef4444'; g.beginPath(); g.arc(sx - 5, sy - 24, 2.4, 0, Math.PI * 2); g.arc(sx + 5, sy - 22, 2.4, 0, Math.PI * 2); g.fill(); return;
     case 'w': prism(g, sx, sy, .45, .35, 18, '#e5e7eb'); g.fillStyle = '#93c5fd'; g.beginPath(); g.ellipse(sx, sy - 20, 7, 3, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#9ca3af'; g.fillRect(sx - 1, sy - 30, 2, 9); return;
     case 'l': g.fillStyle = '#374151'; g.fillRect(sx - 1, sy - 34, 2, 34); g.fillStyle = '#fde68a'; g.beginPath(); g.moveTo(sx - 7, sy - 34); g.lineTo(sx + 7, sy - 34); g.lineTo(sx + 4, sy - 42); g.lineTo(sx - 4, sy - 42); g.closePath(); g.fill(); return;
-    case 'y': prism(g, sx, sy, .14, .14, 14, '#374151'); return;
+    case 'y': cyl(g, sx, sy, .04, 12, '#6b7280'); cyl(g, sx, sy, .17, 3, ['#374151', '#b91c1c', '#1e3a8a'][p.seed % 3], 12); return; /* a round stool */
     case 'z': prism(g, sx, sy, .2, .16, 26, '#6b4226'); prism(g, sx, sy, .26, .2, 3, '#8b5a2b', 26); return;
     case '=': prism(g, sx, sy, .48, .16, 8, '#7a5a3a'); prism(g, sx, sy, .06, .14, 8, '#374151', -8, .4, 0); return;
     case '%': g.fillStyle = '#d4a017'; g.fillRect(sx - 1.5, sy - 18, 3, 18); g.strokeStyle = '#991b1b'; g.lineWidth = 2; g.beginPath(); g.moveTo(sx, sy - 16); g.quadraticCurveTo(sx + 16, sy - 6, sx + 32, sy); g.stroke(); return;
@@ -758,7 +813,7 @@ export function drawFurn(g, p, sx, sy, t, wallCol) {
     case '&': g.fillStyle = '#9ca3af'; g.fillRect(sx - 1, sy - 46, 2, 46); g.fillStyle = '#1e3a8a'; g.fillRect(sx + 1, sy - 46, 14, 9); g.fillStyle = '#b91c1c'; for (let i = 0; i < 3; i++) g.fillRect(sx + 1, sy - 37 + i * 3, 18, 1.5); g.fillStyle = '#f5b800'; g.beginPath(); g.arc(sx, sy - 47, 2, 0, Math.PI * 2); g.fill(); return;
     case '~': prism(g, sx, sy, .34, .26, 34, '#7c2d12'); g.fillStyle = Math.floor(t / 250) % 3 === 0 ? '#f472b6' : Math.floor(t / 250) % 3 === 1 ? '#facc15' : '#38bdf8'; g.beginPath(); g.arc(sx - 2, sy - 32, 7, Math.PI, 0); g.fill(); return;
     case 'f': prism(g, sx, sy, .42, .38, 30, '#f8fafc'); g.fillStyle = '#94a3b8'; g.beginPath(); g.arc(sx - 4, sy - 14, 7, 0, Math.PI * 2); g.fill(); g.fillStyle = (p.seed + Math.floor(t / 300)) % 4 ? '#bfdbfe' : '#e0f2fe'; g.beginPath(); g.arc(sx - 4, sy - 14, 5, 0, Math.PI * 2); g.fill(); return;
-    case 'm': prism(g, sx, sy, .1, .1, 10, '#9ca3af'); prism(g, sx, sy, .3, .3, 8, '#111827', 10); prism(g, sx, sy, .3, .06, 22, '#111827', 10, 0, -.24); return;
+    case 'm': cyl(g, sx, sy, .06, 10, '#9ca3af'); prism(g, sx, sy, .3, .3, 8, '#111827', 10); prism(g, sx, sy, .3, .06, 22, '#111827', 10, 0, -.24); return;
     case 'W': prism(g, sx, sy, .45, .14, 8, '#374151'); g.fillStyle = '#111'; g.fillRect(sx - 16, sy - 24, 32, 2); g.beginPath(); g.arc(sx - 14, sy - 23, 6, 0, Math.PI * 2); g.arc(sx + 14, sy - 23, 6, 0, Math.PI * 2); g.fill(); return;
     case 'o': g.strokeStyle = '#6b7280'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(sx, sy - 56); g.lineTo(sx, sy - 40); g.stroke(); g.fillStyle = '#991b1b'; g.beginPath(); g.roundRect(sx - 6, sy - 40, 12, 30, 5); g.fill(); g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(sx + 1, sy, 6, 3, 0, 0, Math.PI * 2); g.fill(); return;
     case '{': shadow(g, sx, sy, 18); prism(g, sx, sy, .46, .36, 14, '#5b3a1e'); prism(g, sx, sy, .4, .3, 1, '#15803d', 14); g.fillStyle = '#fff'; g.beginPath(); g.arc(sx + 4, sy - 16, 1.8, 0, Math.PI * 2); g.fill(); g.fillStyle = '#dc2626'; g.beginPath(); g.arc(sx - 4, sy - 17, 1.8, 0, Math.PI * 2); g.fill(); return;
