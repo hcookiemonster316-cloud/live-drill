@@ -1,7 +1,9 @@
 // The Patrol City score: every track was composed for this game and rendered from its own synth engine (music.js)
 // to small MP3s. Each mood rotates through its tracks with crossfades. Until the first file has loaded (or if files
 // can't load), the same synth plays the score live instead.
-import { META, ROTATION, POOLS, CONTEXT, TRACKS, trackLen } from './scoredata.js';
+import { META, ROTATION, POOLS, CONTEXT, TRACKS, trackLen, CHAR_MOTIFS } from './scoredata.js';
+import { parseTheme } from './music.js';
+const SCL = { maj: [0, 2, 4, 5, 7, 9, 11], min: [0, 2, 3, 5, 7, 8, 10], dor: [0, 2, 3, 5, 7, 9, 10], mix: [0, 2, 4, 5, 7, 9, 10] };
 const MV = '?v=10'; // bump when the soundtrack is re-rendered, so returning players hear the new files right away
 const FILE = 'music/title_1.mp3' + MV; // loaded first; once it can play, the file score takes over from the live synth
 const NAMES = {}; for (const k in META) if (META[k].base) NAMES[META[k].base] = META[k].name;
@@ -9,7 +11,7 @@ const PRIORITY = { call: 1, urgent: 1, scene: 1, story: 1 }; // these cut in rig
 
 export function createScore(getCtx, synth) {
   let inten = 1; function tone() { if (!lp) return; const a = ctx(), f = Math.min(rainy ? 5200 : 16000, 2400 * Math.pow(16000 / 2400, inten)); lp.frequency.setTargetAtTime(f, a.currentTime, .8); }
-  let on = false, cur = null, vol = .7, rainy = false, master = null, lp = null, decks = [], live = -1, ready = false, failed = false, lastJump = 0, pending = null, playing = null, watch = 0;
+  let tens = 0, stem = null; let on = false, cur = null, vol = .7, rainy = false, master = null, lp = null, decks = [], live = -1, ready = false, failed = false, lastJump = 0, pending = null, playing = null, watch = 0;
   const ctx = () => getCtx(), idx = {}, bad = {};
   // the rotation: each mood draws from a shuffled bag of its own tracks plus related ones (POOLS), so every track plays
   // before any repeats, never the same one twice in a row, and nothing heard in the last few tracks comes straight back.
@@ -84,12 +86,29 @@ export function createScore(getCtx, synth) {
     // how present the score is: on foot it plays softer and duller, as if from a distance; in the car and on a call it
     // opens up to full brightness. The same recording, altered live by what you're doing.
     intensity(k) { if (Math.abs(k - inten) < .01) return; inten = k; tone(); if (master) { const a = ctx(); master.gain.setTargetAtTime(vol * (.72 + .28 * inten), a.currentTime, .6); } },
-    volume(v) { vol = Math.max(0, Math.min(1, v)) * .85 + .0001; synth.volume(v); if (master) { const a = ctx(); master.gain.setTargetAtTime(vol * (.72 + .28 * inten), a.currentTime, .1); } },
+    volume(v) { vol = Math.max(0, Math.min(1, v)) * .85 + .0001; synth.volume(v); if (stem) api.tension(tens); if (master) { const a = ctx(); master.gain.setTargetAtTime(vol * (.72 + .28 * inten), a.currentTime, .1); } },
+    // the tension layer: a low string pedal on the playing track's key that fades in as a call gets serious (a little on
+    // an accepted call, more on scene, all of it in a priority call or a pursuit); it follows the key when the track changes
+    tension(k) { tens = k; const a = ctx(); if (!a) return; const id = playing && playing.id, tr = id && TRACKS[id], want = on && vol > 0 ? Math.max(0, (k - .7) / .3) : 0;
+      if (!stem) { if (!want) return; const g = a.createGain(), lp2 = a.createBiquadFilter(); g.gain.value = 0; lp2.type = 'lowpass'; lp2.Q.value = .7; lp2.connect(g); g.connect(a.destination);
+        const o = [-6, 6, 0].map((det, i) => { const x = a.createOscillator(); x.type = i < 2 ? 'sawtooth' : 'triangle'; x.detune.value = det; x.connect(lp2); x.start(); return x; }); stem = { g, lp: lp2, o }; }
+      const f = 440 * Math.pow(2, ((tr ? tr.root : 62) - 24 - 69) / 12), t = a.currentTime; stem.o[0].frequency.setTargetAtTime(f, t, .4); stem.o[1].frequency.setTargetAtTime(f * 1.5, t, .4); stem.o[2].frequency.setTargetAtTime(f * 2, t, .4);
+      stem.lp.frequency.setTargetAtTime(240 + 1000 * want, t, 1.5); stem.g.gain.setTargetAtTime(.03 * want * vol, t, want ? 1.4 : .8); },
+    get layer() { return stem ? stem.g.gain.value : 0; },
+    // a character's phrase over the score: built here from oscillators, each character with its own instrument
+    motif(key) { const m = CHAR_MOTIFS[key]; if (!on || !m) return false; const a = ctx(); if (!a || a.state !== 'running') return false; const beat = 60 / m.bpm, t0 = a.currentTime + .08, out = a.createGain(); out.gain.value = .9 * vol; out.connect(a.destination);
+      parseTheme(m.theme).forEach((n) => { const st = SCL[m.scale], d = n.d, midi = m.root + Math.floor(d / 7) * 12 + st[((d % 7) + 7) % 7] + n.acc, f = 440 * Math.pow(2, (midi - 69) / 12), t = t0 + n.b * beat, len = Math.max(.12, n.l * beat);
+        const g = a.createGain(), lp = a.createBiquadFilter(); lp.type = 'lowpass'; g.connect(out); lp.connect(g); const osc = (type, hz, det) => { const o = a.createOscillator(); o.type = type; o.frequency.value = hz; if (det) o.detune.value = det; o.connect(lp); o.start(t); o.stop(t + len + .6); return o; };
+        if (m.voice === 'mute') { lp.frequency.value = 1500; lp.Q.value = 3; osc('square', f); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.05, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + len * .9 + .05); }
+        else if (m.voice === 'sax') { lp.frequency.value = 1700; const o = osc('sawtooth', f), v = a.createOscillator(), vg = a.createGain(); v.frequency.value = 5.2; vg.gain.value = 6; v.connect(vg); vg.connect(o.detune); v.start(t); v.stop(t + len + .6); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.032, t + .06); g.gain.setValueAtTime(.032, t + len * .8); g.gain.exponentialRampToValueAtTime(.0001, t + len + .3); }
+        else if (m.voice === 'vibes') { lp.frequency.value = 6000; osc('sine', f); osc('sine', f * 4, 3); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.06, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + Math.max(.5, len) + .5); }
+        else { lp.frequency.value = 1100; osc('sawtooth', f, -7); osc('sawtooth', f, 7); osc('sine', f / 2); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.028, t + .18); g.gain.setValueAtTime(.028, t + len * .85); g.gain.exponentialRampToValueAtTime(.0001, t + len + .5); } });
+      setTimeout(() => { try { out.disconnect(); } catch (e) {} }, 8000); return true; },
     sting(kind) { synth.sting && synth.sting(kind); if (!on || !ready || failed || !master) return; // a short bell figure over the recording
       const a = ctx(), t = a.currentTime + .05, seq = { accept: [69, 74, 72], done: [69, 74, 72, 69, 64, 65, 62], promo: [69, 74, 72, 69, 76, 74, 77], fail: [64, 62], grade: [69, 74, 72, 69, 76] }[kind] || [69]; // the Port Meridian hook
       seq.forEach((n, i) => { const o = a.createOscillator(), g = a.createGain(); o.type = 'triangle'; o.frequency.value = 440 * Math.pow(2, (n + 12 - 69) / 12); g.gain.setValueAtTime(.0001, t + i * .12); g.gain.exponentialRampToValueAtTime(.06, t + i * .12 + .01); g.gain.exponentialRampToValueAtTime(.0001, t + i * .12 + .7); o.connect(g); g.connect(master); o.start(t + i * .12); o.stop(t + i * .12 + .8); });
     },
-    stop() { on = false; cur = null; clearTimeout(pending); synth.stop(); const a = ctx(); if (a && master) { decks.forEach((d) => { d.g.gain.cancelScheduledValues(a.currentTime); d.g.gain.setValueAtTime(d.g.gain.value, a.currentTime); d.g.gain.linearRampToValueAtTime(0, a.currentTime + 1.2); }); setTimeout(() => { if (!on) decks.forEach((d) => d.el.pause()); }, 1300); } live = -1; }
+    stop() { on = false; cur = null; clearTimeout(pending); synth.stop(); if (stem) { const a0 = ctx(); stem.g.gain.setTargetAtTime(0, a0.currentTime, .4); } const a = ctx(); if (a && master) { decks.forEach((d) => { d.g.gain.cancelScheduledValues(a.currentTime); d.g.gain.setValueAtTime(d.g.gain.value, a.currentTime); d.g.gain.linearRampToValueAtTime(0, a.currentTime + 1.2); }); setTimeout(() => { if (!on) decks.forEach((d) => d.el.pause()); }, 1300); } live = -1; }
   };
   return api;
 }

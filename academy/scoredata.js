@@ -167,6 +167,31 @@ export const TRACKS = {
     band: { rhodes: { pat: 'push', v: .024 }, bass: { pat: 'funk', v: .08 } }, drums: { pat: 'lowride', v: .6 }, lead: { voice: 'vibes', v: .032, oct: 12 }, leadB: { voice: 'flute', v: .036, oct: 12 } },
   water_2: { name: 'Slow Wake', bpm: 74, root: 60, scale: 'dor', form: true, intro: 'band', outro: 'motif', outroTheme: SUB.outH, swing: .2, prog: JF.night, progB: JF.porch, theme: JT.heart, themeB: JT.main,
     band: { rhodes: { pat: 'ballad', v: .028 }, vamp: { v: .012 }, bass: { pat: 'walk', v: .07 } }, drums: { pat: 'jazz', v: .45 }, lead: { voice: 'flute', v: .036, oct: 12 }, leadB: { voice: 'sax', v: .034, oct: 0 } },
+  // ---- the third arrangement of every situation, so a long session hears a wide rotation ----
+  title_3: { name: 'Port Meridian (Strings)', bpm: 64, root: 62, scale: 'min', form: true, swing: .1, prog: JF.dark, progB: JF.lift, theme: JT.main, themeB: JT.heart, intro: 'motif', introTheme: SUB.inH, outro: 'motif', outroTheme: SUB.outH,
+    band: { rhodes: { pat: 'ballad', v: .02 }, bass: { pat: 'whole', v: .06 } }, drums: { pat: 'brush', v: .3 }, lead: { voice: 'strings', v: .036, oct: 12 }, leadB: { voice: 'piano', v: .034, oct: 12 } },
+  day_3: { name: 'Main Street Strut', bpm: 100, root: 67, scale: 'mix', form: true, swing: .18, prog: JF.porch, progB: JF.vamp, theme: JT.main, themeB: MEL.coffee, intro: 'bass', outro: 'motif', outroTheme: SUB.outM,
+    band: { clav: { v: .016 }, rhodes: { pat: 'push', v: .022 }, bass: { pat: 'walk', v: .08 } }, drums: { pat: 'shuffle', v: .7 }, lead: { voice: 'vibes', v: .036, oct: 12 }, leadB: { voice: 'sax', v: .038, oct: 0 } },
+  night_3: { name: 'Streetlamps After Midnight', bpm: 70, root: 60, scale: 'min', form: true, swing: .2, prog: JF.night, progB: JF.dark, theme: MEL.streetlamps, themeB: JT.heart, intro: 'motif', introTheme: SUB.inH, outro: 'motif', outroTheme: SUB.outH,
+    band: { rhodes: { pat: 'ballad', v: .026 }, bass: { pat: 'walk', v: .07 } }, drums: { pat: 'brush', v: .45 }, lead: { voice: 'flute', v: .036, oct: 12 }, leadB: { voice: 'vibes', v: .03, oct: 12 } },
+  inside_3: { name: 'Quiet Room', bpm: 76, root: 65, scale: 'maj', form: true, swing: .14, prog: JF.porch, progB: JF.lift, theme: JT.calm, themeB: JT.heart, intro: 'motif', introTheme: SUB.inM, outro: 'motif', outroTheme: SUB.outH,
+    band: { rhodes: { pat: 'ballad', v: .024 }, bass: { pat: 'whole', v: .06 } }, drums: { pat: 'brush', v: .35 }, lead: { voice: 'piano', v: .036, oct: 12 }, leadB: { voice: 'flute', v: .034, oct: 12 } },
+  story_3: { name: 'Loose Ends', bpm: 62, root: 62, scale: 'min', form: true, swing: .16, prog: JF.dark, progB: JF.night, theme: JT.heart, themeB: JT.frag, intro: 'motif', introTheme: SUB.inH, outro: 'band',
+    band: { vamp: { v: .014 }, bass: { pat: 'walk', v: .07 } }, drums: { pat: 'jazz', v: .35 }, drone: { v: .016 }, lead: { voice: 'strings', v: .034, oct: 12 }, leadB: { voice: 'mute', v: .034, oct: 12 } },
+  side_3: { name: 'Legwork, Second Shift', bpm: 104, root: 62, scale: 'dor', form: true, swing: .1, prog: JF.vamp, progB: JF.chase, theme: MEL.legwork, themeB: JT.main, intro: 'drums', outro: 'hits',
+    band: { clav: { v: .018 }, wah: { v: .016 }, bass: { pat: 'funk', v: .095 } }, drums: { pat: 'funk', v: .75 }, lead: { voice: 'sax', v: .04, oct: 0 }, leadB: { voice: 'vibes', v: .032, oct: 12 } },
+  call_3: { name: 'Rolling Code Two', bpm: 118, root: 64, scale: 'min', form: true, swing: .04, prog: JF.chase, progB: JF.chaseB, theme: JT.units, themeB: JT.main, intro: 'hits', outro: 'drums',
+    band: { horns: { v: .02 }, bass: { pat: 'octaves', v: .1 } }, drums: { pat: 'lowride', v: .8 }, lead: { voice: 'horns', v: .032, oct: 12 }, leadB: { voice: 'flute', v: .034, oct: 12 } },
+  urgent_3: { name: 'All Units, All Channels', bpm: 132, root: 62, scale: 'min', form: true, swing: .02, prog: JF.chase, progB: JF.chaseB, theme: JT.units, themeB: JT.chaseB, intro: 'drums', outro: 'hits',
+    band: { horns: { v: .022 }, wah: { v: .016, busy: true }, bass: { pat: 'octaves', v: .1 } }, drums: { pat: 'pursuit', v: .9 }, drone: { v: .016 }, lead: { voice: 'brass', v: .034, oct: 12 }, leadB: { voice: 'sax', v: .04, oct: 0 } },
+  scene_3: { name: 'Hold the Line', bpm: 88, root: 62, scale: 'dor', form: true, swing: .08, prog: JF.dark, progB: JF.night, theme: MEL.talkdown, themeB: JT.heartFrag, intro: 'bass', outro: 'motif', outroTheme: SUB.outM,
+    band: { rhodes: { pat: 'push', v: .022 }, bass: { pat: 'walk', v: .075 } }, drums: { pat: 'half', v: .6 }, drone: { v: .014 }, lead: { voice: 'vibes', v: .034, oct: 12 }, leadB: { voice: 'mute', v: .034, oct: 12 } },
+  debrief_3: { name: 'Paperwork', bpm: 80, root: 65, scale: 'mix', form: true, swing: .16, prog: JF.porch, progB: JF.lift, theme: MEL.records, themeB: JT.calm, intro: 'motif', introTheme: SUB.inM, outro: 'motif', outroTheme: SUB.outH,
+    band: { rhodes: { pat: 'ballad', v: .024 }, bass: { pat: 'walk', v: .07 } }, drums: { pat: 'brush', v: .45 }, lead: { voice: 'flute', v: .036, oct: 12 }, leadB: { voice: 'vibes', v: .032, oct: 12 } },
+  friend_3: { name: 'Porch Light', bpm: 92, root: 67, scale: 'maj', form: true, swing: .12, prog: JF.porch, progB: JF.lift, theme: MEL.porch, themeB: JT.heart, intro: 'band', outro: 'motif', outroTheme: SUB.outM,
+    band: { rhodes: { pat: 'push', v: .024 }, bass: { pat: 'walk', v: .075 } }, drums: { pat: 'bossa', v: .6 }, lead: { voice: 'vibes', v: .036, oct: 12 }, leadB: { voice: 'flute', v: .034, oct: 12 } },
+  water_3: { name: 'Harbor Lights', bpm: 78, root: 65, scale: 'mix', form: true, swing: .14, prog: JF.lift, progB: JF.porch, theme: MEL.harbor, themeB: JT.main, intro: 'motif', introTheme: SUB.inM, outro: 'motif', outroTheme: SUB.outH,
+    band: { rhodes: { pat: 'ballad', v: .026 }, bass: { pat: 'walk', v: .07 } }, drums: { pat: 'bossa', v: .5 }, lead: { voice: 'flute', v: .036, oct: 12 }, leadB: { voice: 'sax', v: .036, oct: 0 } },
   // ---- seasons: each chapter of the year has its own arrangement of the hook (it joins patrol and plays at the chapter's beats) ----
   season_fog: { name: 'Fog Line (January)', bpm: 70, root: 60, scale: 'dor', form: true, swing: .14, prog: JF.night, progB: JF.porch, theme: JT.main, themeB: JT.calm, intro: 'motif', introTheme: SUB.inM, outro: 'motif', outroTheme: SUB.outH,
     band: { rhodes: { pat: 'ballad', v: .026 }, vamp: { v: .012 }, bass: { pat: 'whole', v: .07 } }, drums: { pat: 'brush', v: .4 }, drone: { v: .016 }, lead: { voice: 'flute', v: .036, oct: 12 }, leadB: { voice: 'vibes', v: .03, oct: 12 } },
@@ -222,6 +247,15 @@ export const TRACKS = {
 // the original Patrol City themes (the live synth score), rendered to files as the first track of each mood
 const BASE = { title: ['Port Meridian', 72], day: ['Day Watch', 100], night: ['Night Watch', 78], inside: ['Indoors', 70], story: ['The Gray Sedan', 64], side: ['Side Case', 104],
   call: ['En Route', 112], urgent: ['Priority One', 136], scene: ['On Scene', 84], debrief: ['Debrief', 76], friend: ['Neighbors', 80], water: ['Marine Patrol', 84] };
+// each main character has a short phrase taken from one of the three melodies; it plays when they enter a scene, so you
+// hear who is coming: Castillo the brisk opening of "All Units", Walsh the first sigh of "End of Watch", Park the
+// Port Meridian hook up high and quick, and Lassiter the same hook turned minor, low and slow
+export const CHAR_MOTIFS = {
+  castillo: { from: 'units', theme: '0:.5 0:.5 3:.5 0:.5 4:1', root: 62, scale: 'dor', bpm: 132, voice: 'mute' },
+  walsh: { from: 'heart', theme: '7:1.5 6:.5 4:2', root: 55, scale: 'maj', bpm: 84, voice: 'sax' },
+  park: { from: 'main', theme: '4:3/2 7:1/2 6:1/3 7:1/3 6:1/3 4:1', root: 69, scale: 'mix', bpm: 126, voice: 'vibes' },
+  lassiter: { from: 'main', theme: '4:3/2 7:1/2 6:1/3 7:1/3 6:1/3 4:2', root: 50, scale: 'min', bpm: 70, voice: 'strings' }
+};
 // which arrangements belong to a place, a unit and a shift (the score player adds them to the rotation)
 export const CONTEXT = { district: (d) => 'dist_' + d, unit: (u) => (u && u !== 'patrol' ? 'unit_' + u : null), shift: (s) => 'shift_' + (s || 'day'), season: (n) => (n ? 'season_' + n : null) };
 // the cinematic layer, on every track (owner's call): the band plays as before, and an orchestra plays with it. Strings
