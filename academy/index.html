@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+<meta name="description" content="Patrol City: A cop show you learn from, where doing it right is the cool thing. A Florida police academy training game, made from scratch.">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Patrol City</title>
@@ -269,6 +270,7 @@ body.attract #start{background:linear-gradient(180deg,rgba(7,13,28,.55),rgba(7,1
 @keyframes tiIn{from{transform:translateY(40%);opacity:0;letter-spacing:.3em}}
 .tiShine{position:absolute;inset:0;background:linear-gradient(110deg,transparent 40%,rgba(255,255,255,.55) 50%,transparent 60%);mix-blend-mode:overlay;transform:translateX(-100%);animation:tiShine 4.5s ease-in-out 1.4s infinite}
 @keyframes tiShine{30%,100%{transform:translateX(100%)}}
+.tiPitch{margin-top:8px;font-size:clamp(.86rem,2.6vw,1.05rem);color:#e6ebf5;max-width:30em;margin-left:auto;margin-right:auto;animation:tiFade 1s 1s both}
 .tiSub{font:800 clamp(.8rem,2.4vw,1.05rem) 'Meridian','Arial Narrow',system-ui,sans-serif;letter-spacing:.32em;color:#f5b800;animation:tiFade 1s .8s both}.tiClass{font-size:.82rem;color:var(--soft);letter-spacing:.08em;animation:tiFade 1s 1s both}
 @keyframes tiFade{from{opacity:0;transform:translateY(8px)}}
 .tiGo{margin-top:26px;min-height:54px;padding:0 34px;border-radius:99px;border:1.5px solid rgba(245,184,0,.7);background:rgba(11,22,48,.55);font:800 1.15rem 'Meridian','Arial Narrow',system-ui,sans-serif;letter-spacing:.24em;text-transform:uppercase;color:#fff;animation:tiFade 1s 1.4s both,tiPulse 2.2s ease-in-out 2.4s infinite;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
@@ -743,6 +745,7 @@ body.cine .offHud,body.photo .offHud,body.attract .offHud{display:none!important
 /* rides, event gear, trust map, daily chip */
 .rides{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.rides>button,.evGear{display:grid;justify-items:start;gap:3px;padding:10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:inherit;text-align:left;cursor:pointer}
 .rides>button span,.evGear>span{font-size:1.6rem}.rides>button.on{border-color:#f5b800;background:rgba(245,184,0,.12)}
+.idCard{max-width:420px;margin:0 auto}.idTop{display:flex;flex-direction:column;align-items:center;padding:10px;border-radius:12px 12px 0 0;background:linear-gradient(180deg,#22355e,#16213d);border-bottom:3px solid #e3b341}.idTop b{font-size:.84rem;letter-spacing:.12em;color:#f5d77a}.idTop small{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:#9fb0cc}.idBody{display:flex;gap:12px;align-items:center;padding:12px;background:#0f1524}#idPort{width:132px;height:132px;flex:none;border-radius:10px;background:radial-gradient(circle at 50% 35%,#2b3a5c,#141b2c);image-rendering:pixelated;border:2px solid #2b3a5c}.idInfo h2{margin:0 0 2px;font-size:1.25rem}.idInfo p{margin:2px 0;font-size:.82rem;color:#b9c4d6}.idInfo .idRk{color:#f5d77a;font-weight:700;font-size:.95rem}.idRank{padding:10px 12px 4px;background:#0f1524;border-radius:0 0 12px 12px;border-top:1px solid #1f2a40}.idRank>small{font-size:.66rem;letter-spacing:.1em;color:#7f8ca3}.idPcs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}.idPc{display:flex;flex-direction:column;align-items:center;padding:6px 2px;border-radius:8px;background:#141c2e;opacity:.6}.idPc.on{opacity:1;background:#1b2540;box-shadow:inset 0 0 0 1px #3d4c74}.idPc b{font-size:.72rem;margin-top:2px}.idPc small{font-size:.64rem;color:#8a97ad}
 body.cine #nod{bottom:auto;top:calc(92px + env(safe-area-inset-top))} /* in a scene the choices sit at the bottom: the nod goes up under the header */
 #nod{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translate(-50%,8px);z-index:80;background:rgba(22,27,46,.92);border-left:3px solid #22c55e;border-radius:10px;padding:7px 12px;font-size:14px;color:#eef2f7;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:min(420px,88vw)}#nod.on{opacity:1;transform:translate(-50%,0)}#nod b{color:#22c55e;margin-right:6px;font-family:Meridian,sans-serif}body.calm #nod{transition:none}
 .drillGo,.drillList>button{display:grid;grid-template-columns:auto 1fr auto;align-items:center;column-gap:10px;width:100%;margin-top:10px;padding:12px;border-radius:12px;background:rgba(245,184,0,.08);border:1px solid rgba(245,184,0,.35);color:inherit;text-align:left;cursor:pointer}

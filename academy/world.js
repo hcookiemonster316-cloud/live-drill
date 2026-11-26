@@ -1179,6 +1179,8 @@ export function drawVehicle(g, sx, sy, dir, v, t, night, on) {
   glass(inset(cEnd, .12, .1), 1.2);
   const roof = [P(c.ta, -c.tw, cH), P(c.tb, -c.tw, cH), P(c.tb, c.tw, cH), P(c.ta, c.tw, cH)], rg = g.createLinearGradient(roof[0][0], roof[0][1], roof[2][0], roof[2][1]); rg.addColorStop(0, shade(v.roof || body, 1.25)); rg.addColorStop(1, shade(v.roof || body, 1));
   vQuad(g, roof, rg, line);
+  // a rank bar across the roof: the side stripe disappears from above, the roof is what reads from across the map
+  if (v.roofBar) { const m = c.ta + (c.tb - c.ta) * .28, d = (c.tb - c.ta) * .15; vQuad(g, [P(m - d, -c.tw, cH + .05), P(m + d, -c.tw, cH + .05), P(m + d, c.tw, cH + .05), P(m - d, c.tw, cH + .05)], v.roofBar, line); }
   if (kind === 'truck') { vQuad(g, [P(-1, -1, H), P(-.1, -1, H), P(-.1, 1, H), P(-1, 1, H)], '#0b2536'); const q = P(-.55, 0, H + 3); g.fillStyle = '#e2e8f0'; g.beginPath(); g.ellipse(q[0], q[1], 6 * s, 2.8 * s, 0, 0, Math.PI * 2); g.fill(); }
   if (kind === 'armored') { g.fillStyle = '#14180f'; for (let k = -2; k <= 1; k++) { const q = P(k * .3 + .1, vE, H * .7); g.fillRect(q[0] - 1.2 * s, q[1] - 1, 2.4 * s, 2.4 * s); } }
   // roof text (unit number)

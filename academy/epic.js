@@ -32,7 +32,7 @@ export function installEpic(H) {
     const W = H.W; if (!W || W.did !== 0) { S.seenCine = 1; return; }
     const P = H.P, pz = H.iso(P.x, P.y), cam = H.cam, z0 = cam.z;
     busy = true; cam.free = true;
-    const el = document.createElement('div'); el.className = 'introCine'; el.innerHTML = '<div class="tcBar t"></div><div class="tcBar b"></div><div class="icRadio"></div><div class="icTitle"><small>PORT MERIDIAN, FLORIDA · 0600 HOURS</small><h1>PATROL CITY</h1><p>Every call is a lesson.</p></div><div class="icHint">Move or tap to take the wheel</div>';
+    const el = document.createElement('div'); el.className = 'introCine'; el.innerHTML = '<div class="tcBar t"></div><div class="tcBar b"></div><div class="icRadio"></div><div class="icTitle"><small>PORT MERIDIAN POLICE ACADEMY · FIELD IMMERSION · 0600 HOURS</small><h1>PATROL CITY</h1><p>A cop show you learn from, where doing it right is the cool thing.</p></div><div class="icHint">Move or tap to take the wheel</div>';
     document.body.appendChild(el); document.body.classList.add('introOn'); requestAnimationFrame(() => el.classList.add('on'));
     const radio = el.querySelector('.icRadio'), lines = [['Dispatch', 'Good morning, Port Meridian. All units, day shift is on the air.'], ['Dispatch', 'Heads up, everybody: we\'ve got a new cadet on the street today.'], ['Sgt. Castillo', 'That one\'s mine. Go easy on them, Velvet.'], ['Dispatch', 'I always do, Sergeant. Welcome to Port Meridian, cadet.']];
     lines.forEach((l, k) => setTimeout(() => { if (!cine) return; radio.innerHTML = '<div><b>' + esc(l[0]) + ':</b> ' + esc(l[1]) + '</div>'; radio.classList.remove('in'); void radio.offsetWidth; radio.classList.add('in'); H.chirp(); }, 1400 + k * 3000));
