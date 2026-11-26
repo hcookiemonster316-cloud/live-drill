@@ -96,6 +96,10 @@ export function groupExamIds(seed, n) { const r = seedRand(seed), all = FACTS.fi
 // the full chapter test: every fact, each once, in a shuffled order kept with the saved run
 export const examOrder = () => shuffle(FACTS.map((f) => f.id));
 export function examQs(ids) { return ids.map((id) => FACT_BY_ID.get(id)).filter(Boolean).map(factQuestion); }
+// the practice exam: every fact's id, and n facts drawn at random from the whole chapter (single-answer questions only)
+export const allFactIds = () => FACTS.map((f) => f.id);
+export function examQsSingle(ids) { return ids.map((id) => { const f = FACT_BY_ID.get(id); if (!f) return null; const ok = f.qs.filter((k) => POOL[k] && !Array.isArray(POOL[k][2])); return ok.length ? factQFixed(id, ok[Math.floor(Math.random() * ok.length)], Math.random) : null; }).filter(Boolean); }
+export function drawIds(n) { return shuffle(FACTS.filter((f) => f.qs.some((k) => POOL[k] && !Array.isArray(POOL[k][2])))).slice(0, n).map((f) => f.id); }
 export function factQ(id) { const f = FACT_BY_ID.get(id); return f ? factQuestion(f) : null; }
 // questions for n facts, open facts first (then ones missed recently)
 // every question is a fact: facts you haven't learned come first and a learned fact never comes back while any are left.
@@ -116,22 +120,32 @@ export function pickFacts(S, lessons, n, opts) {
 }
 // spaced review: a missed fact is due again REVIEW_MS after the miss (soon enough to fix it, late enough not to parrot it)
 export const REVIEW_MS = 4 * 60 * 1000;
-export function dueReviews(S, lessons) { const fm = S.fmiss || {}, now = Date.now(); return factList(lessons).filter((f) => fm[f.id] && now - fm[f.id] >= REVIEW_MS).sort((a, b) => fm[a.id] - fm[b.id]); }
+// after a missed fact is fixed it comes back three more times, further apart each time, before it counts as locked in
+export const SPACING = [20 * 60 * 1000, 24 * 3600 * 1000, 4 * 24 * 3600 * 1000];
+export function dueReviews(S, lessons) { const fm = S.fmiss || {}, fd = S.fdue || {}, now = Date.now(); const at = (f) => (fm[f.id] ? fm[f.id] + REVIEW_MS : fd[f.id] || Infinity);
+  return factList(lessons).filter((f) => (fm[f.id] && now - fm[f.id] >= REVIEW_MS) || (fd[f.id] && now >= fd[f.id])).sort((a, b) => at(a) - at(b)); }
 // how ready you are for the final exam: facts you've gotten right and haven't missed since, out of the whole chapter,
 // plus the lessons with the most left to learn
 export function readiness(S) {
   const f = S.facts || {}, fm = S.fmiss || {}, solid = FACTS.filter((x) => f[x.id] && !fm[x.id]).length, total = FACTS.length;
   const les = Array.from({ length: lessonCount() }, (_, i) => { const p = factProgress(S, [i]); return { les: i, name: lessonName(i), done: p.done, total: p.total, left: p.total - p.done }; });
   const weak = les.filter((x) => x.left > 0).sort((a, b) => (b.left / b.total) - (a.left / a.total) || b.left - a.left).slice(0, 3);
-  return { pct: total ? Math.round(100 * solid / total) : 0, solid, total, review: Object.keys(fm).length, weak };
+  const fd = S.fdue || {}, now = Date.now();
+  return { pct: total ? Math.round(100 * solid / total) : 0, solid, total, review: Object.keys(fm).length, spaced: Object.keys(fd).length, dueNow: Object.keys(fd).filter((k) => now >= fd[k]).length, fixed: S.rvfix || 0, weak };
 }
 const OUT_NOW = []; // facts handed out recently, so two scenes in a row don't ask the same one
 export function record(S, q, ok) {
   S.seen[q.id] = Date.now(); if (ok) delete S.miss[q.id]; else S.miss[q.id] = 1;
-  if (q.fid) { S.fseen = S.fseen || {}; S.fseen[q.fid] = Date.now(); S.fmiss = S.fmiss || {}; if (ok) delete S.fmiss[q.fid]; else S.fmiss[q.fid] = Date.now(); }
+  let review = false;
+  if (q.fid) { S.fseen = S.fseen || {}; S.fseen[q.fid] = Date.now(); S.fmiss = S.fmiss || {}; S.fdue = S.fdue || {}; S.frev = S.frev || {}; const id = q.fid, now = Date.now();
+    if (!ok) { S.fmiss[id] = now; delete S.fdue[id]; S.frev[id] = 0; }
+    else if (S.fmiss[id] || (S.fdue[id] && now >= S.fdue[id])) { // a review that came back right: the next one waits longer
+      review = true; delete S.fmiss[id]; const n = (S.frev[id] || 0) + 1; S.frev[id] = n; if (n <= SPACING.length) S.fdue[id] = now + SPACING[n - 1]; else delete S.fdue[id]; S.rvfix = (S.rvfix || 0) + 1; }
+    else delete S.fmiss[id]; }
   if (ok && q.fid) { S.facts = S.facts || {}; if (!S.facts[q.fid]) { S.facts[q.fid] = 1; S.newFact = (S.newFact || 0) + 1; } }
   const L = (S.log[q.les] = S.log[q.les] || []); L.push(ok ? 1 : 0); while (L.length > 10) L.shift();
   S.answered++; if (ok) S.right++;
+  return review;
 }
 // a lesson is mastered at 80% or better over its last ten answers, with at least eight answered
 export function mastery(S, les) { const L = S.log[les] || []; const pct = L.length ? L.reduce((a, b) => a + b, 0) / L.length : 0; return { n: L.length, pct, done: L.length >= 8 && pct >= .8 }; }

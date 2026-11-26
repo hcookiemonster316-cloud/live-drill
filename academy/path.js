@@ -25,6 +25,8 @@ export function installPath(H) {
     const weak = r.weak.map((w) => '<li><b>' + H.esc('Lesson ' + w.name.replace(': ', ' · ')) + '</b><small>' + w.done + ' of ' + w.total + ' facts</small></li>').join('');
     return '<div class="ready"><div class="readyTop"><b>' + r.pct + '%</b><span><small>Exam readiness</small><em>' + H.esc(say) + '</em></span></div>' +
       '<span class="readyBar"><span style="width:' + r.pct + '%"></span><i style="left:' + pass + '%"></i></span>' +
+      (r.fixed || r.spaced ? '<p class="readyRv">📻 ' + r.fixed + ' missed fact' + (r.fixed === 1 ? '' : 's') + ' fixed by review calls' + (r.spaced ? ' · ' + r.spaced + ' coming back again to lock in' + (r.dueNow ? ' (' + r.dueNow + ' due now)' : '') : '') + '</p>' : '') +
+      (H.practiceCard ? H.practiceCard() : '') +
       (weak ? '<p class="finLbl">Work on next</p><ul class="readyWeak">' + weak + '</ul>' : '') + '</div>';
   }
   function panel() {
@@ -53,6 +55,7 @@ export function installPath(H) {
     const hb = document.getElementById('pathHint'); if (hb) hb.onclick = () => { const p = document.getElementById('pathHintT'); p.textContent = H.hint(); p.hidden = false; hb.hidden = true; };
     const c = document.getElementById('pathClose'); if (c) c.onclick = () => H.closeModal();
     const e = document.getElementById('pathExam'); if (e) e.onclick = () => { H.closeModal(); H.exam(); };
+    const px = document.getElementById('pathPx'); if (px) px.onclick = () => { H.closeModal(); H.practice(); };
     document.querySelectorAll('[data-ps]').forEach((b) => { b.onclick = () => { H.closeModal(); H.open[b.dataset.ps](); }; });
   }
   return { panel, nextStep };
