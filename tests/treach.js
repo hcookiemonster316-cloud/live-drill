@@ -23,6 +23,12 @@ const { chromium, devices } = require('playwright');
   let done = false; for (let k = 0; k < 30 && !done; k++) { await a.waitForTimeout(500); await clear(); done = await a.evaluate(() => window.__pc.S.orders.list.some((x) => x.id === 'focus' && x.done)); } // the check runs on the game clock, which waits while a card is up if (!done) errs.push('finishing the case did not complete your call');
   const rep = await a.evaluate(() => { const pc = window.__pc, q2 = pc.SIDE.find((x) => x.id === 'ghostcar'); pc.S.side.ghostcar = q2.steps.length - 2; const r = pc.reach; return [r.reportHtml(), r.reportHtml(), r.reportHtml()]; });
   if (!/Within reach/.test(rep[0])) errs.push('no Within reach in the shift report'); if (/good place to stop/.test(rep[1])) errs.push('stop line too early'); if (!/good place to stop/.test(rep[2])) errs.push('no stop line after three shifts');
+  const pb = await a.evaluate(() => { const r = window.__pc.reach; window.__pc.S.pb = {}; const first = r.records({ calls: 4, right: 9, answered: 10 }, 5); const second = r.records({ calls: 6, right: 8, answered: 10 }, 3); return [first, second]; });
+  if (pb[0]) errs.push('a first shift should only set the baseline'); if (!/6 calls cleared in one shift \(best was 4\)/.test(pb[1]) || /right in a row|accuracy/.test(pb[1])) errs.push('personal bests wrong: ' + pb[1].replace(/<[^>]+>/g, ' '));
+  // the clock runs twice as fast on a short shift (measured against a full one, each the best of three, since a card can pause it)
+  const rate = async (len) => { let best = 0; for (let k = 0; k < 3; k++) { await clear(); best = Math.max(best, await a.evaluate(async (len) => { const pc = window.__pc; pc.closeModal(); pc.S.cfg.shiftLen = len; const c0 = pc.clock; await new Promise((r) => setTimeout(r, 1200)); return pc.clock - c0; }, len)); } return best; };
+  const full = await rate('full'), short = await rate('short'); await a.evaluate(() => { window.__pc.S.cfg.shiftLen = 'full'; });
+  console.log('clock in 1.2 s: full', full.toFixed(2), 'short', short.toFixed(2)); if (!(short > full * 1.6)) errs.push('a short shift does not run its clock twice as fast');
   await a.evaluate((h) => { const pc = window.__pc; pc.openModal('<div class="rpt">' + h + '</div>'); }, rep[2]); await a.waitForTimeout(400); await a.screenshot({ path: 'reach.png' });
   console.log(errs.length ? errs : 'no errors'); await b.close(); process.exit(errs.length ? 1 : 0);
 })();

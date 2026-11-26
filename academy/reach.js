@@ -56,5 +56,15 @@ export function installReach(H) {
   // checked every couple of seconds while you play: finishing your focus completes its order
   let acc = 0;
   function tick(dt) { if (!focus) return; acc += dt; if (acc < 2) return; acc = 0; let ok = false; try { ok = focus.test(); } catch (e) {} if (ok) { focus = null; S.focusK = null; H.ord('focus'); H.saveS(); } }
-  return { top, reportHtml, offer, tick, candidates, get focus() { return focus; }, get session() { return session; } };
+  // personal bests that reward doing it right: a streak of right answers, calls cleared in one shift, accuracy over a
+  // full shift (ten answers or more). Never speed on a police call.
+  function records(ss, streak) {
+    const pb = S.pb = S.pb || {}, out = [], acc = ss.answered >= 10 ? Math.round(ss.right / ss.answered * 100) : null;
+    const chk = (k, v, label) => { if (v == null || v <= 0) return; const was = pb[k]; if (was == null) { pb[k] = v; return; } if (v > was) { out.push(label(v, was)); pb[k] = v; } };
+    chk('streak', streak, (v, w) => v + ' right in a row (best was ' + w + ')');
+    chk('calls', ss.calls, (v, w) => v + ' calls cleared in one shift (best was ' + w + ')');
+    chk('acc', acc, (v, w) => v + '% accuracy over a full shift (best was ' + w + '%)');
+    H.saveS(); return out.length ? '<div class="rchPb"><b>New personal best</b>' + out.map((t) => '<span>' + esc(t) + '</span>').join('') + '</div>' : '';
+  }
+  return { records, top, reportHtml, offer, tick, candidates, get focus() { return focus; }, get session() { return session; } };
 }
