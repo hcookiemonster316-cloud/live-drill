@@ -19,7 +19,7 @@ export const EXP_CAST = {
   teo: { name: 'Teo Alvarez', icon: '🌱', role: 'Mrs. Benoit\'s grandson, Riverside Feed & Seed' },
   andremom: { name: 'Mrs. Toussaint', icon: '🏠', role: 'Andre\'s mother' },
   sleeper: { name: 'Jojo', icon: '🧥', role: 'Sixteen, sleeping under the stairs' },
-  coreyb: { name: 'Corey Bell', icon: '🚂', role: 'Railroad safety speaker' },
+  coreyb: { name: 'Nate Bell', icon: '🚂', role: 'Railroad safety speaker' },
   benoit: { name: 'Mrs. Benoit', icon: '🌱', role: 'Willow Street, grows the best tomatoes in Riverside' },
   cobb: { name: 'Harlan Cobb', icon: '🎩', role: 'Mayor of Port Meridian, 1983-1991' },
   transported: { name: 'Kenny', icon: '⚾', role: 'Nineteen, on the transport run' }
@@ -569,17 +569,17 @@ export const EXPAND = {
   nighttrain: { steps: [{ o: 0 },
     { at: 'Vacant Lot', who: 'railcop', goal: 'Talk with the railroad officer at the Vacant Lot', say: [
       ['railcop', 'Ten years ago, a kid from this same lot. Fourteen. He grabbed a ladder on a car doing twenty. He lived. He lost a leg below the knee.'],
-      ['railcop', 'His name is Corey Bell. He runs the railroad safety talks now. He\'s the one who\'d want to meet these three.'],
-      ['choice', [{ t: 'Set up a meeting between the teens and Corey', set: 'trainCorey', reply: [['railcop', 'He\'ll come. He always comes. He says he\'s trying to stand in front of every kid that\'s standing where he stood.']] },
+      ['railcop', 'His name is Nate Bell. He runs the railroad safety talks now. He\'s the one who\'d want to meet these three.'],
+      ['choice', [{ t: 'Set up a meeting between the teens and Nate', set: 'trainNate', reply: [['railcop', 'He\'ll come. He always comes. He says he\'s trying to stand in front of every kid that\'s standing where he stood.']] },
         { t: 'Leave it with the warnings and the parents', set: 'trainEnough', reply: [['railcop', 'Maybe it\'s enough. I\'ve thought that before.']] }], 'The railroad officer']] },
-    { at: 'Vacant Lot', who: 'teens', goal: 'Be there when Corey meets the teens', onlyIf: 'trainCorey', say: [
-      ['narr', 'Corey Bell is thirty-four, tall, easy to laugh. He sits on a cinder block across from the three of them and rolls up his left pant leg without saying a word.'],
+    { at: 'Vacant Lot', who: 'teens', goal: 'Be there when Nate meets the teens', onlyIf: 'trainNate', say: [
+      ['narr', 'Nate Bell is thirty-four, tall, easy to laugh. He sits on a cinder block across from the three of them and rolls up his left pant leg without saying a word.'],
       ['coreyb', 'Twenty miles an hour. That\'s all it was. I thought it was slow.'],
       ['coreyb', 'I\'m not here to scare you. Okay, I\'m a little bit here to scare you. Mostly I\'m here because nobody came and sat on a cinder block with me.'],
       ['teens', '...Can we ask questions? Like, any questions?'],
       ['coreyb', 'Any questions. That\'s the deal.']] },
     { at: 'Eastline Rail Yard', who: 'railcop', goal: 'Close it out at the Eastline Rail Yard', say: [
-      ['railcop', 'Nobody on the cars since. Two of them signed up to help at Corey\'s safety day in the spring. One said he wants to be a railroad cop. Lord help me.', { if: 'trainCorey' }],
+      ['railcop', 'Nobody on the cars since. Two of them signed up to help at Nate\'s safety day in the spring. One said he wants to be a railroad cop. Lord help me.', { if: 'trainNate' }],
       ['railcop', 'Quiet three nights running. I\'ll take quiet.', { if: 'trainEnough' }],
       ['carrasco', '(over the radio) Carrasco. That train doesn\'t stop for anybody. Glad nobody had to learn that the hard way this month.']] }] },
 
@@ -695,16 +695,24 @@ export const EXPAND = {
       ['probationer', 'Officer! Two weeks on the grill. I told Cookie about my record up front. He said, "Me too, 1994, don\'t make it weird." That was the whole interview.', { if: 'luisWalk' }],
       ['po', '(over the radio) Grant. He reported the next morning, a day late and shaking. I found him the lead at the Grill. He\'s working. Next time, walk him in. It matters.', { unless: 'luisWalk' }],
       ['probationer', 'First paycheck Friday. I brought my son in. He wanted the lawyer booth. He made a motion for more fries. I granted it.'],
-      ['probationer', 'Tell your sergeant I\'m still eighteen months. Nineteen in a week.']] }] },
-
+      ['probationer', 'Tell your sergeant I\'m still eighteen months. Nineteen in a week.']] },
+    { at: 'Probation & Parole', who: 'po', goal: 'Stop by Officer Grant at Probation & Parole', say: [
+      ['po', 'Luis\'s file used to be the thickest one on my desk. Now it\'s the most boring. Paycheck stubs. A kid\'s drawing he asked me to keep.'],
+      ['po', 'You know what he said when he came in that day? "I figured you\'d lock me up for losing my job." Eighteen months clean, and that\'s what he figured.', { unless: 'luisWalk' }],
+      ['po', 'You walked him through my door. Most officers would\'ve written him up for the missed check-in. That walk is why he\'s still out there.', { if: 'luisWalk' }],
+      ['narr', 'Pinned to her corkboard: a crayon drawing of a police car, a man in a Gavel Grill apron, and a very large basket of fries.']] }] },
   exhibitb: { steps: [{ o: 0 },
     { at: 'Justice Plaza', who: 'moore', goal: 'Close it out with Bailiff Moore at Justice Plaza', say: [
       ['moore', 'Exhibit B it is. The judge signed an order. On real paper. "In re: the kitten." I\'m having it framed.', { if: 'kittenB' }],
       ['narr', 'On the courthouse steps, Exhibit A is asleep in her sunny spot. Something small and gray is asleep against her side.', { if: 'kittenB' }],
       ['moore', 'Guess who walked into the shelter on his day off and walked out with a gray kitten in a towel. Deputy Wells.', { if: 'kittenShelter' }],
       ['wells', '(over the radio) Her name is Mileage. She rides on the dash of the transport van. Twenty-nine years and nobody\'s been hurt in my van. That includes cats.', { if: 'kittenShelter' }],
-      ['moore', 'And Exhibit A still walks to that church every morning and back by nine. Court starts on time. Some things you don\'t touch.']] }] },
-
+      ['moore', 'And Exhibit A still walks to that church every morning and back by nine. Court starts on time. Some things you don\'t touch.']] },
+    { at: 'Clerk of Court', who: 'hattie', goal: 'Visit Hattie at the Clerk of Court', say: [
+      ['hattie', 'I came back to clean out my last drawer. Guess who was asleep in it.'],
+      ['narr', 'In Hattie\'s bottom desk drawer, on a folded cardigan: a small gray cat with one white sock, deeply asleep.', { if: 'kittenB' }],
+      ['narr', 'In Hattie\'s bottom desk drawer, on a folded cardigan: Exhibit A, deeply asleep, with a gray kitten-sized dent in the cardigan beside her.', { if: 'kittenShelter' }],
+      ['hattie', 'Forty years I kept this drawer for files. I\'m leaving it to the cats. Tell the new clerk it\'s in my retirement papers. It isn\'t. Tell her anyway.']] }] },
   transport: { steps: [{ o: 0 },
     { at: 'County Courthouse', who: 'deputy', goal: 'Ride the transport with Deputy Wells', say: [
       ['deputy', 'Second search turned up a lighter in his sock. Nobody looks in socks twice. You did.', { if: 'transSearch' }],
@@ -746,7 +754,12 @@ export const EXPAND = {
         { t: 'Ask him if he remembers anything else about the car', set: 'kimCar', reply: [['kim', 'City car. Number 31 on the door. And a bumper sticker for the library. I remember thinking a thief would not have a library sticker.']] }], 'Mr. Kim'],
       ['marsh', 'He was building things. He wasn\'t stealing, he was building things. ...But then why did he take the blame?'],
       ['marsh', 'A signed statement from a witness. My editor is going to faint.', { if: 'kimStatement' }],
-      ['marsh', 'A library sticker. Of course. He took me to the library every Saturday.', { if: 'kimCar' }]] }] },
+      ['marsh', 'A library sticker. Of course. He took me to the library every Saturday.', { if: 'kimCar' }]] },
+    { at: 'Maple Court', who: 'ruth', goal: 'Show Ruth the photo from Mr. Kim\'s shop', say: [
+      ['ruth', 'Car 31. Walter. I knew that voice on the switchboard for a year, dear, and I never once saw his face. Look at him. That tie.'],
+      ['ruth', 'I wrote it down, you know. In my first notebook, 1987. "Walter called again. Birch Lane still flooded. Said thank you." Every night, the same.'],
+      ['ruth', 'If you need a statement, I\'ll give it. I\'ve been waiting thirty-nine years for somebody to ask me who that polite man was.', { if: 'kimStatement' }],
+      ['narr', 'She hands you a page from the 1987 notebook. Under the last entry, in her handwriting: "Nice man. Hope he\'s all right."']] }] },
   ledger3: { steps: [{ o: 0 },
     { at: 'River Pawn', who: 'marsh', goal: 'Meet Lena at River Pawn about the bank records', say: [
       ['narr', 'Lena is sitting on an overturned crate behind River Pawn with a file folder open on her knees. She doesn\'t look up.'],
@@ -797,7 +810,12 @@ export const EXPAND = {
       ['choice', [{ t: 'Offer to quiz him from his cards', set: 'vanceQuiz', reply: [['narr', 'Forty minutes. He gets thirty-nine right. On the fortieth he stops, laughs, and admits he made the card up to see if you\'d notice. You did.'], ['vance', 'Okay. You\'re not just good on the street. That\'s annoying.']] },
         { t: 'Tell him "thorough" is a compliment', set: 'vanceThorough', reply: [['vance', 'From Castillo? ...Huh. She says "thorough" about Navarro too. And Navarro\'s a genius.'], ['narr', 'He picks up the highlighter again, but slower.']] }], 'Vance'],
       ['vance', 'Same time tomorrow? You bring the questions. I\'ll bring the four hundred cards.', { if: 'vanceQuiz' }],
-      ['vance', 'Thorough. Fine. I\'m going to be the most thorough cop this city has ever seen. Watch.', { if: 'vanceThorough' }]] }] },
+      ['vance', 'Thorough. Fine. I\'m going to be the most thorough cop this city has ever seen. Watch.', { if: 'vanceThorough' }]] },
+    { at: 'Downtown Transit Center', who: 'vance', goal: 'Catch the early bus with Vance', say: [
+      ['narr', 'Six a.m., the transit center. Vance is on a bench with his flash cards, but they\'re in his lap and he\'s watching the guard you talked to last week help an old man with his bag.'],
+      ['vance', 'He remembered your name. The guard. He asked me if I was "the cadet\'s friend." I said... yeah. I said yeah.'],
+      ['vance', 'I went through my cards last night, like you showed me. I got the fortieth one right this time. I made it up again. Different question. Still got it.', { if: 'vanceQuiz' }],
+      ['vance', 'Thorough. I looked it up. "Complete with regard to every detail." I\'m keeping it.', { if: 'vanceThorough' }]] }] },
   vance2: { steps: [{ o: 0 },
     { at: 'Iron Will Boxing Gym', who: 'reyes', goal: 'Bring Vance back to Iron Will', say: [
       ['reyes', 'Running angry means you\'re running away from something instead of toward the finish line. You look over your shoulder every two hundred yards. Who\'s back there, kid?'],
@@ -817,13 +835,22 @@ export const EXPAND = {
       ['choice', [{ t: 'Stay quiet and let him have the moment', set: 'vanceQuiet', reply: [['narr', 'He stands with his hand flat on the plate for a long time. You stand behind him, at the distance a partner would.'], ['vance', 'Thanks for not saying anything. Everybody always says something.']] },
         { t: 'Ask him to tell you one story about his dad', set: 'vanceStory', reply: [['vance', 'Rain delay, 2011. A kid got lost. Dad found her in forty minutes, sat with her in the press box, and they watched the tarp come off together. She sent him a Christmas card every year.'], ['vance', 'I found the cards when I cleaned out his desk. Nine of them. I never knew.']] }], 'Gate C'],
       ['vance', 'I\'m going to come to a game. Next season. I\'ll sit by Gate C.', { if: 'vanceQuiet' }],
-      ['vance', 'I\'m going to find her. The girl with the cards. I want to tell her he kept them.', { if: 'vanceStory' }]] }] },
+      ['vance', 'I\'m going to find her. The girl with the cards. I want to tell her he kept them.', { if: 'vanceStory' }]] },
+    { at: 'Riverside Vet Clinic', who: 'ines', goal: 'Bring Vance back to Dr. Inés', say: [
+      ['ines', 'He came back. On his own. He asked if he could walk the dogs on Saturdays. "Dad\'s forty-one," he said. He wants to see how many he gets to.'],
+      ['ines', 'He found the girl from the rain delay. She\'s a nurse now. She brought her own dog in for shots, just so she could meet him.', { if: 'vanceStory' }],
+      ['ines', 'He sat by Gate C at the last home game. Alone. He said it was the best game he ever didn\'t watch.', { if: 'vanceQuiet' }],
+      ['narr', 'Through the clinic window: Vance in the yard with a three-legged beagle, being walked more than walking.']] }] },
   vance4: { steps: [{ o: 0, add: [['vance', 'And you meant that? About me being a good partner? ...Okay. Okay. I\'m writing that on a card. Chapter zero.', { if: 'vanceFriend' }], ['vance', 'Can I tell you something? I used to think if I wasn\'t first, I didn\'t count. Like the standings were the only proof I was here.'],
       ['vance', 'Today I was second through that door, behind you, and I never felt more like I counted.']] },
     { at: 'Big Rig Truck Stop', who: 'dee', goal: 'Grab a late coffee with Vance and Dee', say: [
       ['dee', 'You two fight like brothers. Diesel and my old co-driver used to fight like that. Then one day they\'re the only ones who\'ll come to your hospital room.'],
       ['vance', 'We don\'t fight. We compete. ...Okay, we fight a little.'],
-      ['narr', 'Diesel puts his head on Vance\'s boot and leaves it there. Vance doesn\'t move his foot for the next forty minutes.']] }] },
+      ['narr', 'Diesel puts his head on Vance\'s boot and leaves it there. Vance doesn\'t move his foot for the next forty minutes.']] },
+    { at: 'Substation', who: 'saito', goal: 'Debrief the yard drill with Sgt. Saito', say: [
+      ['saito', 'Vance asked for you as cover. In nine years of these drills, I\'ve never seen the top cadet pick anyone but himself.'],
+      ['saito', 'Your call on that blind corner was right. His trust in your call was the better thing. Write both down.'],
+      ['saito', 'He called you a good partner. Don\'t let him take it back.', { if: 'vanceFriend' }]] }] },
   vance5: { steps: [{ o: 0 },
     { at: 'Veterans Memorial Park', who: 'vance', goal: 'Stand with Vance at the memorial', say: [
       ['narr', 'Late afternoon. The memorial wall, long and black, the newest name freshly cut and still sharp at the edges. A small crowd: a few old captains, Dr. Inés with a dog on a leash, a woman in her twenties holding nine Christmas cards.'],
@@ -834,7 +861,11 @@ export const EXPAND = {
         { t: 'Tell him you\'ll race him for it', set: 'vanceRace', reply: [['vance', 'Ha. Race me to showing up. You\'ll lose. ...We\'ll both lose. That\'s the point, isn\'t it.']] }], 'The wall'],
       ['vance', 'Second place gets you a better parking spot than first, by the way. Closer to the gym. I checked. Dad would\'ve laughed.', { if: 'vanceRace' }],
       ['vance', 'You keep saying I show up. I\'m going to make you right about that.', { if: 'vanceShows' }],
-      ['narr', 'The class ranks go up the next morning. Vance is second. He sends you a photo of the list with one word: "Again." Then a second message: "Kidding. Proud of us."']] }] },
+      ['narr', 'The class ranks go up the next morning. Vance is second. He sends you a photo of the list with one word: "Again." Then a second message: "Kidding. Proud of us."']] },
+    { at: 'Clerk of Court', who: 'hattie', goal: 'Drop the signed papers back at the Clerk of Court', say: [
+      ['hattie', 'Signed as family. Stamped. Filed. That\'s the last stamp I\'ll put on anything with a Vance on it, honey, and I made it straight.'],
+      ['hattie', 'He asked me to make a copy for you. He said you should have one. He didn\'t say why. I think I know why.'],
+      ['narr', 'The copy has a sticky note on it, in Vance\'s small careful handwriting: "Next to me. Not behind. - D."']] }] },
   // ===================== The Paper Trail: the pressure rises, and it costs something (Phase 8, step 6) =====================
   trail2: { steps: [{ o: 0 }, { o: 1 },
     { at: 'Patrol HQ', who: 'okonkwo', goal: 'Report to Lt. Okonkwo at Patrol HQ', say: [
@@ -874,7 +905,95 @@ export const EXPAND = {
       ['narr', 'She hangs the blue jacket on the back of the door before you leave.']] },
     { o: 1, add: [['narr', 'Tamsin isn\'t at the tables. She\'s outside on the curb with her bike, in the blue jacket, watching people walk out holding their files like they\'re made of glass.'],
       ['tamsin', 'He asked if I was okay. ...I\'m going to visit him Sunday. Is that allowed? I don\'t know what you\'re supposed to do after.', { if: 'p5cost' }],
-      ['duarte', 'She talked the whole way to the courthouse. About her mom. About bikes. Not one word about him until we parked.', { if: 'p5ride' }]] }] }
+      ['duarte', 'She talked the whole way to the courthouse. About her mom. About bikes. Not one word about him until we parked.', { if: 'p5ride' }]] }] },
+  // ===================== quest bar (Phase 8, step 9): every quest gets a turn that matters later and an ending you see =====================
+  drowned: { steps: [{ o: 0 }, { o: 1 }, { o: 2 }, { o: 3 }, { o: 4 }, { o: 5 }, { o: 6, add: [['pearl', 'And the man with the detector? He came to Bayou Senior on Sunday with a box of spoons and a buckle. He said he didn\'t know. I said, "Now you do. Sit down. I\'ll tell you who they belonged to."', { if: 'drTalk' }],
+      ['navarro', '(on the radio) The hold paid off. The pawn shop had four more pieces from the same seller, all from Cypress Landing. All going home.', { if: 'drHold' }],
+      ['navarro', '(on the radio) The music box is home, but the seller sold six more pieces at a flea market before anyone caught on. We\'re still finding them.', { if: 'drBuy' }]] }] },
+  firstboard: { steps: [{ o: 0 }, { o: 1 }, { o: 2 }, { o: 3 }, { o: 4, add: [['keisha', 'Mr. Pratt drives the car wash money to the bank now with two of us in the car. Counting it out loud. He asked for that.', { if: 'fbReport' }],
+      ['keisha', 'Ms. Hill told me somebody was looking into it fairly. That\'s the first night I slept all week.', { if: 'fbHill' }],
+      ['keisha', 'You know they pulled me out of class? In front of everybody? People still think it was me. Some of them.', { if: 'fbPull' }]] }] },
+  sender: { steps: [{ o: 0 }, { o: 1 }, { o: 2 }, { o: 3 }, { o: 4, add: [['toby', 'The seal was never broken. Fifty years and nobody read it but her. That\'s how it should be.', { if: 'snSealed' }],
+      ['hoa', 'Somebody held it up to the light once, Toby says. I can tell. There\'s a thumbprint on the back.', { if: 'snPeek' }],
+      ['narr', 'Hoa still has the name tag from 1976 pinned inside her apron. "LISE." She doesn\'t take it off when she hugs her.', { if: 'snTag' }]] }] },
+  atthree: { steps: [{ o: 0 }, { o: 1 }, { o: 2 }, { o: 3 }, { o: 4, add: [['simone', 'You said it straight. I\'ve been told bad news a lot of ways in my life. Straight was the only way I could stand.', { if: 'bkPlain' }],
+      ['simone', 'You said "might have." For one second I thought he was alive. I\'m not mad. I just want you to know that second cost something.', { if: 'bkVague' }],
+      ['narr', 'Dr. Inés adds a line to Gumbo\'s chart, in red: NEXT OF KIN FOUND. She underlines it twice.', { if: 'bkKin' }]] }] },
+  siding9: { steps: [{ o: 0 }, { o: 1 }, { o: 2 }, { o: 3 }, { o: 4, add: [['tess', '(a month later) The railroad sent the correction. Certified, with a seal. Dad\'s name, and the words "acted correctly." I read it at his grave out loud.', { if: 'sdClear' }],
+      ['evtech', '(on the radio) The certified copy you logged? Defense lawyer asked for the chain on it at the hearing. Every signature was there. That\'s the job.', { if: 'sdLog' }]] }] },
+  hives: { steps: [{ o: 0 }, { o: 1 }, { o: 2 }, { o: 3 }, { o: 4, add: [['ivy', 'Corey came Saturday at seven-thirty. Early. He named one of the queens after his grandmother.', { if: 'hvFair' }],
+      ['ivy', 'Corey\'s mom called me. He spent a night in a cell for having a receipt. I hired him anyway. He was still shaking.', { if: 'hvArrest' }],
+      ['lou', '(from the truck) Dale Hall\'s in front of a judge next month. Civil and criminal. Ivy\'s getting her frames back, and her name.', { if: 'hvCivil' }]] }] },
+  ocampo: { steps: [{ o: 0 }, { o: 1 }, { o: 2 }, { o: 3 }, { o: 4, add: [['narr', 'Six weeks later, a letter on county paper: the board approved the petition. The carver comes in spring. Elena asks if she can watch.', { if: 'ocPetition' }],
+      ['booker', 'I almost carved it myself. You talked me out of it. If I had, they\'d have ground it off by Monday. Now it\'s permanent.', { if: 'ocCarve' }],
+      ['booker', 'The records request has my name on it. A sergeant ought to sign for his own. Thank you for asking me first.', { if: 'ocFile' }]] }] },
+  addresses: { steps: [{ o: 0 }, { o: 1 }, { o: 2 }, { o: 3 }, { o: 4, add: [['marisol', 'You took him in without cuffs, in front of his mom, after he showed her the pills. She called me crying. The good kind.', { if: 'adCustody' }],
+      ['marisol', 'You confirmed the warrant first. The clerk found two more recalled ones in the same stack. Two people who would have been picked up for nothing.', { if: 'adConfirm' }]] }] },
+  f_hollis: { steps: [{ o: 0 }, { o: 1 }, { o: 2, add: [['hollis', 'I said I\'d shake his hand twice. I shook it three times. Once for 2009, once for today, and once because I couldn\'t stop.', { if: 'hoLose' }],
+      ['rook', 'He asked why I never came back. I told him the truth. Bus fare. That\'s all it was. Two dollars. He looked like it hurt him.', { if: 'hoWhy' }]] }] },
+  f_greer: { steps: [{ o: 0 }, { o: 1, add: [['juror9', 'Do you want to know what that one word was? Sixteen years I\'ve wanted somebody to ask.'],
+      ['choice', sh([{ t: 'Ask him what the word was', set: 'greerWord', reply: [['juror9', '"Didn\'t." She typed "did." The witness said he didn\'t see a gun. The transcript said he did. She caught it overnight and filed the correction at seven a.m.'], ['juror9', 'A man went home because of one apostrophe and a woman who couldn\'t sleep.']] },
+        { t: 'Tell him that\'s hers to tell', set: 'greerHers', reply: [['juror9', 'Hm. Yes. You\'re right. Let her tell it. She\'s earned that.']] }]), 'Mr. Kessler']] },
+    { o: 2, add: [['greer', 'He told you the word? "Didn\'t." Four letters and an apostrophe. I lay awake for three hours over an apostrophe.', { if: 'greerWord' }],
+      ['greer', 'You let me tell it. Most people want the ending first. Thank you.', { if: 'greerHers' }]] }] },
+  f_bea: { steps: [{ o: 0 }, { o: 1 },
+    { at: 'Eastgate Pines', who: 'shelter', goal: 'Stop by Lyle\'s with Tía Bea', say: [
+      ['narr', 'A week later. Lyle Webb\'s kitchen table is still set for two, but now there\'s a box of day-old donuts in the middle of it, and Tía Bea in the second chair.'],
+      ['shelter', 'My wife set that place every night for forty-one years. After she passed, I kept setting it. I forgot to eat. I just forgot.'],
+      ['shelter', 'You knocked. If you\'d left a card, I don\'t know.', { if: 'beaCheck' }],
+      ['shelter', 'You almost left a card. Bea told me. I\'m glad you turned around. I don\'t know what I\'d have done another night.', { if: 'beaNote' }],
+      ['bea', 'He\'s coming to the shop Tuesdays now. Counting the day-olds. He says I overcount. I do.']] }] },
+  f_nash: { steps: [{ o: 0 }, { o: 1 },
+    { at: 'River Stadium', who: 'nash', goal: 'Watch Saturday\'s game with Nash at River Stadium', say: [
+      ['narr', 'Saturday. Blue sky over the field, a black wall of cloud to the west. The horn sounds. For a second, nothing happens.'],
+      ['narr', 'Then Coach Haskins blows his whistle and waves both arms. Every kid off the field, into the dugouts, in forty seconds.', { if: 'nashPhotos' }],
+      ['narr', 'Coach Haskins looks at the sky, looks at the horn, and waves the kids in late, angry about it. Two minutes. They make it. Barely.', { if: 'nashCite' }],
+      ['nash', 'Strike hit the outfield light pole nine minutes later. Nine. Same as last time. Nobody under it.'],
+      ['nash', 'Forty years I\'ve run that horn and people treated it like a car alarm. Today they treated it like a horn.']] }] },
+  f_lou: { steps: [{ o: 0 }, { o: 1 },
+    { at: 'Big Rig Truck Stop', who: 'dee', goal: 'Be there when Dee gets back to the truck stop', say: [
+      ['narr', 'Dee\'s rig rolls in at dawn, two days early. She drove straight through. She\'s out of the cab before the air brakes finish hissing.'],
+      ['narr', 'Diesel hears the brakes and goes from asleep to standing in one motion, in a thunder shirt that\'s two sizes too big.'],
+      ['dee', 'You found him with a grid search? Lou told me. That\'s cop stuff. I\'m going to tell everybody on channel 19.', { if: 'louGrid' }],
+      ['dee', 'Lou said you drove around yelling his name first. He\'s deaf in one ear, honey. He\'s been deaf in one ear since Oklahoma.', { if: 'louDrive' }],
+      ['dee', 'He went looking for me. Of course he did. ...I\'m not leaving him again. Not for a long haul. Not for anything.']] }] },
+  trail1: { steps: [{ o: 0 }, { o: 1 },
+    { at: 'County Records Annex', who: 'ada', goal: 'Bring Ms. Ada what Fernandez found', say: [
+      ['ada', 'A service account. Not a person. A company login pretending to be a person. That\'s not carelessness. That\'s design.'],
+      ['ada', 'The payment records say the same company billed for "temp staffing" in April. They paid themselves to lose the forms, then paid themselves to find them.', { if: 'p1records' }],
+      ['ada', 'And the temp who "found" the forms? Nobody at the clerk\'s office can describe her the same way twice. Young. Quiet. A bike helmet. That\'s all.', { if: 'p1who' }],
+      ['ada', 'Thirty-nine years in archives. Every box tells you who touched it if you know how to read it. These boxes are screaming.']] }] },
+  lighthouse: { steps: [
+    { at: 'Justice Plaza', who: 'tess', goal: 'Help Tess unload the window at Justice Plaza', say: [
+      ['narr', 'The stained glass from Siding 9, laid flat on moving blankets in the back of Tess\'s flatbed, parked at the curb on Justice Plaza. Blue and gold. A lighthouse, a ship, a line of waves.'],
+      ['tess', 'Dad found this in a boxcar in 1987 and spent the rest of his life trying to get it where it was supposed to go. He never made it. Thirty-nine years.'],
+      ['choice', sh([{ t: 'Offer to walk it the last two blocks to the church', set: 'lhRide', reply: [['tess', 'The last two blocks? Walking it in? ...Okay. He\'d want somebody to walk with it.']] },
+        { t: 'Help her write down where every panel goes', set: 'lhLog', reply: [['tess', 'A log. Panel by panel. Like a waybill. Yes. That\'s exactly what he\'d do.']] }]), 'Tess']] },
+    { o: 0, add: [['tess', 'You walked the whole way with your hand on the crate. He\'d have liked you.', { if: 'lhRide' }], ['sexton', 'The panel log Tess wrote with you is going in a frame by the window. Somebody should know how it got here.', { if: 'lhLog' }]] },
+    { at: 'Gavel Green', who: 'tess', goal: 'Sit with Tess on Gavel Green after the dedication', say: [
+      ['narr', 'Evening. From the green you can see the lighthouse window from outside, lit from within, gold and blue against the dark church.'],
+      ['tess', 'Third generation railroad. Second generation telling the truth about it. First generation getting to sit down after.'],
+      ['tess', 'I\'m going to bring my kids here. Tell them their grandpa delivered a window. Took him thirty-nine years and a cadet. Worth it.']] }] },
+  cprclass: { steps: [
+    { at: 'Riverside Park', who: 'eli', goal: 'Help Eli set up the class at the canoe dock', say: [
+      ['narr', 'Folding chairs on the canoe dock, twenty plastic dummies in a row on beach towels, and a cooler of lemonade with a hand-lettered sign: FREE IF YOU PUSH HARD.'],
+      ['eli', 'Last summer a man went down on this dock. Heart. I did what I could. I didn\'t know what I was doing. He lived. I don\'t know how.'],
+      ['choice', sh([{ t: 'Offer to go first so nobody feels silly', set: 'cprFirst', reply: [['narr', 'You kneel on the towel in front of twenty strangers and do compressions on a plastic dummy. Two kids start counting out loud with you. Then everybody does.']] },
+        { t: 'Ask Eli to tell the class what happened last summer', set: 'cprStory', reply: [['eli', 'Me? In front of people? ...Okay. If it gets one more person to push.']] }]), 'Eli']] },
+    { o: 0, add: [['eli', 'Twenty-two people. Your going first did that. Nobody wanted to be the only one.', { if: 'cprFirst' }], ['eli', 'I told it. My hands shook. Three people came up after and asked where to buy an AED.', { if: 'cprStory' }]] },
+    { at: 'Riverside Marina', who: 'hal', goal: 'See the new AED at the canoe shack', say: [
+      ['narr', 'Two weeks later. A bright green AED cabinet bolted to the canoe shack wall, with a sticker: "CPR CLASS GRADUATES PUSH HARD."'],
+      ['hal', 'I put it in the log. Not the river log. A new one. "AED installed, canoe shack." Somebody will be glad to read that someday.']] }] },
+  newmember: { steps: [
+    { at: 'Eastside Community Center', who: 'andy', goal: 'Meet the boy who biked across town', say: [
+      ['narr', 'A fifth grader with a bike helmet still on is sitting at the last chess table, alone, setting up the pieces exactly right.'],
+      ['andy', 'Amir. Ten. Biked four miles from Central on his own. His mom called me, panicking. He says the Central club only plays on Fridays and he can\'t wait until Friday.'],
+      ['choice', sh([{ t: 'Call his mom and offer to bring the bike home in your car', set: 'nmRide', reply: [['narr', 'His mom cries on the phone, then laughs, then asks whether he won.']] },
+        { t: 'Ask him why chess, why here', set: 'nmWhy', reply: [['amir', 'Because Keisha plays here. She beat a sixteen-year-old. I want to beat her. Not now. Someday.']] }]), 'Amir']] },
+    { o: 0, add: [['keisha', 'You drove him home last time? His mom made you cookies. She dropped them off here. We ate them. Sorry.', { if: 'nmRide' }], ['keisha', 'He wants to beat me someday? ...Good. Tell him I said good.', { if: 'nmWhy' }]] },
+    { at: 'Eastside Community Center', who: 'amir', goal: 'Watch Amir\'s first club game', say: [
+      ['narr', 'His first game. He loses in nineteen moves to an eighth grader. He shakes her hand, writes down every move in a notebook, and asks for a rematch.'],
+      ['amir', 'I know what I did wrong. Move eleven. I\'m going to fix move eleven.']] }] }
 };
 
 // what regulars say once a case is closed: the city remembers

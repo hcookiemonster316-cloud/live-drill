@@ -96,6 +96,7 @@ import { DCAST, DPEOPLE, DINTRO, dcast, sergeantOf, officerOf } from './district
 import { EXPAND, EXP_CAST, EXP_MEMORY } from './sidex.js';
 import { MAIN_PRE, MAIN_CAST } from './mainx.js';
 import { ARC_CAST } from './friendsx.js';
+import { EMO, EMO_LABEL, HEAVY_EMO, emoOf, contrast } from './emotions.js';
 import { createMusic } from './music.js';
 import { createScore } from './score.js';
 import { BRANCHES, SKILLS, skillById, skillPoints, canLearn } from './skills.js';
@@ -1382,6 +1383,7 @@ function offerSide(q) {
   });
 }
 function sideDone(q) {
+  { const e = emoOf(q); if (e) { S.lastEmo = e; if (HEAVY_EMO[e]) PACE.heavy('quest'); } } // a hard case is followed by a quiet moment, and the next case the city points to feels different
   { const w = q.steps.slice().reverse().find((x) => x.who && !/castillo|velvet/.test(x.who)); if (w) VAR.questDone(q, w.who); }
   const rw = q.reward || {}, wy = WAYS.close(q, rw); if (S.track === q.id) S.track = 'main'; AVC = null; saveS(); music.sting('done');
   const n = SIDE.filter(sideClosed).length;
@@ -1422,7 +1424,7 @@ const TEMP = Object.assign({}, SIDE_CAST, SAGA_CAST, TALE_CAST, ACT2_CAST, SIG_C
 // after a right answer: praise, then a tip about something else worth doing nearby
 function hintLine() {
   const opts = [], nm = (id) => giverName(id);
-  const av = inside ? [] : SIDE.filter(sideAvail); if (av.length) { const dif = av.filter((x) => VAR.offerOK(x, av)), q = rnd(dif.length ? dif : av); opts.push(nm(q.giver) + ' has been asking for an officer. Look for the blue mark.', 'Word is ' + nm(q.giver) + ' could use a hand. Might be worth a stop.'); }
+  const av = inside ? [] : SIDE.filter(sideAvail); if (av.length) { const dif = contrast(av.filter((x) => VAR.offerOK(x, av)), S.lastEmo), q = rnd(dif.length ? dif : contrast(av, S.lastEmo)); opts.push(nm(q.giver) + ' has been asking for an officer. Look for the blue mark.', 'Word is ' + nm(q.giver) + ' could use a hand. Might be worth a stop.'); }
   const live = SIDE.filter((q) => sideLive(q) && S.track !== q.id); if (live.length) { const q = rnd(live); opts.push('Don\'t forget "' + q.title + '". Next up: ' + q.steps[S.side[q.id]].goal.toLowerCase() + '.'); }
   try { const m = L.districtMastery(S, W.did); if (!m.ready) opts.push((m.facts.total - m.facts.done) + ' facts left in ' + W.D.name + ' before your Final Call. Navarro runs fact drills from the City board.'); else opts.push('You\'re cleared for the ' + W.D.name + ' Final Call. Open the City board when you\'re ready.'); } catch (e) {}
   if (citizens.length) opts.push('There\'s a citizen out there flagging down an officer. Keep an eye out for the yellow question mark.');
@@ -1756,8 +1758,11 @@ function playStep(st) {
     const lead = [sp, (here ? '' : '(over the radio) ') + rnd(['Hang on. Before we go any further, help me with something.', 'Wait, let me ask you something first.', 'Quick question, then we keep going.', 'Hold that thought. Tell me this first.'])];
     const qLines = [lead].concat(qs.map((q, k) => ['q', q, k % 2 && st.who !== v2 ? v2 : sp]));
     // where the question goes: before the first decision; else before the payoff; a scene with its payoff in "after" keeps its order
+    // a scene that turns (a twist card) or runs long asks its question right after it sets the place, so the check never
+    // lands in the middle of a reveal, and a wrong answer sends you to study before the story has moved on
     let at = say.findIndex((l) => l[0] === 'choice');
-    if (at < 0) at = st.after && st.after.length ? say.length : Math.max(1, Math.ceil(say.length / 2));
+    if (st.twist || say.length >= 6) at = Math.min(1, say.length);
+    else if (at < 0) at = st.after && st.after.length ? say.length : Math.max(1, Math.ceil(say.length / 2));
     const need = Math.ceil(qs.length / 2), halt = [[sp, (here ? '' : '(over the radio) ') + rnd(['Hmm. That\'s not quite it. Go look that up, and come find me. We\'ll pick this up right where we left off.', 'No, that\'s not right. Brush up on it and come back. I\'ll still be here.', 'Not quite. Go over that one again, then come see me and we\'ll keep going.'])]];
     seq = say.slice(0, at).concat(qLines, [['gate', need, halt]], say.slice(at));
   }
@@ -1773,7 +1778,7 @@ function playStep(st) {
   dialogue(seq, (r) => { if (r && r.n) award(r.right * 20, 'story'); if (r && r.halted) { storyBusy = false; paused = false; storyCool = 4; return; } finish(); }, { focus: tg ? [tg.x, tg.y] : [P.x, P.y], kicker: (A.side ? (c.saga ? 'STORY ARC · ' : c.sig ? 'SIGNATURE CASE · ' : 'SIDE CASE · ') : '') + c.title.toUpperCase(), voiced: !A.side });
 }
 function chapterDone(c) { EP.ending(c, () => chapterDone2(c)); }
-function chapterDone2(c) {
+function chapterDone2(c) { { const e = EMO['main' + c.d]; if (e) S.lastEmo = e; }
   const rw = c.steps[c.steps.length - 1].reward || {}; S.lore['ch' + c.d] = 1; saveS();
   openModal('<div class="chEnd"><span class="chKick">Chapter ' + (c.d + 1) + ' complete</span><h2>' + esc(c.title) + '</h2><p>' + esc(c.sub) + '</p><div class="chStamp">CASE NOTES FILED</div>' +
     '<p class="chNext">' + (c.d < 4 ? 'Next: Chapter ' + (c.d + 2) + ', ' + esc(CHAPTERS[c.d + 1].title) + '. It opens when ' + esc(DISTRICTS[c.d + 1].name) + ' does.' : 'The story is complete. Port Meridian is yours to keep patrolling.') + '</p><p class="chLore">New entries in your Field Journal · +1 skill point</p></div><div class="qAct"><button type="button" id="mDone">Back to patrol</button></div>');
@@ -1822,7 +1827,7 @@ function journal() {
     const tr = (id) => '<button type="button" class="jTrack' + (S.track === id ? ' on' : '') + '" data-tr="' + id + '">' + (S.track === id ? 'Tracking' : 'Track') + '</button>';
     body = '<div class="jSec"><b>Main storyline · ' + esc(MAIN_TITLE) + '</b>' + tr('main') + '</div>' + body + '<div class="jSec"><b>Side cases · ' + SIDE.filter(sideClosed).length + '/' + SIDE.length + ' closed</b></div>' + DISTRICTS.map((D) => { const qs = SIDE.filter((q) => q.d === D.id), live = qs.filter(sideLive).length, av = qs.filter((q) => sideOpen(q) && S.side[q.id] == null).length; return '<details class="jDist"' + (D.id === W.did || live ? ' open' : '') + '><summary><i style="background:' + D.color + '"></i><b>' + esc(D.name) + '</b><span>' + qs.filter(sideClosed).length + '/' + qs.length + ' closed' + (live ? ' · ' + live + ' active' : '') + (av ? ' · <em>' + av + ' new</em>' : '') + '</span></summary>' + qs.map((q) => {
       const open = sideOpen(q), st = S.side[q.id], done = sideClosed(q), live = sideLive(q), giver = NPCS.find((n) => n.id === q.giver) || TEMP[q.giver] || CAST[q.giver] || {};
-      return '<div class="jCh side' + (done ? ' done' : '') + (open ? '' : ' locked') + '"><div class="jChH"><span>' + esc(DISTRICTS[q.d].name) + '</span><b>' + (open || st != null ? esc(q.title) : '🔒 Not yet') + '</b><small>' + (open || st != null ? esc(q.blurb) : 'Keep going with the main story in ' + esc(DISTRICTS[q.d].name) + '.') + '</small></div>' +
+      return '<div class="jCh side' + (done ? ' done' : '') + (open ? '' : ' locked') + '"><div class="jChH"><span>' + esc(DISTRICTS[q.d].name) + (emoOf(q) && (open || st != null) ? ' <em class="jEmo e_' + emoOf(q) + '">' + EMO_LABEL[emoOf(q)] + '</em>' : '') + '</span><b>' + (open || st != null ? esc(q.title) : '🔒 Not yet') + '</b><small>' + (open || st != null ? esc(q.blurb) : 'Keep going with the main story in ' + esc(DISTRICTS[q.d].name) + '.') + '</small></div>' +
         (live ? '<div class="jSteps">' + q.steps.map((x, k) => '<i class="' + (k < st ? 'ok' : k === st ? 'cur' : '') + '"></i>').join('') + '</div><p>Now: ' + esc(q.steps[st].goal) + '</p>' + tr(q.id) : done ? '<p>Case closed.</p>' : open ? '<p>Find ' + esc(giver.icon || '') + ' ' + esc(giver.name || 'someone') + (q.giverAt ? ' at ' + esc(q.giverAt) : '') + ' in ' + esc(DISTRICTS[q.d].name) + '. Look for the blue <b>!</b></p>' : q.friend ? '<p>Become friends with ' + esc(giver.name || 'them') + ' to hear this story.</p>' : q.act ? '<p>Continues after the previous part of the Paper Trail.</p>' : '') + '</div>';
     }).join('') + '</details>'; }).join('');
   }
