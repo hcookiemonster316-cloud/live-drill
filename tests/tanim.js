@@ -29,4 +29,11 @@ const { chromium } = require('playwright');
   if (!bt) errs.push('no arrest beat');
   await a.evaluate(() => { window.__pc.S.cfg.motion = false; document.getElementById('beatFx').classList.remove('on'); window.__pc.beat('arrive'); window.__pc.openModal('<div class="qAct"><button>x</button></div>'); window.__pc.closeModal(); }); await a.waitForTimeout(150);
   const calm = await a.evaluate(() => ({ beat: document.getElementById('beatFx').classList.contains('on'), ghost: document.querySelectorAll('.mGhost').length })); console.log('reduced', JSON.stringify(calm)); if (calm.beat || calm.ghost) errs.push('motion with Reduced motion on');
+  // your officer acts out a by-the-book arrest step; people on the sidewalk turn to watch a siren go by
+  const act = await a.evaluate(() => { const pc = window.__pc, L = pc.arrestLines({}), cover = L[0][1].find((o) => o.fx); cover.fx(); return pc.ACTP.g; }); console.log('arrest pose', act); if (act !== 'up') errs.push('the officer does not act out the step: ' + act);
+  const sir = await a.evaluate(() => { const pc = window.__pc, P = pc.P, p = pc.peds[0]; if (!p) return 'no walkers'; const tile = pc.W.walk.find(([x, y]) => Math.abs(x - P.x) + Math.abs(y - P.y) < 5); if (!tile) return 'no sidewalk'; p.x = tile[0] + .5; p.y = tile[1] + .5; p._lk = 0; const n = pc.sirenLook(true); return { n, wait: p.wait > 1, again: pc.sirenLook(true) }; });
+  console.log('siren', JSON.stringify(sir)); if (!sir.n || !sir.wait || sir.again) errs.push('walkers do not stop for a siren (once): ' + JSON.stringify(sir));
+  // full-screen panels rise in
+  const fe = await a.evaluate(() => new Promise((ok) => { window.__pc.S.cfg.motion = true; document.body.classList.remove('calm'); window.__pc.settings(); setTimeout(() => { const el = document.querySelector('.fe.menuBg:not([hidden])') || document.querySelector('.fe:not([hidden])'); ok(el ? getComputedStyle(el.firstElementChild).animationName + '|' + el.className : 'none'); }, 60); }));
+  console.log('panel', fe); if (!/feIn/.test(fe)) errs.push('panels do not animate in: ' + fe);
   console.log(errs.length ? 'ERRORS ' + errs.join(' / ') : 'no errors'); await b.close(); process.exit(errs.length ? 1 : 0); })();

@@ -479,6 +479,10 @@ body.calm *,body.calm *::before,body.calm *::after{animation-duration:1ms!import
 .tiVer{position:fixed;right:14px;top:calc(12px + var(--safe-t));font-size:.68rem;color:rgba(200,210,225,.55);letter-spacing:.08em}
 .menuBg{background:radial-gradient(120% 90% at 50% 0%,rgba(27,45,85,.92),rgba(5,9,20,.97) 70%);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:tiFade .25s both;overflow-y:auto}
 .feCard{width:min(520px,100%);display:grid;gap:14px}.feCard.wide{width:min(760px,100%)}
+/* full-screen panels (pause menu, settings, trophies, the title menus): the backdrop fades in fast and the panel
+   rises into place, each time you move between them (quick and confident; Reduced motion turns it off) */
+.fe.menuBg:not([hidden]),.fe.pauseBg:not([hidden]){animation:feBg .18s ease-out both}.fe.menuBg>*,.fe.pauseBg>*{animation:feIn .26s var(--pop) both}
+@keyframes feBg{from{opacity:0}}@keyframes feIn{from{opacity:0;transform:translateY(12px) scale(.985)}}
 .feHead span{font:800 .72rem system-ui;letter-spacing:.26em;text-transform:uppercase;color:#f5b800}.feHead h2{margin:2px 0 0;font:900 2.6rem/1 'Meridian','Arial Narrow',system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase}
 .setGrid{display:grid;gap:12px}.setGrid label{display:grid;gap:6px;font:700 .8rem system-ui;letter-spacing:.08em;text-transform:uppercase;color:var(--g2)}
 .setGrid input[type=range]{width:100%;accent-color:#f5b800}
