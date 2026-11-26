@@ -522,13 +522,18 @@ function update(dt, now) {
 }
 
 // ---------- drawing ----------
+// each district's night: the color of its dark, its dusk and dawn light, and its streetlamps (Central warm white, Eastside
+// a pink neon wash, Riverside teal water-dark and gold dusk, the industrial park sodium orange, Justice Row cold LED)
+const DNIGHT = { 0: { col: '8,12,34', dusk: '255,140,60', dawn: '255,170,110', lamp: '255,212,140' }, 1: { col: '20,8,40', dusk: '255,90,150', dawn: '255,150,170', lamp: '255,196,222' }, 2: { col: '4,18,32', dusk: '255,184,80', dawn: '176,212,255', lamp: '255,226,180' },
+  3: { col: '22,13,6', dusk: '255,118,40', dawn: '232,200,150', lamp: '255,166,64' }, 4: { col: '10,10,42', dusk: '190,120,220', dawn: '255,200,170', lamp: '212,226,255' } };
+const dnight = () => DNIGHT[W ? W.did : 0] || DNIGHT[0];
 function darkness() {
   if (inside) return { a: 0, tint: null };
-  const h = hourNow();
+  const h = hourNow(), D = dnight();
   if (h >= 7 && h < 17.5) return { a: 0, tint: null };
-  if (h >= 17.5 && h < 20) { const k = (h - 17.5) / 2.5; return { a: k * .72, tint: k < .5 ? 'rgba(255,140,60,' + (.16 * (1 - k * 2)) + ')' : null, col: '10,14,38' }; }
-  if (h >= 5 && h < 7) { const k = (h - 5) / 2; return { a: .74 * (1 - k), tint: k > .3 ? 'rgba(255,170,110,' + (.1 * k) + ')' : null, col: '8,12,34' }; }
-  return { a: .74, tint: null, col: '8,12,34' };
+  if (h >= 17.5 && h < 20) { const k = (h - 17.5) / 2.5; return { a: k * .72, tint: k < .5 ? 'rgba(' + D.dusk + ',' + (.18 * (1 - k * 2)) + ')' : null, col: D.col }; }
+  if (h >= 5 && h < 7) { const k = (h - 5) / 2; return { a: .74 * (1 - k), tint: k > .3 ? 'rgba(' + D.dawn + ',' + (.12 * k) + ')' : null, col: D.col }; }
+  return { a: .74, tint: null, col: D.col };
 }
 // static things (props, doors, manholes) keep their screen position and their draw entry, so a frame allocates almost nothing for them
 // districts you can travel to next are built ahead of time between frames, so a transfer loads instantly
@@ -633,9 +638,9 @@ function render(now) { RNOW = now; LBLR.length = 0; frameStart(); spriteResTick(
     gx.setTransform(1, 0, 0, 1, 0, 0); gx.globalCompositeOperation = 'source-over'; gx.clearRect(0, 0, glc.width, glc.height); gx.globalCompositeOperation = 'lighter'; let glowN = 0;
     const glow = (ix, iy, r, col) => { const x = (ix * z + tx) * s, y = (iy * z + ty) * s, rr = r * z * s; if (x < -rr || y < -rr || x > glc.width + rr || y > glc.height + rr) return; glowN++; gx.drawImage(radSprite(col), x - rr, y - rr, rr * 2, rr * 2); };
     VL.forEach((p) => { if (p.t !== 'lights') return; const q = isoC(p); ['rgba(245,184,0,.5)', 'rgba(239,68,68,.45)', 'rgba(34,197,94,.45)', 'rgba(59,130,246,.45)', 'rgba(244,114,182,.45)'].forEach((c, k) => { const u = (k * 1.5 + 1) / 8; glow(q[0] - 14 + 28 * u, q[1] - 37 + 22 * u * (1 - u), 9, c); }); glow(q[0], q[1] - 30, 40, 'rgba(255,214,140,.14)'); });
-    VL.forEach((p) => { if (p.t === 'lamp' && p.on) { const q = isoC(p), ix = q[0], iy = q[1]; glow(ix + 10, iy - 37, 18, 'rgba(255,220,150,.55)'); glow(ix + 10, iy - 37, 46, 'rgba(255,200,120,.12)'); glow(ix + 10, iy - 2, 40, 'rgba(255,190,110,.10)'); } });
+    { const LM = dnight().lamp, c1 = 'rgba(' + LM + ',.55)', c2 = 'rgba(' + LM + ',.12)', c3 = 'rgba(' + LM + ',.10)'; VL.forEach((p) => { if (p.t === 'lamp' && p.on) { const q = isoC(p), ix = q[0], iy = q[1]; glow(ix + 10, iy - 37, 18, c1); glow(ix + 10, iy - 37, 46, c2); glow(ix + 10, iy - 2, 40, c3); } }); }
     if (FX.rain && !inside) { const glowE = (ix, iy, rx, ry, col) => { const x = (ix * z + tx) * s, y = (iy * z + ty) * s, w = rx * z * s, h = ry * z * s; if (x < -w || y < -h || x > glc.width + w || y > glc.height + h) return; glowN++; gx.drawImage(radSprite(col), x - w, y - h * .2, w * 2, h * 2); };
-      VL.forEach((p) => { if (p.t === 'lamp' && p.on) { const q = isoC(p); glowE(q[0] + 10, q[1] + 4, 9, 26, 'rgba(255,205,130,.22)'); } }); }
+      { const c4 = 'rgba(' + dnight().lamp + ',.22)'; VL.forEach((p) => { if (p.t === 'lamp' && p.on) { const q = isoC(p); glowE(q[0] + 10, q[1] + 4, 9, 26, c4); } }); } }
     // lit windows and signs spill a little warm light; cars show headlights and taillights
     SPR.forEach((sp) => { if (sp.canvas) sp.lights.forEach((q, k) => { if (k % 2 === 0) glow(q[0], q[1], 16, 'rgba(255,214,140,.10)'); }); });
     if (dk.a > .3) { const beam = (sx, sy, dir) => { const X = (v) => cv.width / 2 + (v - cam.x) * z, Yy = (v) => cv.height / 2 + (v - cam.y) * z, m = 140 * z; if (X(sx) < -m || X(sx) > cv.width + m || Yy(sy) < -m || Yy(sy) > cv.height + m) return; /* headlights of cars off screen aren't built (was a gradient for every car, every night frame) */ const f = [[1, .5], [-1, .5], [-1, -.5], [1, -.5]][dir & 3], x0 = sx + f[0] * 14, y0 = sy + f[1] * 14 - 4, x1 = sx + f[0] * 120, y1 = sy + f[1] * 120, nx = -f[1] * 34, ny = f[0] * 34; const bg = ctx.createLinearGradient(X(x0), Yy(y0), X(x1), Yy(y1)); bg.addColorStop(0, 'rgba(255,245,215,.22)'); bg.addColorStop(1, 'rgba(255,245,215,0)'); ctx.fillStyle = bg; ctx.beginPath(); ctx.moveTo(X(x0 - nx * .15), Yy(y0 - ny * .15)); ctx.lineTo(X(x1 - nx), Yy(y1 - ny)); ctx.lineTo(X(x1 + nx), Yy(y1 + ny)); ctx.lineTo(X(x0 + nx * .15), Yy(y0 + ny * .15)); ctx.closePath(); ctx.fill(); };
@@ -1048,6 +1053,7 @@ function liveUpdate(dt) {
     for (let i = DISC.left.length - 1; i >= 0; i--) { const l = DISC.left[i], k = l._dk; if (S.disc[k]) { DISC.left.splice(i, 1); continue; } if (Math.hypot(l.door[0] - P.x, l.door[1] - P.y) > 4.5) continue; DISC.left.splice(i, 1); S.disc[k] = 1;
       if (l.gen) { saveS(); ord('place'); FLOATS.push({ x: P.x, y: P.y, t: performance.now(), text: l.name, sub: 'new place' }); continue; } saveS(); ord('place'); banner('📍', 'Discovered: ' + l.name, (LANDMARKS[l.kind] || {}).note || W.D.name); award(10, 'new place'); } }
   if (W.promenade) { const k = W.did + ':prom'; if (!S.disc[k] && Math.hypot(W.promenade.x + 1 - P.x, W.promenade.y + 4 - P.y) < 4) { S.disc[k] = 1; saveS(); banner('📍', 'Discovered: ' + W.promenade.name, 'Walk only. No cars, all vibes.'); award(10, 'new place'); } }
+  if (W.details) W.details.forEach((x) => { if (x.seen || Math.hypot(x.x - P.x, x.y - P.y) > 1.8) return; x.seen = true; sceneCaption(x.text); stat('details'); }); // the telling detail in an interior, noticed once a visit
   W.secrets.forEach((x) => { if (S.found[x.id] || P.inCar || Math.hypot(x.x - P.x, x.y - P.y) > 1.9 + gp('secret') * .5) return; S.found[x.id] = 1; saveS(); ord('secret'); banner('🗝️', 'Secret spot: ' + x.name, x.text, true); beep(784, .1, 'triangle', .05); beep(1175, .2, 'triangle', .05, .12); queueLoot('Secret spot: ' + x.name, 1, hasSk('inv4') ? 'r' : 'u'); });
   // birds
   FX.birds.forEach((b) => { const d = Math.hypot(b.x - P.x, b.y - P.y); if (!b.fly && d < (P.inCar ? 3.5 : 2.2)) { b.fly = true; b.vx = (b.x - P.x) / (d || 1) * 3 + (Math.random() - .5); b.vy = (b.y - P.y) / (d || 1) * 3 + (Math.random() - .5); b.vh = 40 + Math.random() * 20; if (Math.random() < .2) beep(2200 + Math.random() * 600, .04, 'sine', .015); } if (b.fly) { b.x += b.vx * dt; b.y += b.vy * dt; b.h += b.vh * dt; } });
@@ -1951,15 +1957,21 @@ function ambienceGlow(glow, now) { // additive pass at night
 // half resolution and stamped onto each frame (the same look, without re-rasterising two gradients every frame)
 const GRADEC = new Map();
 function gradeLayer(key, w, h, paint) { let c = GRADEC.get(key); if (!c) { if (GRADEC.size > 12) GRADEC.clear(); c = document.createElement('canvas'); c.width = Math.max(1, Math.ceil(w / 2)); c.height = Math.max(1, Math.ceil(h / 2)); const g = c.getContext('2d'); g.scale(.5, .5); paint(g, w, h); GRADEC.set(key, c); } return c; }
+// each district's own light at dawn, day, dusk and night (top of the screen, bottom): Central the warm civic default,
+// Eastside neon at night and hot afternoons, Riverside mist at dawn and gold off the water at dusk, the industrial park
+// hazy by day and sodium-orange at night, Justice Row cool marble and a violet dusk
+const DLIGHT = { [-1]: [['rgba(255,170,120,.16)', 'rgba(255,220,180,0)'], ['rgba(255,240,210,.07)', 'rgba(120,170,255,.05)'], ['rgba(255,110,90,.16)', 'rgba(255,170,90,.08)'], ['rgba(40,70,160,.12)', 'rgba(10,20,60,.06)']],
+  0: [['rgba(255,170,120,.16)', 'rgba(255,220,180,0)'], ['rgba(255,244,220,.08)', 'rgba(150,190,255,.05)'], ['rgba(255,120,90,.16)', 'rgba(255,180,100,.08)'], ['rgba(60,80,170,.12)', 'rgba(20,30,70,.06)']],
+  1: [['rgba(255,150,170,.15)', 'rgba(255,210,190,.02)'], ['rgba(255,232,196,.10)', 'rgba(255,196,140,.05)'], ['rgba(255,90,150,.17)', 'rgba(140,80,210,.09)'], ['rgba(160,60,210,.14)', 'rgba(20,130,170,.09)']],
+  2: [['rgba(190,220,255,.17)', 'rgba(200,240,220,.05)'], ['rgba(230,255,240,.07)', 'rgba(100,190,220,.07)'], ['rgba(255,190,100,.19)', 'rgba(255,140,90,.08)'], ['rgba(40,100,150,.14)', 'rgba(10,50,70,.08)']],
+  3: [['rgba(232,204,160,.16)', 'rgba(200,190,170,.05)'], ['rgba(242,226,190,.11)', 'rgba(190,185,170,.07)'], ['rgba(255,130,60,.19)', 'rgba(180,90,60,.08)'], ['rgba(255,150,50,.12)', 'rgba(70,45,30,.08)']],
+  4: [['rgba(255,200,170,.13)', 'rgba(220,220,240,.04)'], ['rgba(235,240,255,.09)', 'rgba(170,180,225,.06)'], ['rgba(190,120,210,.17)', 'rgba(255,150,120,.08)'], ['rgba(80,90,190,.14)', 'rgba(30,30,85,.08)']] };
 function grade(dk) { // screen-space color grade by time of day
   if (S.cfg.quality === 'low') return;
   const h = hourNow(), W0 = cv.width, H0 = cv.height, ultra = S.cfg.quality === 'ultra'; ctx.setTransform(1, 0, 0, 1, 0, 0);
   const band = h >= 6 && h < 8.5 ? 0 : h >= 8.5 && h < 16.5 ? 1 : h >= 16.5 && h < 19.5 ? 2 : 3;
-  const gl = gradeLayer('g' + band + ultra + W0 + 'x' + H0, W0, H0, (g) => { const gr = g.createLinearGradient(0, 0, 0, H0);
-    if (band === 0) { gr.addColorStop(0, 'rgba(255,170,120,.16)'); gr.addColorStop(1, 'rgba(255,220,180,0)'); }
-    else if (band === 1) { gr.addColorStop(0, 'rgba(255,240,210,.07)'); gr.addColorStop(1, 'rgba(120,170,255,.05)'); }
-    else if (band === 2) { gr.addColorStop(0, 'rgba(255,110,90,.16)'); gr.addColorStop(1, 'rgba(255,170,90,.08)'); }
-    else { gr.addColorStop(0, 'rgba(40,70,160,.12)'); gr.addColorStop(1, 'rgba(10,20,60,.06)'); }
+  const dd = inside || !W ? -1 : W.did, DG = DLIGHT[dd] || DLIGHT[-1];
+  const gl = gradeLayer('g' + band + '|' + dd + ultra + W0 + 'x' + H0, W0, H0, (g) => { const gr = g.createLinearGradient(0, 0, 0, H0); gr.addColorStop(0, DG[band][0]); gr.addColorStop(1, DG[band][1]);
     if (!ultra) g.globalAlpha = .55; g.fillStyle = gr; g.fillRect(0, 0, W0, H0); });
   if (ultra) ctx.globalCompositeOperation = 'soft-light'; ctx.drawImage(gl, 0, 0, W0, H0); ctx.globalCompositeOperation = 'source-over';
   if (inside) return;

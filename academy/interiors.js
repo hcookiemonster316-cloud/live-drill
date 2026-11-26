@@ -495,6 +495,45 @@ const STAFF = {
   marina: [[K('#556b2f', '#5d4037', 'cap', { hatCol: '#556b2f' })], ['"Live shrimp, cold drinks and the best fishing gossip on the river."', '"Biggest fish I ever caught? Still in the river. Out of respect."']],
   truckstop: [[K('#2563eb', '#1f2937', 'cap', { hatCol: '#f5b800' })], ['"Coffee is fresh every four hours whether it needs it or not."', '"Eleven states, one shower. Shower shoes required. Trust me."']]
 };
+// one detail in every interior that tells you about the people who use it: a small thing by the plant, noticed when you
+// walk past (art guide: interiors as rich as the streets). [what it is, the line you notice]
+export const DETAILS = {
+  hq: ['board', 'A whiteboard by the lockers: DAYS SINCE A BACKING CRASH, 3. Somebody crossed out 41.'],
+  substation: ['rack', 'A rain jacket on the hook, two sizes too big. The name tape says WALSH.'],
+  dispatch: ['stack', 'A stack of thank-you cards, every one addressed to "the voice on the radio."'],
+  records: ['box', 'A box marked RETURN TO OWNER. Inside, a kid\'s bike lock and a wedding ring.'],
+  bank: ['board', 'A framed first dollar from 1961, signed by a teller who still works the morning shift.'],
+  diner: ['rack', 'A row of mugs on hooks. Three have badge numbers painted on them in nail polish.'],
+  store: ['box', 'A coffee can by the register: "For the Nguyens\' new roof." It\'s half full of ones.'],
+  gas: ['stack', 'A taped-up list behind the counter of drivers who still owe for gas. Most are crossed off.'],
+  pawn: ['board', 'A trumpet on a stand, tagged NOT FOR SALE. Pawned in 1994. Never picked up, never sold.'],
+  motel: ['bucket', 'A bucket under a ceiling drip. Someone has drawn a smiley face on it.'],
+  autoshop: ['board', 'Polaroids of every car they ever brought back, pinned in rows. One of them is a cruiser.'],
+  firestation: ['box', 'A box of donated stuffed animals for kids at fire scenes, from Riverside Elementary.'],
+  church: ['stack', 'Handwritten prayer cards in a basket. The top one asks for the officers on nights.'],
+  school: ['board', 'A second-grade poster: OUR HELPERS. A crayon police officer with a very large hat.'],
+  apartments: ['box', 'A package kept downstairs for the neighbor in 3B, who works doubles.'],
+  houses: ['board', 'School pictures up the stairs. They stop at about twelve, then start again with a baby.'],
+  warehouse: ['board', 'A safety sign: 212 DAYS WITHOUT AN INJURY. The 2 has been repainted.'],
+  storage: ['box', 'A box of tax returns from 1987, labeled DO NOT THROW OUT, MOM.'],
+  courthouse: ['stack', 'Coloring books at the clerk\'s window, for kids waiting on their parents.'],
+  jail: ['stack', 'A chess game on the booking counter, halfway through. The deputy is losing.'],
+  office: ['rack', 'A suit jacket on the back of a chair. It\'s been there since Friday.'],
+  tower: ['board', 'A lobby sign: ELEVATOR 2 OUT OF ORDER. Under it, in pen: "since March."'],
+  cafe: ['board', 'A chalkboard: SUSPENDED COFFEES, 14. Paid ahead for whoever needs one.'],
+  barber: ['board', 'Photos of the same boy\'s haircut, every first day of school for nine years.'],
+  books: ['stack', 'A shelf of staff picks. Every card is in the same handwriting.'],
+  pizza: ['board', 'A signed photo of the team that won state in 2011. Half of them work here now.'],
+  library: ['stack', 'A sign-up sheet for free GED tutoring. Every slot is filled.'],
+  transit: ['board', 'A lost-and-found board covered in mittens nobody came back for.'],
+  clinic: ['box', 'A basket of reading glasses by the sign-in sheet: "Take a pair."'],
+  laundromat: ['board', 'A corkboard of babysitting flyers, every tab with the same phone number torn off.'],
+  salon: ['board', 'A photo wall of brides, and in the corner one groom who came in for his nails.'],
+  gym: ['board', 'Old fight posters. The oldest is the owner, fifty years and fifty pounds ago.'],
+  center: ['box', 'A crate of donated school supplies, sorted by grade, with sticky notes on each pile.'],
+  marina: ['board', 'A tide chart, with the 2017 storm\'s water line drawn on the wall above it.'],
+  truckstop: ['stack', 'A board of postcards from drivers, from every state but Hawaii.']
+};
 const SECRETS = {
   hq: ['The Sergeant\'s Snack Drawer', 'Full of beef jerky and a note that says "I counted these."'],
   substation: ['The Lost Pen Graveyard', 'Under the report-room desk. Forty-one issued pens. None of them work.'],
@@ -570,6 +609,14 @@ export function buildInterior(lot, outW, idx) {
     if (k === '$') I.caches.push({ x: x + .5, y: y + .5 });
     if (k === '*') { const s2 = SECRETS[key] || SECRETS.office; I.secrets.push({ id: 'in:' + outW.did + ':' + key + ':' + idx, name: s2[0], text: s2[1], x: x + .5, y: y + .5 }); }
   }
+  // small life: a coffee maker steaming on the first counter, and light through the doorway with dust drifting in it
+  { const cn = I.props.find((q) => q.k === 'c' || q.k === 'q'); if (cn) cn.life = 'coffee';
+    if (I.door) I.props.push({ t: 'furn', k: 'beam', x: I.door[0], y: I.door[1] - 1.2, block: false }); }
+  // the telling detail, on a free floor tile beside the room's plant
+  { const dt = DETAILS[key]; const pl0 = dt && (I.props.find((q) => q.k === 'P') || I.props.find((q) => /^[dTcskJxr]$/.test(q.k))); /* the plant, or other furniture where there's none */ if (pl0) { const px0 = Math.floor(pl0.x), py0 = Math.floor(pl0.y);
+      const spot = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1]].map(([dx, dy]) => [px0 + dx, py0 + dy]).find(([x, y]) => at(x, y) === T.PLAZA && !I.blocked.has(y * N + x) && !(I.door && x === Math.floor(I.door[0]) && Math.abs(y - I.door[1]) < 2.5))
+        || I.walk.filter(([x, y]) => !I.blocked.has(y * N + x) && !(I.door && Math.abs(x + .5 - I.door[0]) + Math.abs(y + .5 - I.door[1]) < 3)).sort((u, v) => Math.hypot(u[0] - px0, u[1] - py0) - Math.hypot(v[0] - px0, v[1] - py0))[0]; /* a full corner: the nearest free floor */
+      if (spot) { I.props.push({ t: 'furn', k: 'detail', obj: dt[0], x: spot[0] + .5, y: spot[1] + .5, block: true }); I.blocked.add(spot[1] * N + spot[0]); I.walk = I.walk.filter(([x, y]) => x !== spot[0] || y !== spot[1]); I.details = [{ x: spot[0] + .5, y: spot[1] + .5, text: dt[1], id: key }]; } } }
   I.quiet = I.walk.slice();
   I.spawn = [I.door[0], I.door[1] - 1];
   I.walkable = (x, y) => at(x, y) === T.PLAZA && !I.blocked.has(y * N + x);
@@ -639,7 +686,22 @@ function deco(g, sx, sy, p, t) {
     case 9: onFace(g, sx, sy, f, -.5, .5, 22, 50, '#f8fafc'); onFace(g, sx, sy, f, -.4, .1, 42, 43.5, '#1d4ed8'); onFace(g, sx, sy, f, -.4, .3, 36, 37.5, '#dc2626'); onFace(g, sx, sy, f, -.4, -.05, 30, 31.5, '#1d4ed8'); break;
   }
 }
+// a coffee maker on a counter, steam curling up from the pot
+function coffee(g, sx, sy, t, top) { prism(g, sx + 5, sy - 1, .1, .08, 9, '#1f2937', top); g.fillStyle = '#7c2d12'; g.fillRect(sx + 2.5, sy - top - 5, 4, 3);
+  for (let i = 0; i < 3; i++) { const k = ((t / 1400 + i / 3) % 1), y = sy - top - 9 - k * 14, x = sx + 4.5 + Math.sin(k * 6 + i * 2) * 2.2; g.fillStyle = 'rgba(255,255,255,' + (.34 * (1 - k)).toFixed(3) + ')'; g.beginPath(); g.ellipse(x, y, 1.6 + k * 1.6, 1.1 + k, 0, 0, Math.PI * 2); g.fill(); } }
+// the telling detail: a board on an easel, a box, a paper stack, a coat rack or a bucket under a drip
+function detailObj(g, p, sx, sy, t) { shadow(g, sx, sy, 9);
+  if (p.obj === 'board') { prism(g, sx, sy, .05, .05, 18, '#5b4636'); prism(g, sx, sy, .3, .03, 14, '#7c5c3e', 14); prism(g, sx, sy, .26, .035, 11, '#e9e2d0', 15.5); g.fillStyle = '#334155'; for (let i = 0; i < 3; i++) g.fillRect(sx - 6 + i * 4, sy - 27 + (i % 2) * 2, 3, 2); }
+  else if (p.obj === 'box') { prism(g, sx, sy, .22, .18, 9, '#b98a52'); prism(g, sx, sy, .2, .16, 2, '#d9a066', 9); g.fillStyle = '#f472b6'; g.fillRect(sx - 3, sy - 13, 3, 3); g.fillStyle = '#60a5fa'; g.fillRect(sx + 1, sy - 12, 3, 3); }
+  else if (p.obj === 'stack') { prism(g, sx, sy, .2, .16, 8, '#6b5a48'); [0, 1, 2].forEach((i) => prism(g, sx, sy, .15, .12, 1.4, ['#f8fafc', '#fde68a', '#e2e8f0'][i], 8 + i * 1.5)); }
+  else if (p.obj === 'rack') { prism(g, sx, sy, .03, .03, 30, '#3f3f46'); prism(g, sx, sy, .14, .12, 1, '#3f3f46'); g.fillStyle = '#1e3a8a'; g.beginPath(); g.moveTo(sx - 5, sy - 28); g.lineTo(sx + 5, sy - 28); g.lineTo(sx + 6, sy - 12); g.lineTo(sx - 6, sy - 12); g.closePath(); g.fill(); g.fillStyle = '#f5b800'; g.fillRect(sx - 1, sy - 24, 3, 1.5); }
+  else { prism(g, sx, sy, .14, .14, 7, '#9ca3af'); g.fillStyle = '#93c5fd'; g.beginPath(); g.ellipse(sx, sy - 7, 4, 2, 0, 0, Math.PI * 2); g.fill(); const k = (t / 900) % 1; g.fillStyle = 'rgba(147,197,253,' + (1 - k).toFixed(2) + ')'; g.fillRect(sx - .5, sy - 40 + k * 31, 1.2, 2.2); } }
+// light through the doorway with dust drifting in it
+function beam(g, sx, sy, t) { g.save(); g.globalCompositeOperation = 'lighter'; const gr = g.createLinearGradient(sx, sy + 14, sx, sy - 34); gr.addColorStop(0, 'rgba(255,240,200,.10)'); gr.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(sx - 16, sy + 12); g.lineTo(sx + 16, sy + 12); g.lineTo(sx + 9, sy - 34); g.lineTo(sx - 9, sy - 34); g.closePath(); g.fill();
+  for (let i = 0; i < 7; i++) { const k = ((t / 6000 + i * .143) % 1), x = sx + Math.sin(i * 2.3 + t / 2400) * 9 * (1 - k * .4), y = sy + 8 - k * 40; g.fillStyle = 'rgba(255,246,220,' + (.5 * Math.sin(k * Math.PI)).toFixed(3) + ')'; g.fillRect(x, y, 1, 1); } g.restore(); }
 export function drawFurn(g, p, sx, sy, t, wallCol) {
+  if (p.k === 'detail') return detailObj(g, p, sx, sy, t);
+  if (p.k === 'beam') return beam(g, sx, sy, t);
   const k = p.k, wc = wallCol || '#7b8794';
   switch (k) {
     case 'wall': prism(g, sx, sy, .5, .5, p.h || 58, wc); if (p.h > 8) { prism(g, sx, sy, .5, .5, 3, sh(wc, 1.25), p.h); deco(g, sx, sy, p, t); } return;
@@ -647,13 +709,13 @@ export function drawFurn(g, p, sx, sy, t, wallCol) {
     case 'U': prism(g, sx, sy, .5, .5, p.h || 58, wc); if (p.face) { onFace(g, sx, sy, p.face, -.38, .38, 0, 36, '#e2742b'); for (let z = 6; z < 34; z += 5) onFace(g, sx, sy, p.face, -.38, .38, z, z + 1, 'rgba(0,0,0,.18)'); } return;
     case 'door': g.fillStyle = 'rgba(245,184,0,.25)'; g.beginPath(); g.ellipse(sx, sy + TH / 2, 22, 10, 0, 0, Math.PI * 2); g.fill(); return;
     case 'L': shadow(g, sx, sy, 14); prism(g, sx, sy, .42, .3, 44, ['#5d6d7e', '#4b5d73', '#64748b'][p.seed % 3]); g.strokeStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.moveTo(sx, sy - 4); g.lineTo(sx, sy - 42); g.stroke(); g.fillStyle = '#cbd5e1'; g.fillRect(sx - 4, sy - 26, 2, 4); g.fillRect(sx + 3, sy - 22, 2, 4); return;
-    case 'k': shadow(g, sx, sy, 14); prism(g, sx, sy, .45, .32, 15, '#6b5a48'); { const pt = prism(g, sx, sy, .16, .05, 13, '#1f2937', 15); const s0 = pt(-.13, .06, 3), s1 = pt(.13, .06, 11); g.fillStyle = Math.floor(t / 1500 + sx) % 3 ? '#38bdf8' : '#22c55e'; g.fillRect(s0[0], s1[1], s1[0] - s0[0], s0[1] - s1[1]); prism(g, sx, sy, .14, .06, 1, '#374151', 15, .2, .18); } return;
+    case 'k': shadow(g, sx, sy, 14); prism(g, sx, sy, .45, .32, 15, '#6b5a48'); { const pt = prism(g, sx, sy, .16, .05, 13, '#1f2937', 15); const s0 = pt(-.13, .06, 3), s1 = pt(.13, .06, 11); g.fillStyle = Math.floor(t / 1500 + sx) % 3 ? '#38bdf8' : '#22c55e'; g.fillRect(s0[0], s1[1], s1[0] - s0[0], s0[1] - s1[1]); { const W0 = s1[0] - s0[0], H0 = s0[1] - s1[1], k0 = Math.floor(t / 420 + sx) % 4; g.fillStyle = 'rgba(8,20,40,.55)'; for (let i = 0; i < 3; i++) { const w = W0 * (.35 + ((i + k0) * 37 % 50) / 100); g.fillRect(s0[0] + 1, s1[1] + 1.5 + i * (H0 / 3.2), Math.max(1, w - 2), .9); } } /* lines of text scroll on the screen */ prism(g, sx, sy, .14, .06, 1, '#374151', 15, .2, .18); } return;
     case 'd': shadow(g, sx, sy, 14); prism(g, sx, sy, .45, .32, 15, '#8b6b4a'); g.fillStyle = '#f2f2f2'; g.fillRect(sx - 5, sy - 19, 8, 4); g.fillStyle = '#d97706'; g.fillRect(sx + 5, sy - 21, 3, 4); return;
     case 'h': case 'j': prism(g, sx, sy, .16, .16, 8, k === 'j' ? '#7a4a2a' : '#374151'); prism(g, sx, sy, .16, .04, 18, k === 'j' ? '#7a4a2a' : '#374151', 0, 0, -.14); return;
     case 'T': shadow(g, sx, sy, 16); prism(g, sx, sy, .42, .42, 14, '#9a7552'); if (p.seed % 2) { g.fillStyle = '#fff'; g.beginPath(); g.ellipse(sx - 4, sy - 16, 4, 2, 0, 0, Math.PI * 2); g.fill(); } return;
     case 't': shadow(g, sx, sy, 12); g.fillStyle = '#4b5563'; g.fillRect(sx - 1.5, sy - 13, 3, 13); g.fillStyle = '#c9a77a'; g.beginPath(); g.ellipse(sx, sy - 14, 14, 7, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#e8d5b5'; g.beginPath(); g.ellipse(sx, sy - 15, 12, 6, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.ellipse(sx + 3, sy - 16, 3, 1.6, 0, 0, Math.PI * 2); g.fill(); return;
-    case 'c': prism(g, sx, sy, .5, .4, 18, '#a8916f'); prism(g, sx, sy, .5, .42, 2, '#e8dcc6', 18); return;
-    case 'q': prism(g, sx, sy, .5, .4, 18, '#57534e'); prism(g, sx, sy, .5, .42, 2, '#d6d3d1', 18); if (p.seed % 3 === 0) { prism(g, sx, sy, .16, .12, 8, '#1f2937', 20); g.fillStyle = '#22c55e'; g.fillRect(sx - 3, sy - 29, 5, 2); } return;
+    case 'c': prism(g, sx, sy, .5, .4, 18, '#a8916f'); prism(g, sx, sy, .5, .42, 2, '#e8dcc6', 18); if (p.life === 'coffee') coffee(g, sx, sy, t, 20); return;
+    case 'q': prism(g, sx, sy, .5, .4, 18, '#57534e'); prism(g, sx, sy, .5, .42, 2, '#d6d3d1', 18); if (p.seed % 3 === 0) { prism(g, sx, sy, .16, .12, 8, '#1f2937', 20); g.fillStyle = '#22c55e'; g.fillRect(sx - 3, sy - 29, 5, 2); } if (p.life === 'coffee') coffee(g, sx, sy, t, 20); return;
     case 's': shadow(g, sx, sy, 14); prism(g, sx, sy, .45, .28, 34, '#8a8f96'); for (let z = 6; z < 34; z += 9) { prism(g, sx, sy, .45, .3, 1.5, '#cbd5e1', z); ['#e74c3c', '#f1c40f', '#3498db', '#2ecc71', '#9b59b6', '#f97316'].forEach((cc, i) => { g.fillStyle = cc; g.fillRect(sx - 13 + i * 4.6, sy - z - 6 + i * 1.2 - 2, 3, 5); }); } return;
     case '[': shadow(g, sx, sy, 14); prism(g, sx, sy, .46, .26, 46, '#5b3a1e'); for (let z = 4; z < 44; z += 10) { ['#7f1d1d', '#1e3a8a', '#14532d', '#78350f', '#4c1d95', '#b45309', '#334155'].forEach((cc, i) => { g.fillStyle = cc; g.fillRect(sx - 14 + i * 4, sy - z - 8 + i * 1.6 - 1, 3, 7 + (i % 2)); }); } return;
     case 'F': prism(g, sx, sy, .45, .35, 42, '#dfe7ee'); onFace(g, sx, sy - 0, 'y', -.4, .4, 4, 38, 'rgba(125,211,252,.5)'); ['#ef4444', '#22c55e', '#f59e0b', '#3b82f6'].forEach((c, i) => { g.fillStyle = c; g.fillRect(sx - 12 + i * 6, sy - 14 - (i % 2) * 10, 3, 6); }); return;
