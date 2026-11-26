@@ -3,10 +3,10 @@
 // (a flag it sets is read by a later line or step). Runs without a browser.
 (async () => {
   const B = require('url').pathToFileURL(require('path').resolve(__dirname, '../academy')).href + '/', errs = [];
-  const st = await import(B + 'story.js'), sq = await import(B + 'sidequests.js'), sx = await import(B + 'sidex.js'), w = await import(B + 'world.js'), dt = await import(B + 'data.js'), p2 = await import(B + 'people2.js'), dc = await import(B + 'districts.js'), sg = await import(B + 'sagas.js'), tl = await import(B + 'tales.js'), a2 = await import(B + 'act2.js');
+  const st = await import(B + 'story.js'), sq = await import(B + 'sidequests.js'), ep = await import(B + 'epicdata.js'), sx = await import(B + 'sidex.js'), w = await import(B + 'world.js'), dt = await import(B + 'data.js'), p2 = await import(B + 'people2.js'), dc = await import(B + 'districts.js'), sg = await import(B + 'sagas.js'), tl = await import(B + 'tales.js'), a2 = await import(B + 'act2.js');
   const known = new Set(['narr', 'you'].concat(Object.keys(st.CAST), Object.keys(sq.SIDE_CAST), Object.keys(sx.EXP_CAST), Object.keys(dc.DPEOPLE), Object.keys(sg.SAGA_CAST), Object.keys(tl.TALE_CAST), Object.keys(a2.ACT2_CAST), dt.NPCS.map((n) => n.id), p2.NPCS2.map((n) => n.id)));
   const places = [0, 1, 2, 3, 4].map((d) => new Set(w.buildDistrict(d).lots.map((l) => l.name).filter(Boolean)));
-  const all = st.SIDE.concat(sq.SIDE2); let n = 0, steps0 = 0, steps1 = 0, words = 0;
+  const all = st.SIDE.concat(sq.SIDE2, a2.ACT2); let n = 0, steps0 = 0, steps1 = 0, words = 0;
   for (const id in sx.EXPAND) { const q = all.find((x) => x.id === id); if (!q) { errs.push('expanded case not found: ' + id); continue; } n++; const e = sx.EXPAND[id];
     const used = e.steps.filter((s) => s.o != null).map((s) => s.o); q.steps.forEach((_, i) => { if (used.indexOf(i) < 0) errs.push(id + ': original step ' + i + ' dropped'); });
     if (e.steps.length <= q.steps.length) errs.push(id + ': not longer than the original'); steps0 += q.steps.length; steps1 += e.steps.length;

@@ -170,16 +170,16 @@ export const ARCX = {
       add: [['wren', 'He made more than I did last month. Out of my own back room. I\'ve never been so proud to be beaten.'], ['narr', 'Marcus still rides deliveries on Saturdays. "For the bakery smell," he says. "Somebody has to keep seeing the city at six."']] }
   ],
   okafor: [
-    { pre: [['narr', 'The Central Library reading room. Tall windows, old radiators that knock, a long table where a man in a pressed shirt reads the Miami Herald with a magnifying glass.'], ['okafor', 'That\'s Mr. Pell. Every Sunday since his wife died. He reads every paper we have, cover to cover. Then he folds them back exactly the way they were.']],
-      add: [['narr', 'Mr. Pell turns a page with great care, smooths it flat, and keeps reading. He doesn\'t know anything is wrong yet.']] },
+    { pre: [['narr', 'The Central Library reading room. Tall windows, old radiators that knock, a long table where a man in a pressed shirt reads the Miami Herald with a magnifying glass.'], ['okafor', 'That\'s Mr. Lindell. Every Sunday since his wife died. He reads every paper we have, cover to cover. Then he folds them back exactly the way they were.']],
+      add: [['narr', 'Mr. Lindell turns a page with great care, smooths it flat, and keeps reading. He doesn\'t know anything is wrong yet.']] },
     { pre: [['narr', 'Okafor has a sign-up sheet on a clipboard with a pen chained to it. "Libraries lose pens," she says. "Not books. Pens."']],
-      add: [['narr', 'She adds your name to the list in her own handwriting, very neatly, as if it were a book she was cataloging.'], ['okafor', 'Three of my eleven volunteers are over eighty. One is Mr. Pell. He signed up to reshelve the newspapers. He already does that.']] },
+      add: [['narr', 'She adds your name to the list in her own handwriting, very neatly, as if it were a book she was cataloging.'], ['okafor', 'Three of my eleven volunteers are over eighty. One is Mr. Lindell. He signed up to reshelve the newspapers. He already does that.']] },
     { pre: [['narr', 'The children\'s corner on Sunday morning. A rug shaped like a map of Florida. Fourteen kids. Three parents pretending to read in the back but really watching you.']],
       add: [['narr', 'Afterwards a girl in braids hands you a drawing: you, a police car, and a dog you don\'t have. "So you\'re not sad," she says.'], ['okafor', 'You\'re going to be a good officer. Kids can tell. Kids always tell.']] },
     { pre: [['narr', 'County Administration, the commission chambers. A long dais, microphones, a timer with a red light. Okafor is in her best blazer, holding her notes so tight they\'re wrinkled.'], ['okafor', 'I\'ve read aloud to a thousand children. I have never been this scared of a microphone.']],
-      add: [['narr', 'In the back row, Mr. Pell sits with his hat in his lap. He came by bus, alone. He\'s never been to a meeting in his life.']] },
-    { pre: [['narr', 'Sunday at the library. Every table full. Mr. Pell has a new name tag pinned to his pressed shirt: VOLUNTEER.']],
-      add: [['okafor', 'Mr. Pell told the commission he\'d read the paper alone in his kitchen for a year before he found this room. He said the library was the first place that said good morning back.'], ['okafor', 'Five to two. Because a man who reads the paper said good morning.']] }
+      add: [['narr', 'In the back row, Mr. Lindell sits with his hat in his lap. He came by bus, alone. He\'s never been to a meeting in his life.']] },
+    { pre: [['narr', 'Sunday at the library. Every table full. Mr. Lindell has a new name tag pinned to his pressed shirt: VOLUNTEER.']],
+      add: [['okafor', 'Mr. Lindell told the commission he\'d read the paper alone in his kitchen for a year before he found this room. He said the library was the first place that said good morning back.'], ['okafor', 'Five to two. Because a man who reads the paper said good morning.']] }
   ],
   kevin: [
     { pre: [['narr', 'The IT closet at Patrol HQ. No window. Three monitors, a mini-fridge, a cactus that\'s been dead since spring. Kevin eats lunch at his desk, facing the wall.'], ['kevin', 'Did you know the server room is the coldest room in the building? I eat in there sometimes. It\'s peaceful. Servers don\'t ask how your weekend was.']],

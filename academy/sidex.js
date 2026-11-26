@@ -5,6 +5,8 @@
 // Loop: take a call or a case -> choose how to handle it -> the city remembers (EXP_MEMORY lines, said by regulars
 // later) -> your career (the case's reward). Applied once at load by game.js.
 
+const sh = (a) => a; // same helper as act2.js: choice options as written
+
 export const EXP_CAST = {
   abernathy: { name: 'Mr. Abernathy', icon: '🚌', role: 'Rides the 11:40 night bus' },
   rosen: { name: 'Mrs. Rosen', icon: '🐕', role: 'Bayfront Dog Run regular' },
@@ -19,6 +21,7 @@ export const EXP_CAST = {
   sleeper: { name: 'Jojo', icon: '🧥', role: 'Sixteen, sleeping under the stairs' },
   coreyb: { name: 'Corey Bell', icon: '🚂', role: 'Railroad safety speaker' },
   benoit: { name: 'Mrs. Benoit', icon: '🌱', role: 'Willow Street, grows the best tomatoes in Riverside' },
+  cobb: { name: 'Harlan Cobb', icon: '🎩', role: 'Mayor of Port Meridian, 1983-1991' },
   transported: { name: 'Kenny', icon: '⚾', role: 'Nineteen, on the transport run' }
 };
 
@@ -717,7 +720,161 @@ export const EXPAND = {
       ['narr', 'Twenty-six of them, rubber-banded, the same handwriting on every envelope. The return address changes over the years. The last nine are from a house in Ocala.'],
       ['deputy', 'Drove him up in \'98. He was a kid, like this one. Treat them like a person on the worst day, and sometimes they remember there\'s another way to be.'],
       ['choice', [{ t: 'Ask Wells what he writes back', set: 'wellsAsk', reply: [['deputy', 'Same thing every year. "Seat belt on. Long ride, short traffic." He knows what it means.']] },
-        { t: 'Tell him you\'ll remember the twenty minutes', set: 'wellsKeep', reply: [['deputy', 'Do. Most of this job is twenty minutes nobody sees.']] }], 'Deputy Wells']] }] }
+        { t: 'Tell him you\'ll remember the twenty minutes', set: 'wellsKeep', reply: [['deputy', 'Do. Most of this job is twenty minutes nobody sees.']] }], 'Deputy Wells']] }] },
+  // ===================== The Ledger: an investigation (Phase 8, step 6) =====================
+  // You choose which lead to follow, the evidence turns against the man Lena is trying to clear, and the truth
+  // costs something: the mayor who wanted the money is still alive.
+  ledger1: { steps: [{ o: 0 },
+    { at: 'Central Library', who: 'okafor', goal: 'Pull the 1987 papers at the Central Library', say: [
+      ['narr', 'Microfilm, the reading room, a machine that hums like a fridge. Okafor threads the reel without looking.'],
+      ['narr', 'The Port Meridian Ledger, October 14, 1987. Front page: RELIEF FUND ACCOUNTANT VANISHES WITH $2 MILLION. A photo of Walter Marsh, mid-forties, glasses, a tie that doesn\'t match his shirt.'],
+      ['narr', 'Second paragraph: "Mayor Harlan Cobb said the city was \'shocked and betrayed\' and called for a full investigation."'],
+      ['okafor', 'He didn\'t vanish. He came back to work the next Monday. They fired him that Wednesday. The paper never printed a correction.'],
+      ['choice', [{ t: 'Follow the money: Account 4417 at First Meridian Savings', set: 'ledgerBank', reply: [['okafor', 'First Meridian was bought out in 1992. Their old records went to the county. Somebody would have to know which box.']] },
+        { t: 'Follow the people: who knew Walter Marsh', set: 'ledgerPeople', reply: [['okafor', 'Talk to the people who were here then. Paper remembers what happened. People remember why.']] }], 'Two leads']] },
+    { at: 'Bayfront Tower', who: 'marsh', goal: 'Tell Lena where you\'re starting', say: [
+      ['marsh', 'The bank. Good. Numbers don\'t lie. People do. I learned that from him, actually.', { if: 'ledgerBank' }],
+      ['marsh', 'The people. Okay. I\'ve been afraid to ask anybody. What if they say he was a thief, too?', { if: 'ledgerPeople' }],
+      ['marsh', 'I was nine. Kids at school called me Little Thief for three years. My mother changed our last name back to hers. I changed it back to Marsh when I turned eighteen.'],
+      ['narr', 'She has his old fountain pen clipped inside her reporter\'s notebook. She touches it when she talks about him, like checking a pulse.']] }] },
+  ledger2: { steps: [{ o: 0 },
+    { at: 'Spin City Laundromat', who: 'kim', goal: 'Show Mr. Kim the Eastside pages', say: [
+      ['kim', 'Birch Lane roofs, 1987. I remember. My shop was here, the roof was gone. A man in a city car brought shingles himself. Wouldn\'t take money. Wouldn\'t give his name.'],
+      ['kim', 'He said, "Somebody already paid for it." I thought he meant God. I put up a cross on the dryer for a year.'],
+      ['narr', 'Lena writes it all down. Her hand is shaking so much she switches to her phone.'],
+      ['choice', [{ t: 'Ask Mr. Kim if he\'d sign a statement about the shingles', set: 'kimStatement', reply: [['kim', 'Forty years I\'ve been waiting to thank that man. A statement is a kind of thank you. Yes.']] },
+        { t: 'Ask him if he remembers anything else about the car', set: 'kimCar', reply: [['kim', 'City car. Number 31 on the door. And a bumper sticker for the library. I remember thinking a thief would not have a library sticker.']] }], 'Mr. Kim'],
+      ['marsh', 'He was building things. He wasn\'t stealing, he was building things. ...But then why did he take the blame?'],
+      ['marsh', 'A signed statement from a witness. My editor is going to faint.', { if: 'kimStatement' }],
+      ['marsh', 'A library sticker. Of course. He took me to the library every Saturday.', { if: 'kimCar' }]] }] },
+  ledger3: { steps: [{ o: 0 },
+    { at: 'River Pawn', who: 'marsh', goal: 'Meet Lena at River Pawn about the bank records', say: [
+      ['narr', 'Lena is sitting on an overturned crate behind River Pawn with a file folder open on her knees. She doesn\'t look up.'],
+      ['marsh', 'County archives found the First Meridian box. Account 4417. October 9, 1987. A cash withdrawal. Two million dollars. Signed by my father. Alone.'],
+      ['marsh', 'Not a transfer. Cash. In a bag. Who takes two million dollars in cash if they\'re not stealing it?'],
+      ['choice', [{ t: 'Tell her what the record shows, and what it doesn\'t yet', set: 'ledgerHonest', reply: [['narr', 'You go through it line by line. The withdrawal is real. Where the cash went is not on this page. A record of a withdrawal is not a record of a theft.'], ['marsh', 'You\'re right. You\'re right. I just... for one second I thought everybody was right about him.']] },
+        { t: 'Tell her the families\' houses prove he\'s innocent', set: 'ledgerHope', reply: [['marsh', 'Do they? Houses could be guilt. A man steals two million, gives some back to feel better. I\'ve covered that story. Twice.'], ['narr', 'She closes the folder. You realize you told her what she wanted to hear, not what the paper says.']] }], 'Account 4417'],
+      ['marsh', 'If the evidence says he did it, I\'ll print that too. I need you to know that. I\'m not asking you to prove he\'s innocent. I\'m asking you to find out.']] },
+    { at: 'Willow Street', who: 'benoit', goal: 'Ask Mrs. Benoit about the man with the ledger', say: [
+      ['benoit', 'The man in the photo? Tall. Glasses. A tie that didn\'t match. He sat on my steps with a ledger and wrote down everything we needed. Stilts, wiring, a new floor.'],
+      ['benoit', 'He told me if anybody from the city ever came asking, to say I paid for it myself. He said, "They\'ll take it back if they know." I never understood that. I do now.'],
+      ['narr', 'Behind the photo in its frame, folded small, is a receipt she\'s kept for forty years. "Paid in cash. W.M."'],
+      ['marsh', '(on the radio) Paid in cash. The cash from the withdrawal. You were right to make me wait for the rest of it.', { if: 'ledgerHonest' }],
+      ['marsh', '(on the radio) A receipt. Okay. One receipt. I want to believe it, and that\'s exactly why I can\'t yet.', { if: 'ledgerHope' }]] }] },
+  ledger4: { steps: [{ o: 0 },
+    { at: 'Lock-It Storage', who: 'carl', goal: 'Open Unit 1 at Lock-It Storage', say: [
+      ['carl', 'Unit 1. Never opened in my twelve years. I always figured it was a body. Or Christmas decorations.'],
+      ['narr', 'The key turns hard. Inside: a desk, a chair, a banker\'s lamp, and a ledger the size of a family Bible. On the cover, gold letters: FOUNDERS RELIEF FUND, 1987. And an empty canvas bank bag.'],
+      ['narr', 'Every page is a house. Every house has a price, a date, a family name and a receipt stapled to it. The totals at the bottom of the last page add up to $2,000,000.00. Exactly.'],
+      ['narr', 'Tucked inside the back cover is a letter on city letterhead, dated October 8, 1987. "Walter: transfer the relief balance to Cobb Development by Friday. This is not a request. - H.C."'],
+      ['choice', [{ t: 'Photograph everything in place before anyone touches it', set: 'ledgerChain', reply: [['narr', 'You photograph the unit, the ledger, the letter and the bag where they lie, log the time, and seal it all in evidence bags. Carl signs as a witness, very carefully.'], ['carl', 'First time I ever signed for anything but a delivery.']] },
+        { t: 'Let Lena take the ledger to read it tonight', set: 'ledgerTake', reply: [['marsh', 'Thank you. I\'ll bring it back tomorrow. I just need to read his handwriting tonight.'], ['narr', 'She hugs it to her chest the way people hold babies. It will be the first question any lawyer asks: who had it, and when?']] }], 'Unit 1']] },
+    { at: 'Substation', who: 'saito', goal: 'Brief Sgt. Saito on what was in Unit 1', say: [
+      ['saito', 'The withdrawal was the day after that letter. He pulled the cash so it couldn\'t be transferred. Then he spent it on roofs before anybody noticed.'],
+      ['saito', 'The chain is clean. Photos, times, witness. Good.', { if: 'ledgerChain' }],
+      ['saito', 'The ledger went home with the reporter overnight. It\'s probably fine. "Probably" is a word a lawyer will love.', { if: 'ledgerTake' }],
+      ['saito', 'Harlan Cobb. Mayor from 1983 to 1991. Still alive. Magnolia Terrace. Eighty-nine.']] }] },
+  ledger5: { steps: [
+    { at: 'Magnolia Terrace', who: 'cobb', goal: 'Talk to Harlan Cobb at Magnolia Terrace', say: [
+      ['narr', 'A sunroom full of plants. An old man in a cardigan with a blanket over his knees and an oxygen line. He knows why you\'re here before you say it.'],
+      ['cobb', 'Walter Marsh. I haven\'t heard that name said out loud in thirty years. Sit down. I\'m too old to make you stand.'],
+      ['cobb', 'I wanted that money for my brother-in-law\'s company. Walter wouldn\'t move it. So I told the paper he stole it. I thought he\'d run. He didn\'t run. He just let them say it.'],
+      ['cobb', 'He never told anyone what I asked him to do. Not once, not even to save himself. I spent thirty years waiting for him to. Then he died, and I was still waiting.'],
+      ['choice', [{ t: 'Ask if he\'ll put that in a sworn statement', set: 'cobbSworn', reply: [['cobb', 'I\'m eighty-nine. What are they going to do, give me a life sentence? ...Yes. Bring the paper. I owe him the paper.']] },
+        { t: 'Tell him you\'re only here to find the truth, not to punish him', set: 'cobbMercy', reply: [['cobb', 'That\'s what he would have said. Exactly that. ...Tell his daughter I\'m sorry. She won\'t believe me. She shouldn\'t.']] }], 'Harlan Cobb']] },
+    { o: 0, add: [['barnes', 'And a sworn statement from the former mayor admitting he invented the theft. I didn\'t think I\'d live to read one of those.', { if: 'cobbSworn' }],
+      ['barnes', 'The statute of limitations ran out decades ago on anything Cobb did. This can only fix a name, not punish anyone. Lena knows that.'],
+      ['marsh', 'I don\'t want him punished. I wanted it written down. That\'s all a reporter ever wants.']] },
+    { o: 1, add: [['narr', 'In the crowd, an old man in a wheelchair with an oxygen line, near the back, alone. Lena sees him. She walks over and stands next to him for the whole ceremony. She doesn\'t say anything to him. She doesn\'t leave.', { if: 'cobbSworn' }],
+      ['marsh', 'Front page, tomorrow. "CORRECTION, 1987." Twenty-eight words. I\'ve been writing them since I was nine.']] }] },
+
+  // ===================== The rival: Devin Vance, from competition to respect (Phase 8, step 6) =====================
+  vance1: { steps: [{ o: 0 },
+    { at: 'Patrol HQ', who: 'vance', goal: 'Find Vance in the HQ study room after shift', say: [
+      ['narr', 'Ten at night. The HQ study room. Vance is the only one there, flash cards in rubber-banded stacks by chapter, color-coded, a highlighter in his teeth.'],
+      ['vance', 'Don\'t look at my cards. Okay, look. Chapter 4, Night and Subdued Light. I have four hundred cards for one chapter. That\'s normal. Probably.'],
+      ['vance', 'You know Castillo wrote "good instincts" on your evaluation? She wrote "thorough" on mine. Thorough. Like a vacuum.'],
+      ['choice', [{ t: 'Offer to quiz him from his cards', set: 'vanceQuiz', reply: [['narr', 'Forty minutes. He gets thirty-nine right. On the fortieth he stops, laughs, and admits he made the card up to see if you\'d notice. You did.'], ['vance', 'Okay. You\'re not just good on the street. That\'s annoying.']] },
+        { t: 'Tell him "thorough" is a compliment', set: 'vanceThorough', reply: [['vance', 'From Castillo? ...Huh. She says "thorough" about Navarro too. And Navarro\'s a genius.'], ['narr', 'He picks up the highlighter again, but slower.']] }], 'Vance'],
+      ['vance', 'Same time tomorrow? You bring the questions. I\'ll bring the four hundred cards.', { if: 'vanceQuiz' }],
+      ['vance', 'Thorough. Fine. I\'m going to be the most thorough cop this city has ever seen. Watch.', { if: 'vanceThorough' }]] }] },
+  vance2: { steps: [{ o: 0 },
+    { at: 'Iron Will Boxing Gym', who: 'reyes', goal: 'Bring Vance back to Iron Will', say: [
+      ['reyes', 'Running angry means you\'re running away from something instead of toward the finish line. You look over your shoulder every two hundred yards. Who\'s back there, kid?'],
+      ['vance', '...My dad ran a six-minute mile at forty-five. He used to time me. He\'d say "again." Just that. "Again."'],
+      ['reyes', 'He\'s not timing you anymore. You can stop running from the stopwatch.'],
+      ['narr', 'Vance stands in the middle of the gym with his hands on his knees for a long time. Then he laughs, a short, surprised laugh, like something broke loose.'],
+      ['vance', 'Friday. If I pass, I\'m buying you coffee. If I fail, you\'re buying me coffee. Either way there\'s coffee.']] },
+    { at: 'Sunrise Café', who: 'vance', goal: 'Settle the bet at the Sunrise Café', say: [
+      ['vance', 'Eleven minutes forty. A minute and a half faster. I didn\'t look back once. I don\'t know what I was looking at. Trees, I think.'],
+      ['vance', 'I\'m buying. Don\'t argue. First in the class still buys his own coffee, but this week he buys yours.'],
+      ['narr', 'He leaves a tip bigger than the coffee. When the barista says thank you, he says, "Again." Then he hears himself and smiles.', { if: 'vanceEase' }]] }] },
+  vance3: { steps: [{ o: 0 },
+    { at: 'River Stadium', who: 'vance', goal: 'Walk into River Stadium with Vance', say: [
+      ['narr', 'An empty stadium on a weekday. Forty thousand empty seats. The groundskeeper lets you in when Vance says his last name, and then takes off his cap.'],
+      ['narr', 'Gate C has a small brass plate on the post that nobody notices: CAPT. R. VANCE. HE KEPT US SAFE. 2004-2025.'],
+      ['vance', 'I never came here. Not once. He asked me every season. I always had something. Studying. Practice. Being first at something.'],
+      ['choice', [{ t: 'Stay quiet and let him have the moment', set: 'vanceQuiet', reply: [['narr', 'He stands with his hand flat on the plate for a long time. You stand behind him, at the distance a partner would.'], ['vance', 'Thanks for not saying anything. Everybody always says something.']] },
+        { t: 'Ask him to tell you one story about his dad', set: 'vanceStory', reply: [['vance', 'Rain delay, 2011. A kid got lost. Dad found her in forty minutes, sat with her in the press box, and they watched the tarp come off together. She sent him a Christmas card every year.'], ['vance', 'I found the cards when I cleaned out his desk. Nine of them. I never knew.']] }], 'Gate C'],
+      ['vance', 'I\'m going to come to a game. Next season. I\'ll sit by Gate C.', { if: 'vanceQuiet' }],
+      ['vance', 'I\'m going to find her. The girl with the cards. I want to tell her he kept them.', { if: 'vanceStory' }]] }] },
+  vance4: { steps: [{ o: 0, add: [['vance', 'And you meant that? About me being a good partner? ...Okay. Okay. I\'m writing that on a card. Chapter zero.', { if: 'vanceFriend' }], ['vance', 'Can I tell you something? I used to think if I wasn\'t first, I didn\'t count. Like the standings were the only proof I was here.'],
+      ['vance', 'Today I was second through that door, behind you, and I never felt more like I counted.']] },
+    { at: 'Big Rig Truck Stop', who: 'dee', goal: 'Grab a late coffee with Vance and Dee', say: [
+      ['dee', 'You two fight like brothers. Diesel and my old co-driver used to fight like that. Then one day they\'re the only ones who\'ll come to your hospital room.'],
+      ['vance', 'We don\'t fight. We compete. ...Okay, we fight a little.'],
+      ['narr', 'Diesel puts his head on Vance\'s boot and leaves it there. Vance doesn\'t move his foot for the next forty minutes.']] }] },
+  vance5: { steps: [{ o: 0 },
+    { at: 'Veterans Memorial Park', who: 'vance', goal: 'Stand with Vance at the memorial', say: [
+      ['narr', 'Late afternoon. The memorial wall, long and black, the newest name freshly cut and still sharp at the edges. A small crowd: a few old captains, Dr. Inés with a dog on a leash, a woman in her twenties holding nine Christmas cards.'],
+      ['narr', 'She\'s the girl from the 2011 rain delay. She came on her own.', { if: 'vanceStory' }],
+      ['vance', 'Graduation\'s in two weeks. They post the final class ranks tomorrow. For the first time since I was twelve, I don\'t care where my name is.'],
+      ['vance', 'You know where I want it? Next to his on this wall someday. Not because I died. Because I showed up. Every time.'],
+      ['choice', [{ t: 'Tell him he already shows up', set: 'vanceShows', reply: [['vance', 'Don\'t. I\'ll cry at a memorial in front of three captains. ...Okay. Thank you.']] },
+        { t: 'Tell him you\'ll race him for it', set: 'vanceRace', reply: [['vance', 'Ha. Race me to showing up. You\'ll lose. ...We\'ll both lose. That\'s the point, isn\'t it.']] }], 'The wall'],
+      ['vance', 'Second place gets you a better parking spot than first, by the way. Closer to the gym. I checked. Dad would\'ve laughed.', { if: 'vanceRace' }],
+      ['vance', 'You keep saying I show up. I\'m going to make you right about that.', { if: 'vanceShows' }],
+      ['narr', 'The class ranks go up the next morning. Vance is second. He sends you a photo of the list with one word: "Again." Then a second message: "Kidding. Proud of us."']] }] },
+  // ===================== The Paper Trail: the pressure rises, and it costs something (Phase 8, step 6) =====================
+  trail2: { steps: [{ o: 0 }, { o: 1 },
+    { at: 'Patrol HQ', who: 'okonkwo', goal: 'Report to Lt. Okonkwo at Patrol HQ', say: [
+      ['narr', 'Okonkwo\'s office. The door is closed, which it never is. A letter on his desk on thick cream paper, from a law firm with four names.'],
+      ['okonkwo', 'Mr. Vane\'s attorneys say a cadet "made baseless accusations" in their client\'s office and "attempted to intimidate staff." They want you off the street pending review.', { if: 'p2push' }],
+      ['okonkwo', 'Mr. Vane\'s attorneys want to know why a cadet visited their client. Politely. Four pages of polite. They want your name and your training records.', { unless: 'p2push' }],
+      ['okonkwo', 'Men like this don\'t argue with the evidence. They argue with whoever found it. Write me exactly what you said and did in that office. Today.'],
+      ['choice', sh([{ t: 'Write it all, including anything that makes you look bad', set: 'p2memo', reply: [['okonkwo', 'You wrote that you told him what you knew, and that it was a mistake. Good. Now their letter is wrong and your memo is right, and I can prove it.']] },
+        { t: 'Keep the memo short and stick to the facts that help', set: 'p2short', reply: [['okonkwo', 'This leaves out what you said to him. Their letter doesn\'t. Next time, the whole thing. You\'re only protected by what you write down.']] }]), 'Okonkwo waits.'],
+      ['okonkwo', 'You\'re not off the street. But you\'re on their radar now. They\'ll be watching what you do next. So do it right.']] }] },
+  trail3: { steps: [{ o: 0 }, { o: 1 },
+    { at: 'Bayou Senior Apartments', who: 'odom', goal: 'Mrs. Fairley called. Go back to Bayou Senior', say: [
+      ['narr', 'Her mailbox has been pried off its post and is lying in the azaleas. Her door has a new chain on it. She opens it only as far as the chain goes.'],
+      ['odom', 'A letter came. From lawyers. If I "publish defamatory statements" about ClearDocket, they\'ll sue me for everything I have. I have a car and a cat.'],
+      ['odom', 'And last night someone was in the parking lot for an hour with their engine running. Seven years nobody cared what I wrote down. Now everybody does.'],
+      ['choice', sh([{ t: 'Arrange for the original ledger to go into the evidence vault', set: 'p3vault', reply: [['odom', 'The vault. So if they come for it, it\'s not here. ...Seven years it never left my kitchen. Take it. Bring me a receipt.'], ['narr', 'She watches the ledger go into an evidence bag like she\'s watching someone she loves get into an ambulance.']] },
+        { t: 'Ask Dispatch for extra patrols at her building and leave the ledger with her', set: 'p3patrol', reply: [['disp_coleman', '(on the radio) Bayou Senior is on extra patrol, every two hours, nights. For as long as it takes.'], ['odom', 'It stays here. With me. It\'s the only thing I have left that I did right.']] }]), 'Mrs. Fairley'],
+      ['narr', 'In the parking lot on your way out: a dark sedan, engine off, nobody inside. The hood is still warm.'],
+      ['toby', '(on the radio) Somebody went through Mrs. Fairley\'s car last night. Glove box, trunk, under the seats. They didn\'t find anything. It\'s in your vault.', { if: 'p3vault' }],
+      ['toby', '(on the radio) Patrol car went by her building four times last night. She waved at every one from the window. She\'s sleeping again.', { if: 'p3patrol' }]] }] },
+  trail4: { steps: [{ o: 0 },
+    { at: 'Lock-It Storage', who: 'carl', goal: 'Hold Unit 31 until the evidence team arrives', say: [
+      ['narr', 'Two in the morning. A moving truck pulls into Lock-It with no lights. Three men in gloves get out with dollies and bolt cutters. They see your car and stop.'],
+      ['carl', '(at the gate, low) They tried to come in at midnight. I said the computer was down. It wasn\'t down. I\'m a bad liar. It worked.'],
+      ['narr', 'The driver says they were hired to "relocate client property." He has a work order signed by Royce Vane, dated today. Somebody told Vane the warrant was coming.'],
+      ['saito', '(on the radio) The unit is sealed under warrant. Nobody touches it. Get their names, the work order, and the truck\'s plate. Then let them go. They\'re the movers. They\'re not the case.', { if: 'p4warrant' }],
+      ['saito', '(on the radio) Forty minutes. That\'s how long you wanted to skip. Look who almost beat us to it anyway.', { if: 'p4cut' }],
+      ['narr', 'The movers leave. Carl makes coffee in his shack at three in the morning and brings you a cup without being asked.']] },
+    { o: 1 }] },
+  trail5: { steps: [{ o: 0 },
+    { at: 'Eastgate Apartments', who: 'tamsin', goal: 'Check on Tamsin the night before she testifies', say: [
+      ['narr', 'Her apartment is half packed. Not moving, she says. Just putting things in boxes because it\'s the only thing that calms her down.'],
+      ['tamsin', 'He left me a voicemail. Thirty-one seconds. He didn\'t yell. He said, "I always knew you\'d be the honest one." Then he said, "Wear the blue jacket. It looks good on you." Then nothing.'],
+      ['tamsin', 'I\'m going to put my father in prison tomorrow so a bunch of strangers can get their birth certificates back. And I\'d do it again. I hate that I\'d do it again.'],
+      ['choice', sh([{ t: 'Tell her doing the right thing can still cost something real', set: 'p5cost', reply: [['tamsin', 'Thank you for not telling me it\'ll be fine. Everybody keeps telling me it\'ll be fine.']] },
+        { t: 'Offer to have Duarte drive her to the courthouse in the morning', set: 'p5ride', reply: [['duarte', '(on the radio) Seven-thirty. I\'ll bring coffee and I won\'t talk unless she does. Nobody should walk into that alone.']] }]), 'Tamsin'],
+      ['narr', 'She hangs the blue jacket on the back of the door before you leave.']] },
+    { o: 1, add: [['narr', 'Tamsin isn\'t at the tables. She\'s outside on the curb with her bike, in the blue jacket, watching people walk out holding their files like they\'re made of glass.'],
+      ['tamsin', 'He asked if I was okay. ...I\'m going to visit him Sunday. Is that allowed? I don\'t know what you\'re supposed to do after.', { if: 'p5cost' }],
+      ['duarte', 'She talked the whole way to the courthouse. About her mom. About bikes. Not one word about him until we parked.', { if: 'p5ride' }]] }] }
 };
 
 // what regulars say once a case is closed: the city remembers
@@ -736,5 +893,8 @@ export const EXP_MEMORY = {
   ray: [['side:walkin', 'Darnell came by with his daughter. She drew me a picture. It\'s me, in a yellow jacket, giving a man a key. I don\'t know what the key is. I\'m keeping it.']],
   pike: [['side:pike', 'I read my report out loud to the mirror now. Moreau says that\'s weird. Moreau also says it\'s working.']],
   cook: [['side:orderup', 'Mediation Milkshake outsold the regular shakes two to one this month. Lawyers. They love a symbol.'], ['side:secondchance', 'Luis flips a better burger than me. Don\'t tell him. He\'ll want a raise. He\'s getting a raise.']],
-  kim: [['side:sockbandit', 'The sock box has a waiting list now. People bring socks to donate. To the box. Which is for lost socks. I don\'t understand people.']]
+  lupe: [['side:ledger5', 'Mama paid for that unit for twenty years and never once opened it. She said some promises you keep by not looking. I looked. She\'d forgive me.']],
+  reyes: [['side:vance2', 'Your friend Vance comes in Tuesdays now. He runs on the treadmill facing the window. Not the clock. The window. Good.']],
+  saito: [['side:trail4', 'Carl at Lock-It got a commendation letter for stalling those movers. He framed it next to his raccoon photos.']],
+  kim: [['side:ledger2', 'I took the cross off the dryer. Put up a picture of Walter Marsh instead. People ask who he is. I tell them he fixed my roof.'], ['side:sockbandit', 'The sock box has a waiting list now. People bring socks to donate. To the box. Which is for lost socks. I don\'t understand people.']]
 };
