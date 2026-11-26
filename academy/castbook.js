@@ -1,3 +1,4 @@
+import { DCAST } from './districts.js';
 // Each one a real person (Action plan, Step F). The people at the center of the story each have a want, a flaw, a
 // secret and an arc with a turning point, written down here and shown in the journal's Cast tab as you earn them:
 // the want once you know them, the flaw once you've spent real time with them, the secret on the story beat that
@@ -62,6 +63,14 @@ export const SHEETS = [
     secret: ['His slow alarm responses trace back to his own bad door sensor: six false alarms last spring.', (S) => fl(S, 'odellChecked')],
     arc: ['Right about the dropped follow-up, wrong about the alarm.', (S) => fl(S, 'odellBoth') || fl(S, 'odellHalf') || fl(S, 'odellSensor'), (S) => fl(S, 'odellBoth') ? 'You told him both halves. He fixed the sensor and wrote your name under the case numbers.' : fl(S, 'odellHalf') ? 'You told him only the half he wanted. His alarm went off for the seventh time.' : 'You told him only the half that was his fault. He stopped talking to you.'] }
 ];
+// the district casts (districts.js): you learn what they want when you meet them, what doesn't add up about them
+// after a few shifts in their district, their secret after many, and where they stand with you from your first talk
+{ const sh = (S, d) => ((S.stats || {})['d' + d + 'shifts'] || 0), met = (S, d) => !!(S.dmet && S.dmet[d]);
+  const PICK = { vargasSecret: 'You asked for his secret. He tells it to every new cadet, and he lights up every time.', vargasBoard: 'You asked about the whiteboard. He put your first call on it in red.', whitRiver: 'You asked about the river. He said more to you that day than to anyone that month.', whitFast: 'You promised to learn fast. He\'s waiting to see you learn it right.', saitoZero: 'You asked about day zero. She hasn\'t told you, and she straightened the number.', saitoCat: 'You asked about the cat. She brings you up whenever Bolt is mentioned.', moreauSaw: 'You told her what you saw. She sent your next report back once, not four times.', moreauFelt: 'You told her it was a feeling. She\'s been teaching you to find the thing behind it.' };
+  DCAST.forEach((c, d) => { if (!d) return; [c.disp, c.sgt, ...c.ofc].forEach((p) => { if (SHEETS.some((x) => x.id === p.id)) return;
+    SHEETS.push({ id: p.id, name: p.name, icon: p.icon, how: 'work shifts in ' + ['Central', 'Eastside', 'Riverside', 'Industrial Park', 'Justice Row'][d],
+      want: [p.want, (S) => met(S, d)], flaw: [p.contradiction, (S) => sh(S, d) >= 3], secret: [p.secret, (S) => sh(S, d) >= 8],
+      arc: p === c.sgt ? ['How your first day with them went', (S) => !!(S.dmet && S.dmet[d] && S.dmet[d].pick), (S) => PICK[(S.dmet[d] || {}).pick] || ''] : ['How you know them now', (S) => sh(S, d) >= 12, () => 'Enough shifts together that you know them by voice alone. ' + p.tell] }); }); }); }
 const PARTS = [['want', 'Wants'], ['flaw', 'Flaw'], ['secret', 'Secret'], ['arc', 'Turning point']];
 const txt = (t, S) => (typeof t === 'function' ? t(S) : t);
 

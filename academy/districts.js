@@ -1,0 +1,151 @@
+// District casts (Phase 8, step 1). Every district is its own posting: its own dispatcher on the radio, its own
+// sergeant running roll call, and officers you work beside. Each person has a want, a fear, a contradiction, a tell
+// (how you know it's them without a name) and a secret. Castillo stays your training officer: she runs Central and
+// checks in after you transfer. Plain talk, the way people speak (owner's voice rule).
+// Loop: take a call (dispatch) -> choose how to handle it (the officer beside you) -> your career (the sergeant who
+// signs off). Read by variety.js (dispatch), game.js (roll call, side cases, quiz speakers) and castbook.js (journal).
+
+export const DCAST = [
+  { // ---------- 0 Central District ----------
+    disp: { id: 'velvet', name: 'Marjorie "Velvet" Hale', short: 'Velvet', icon: '🎧', role: 'Central dispatch, 31 years',
+      look: { shirt: '#7c2d12', pants: '#1f2937', hat: 'headset', hair: '#9a9a9a', skin: '#7a4b2a' },
+      want: 'To hand the chair to somebody who will keep the channel calm the way she did.', fear: 'The radio going quiet on a unit she just sent somewhere.',
+      contradiction: 'Calls everybody sugar and baby, and has made two police chiefs apologize on the air.', tell: 'Sugar. Hon. Baby. And she never, ever rushes.',
+      secret: 'She has never once been inside Patrol City. She says she likes it better as a picture in her head.',
+      give: ['{cs}, sugar, I need you at {w}. {t}. {x}', '{cs}, {t} at {w}. {x} Take your time getting there safe.', 'Baby, I\'ve got a {t2} at {w}. {x}'],
+      again: ['{w} again, hon. You know the way.', 'Your {n} trip to {w}. I\'m starting to think they call just to see you.'],
+      pair: ['{cs}, two calls holding, hon, and I\'ve only got you. Which one do you want? {other} can take the other.'] },
+    sgt: { id: 'castillo', name: 'Sgt. Dana Castillo', short: 'Castillo', icon: '🎖️', role: 'Central sergeant, your training officer',
+      rollcall: ['Coffee\'s in the back. It\'s terrible. Drink it anyway, you\'ll need it.', 'Nobody does anything heroic today. We do it right. That\'s harder.', 'Write it down while it\'s fresh. Your memory is not as good as you think it is.', 'If you\'re not sure, slow down. Nobody ever got hurt slowing down.', 'Questions? Good. Ask them now, not on the radio.'] },
+    ofc: [] },
+  { // ---------- 1 Eastside ----------
+    disp: { id: 'disp_pham', name: 'Winnie Pham', short: 'Pham', icon: '🎧', role: 'Eastside dispatch',
+      look: { shirt: '#0e7490', pants: '#1f2937', hat: 'headset', hair: '#1a1a1a', skin: '#e0b48f' },
+      want: 'Every unit home by end of watch. She keeps a tally on a sticky note and it has never been broken.', fear: 'A unit that doesn\'t answer the second time she calls it.',
+      contradiction: 'Fastest voice on the radio, slowest driver in the county. She takes the bus.', tell: 'She numbers things. "One, you\'re closest. Two, it\'s a mess. Three, be nice."',
+      secret: 'Twelve years as an ER triage nurse. She left the night a patient she sent home came back. She doesn\'t talk about it.',
+      give: ['{cs}. One, you\'re closest. Two, {t} at {w}. Three, {x}', '{cs}, {t}, {w}. {x} Go.', 'Okay {cs}, quick one. {t} at {w}. {x}'],
+      again: ['{w}. Again. I\'m putting a star next to it on my list.', 'That\'s your {n} time at {w}. They know your car by now.'],
+      pair: ['{cs}, two holding. One, pick. Two, {other} gets the other. Three, go.'] },
+    sgt: { id: 'vargas', name: 'Sgt. Teodoro "Teddy" Vargas', short: 'Vargas', icon: '📣', role: 'Eastside sergeant',
+      look: { shirt: '#1e3a8a', pants: '#1f2937', hair: '#2b1d14', skin: '#a26a42', hat: 'cap' },
+      want: 'To get Eastside off the bottom of the county\'s response-time list. He has the list taped inside his locker.', fear: 'Standing up at the city commission meeting next month. He has rewritten his three-minute speech eleven times.',
+      contradiction: 'Runs roll call like a halftime speech, and can\'t say two sentences in front of strangers without his hands shaking.', tell: 'Everything is a game. "That\'s a first down." "We\'re in the red zone, people."',
+      secret: 'Two years ago his son Nico got a DUI on the Eastside highway. Teddy sat in the back of the courtroom like every other parent, in plain clothes, and never told the squad.',
+      rollcall: ['Okay, people! We\'re fourth in the county on response times. Fourth! Last month we were fifth. That\'s a first down.', 'Whiteboard says three wins yesterday. I want four. Go get me four.', 'The highway\'s slick, the strip malls are busy, and Earl\'s got the coffee on. Let\'s play some ball.', 'You see Duarte on her bike, you wave. She pretends she hates it. She does not hate it.', 'Nobody drives like they\'re late. You\'re not late. You\'re on time and alive.'] },
+    ofc: [{ id: 'duarte', name: 'Cpl. Ana Duarte', short: 'Duarte', icon: '🛡️', role: 'Eastside motor officer',
+      look: { shirt: '#1e3a8a', pants: '#111827', hair: '#2b1d14', skin: '#c68e63', hat: 'helmet' },
+      want: 'The next K9 handler slot. She has applied three times.', fear: 'Dogs. She has never told the K9 board.',
+      contradiction: 'Rides a 700-pound motorcycle through rush-hour traffic and crosses the street when a poodle comes by.', tell: 'Short sentences. Calls everybody "Cadet," even the chief.',
+      secret: 'She\'s been visiting the shelter on Sundays, working up to it, one dog at a time. She\'s at a beagle.',
+      radio: ['(over the radio) Duarte. I\'m two blocks out if you need me. You won\'t. But I\'m there.', '(over the radio) Cadet. Nice stop back there. Don\'t let it go to your head.', '(over the radio) Duarte, clear. That was clean. Vargas is going to put it on his whiteboard, I can feel it.', '(over the radio) Watch the intersection at the mall. People turn left there like it\'s a sport.'] }] },
+  { // ---------- 2 Riverside ----------
+    disp: { id: 'disp_coleman', name: 'Nadia Coleman', short: 'Coleman', icon: '🎧', role: 'Riverside dispatch',
+      look: { shirt: '#14532d', pants: '#1f2937', hat: 'headset', hair: '#d8b46a', skin: '#f1c9a5' },
+      want: 'For somebody to finally read the river history she has been writing on her breaks for six years.', fear: 'Getting the street name wrong. Riverside has three streets called Oak.',
+      contradiction: 'Corrects your grammar on the air, and leaves muffins in every night-shift car without signing the bag.', tell: 'Full sentences, every word in place, and "whom" when it\'s correct.',
+      secret: 'She was the Riverside branch librarian for thirty years. Half the officers she dispatches had library cards she signed.',
+      give: ['{cs}, please respond to {w}. {t}. {x}', '{cs}, I have {t} at {w}. {x} Mind the Oak Street at the river, not the one by the stadium.', 'A call for you, {cs}: {t}, {w}. {x}'],
+      again: ['{w} once more, {cs}. They do seem to rely on you.', 'Your {n} visit to {w}. I\'ve begun a file.'],
+      pair: ['{cs}, I have two calls and one of you. Choose, please. {other} will take the remaining one.'] },
+    sgt: { id: 'whitfield', name: 'Sgt. Ray Whitfield', short: 'Whitfield', icon: '🛶', role: 'Riverside sergeant, twenty years on the river',
+      look: { shirt: '#1e3a8a', pants: '#1f2937', hair: '#9a9a9a', skin: '#7a4b2a', hat: 'cap' },
+      want: 'One more year on the water before they chain him to the desk for good.', fear: 'The river when it\'s high and brown. He pulled the Benoit family off a roof in the \'04 storm and still dreams about the current.',
+      contradiction: 'Hates paperwork more than anybody in the building, and writes the best reports in the department.', tell: 'Says about four words where other people say forty. Then one more that you remember.',
+      secret: 'He can barely swim. Twenty years on the river unit, and he has never told a soul.',
+      rollcall: ['River\'s up two inches. Slow on the curves.', 'Stadium lets out at nine. Be patient with them. They lost.', 'Mrs. Benoit made biscuits. Take one. Don\'t argue.', 'Know your street. Three Oaks out there.', 'Good day yesterday. Again.'] },
+    ofc: [{ id: 'bramlett', name: 'Ofc. Pete Bramlett', short: 'Bramlett', icon: '🎣', role: 'Riverside patrol, born on the river',
+      look: { shirt: '#1e3a8a', pants: '#1f2937', hair: '#d8b46a', skin: '#f1c9a5', hat: 'cap' },
+      want: 'For Whitfield to say "good" to him one time. Just once. He\'s keeping count. It\'s zero.', fear: 'Being the local kid nobody takes seriously. He went to school with half the people he stops.',
+      contradiction: 'Talks a mile a minute about everything, and goes completely silent at a hard scene, which is exactly what you want.', tell: 'Starts every story with "So my cousin..."',
+      secret: 'He failed the academy driving test twice. He passed on the third try by one point and has practiced in the stadium lot every Sunday since.',
+      radio: ['(over the radio) Bramlett here. So my cousin lives on that block. Want me to swing by? I\'m swinging by.', '(over the radio) That was good. Whitfield won\'t say it, so I\'m saying it.', '(over the radio) Heads up, the bait shop guy waves you down for anything. He means well. He waves for a lot.', '(over the radio) Bramlett, clear. Hey, did Whitfield say anything about me? No? Okay. Okay.'] }] },
+  { // ---------- 3 Industrial Park ----------
+    disp: { id: 'disp_sloane', name: 'Margo Sloane', short: 'Sloane', icon: '🎧', role: 'Industrial Park dispatch, nights',
+      look: { shirt: '#1f2937', pants: '#111827', hat: 'headset', hair: '#d8b46a', skin: '#f1c9a5' },
+      want: 'One quiet night. One. She has asked for it on the air.', fear: 'Being called cold. Her mother called her that, and she still hears it.',
+      contradiction: 'The flattest voice on the radio, and the first one to show up at an officer\'s house with a casserole.', tell: 'Dry. Short. "Try to stay awake."',
+      secret: 'She writes country songs. Sad ones. She has a notebook of forty and has played them for exactly one person: Saito\'s cat.',
+      give: ['{cs}. {t}, {w}. {x}', '{cs}, {t} at {w}. {x} Try to stay awake.', 'Next one\'s yours, {cs}. {w}. {t}. {x}'],
+      again: ['{w}. Again. Of course.', '{n} call at {w}. At this point just park there.'],
+      pair: ['{cs}. Two holding. You pick. {other} gets the other one.'] },
+    sgt: { id: 'saito', name: 'Sgt. June Saito', short: 'Saito', icon: '🦺', role: 'Industrial Park sergeant',
+      look: { shirt: '#1e3a8a', pants: '#1f2937', hair: '#1a1a1a', skin: '#e0b48f', hat: 'cap' },
+      want: 'A hundred days in a row with nobody on her shift hurt. The number is on the substation door. It\'s at 61.', fear: 'A search gone wrong in a dark warehouse. She has been in one.',
+      contradiction: 'Runs everything by checklist, and keeps a stray cat named Bolt in the substation against three separate policies.', tell: 'Counts things. "Two exits. Three blind corners. One of you. Slow."',
+      secret: 'Her father has dementia. She calls him on every break, and every break he asks who she is, and she tells him.',
+      rollcall: ['Day sixty-one. Let\'s make it sixty-two. Slow corners, both hands, every door.', 'Gerald the forklift has a new driver. Give the loading dock room.', 'Train comes through at ten-fifteen. Don\'t race it. Nobody has ever won.', 'Bolt is not a police cat. Do not feed Bolt. Bolt has been fed.', 'Checklist before you roll. Every time. I will ask.'] },
+    ofc: [{ id: 'carrasco', name: 'Ofc. Luz Carrasco', short: 'Carrasco', icon: '🏗️', role: 'Industrial Park patrol, ex-rail yard',
+      look: { shirt: '#1e3a8a', pants: '#1f2937', hair: '#2b1d14', skin: '#c68e63', hat: 'cap' },
+      want: 'To see the old rail yard turned into something before they tear it down. She worked there nine years.', fear: 'Getting soft. She thinks being liked is how you get careless.',
+      contradiction: 'Doesn\'t trust cadets, says so to their face, and is the first one to back them up when it counts.', tell: 'Knows every warehouse by its old company name. "That\'s the Heller building. Was Heller. Whatever it is now."',
+      secret: 'She drove the forklift that dropped the pallet in the 2016 accident. Nobody was hurt. She quit the next day and joined the academy that spring.',
+      radio: ['(over the radio) Carrasco. That\'s the Heller building. Was Heller. Two doors on the north side nobody uses. Now you know.', '(over the radio) I don\'t trust cadets. You did okay. Don\'t make me say it twice.', '(over the radio) Carrasco, clear. Slow is right out here. You were slow. Good.', '(over the radio) Watch the rail crossing. The gate sticks.'] }] },
+  { // ---------- 4 Justice Row ----------
+    disp: { id: 'disp_benavides', name: 'Lourdes Benavides', short: 'Benavides', icon: '🎧', role: 'Justice Row dispatch, former court clerk',
+      look: { shirt: '#4c1d95', pants: '#1f2937', hat: 'headset', hair: '#4a3020', skin: '#c68e63' },
+      want: 'A radio log so clean a judge could read it out loud. Most days she gets it.', fear: 'An officer\'s word against a record she got wrong.',
+      contradiction: 'Speaks like a court transcript, and laughs so loud at her own jokes that the mic cuts out.', tell: '"For the record." She means it.',
+      secret: 'Twenty-two years as a court clerk. She was in the room when Castillo testified against Lassiter\'s friends in 2014, and she still has her notes.',
+      give: ['For the record, {cs}: {t} at {w}. {x}', '{cs}, item one: {t}. Location: {w}. {x}', '{cs}, I show {t} at {w}. {x}'],
+      again: ['For the record, {cs}, that\'s your {n} visit to {w}.', '{w} again. It\'s practically a standing appointment.'],
+      pair: ['{cs}, two matters pending, one officer. Your choice. {other} takes the other. For the record.'] },
+    sgt: { id: 'moreau', name: 'Sgt. Celeste Moreau', short: 'Moreau', icon: '⚖️', role: 'Justice Row sergeant',
+      look: { shirt: '#1e3a8a', pants: '#1f2937', hair: '#1a1a1a', skin: '#5a3620', hat: 'cap' },
+      want: 'Cases that hold up in court. Every one. She reads every report on her squad before it leaves the building.', fear: 'Being the reason a guilty person walks.',
+      contradiction: 'Has made grown officers rewrite a report four times, and cries at every graduation in the courthouse rotunda. Every single one.', tell: 'Asks "And how do you know that?" until you know how you know it.',
+      secret: 'She was a detective. Her big case fell apart over one sloppy line in her own report, and the man walked. She asked to go back to patrol.',
+      rollcall: ['If it\'s not in the report, it didn\'t happen. If it\'s wrong in the report, it\'s worse.', 'Court\'s in session at nine. Park like a judge is watching. One is.', 'Exhibit A is on the steps again. Step around the cat.', 'How do you know what you know? Write that part down.', 'Transport runs at eleven. Wells drives. Wells drives slow. Let him.'] },
+    ofc: [{ id: 'wells', name: 'Deputy Harold Wells', short: 'Wells', icon: '🚐', role: 'Transport deputy, Justice Row',
+      look: { shirt: '#14532d', pants: '#1f2937', hair: '#9a9a9a', skin: '#a26a42', hat: 'cap' },
+      want: 'To drive transport until he\'s seventy. He\'s sixty-one. He has done the math.', fear: 'Somebody getting hurt in the back of his van. It has never happened in 29 years.',
+      contradiction: 'Kind to every prisoner he has ever driven, and has no patience at all for an officer who isn\'t.', tell: 'Talks to the back of the van like a cab driver. "Seat belt\'s on? Good. Long ride, short traffic."',
+      secret: 'A man he drove to prison in 1998 sends him a Christmas card every year. He keeps them all in the glove box.',
+      radio: ['(over the radio) Wells, transport. Seat belt on, doors checked, nice and slow. Like always.', '(over the radio) You were decent to him. I noticed. So did he.', '(over the radio) Wells, clear. Twenty-nine years, nobody hurt. Let\'s keep it boring.', '(over the radio) Moreau is going to read your report twice. Write it like she\'s reading it once.'] }] }
+];
+export const dcast = (d) => DCAST[d] || DCAST[0];
+export const sergeantOf = (d) => dcast(d).sgt;
+export const officerOf = (d) => dcast(d).ofc[0] || null;
+// every district person, keyed by id (for the speaker list and the journal)
+export const DPEOPLE = {}; DCAST.forEach((c) => [c.disp, c.sgt, ...c.ofc].forEach((p) => { DPEOPLE[p.id] = p; }));
+
+// First shift in a district: you meet the people you'll work with. Each scene shows the sergeant's contradiction, the
+// dispatcher's tell and the officer's want in the first minute, then Castillo checks in by radio (she's still yours).
+// A choice tells the sergeant who you are; it's remembered (S.dmet[d].pick) and they bring it up later.
+// (radio lines here say "on the radio": a scene shows "over the radio" lines in the top strip and moves on, and these
+// introductions are meant to be read in the box)
+export const DINTRO = {
+  1: [['vargas', 'There they are! The transfer! Everybody, this is our new cadet. Say hi. ...Okay, nobody\'s saying hi. They\'re shy. They\'re not shy.'],
+    ['narr', 'Sgt. Vargas has a whiteboard behind him with WINS written across the top in red. Under it: "Got the cat off the bus." "Found Mrs. Lin\'s car." "Nobody hurt."'],
+    ['vargas', 'Eastside\'s fourth in the county on response times. Fourth. When I got here we were dead last. You want to know the secret?'],
+    ['choice', [{ t: 'Ask him what the secret is', set: 'vargasSecret', reply: [['vargas', 'Nobody drives like they\'re late. You\'re not late. You\'re on time and alive. Everything else is just traffic.']] },
+      { t: 'Ask what the whiteboard is for', set: 'vargasBoard', reply: [['vargas', 'Wins. Little ones count. Especially little ones. Big ones you remember on your own.']] }], 'Sgt. Vargas'],
+    ['disp_pham', '(on the radio) Eastside, this is Pham. One, welcome. Two, I keep a tally of every unit home at end of watch. Three, don\'t be the one that breaks it.'],
+    ['duarte', '(on the radio) Duarte. I\'m the one on the bike. I don\'t wave. If you wave first I might.'],
+    ['vargas', 'She waves. She pretends she doesn\'t. Okay! Hands in. "Eastside" on three. One, two... nobody\'s putting their hand in. Fine. Go get me a win.'],
+    ['castillo', '(on the radio) Castillo. Heard you landed in Eastside. Vargas is loud. He\'s also the best sergeant I ever worked for. Don\'t tell him I said that.']],
+  2: [['whitfield', 'Whitfield.'], ['narr', 'He shakes your hand once, firmly, and goes back to his coffee. The silence goes on long enough that you start to wonder if that was the whole thing.'],
+    ['whitfield', 'River\'s the boss out here. Not me. Not you. Slow on the curves. Know which Oak Street. Wave at the porches. They wave back.'],
+    ['choice', [{ t: 'Ask him how long he\'s worked the river', set: 'whitRiver', reply: [['whitfield', 'Twenty years.'], ['narr', 'He looks out the window at the water for a long second.'], ['whitfield', 'Wasn\'t enough.']] },
+      { t: 'Tell him you\'ll learn the streets fast', set: 'whitFast', reply: [['whitfield', 'Don\'t learn them fast. Learn them right. Fast comes on its own.']] }], 'Sgt. Whitfield'],
+    ['disp_coleman', '(on the radio) Riverside, Coleman. Welcome to the district, cadet. A reminder: there are three streets called Oak. I will always tell you which. Please always listen.'],
+    ['bramlett', '(on the radio) Bramlett! Hi! So my cousin says you\'re the one who found the badge downtown. Is that true? That\'s so cool. Whitfield, isn\'t that cool? ...He\'s not answering. He does that.'],
+    ['whitfield', 'Bramlett talks. He\'s good when it counts. Go on.'],
+    ['castillo', '(on the radio) Castillo. Whitfield says about ten words a day. If one of them is "good," frame it.']],
+  3: [['saito', 'Day sixty-one.'], ['narr', 'Sgt. Saito taps the number on the substation door: 61 DAYS WITHOUT AN INJURY. A gray cat is asleep on the radio charger under it.'],
+    ['saito', 'Two rules out here. One: slow. Two: every door, every corner, every time. Three: do not feed the cat. That\'s three rules. The cat counts as a rule.'],
+    ['choice', [{ t: 'Ask what happened on day zero', set: 'saitoZero', reply: [['saito', 'Somebody hurried in a warehouse.'], ['narr', 'She doesn\'t say anything else. She straightens the number on the door by a quarter of an inch.']] },
+      { t: 'Ask the cat\'s name', set: 'saitoCat', reply: [['saito', 'Bolt. He\'s not a police cat. He doesn\'t live here. He has never lived here.'], ['narr', 'There is a food bowl with BOLT written on it in label tape.']] }], 'Sgt. Saito'],
+    ['disp_sloane', '(on the radio) Industrial, Sloane. New cadet. Welcome. Try to stay awake.'],
+    ['carrasco', '(on the radio) Carrasco. I don\'t trust cadets. Nothing personal. You\'ll get your chance to change my mind. Most don\'t.'],
+    ['saito', 'She will change her mind. She does every time. Takes her about a month. Checklist before you roll.'],
+    ['castillo', '(on the radio) Castillo. Saito ran the warehouse searches when I was a cadet. Do exactly what she says and you\'ll come home every night.']],
+  4: [['moreau', 'Cadet. Read me your last report. Out loud.'], ['narr', 'Sgt. Moreau holds out her hand. You pull the report up and read it. She listens with her eyes closed.'],
+    ['moreau', '"The driver appeared nervous." How do you know that? What did you see?'],
+    ['choice', [{ t: 'Say what you saw: shaking hands, no eye contact', set: 'moreauSaw', reply: [['moreau', 'Then write that. "Hands shaking. Wouldn\'t look at me." A judge can see that. Nobody can see "nervous."']] },
+      { t: 'Tell her it was just a feeling', set: 'moreauFelt', reply: [['moreau', 'Feelings are where you start. They\'re not where you finish. Find the thing that made you feel it, and write that down.']] }], 'Sgt. Moreau'],
+    ['disp_benavides', '(on the radio) Justice Row, Benavides. Welcome, cadet. For the record, Sgt. Moreau has made me rewrite a radio log. Twice. You\'re in good company.'],
+    ['wells', '(on the radio) Wells, transport. If you put somebody in my van, you put them in nice. That\'s all I ask. Twenty-nine years, nobody hurt.'],
+    ['moreau', 'Courthouse is at the end of the street. Everything you do out here ends up in there. Do it so it holds.'],
+    ['castillo', '(on the radio) Castillo. Last district. You made it. Moreau will read every word you write. So did I. You\'re ready.']]
+};

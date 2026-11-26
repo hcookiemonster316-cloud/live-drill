@@ -1,3 +1,4 @@
+import { dcast } from './districts.js';
 import { ACTS } from './vodata.js'; // the chapter's scene decisions (Chapter 5's are kept in decide.js)
 // Variety: keeps patrol from feeling the same twice.
 // - a pacing director: quiet after something intense, something spicy after a slow stretch, no repeats too soon
@@ -61,15 +62,9 @@ export function installVariety(H) {
   if (false) Object.keys(EXTRA).forEach((k) => { if (H.CALLS[k]) EXTRA[k].forEach((c) => { if (!H.CALLS[k].some((x) => x[0] === c[0])) H.CALLS[k].push(c); }); });
 
   // ---------- dispatchers ----------
-  const DISP = {
-    mars: { name: 'Marisol Ortega', short: 'Ortega', icon: '🎧', role: 'Day dispatcher', look: { shirt: '#334155', pants: '#1f2937', hat: 'headset', hair: '#2b1d14', skin: '#c68e63' },
-      give: ["{cs}, I've got one for you. {t} at {w}. {x}", "{cs}, you're closest. {t}, {w}. {x}", "Got a fresh one, {cs}. {t} at {w}. {x}"], again: ["{w} again, {cs}. You're becoming their regular.", "That's your {n} call at {w}. They must like you."], pair: ["{cs}, I've got two holding and only you free. Pick one, I'll send the other to {other}."] },
-    velvet: { id: 'velvet', name: 'Velvet Hale', short: 'Velvet', give: ["{cs}, sugar, I need you at {w}. {t}. {x}", "{cs}, {t} at {w}. {x} Take your time getting there safe.", "Baby, I've got a {t2} at {w}. {x}"], again: ["{w} again, hon. You know the way.", "Your {n} trip to {w}. I'm starting to think they call just to see you."], pair: ["{cs}, two calls holding, hon, and I've only got you. Which one do you want? {other} can take the other."] },
-    tess: { name: 'Tess Lindqvist', short: 'Lindqvist', icon: '🎧', role: 'Night dispatcher', look: { shirt: '#1f2937', pants: '#111827', hat: 'headset', hair: '#d8b46a', skin: '#f1c9a5' },
-      give: ["{cs}. {t}, {w}. {x}", "{cs}, {t} at {w}. {x} Try to stay awake.", "Next one's yours, {cs}. {w}. {t}. {x}"], again: ["{w}. Again. Of course.", "{n} call at {w}. At this point just park there."], pair: ["{cs}. Two holding. You pick. {other} gets the other one."] }
-  };
-  const dispKey = () => { const h = H.hourNow(); return h >= 6 && h < 14 ? 'mars' : h >= 14 && h < 22 ? 'velvet' : 'tess'; };
-  function dispatcher() { const k = dispKey(), d = DISP[k]; const id = d.id || H.sayAs('disp_' + k, { name: d.name, icon: d.icon, role: d.role, look: d.look }); return { k, id, d, label: 'Dispatch (' + d.short + ')' }; }
+  // (the three citywide dispatchers by time of day are now each a district's own voice, in districts.js)
+  // each district has its own dispatcher (districts.js): the voice on the radio tells you where you are
+  function dispatcher() { const d = dcast(H.did()).disp, k = d.id; const id = d.id === 'velvet' ? 'velvet' : H.sayAs(d.id, { name: d.name, icon: d.icon, role: d.role, look: d.look }); return { k, id, d, label: 'Dispatch (' + d.short + ')' }; }
   const fill = (t, o) => t.replace(/\{(\w+)\}/g, (_, k) => (o[k] != null ? o[k] : ''));
   const ord = (n) => n === 2 ? 'second' : n === 3 ? 'third' : n === 4 ? 'fourth' : n + 'th';
   const UNITS = () => (H.did() + 1) + '-' + rnd(['Adam', 'Baker', 'Charlie', 'David', 'Edward']) + '-' + (10 + Math.floor(Math.random() * 80));

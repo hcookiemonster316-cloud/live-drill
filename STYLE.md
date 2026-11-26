@@ -72,6 +72,19 @@ instead of saying the sentimental thing, then says it anyway.
 shouts, never makes a threat he can be quoted on.
 *"Justice Row next, isn't it? Hattie at the clerk's office has the cleanest handwriting in the county. Say hello."*
 
+**District casts** (academy/districts.js). Each district has its own dispatcher, sergeant and officer, and you
+should know who's talking without a name:
+- Central: **Velvet Hale** (dispatch) says sugar, hon, baby, and never rushes. **Castillo** runs roll call.
+- Eastside: **Winnie Pham** (dispatch) numbers everything ("One, you're closest. Two..."). **Sgt. Teddy Vargas**
+  talks like a coach at halftime and may use exclamation marks. **Cpl. Ana Duarte** uses short sentences and calls
+  everyone "Cadet".
+- Riverside: **Nadia Coleman** (dispatch) speaks in full sentences and says "whom" when it's correct. **Sgt. Ray
+  Whitfield** says four words where others say forty. **Ofc. Pete Bramlett** starts stories with "So my cousin...".
+- Industrial Park: **Margo Sloane** (dispatch) is flat and dry ("Try to stay awake."). **Sgt. June Saito** counts
+  things. **Ofc. Luz Carrasco** calls buildings by their old company names.
+- Justice Row: **Lourdes Benavides** (dispatch) says "for the record". **Sgt. Celeste Moreau** asks "And how do you
+  know that?". **Deputy Harold Wells** talks to the back of his van like a cab driver.
+
 **Regulars** can be loud. They're allowed exclamation marks and the odd word in capitals when something wonderful
 happens ("WE PASSED!"). The four above are not.
 
@@ -80,6 +93,8 @@ happens ("WE PASSED!"). The four above are not.
 - Longest sentence: Castillo 28 words, Lassiter 24, Walsh 22, Park 18.
 - Castillo uses no slang ("gonna", "wanna", "gotta") and no pet names ("buddy", "kiddo", "honey").
 - Lassiter never curses or threatens out loud.
+- District casts: Whitfield's sentences stay at 12 words or fewer, Duarte's at 15, Saito's at 16, Carrasco's at 16 and
+  Wells's at 18. None of them, or Moreau, uses an exclamation mark. Vargas and Bramlett may.
 
 **Quiz text.** At most three questions per interaction. Four options of similar length; the right one is never the
 obvious one; never "all of the above" or "none of the above".
