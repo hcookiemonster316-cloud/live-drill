@@ -542,18 +542,21 @@ export function installVariety(H) {
   function questSeq(o) {
     const { st, seq, side } = o; let out = splitLong(seq); const who = st.who, p = partner(), cond = COND[S.vcond || 'normal'];
     const pre = [];
-    if (who && Math.random() < .12) pre.push([who, pick('qpause', PAUSE)]);
-    if (who && cond && cond.remark && Math.random() < .25) pre.push([who, pick('qrem_' + S.vcond, cond.remark)]);
-    if (p && Math.random() < .2) pre.push([p.id, pLine(p, 'arrive')]);
+    // a sad or tense scene (or one that turns) opens on its own first line: no small talk, no partner quip before it
+    if (!o.quiet) {
+      if (who && Math.random() < .12) pre.push([who, pick('qpause', PAUSE)]);
+      if (who && cond && cond.remark && Math.random() < .25) pre.push([who, pick('qrem_' + S.vcond, cond.remark)]);
+      if (p && Math.random() < .2) pre.push([p.id, pLine(p, 'arrive')]);
+    }
     // a question in a different shape now and then
     out = out.map((l) => (l[0] === 'q' && Math.random() < .3 ? (() => { const f = formatQ(l[1].les); return f ? ['q', f, l[2]] : l; })() : l));
     // a mini-game when the scene is about searching, observing or a lookout
     const text = [st.goal || ''].concat((st.say || []).map((l) => (typeof l[1] === 'string' ? l[1] : ''))).join(' ');
-    const k = side && Math.random() < .35 ? miniFor(text) : null, at = out.findIndex((l) => l[0] === 'q');
+    const k = side && !o.quiet && Math.random() < .35 ? miniFor(text) : null, at = out.findIndex((l) => l[0] === 'q');
     if (k) out.splice(at >= 0 ? at : Math.min(2, out.length), 0, ['narr', pick('mgLead', ["Before anything else, there's something you need to handle.", "First things first.", "This part's on you."])], miniLine(k));
     // same shape as the step before: work in a different beat so the case does not settle into a loop
     let shape = k ? 'mini' : stepShape(st);
-    if (!k && shape === S.vqBeat) {
+    if (!k && !o.quiet && shape === S.vqBeat) { // (a heavy scene is never broken up by an extra beat)
       const k2 = shape !== 'search' ? miniFor(text) : null;
       if (k2) { out.splice(at >= 0 ? at : Math.min(2, out.length), 0, ['narr', pick('mgLead2', ["Something needs doing first.", "Hold on. This comes first.", "Before the talking, there's work."])], miniLine(k2)); shape = 'mini'; }
       else { const les = (st.quiz && st.quiz.les) != null ? [st.quiz.les] : H.lessons(), dq = (() => { for (const x of les) { const q = decisionQ(x); if (q) return q; } return null; })();
