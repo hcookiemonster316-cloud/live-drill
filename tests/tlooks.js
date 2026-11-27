@@ -22,5 +22,8 @@ const { chromium } = require('playwright');
     return out; });
   console.log('cast looks', JSON.stringify({ n: r.n, none: r.none.slice(0, 6), officerNoKit: r.officerNoKit.slice(0, 6) }));
   if (r.n < 150) errs.push('only ' + r.n + ' cast members checked'); if (r.none.length) errs.push('no look for ' + r.none.slice(0, 6).join(',')); if (r.officerNoKit.length) errs.push('officers out of uniform: ' + r.officerNoKit.slice(0, 6).join(','));
+  // another player sees the cadet you made: your look travels as one token and comes back the same
+  const tok = await a.evaluate(() => { const pc = window.__pc; pc.S.me = { sex: 'f', hst: 'braids', hair: '#8a3b1e', beard: null, off: { top: 'tee', shirt: '#2563eb', pants: '#334155' } }; pc.S.skin = '#7d4a2b'; return pc.lookTok(); });
+  console.log('look token', JSON.stringify(tok)); if (!tok.back || tok.back.sex !== 'f' || tok.back.hst !== 'braids' || tok.back.hair !== '#8a3b1e' || tok.back.skin !== '#7d4a2b') errs.push('look token: ' + JSON.stringify(tok));
   console.log(errs.length ? 'ERRORS ' + errs.slice(0, 8).join(' / ') : 'no errors'); await b.close(); process.exit(errs.length ? 1 : 0);
 })();

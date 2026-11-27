@@ -1,3 +1,4 @@
+import { persona } from './persona.js';
 // Interiors: every enterable building has its own floor plan, drawn as a tiny map.
 // Legend:  # wall   . floor   D exit door (bottom wall)   W wall with a board/screen
 //   L locker  k computer desk  d desk  h chair  T table  c counter  s shelf  F cooler  X display case
@@ -852,6 +853,7 @@ function furnShape(g, p, sx, sy, t, wallCol) {
     case '{': shadow(g, sx, sy, 18); prism(g, sx, sy, .46, .36, 14, '#5b3a1e'); prism(g, sx, sy, .4, .3, 1, '#15803d', 14); g.fillStyle = '#fff'; g.beginPath(); g.arc(sx + 4, sy - 16, 1.8, 0, Math.PI * 2); g.fill(); g.fillStyle = '#dc2626'; g.beginPath(); g.arc(sx - 4, sy - 17, 1.8, 0, Math.PI * 2); g.fill(); return;
   }
 }
-export function staffDraw(g, s, t) { const [sx, sy] = iso(s.x, s.y); personFast(g, sx, sy, { kit: s.kit, skin: s.skin || '#c68e63', moving: false, face: -1 }, t, 'st' + JSON.stringify(s.kit) + (s.skin || '')); }
+export function staffLook(s) { return s._look || (s._look = { kit: s.kit, skin: s.skin || '#c68e63', sex: persona(s.name || '', s.role || '', s.name || 'staff' + s.x + ',' + s.y).sex, moving: false, face: -1 }); } // the same look on the floor and in the portrait
+export function staffDraw(g, s, t) { const [sx, sy] = iso(s.x, s.y); personFast(g, sx, sy, staffLook(s), t, 'st' + s._look.sex + JSON.stringify(s.kit) + (s.skin || '')); }
 const VSHIRT = ['#c0392b', '#2980b9', '#27ae60', '#f39c12', '#8e44ad', '#ecf0f1', '#16a085', '#d35400'], VSKIN = ['#f1c9a5', '#e0b48f', '#c68e63', '#a26a42', '#7a4b2a', '#5a3620'], VHAIR = ['#2b1d14', '#4a3020', '#8a5a2b', '#d8b46a', '#1a1a1a', '#9a9a9a'];
 export function visitorDraw(g, v, t) { const [sx, sy] = iso(v.x, v.y); personFast(g, sx, sy, { shirt: VSHIRT[v.seed % 8], pants: ['#3b4a5c', '#2c3e50', '#5d4037'][v.seed % 3], skin: VSKIN[v.seed % 6], hair: VHAIR[(v.seed >> 2) % 6], moving: false, ph: v.seed, face: v.seed % 2 ? 1 : -1 }, t, 'vi' + v.seed); }
