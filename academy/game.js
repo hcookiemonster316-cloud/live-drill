@@ -1211,7 +1211,7 @@ function quiet(me) { if (ATTRACT) return true; if (performance.now() - SHIFT_T0 
   return !((me !== 'banner' && bannerOn) || (me !== 'trophy' && trBusy) || (me !== 'lore' && loreBusy) || (me !== 'loot' && looting)); }
 function banner(icon, title, sub, secret) { if (bannerQ.some((b) => b[1] === title)) return; bannerQ.push([icon, title, sub, secret]); pumpBanner(); }
 function pumpBanner() {
-  if (bannerOn || !bannerQ.length) return; if (stageBusy() || !quiet('banner')) { if (!bannerPoll) bannerPoll = setTimeout(() => { bannerPoll = 0; pumpBanner(); }, 600); return; }
+  if (bannerOn || !bannerQ.length) return; if (stageBusy() || !quiet('banner') || loreFirst()) { if (!bannerPoll) bannerPoll = setTimeout(() => { bannerPoll = 0; pumpBanner(); }, 600); return; }
   const [icon, title, sub, secret] = bannerQ.shift(), el = $('banner'); bannerOn = true;
   el.className = 'banner' + (secret ? ' secret' : ''); el.innerHTML = '<span>' + icon + '</span><div><b>' + esc(title) + '</b><small>' + esc(sub || '') + '</small></div>'; el.hidden = false;
   clearTimeout(bannerT); bannerT = setTimeout(() => { el.hidden = true; bannerOn = false; setTimeout(pumpBanner, 350); }, bannerQ.length ? 3200 : 4200);
@@ -1968,7 +1968,9 @@ function guideDraw(now, z) {
 }
 
 // ---------- lore: discovered by exploring, by the story and by closing side cases ----------
-const loreQ = []; let loreT = 3, loreBusy = false;
+const loreQ = []; let loreT = 3, loreBusy = false, loreWait = 0; // loreWait: since when a lore card has been waiting its turn
+// a fair queue: once a lore card has waited three seconds, the next banner or trophy lets it go first
+const loreFirst = () => loreQ.length && !loreBusy && loreWait && performance.now() - loreWait > 3000 && performance.now() - loreWait < 30000;
 function loreCheck(dt) {
   loreT -= dt; if (loreT > 0 || ATTRACT) return; loreT = 1.2; const fresh = [];
   LORE.forEach((e) => {
@@ -1984,8 +1986,8 @@ function loreCheck(dt) {
   if (fresh.length) { saveS(); loreQ.push(fresh); stat('lore', fresh.length); setTimeout(lorePop, 300); }
 }
 function lorePop() {
-  if (loreBusy || !loreQ.length) return; if (!quiet('lore') || ON.active || scene || storyBusy || looting || MG.busy || !$('modal').hidden || !$('dlg').hidden || !fe().hidden || EP.busy || document.querySelector('.tCard, .introCine, .gradCred, .recap')) { setTimeout(lorePop, 700); return; }
-  loreBusy = true; PREM.onLore(); const es = loreQ.shift(), e = es[0], many = es.length > 1, tot = LORE.length, have = LORE.filter((x) => S.lore[x.id]).length;
+  if (loreBusy || !loreQ.length) { loreWait = 0; return; } loreWait = loreWait || performance.now(); if (!quiet('lore') || ON.active || scene || storyBusy || looting || MG.busy || !$('modal').hidden || !$('dlg').hidden || !fe().hidden || EP.busy || document.querySelector('.tCard, .introCine, .gradCred, .recap')) { setTimeout(lorePop, 700); return; }
+  loreBusy = true; loreWait = 0; PREM.onLore(); const es = loreQ.shift(), e = es[0], many = es.length > 1, tot = LORE.length, have = LORE.filter((x) => S.lore[x.id]).length;
   const el = document.createElement('div'); el.className = 'lorePop';
   el.innerHTML = '<canvas class="lpFx"></canvas><div class="lpCard"><div class="lpBook"><span>📜</span></div><small>' + (many ? es.length + ' lore entries discovered' : 'Lore discovered') + ' · ' + have + ' of ' + tot + '</small><h2>' + esc(many ? es.map((x) => x.title).join(' · ') : e.title) + '</h2><p>' + esc(many ? 'New pages in your Field Journal.' : e.text) + '</p><div class="lpBtns"><button type="button" data-a="read">' + 'Read in journal' + '</button><button type="button" class="ghost" data-a="ok">Back to patrol</button></div></div>';
   document.body.appendChild(el); paused = true;
@@ -3467,7 +3469,7 @@ let trT = 3, trQ = [], trBusy = false;
 // a quarter of the trophies every half second (the same two-second cycle, no 0.8 ms burst in one frame)
 let trK = 0; function trophyCheck(dt) { trT -= dt; if (trT > 0 || ATTRACT) return; trT = .5; S.trophies = S.trophies || {}; let got = false; const k = trK++ & 3; TROPHIES.forEach((t, i) => { if ((i & 3) !== k) return; if (S.trophies[t[0]]) return; let ok = false; try { ok = !!t[4](); } catch (e) {} if (ok) { S.trophies[t[0]] = Date.now(); trQ.push(t); got = true; } }); if (got) { saveS(); trophyToast(); } }
 function trophyToast() {
-  if (trBusy || !trQ.length) return; if (!quiet('trophy') || stageBusy() || !$('modal').hidden || !$('dlg').hidden) { setTimeout(trophyToast, 900); return; } trBusy = true; const t = trQ.shift(), [tn, col] = TIER[t[3]], el = $('trToast');
+  if (trBusy || !trQ.length) return; if (!quiet('trophy') || loreFirst() || stageBusy() || !$('modal').hidden || !$('dlg').hidden) { setTimeout(trophyToast, 900); return; } trBusy = true; const t = trQ.shift(), [tn, col] = TIER[t[3]], el = $('trToast');
   el.innerHTML = '<span class="trCup" style="--c:' + col + '">🏆</span><div><small>Trophy unlocked · ' + tn + '</small><b>' + esc(t[1]) + '</b><em>' + esc(t[2]) + '</em></div>'; el.hidden = false; el.classList.remove('in'); void el.offsetWidth; el.classList.add('in');
   if (S.sound) [784, 988, 1175, 1568].forEach((f, i) => beep(f, .4, 'sine', .03, i * .07));
   setTimeout(() => { el.classList.remove('in'); setTimeout(() => { el.hidden = true; trBusy = false; /* a run of trophies leaves a gap so a waiting lore card or banner gets its turn */ if (loreQ.length || bannerQ.length) setTimeout(trophyToast, 1200); else trophyToast(); }, 450); }, 4200);
