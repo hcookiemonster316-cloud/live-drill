@@ -3365,9 +3365,9 @@ function boom() { if (!S.sound) return; const a = audio(); if (!a) return; const
 // one tap to start: browsers only allow sound after a tap, so the studio logos play after it
 function bootSequence(done) {
   const el = fe(); el.hidden = false; el.className = 'fe boot';
-  const quick = (() => { try { return sessionStorage.getItem('pc:booted') === '1'; } catch (e) { return false; } })();
   el.innerHTML = '<div class="bootGate"><div class="bgMark">PATROL CITY</div><button type="button" class="bgGo">Press to start</button><small>🎧 Best with sound</small></div>';
-  const go = () => { el.onclick = null; if (S.sound) audio(); try { sessionStorage.setItem('pc:booted', '1'); } catch (e) {} if (quick) { el.hidden = true; done(); return; } logos(); };
+  // the studio and engine cards play on every launch: they're the first impression (owner's call, 2026-11-27); Skip is always there
+  const go = () => { el.onclick = null; if (S.sound) audio(); logos(); };
   el.onclick = go; addEventListener('keydown', function k(e) { if (el.querySelector('.bootGate')) { removeEventListener('keydown', k); go(); } });
   const logos = () => {
     const seq = [
