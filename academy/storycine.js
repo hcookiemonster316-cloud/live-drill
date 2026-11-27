@@ -183,5 +183,29 @@ export function installStoryCine(X) {
       { d: 5.4, title: ['End of Chapter ' + NUM[c.d], c.title, ''], stamp: 'CASE NOTES FILED', stampAt: 1.6, draw: (g, t) => { g.fillStyle = '#05080f'; g.fillRect(0, 0, W, H); g.globalAlpha = .5; g.drawImage(sv.bg, 0, 0); g.globalAlpha = 1; } }];
     run(key, END_MOOD[c.d] || 'hope', cut, () => done());
   }
-  return { part, finale, firstLine, get on() { return !!live; }, end: () => live && live.end() };
+  // a special shift (special.js) opens on the city under its conditions: a storm, the grid going dark, a festival
+  // night, a parade morning; then the shift's name and Castillo's first line. Once per kind of shift.
+  const EV = { hurricane: { mood: 'danger', day: false }, blackout: { mood: 'eerie', day: false }, festival: { mood: 'hope', day: false }, parade: { mood: 'triumph', day: true } };
+  function weather(g, k, t, sky) {
+    if (k === 'hurricane') { g.fillStyle = 'rgba(30,41,59,.45)'; g.fillRect(0, 0, W, H); g.strokeStyle = 'rgba(191,219,254,.38)'; g.lineWidth = 1; g.beginPath(); const r = seeded('rain' + Math.floor(t * 24));
+      for (let n = 0; n < 140; n++) { const x = r() * (W + 80) - 40, y = r() * H; g.moveTo(x, y); g.lineTo(x - 9, y + 22); } g.stroke();
+      const f = (t * 1.3) % 2.6; if (f < .12 || (f > .22 && f < .3)) { g.fillStyle = 'rgba(226,232,255,' + (f < .12 ? .55 : .3) + ')'; g.fillRect(0, 0, W, H); } }
+    if (k === 'blackout') { const edge = W + 120 - Math.min(1, t / 3.2) * (W + 160); // the grid fails block by block, right to left
+      sky.wins.forEach(([x, y]) => { if (x - 60 > edge) R(g, '#070c18', x - 60, y, 2, 3); }); if (t > 3.2) { g.fillStyle = 'rgba(2,4,9,.35)'; g.fillRect(0, 0, W, H); }
+      if (t > 3.6) { const sx = 150 + Math.sin(t * 1.4) * 80; g.save(); g.globalAlpha = .22; g.translate(sx, 250); g.rotate(-.3 + Math.sin(t) * .2); const gr = g.createLinearGradient(0, 0, 0, -120); gr.addColorStop(0, 'rgba(255,250,220,.9)'); gr.addColorStop(1, 'rgba(255,250,220,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(-2, 0); g.lineTo(-22, -120); g.lineTo(22, -120); g.lineTo(2, 0); g.fill(); g.restore(); } }
+    if (k === 'festival') { for (let s2 = 0; s2 < 3; s2++) { const y0 = 150 + s2 * 22; for (let n = 0; n < 26; n++) { const x = n * 19 + (s2 % 2) * 9, y = y0 + Math.sin(n / 25 * Math.PI) * 18; const on = ((n + s2 + Math.floor(t * 3)) % 4) !== 0; R(g, on ? ['#f43f5e', '#facc15', '#22d3ee', '#a78bfa'][(n + s2) % 4] : '#334155', x, y, 3, 3); } }
+      for (let b = 0; b < 3; b++) { const ph = (t * .55 + b * .37) % 1.4; if (ph > 1) continue; const cx = 90 + b * 150, cy = 60 + (b % 2) * 20, col = ['250,204,21', '244,63,94', '34,211,238'][b]; if (ph < .08) { g.globalAlpha = .5; glow(g, cx, cy, 90, col, .5); g.globalAlpha = 1; } for (let n = 0; n < 22; n++) { const an = n / 22 * Math.PI * 2, rr = 8 + ph * 74; for (let tr = 0; tr < 3; tr++) { const q = rr - tr * 6; if (q > 0) R(g, 'rgba(' + col + ',' + (1 - ph) * (1 - tr * .3) + ')', cx + Math.cos(an) * q, cy + Math.sin(an) * q + ph * ph * 16, 3 - tr, 3 - tr); } } } }
+    if (k === 'parade') { const r = seeded('cf'); for (let n = 0; n < 90; n++) { const x = (r() * W + Math.sin(t * 2 + n) * 10) % W, y = (r() * H + t * (30 + r() * 40)) % H; R(g, ['#f5b800', '#ffffff', '#3b82f6', '#22c55e'][n % 4], x, y, 3, 2); }
+      R(g, '#1e3a8a', 120, 120, 240, 22); g.font = '800 11px "Meridian",sans-serif'; g.fillStyle = '#ffe9a8'; g.textAlign = 'center'; g.fillText('CONGRATULATIONS, GRADUATES', 240, 135); g.textAlign = 'left'; }
+  }
+  function event(k, sp, did, done) {
+    const key = 'ev_' + k, E = EV[k]; if (!E || (S.cutSeen || {})[key]) { done(false); return; }
+    const D = X.district(did), sky = skyline(D, E.day), l0 = (sp.brief || [])[0], who = l0 && isPerson(l0[0]) ? l0[0] : null, sv = set('plaza', D.name + k, null), sp0 = who ? body(who, 7) : null;
+    const cut = [
+      { d: 5.4, cap: ['Dispatch', sp.radio || ''], draw: (g, t) => { const kk = ease(Math.min(1, t / 5.4)); g.drawImage(sky.c, -60 * kk, 0); weather(g, k, t, sky); } },
+      { d: 4.4, title: ['Special shift', sp.name, D.name], draw: (g, t) => { g.drawImage(sky.c, -60, 0); weather(g, k, 5.4 + t, sky); const v = g.createRadialGradient(240, 128, 20, 240, 128, 260); v.addColorStop(0, 'rgba(2,4,10,' + Math.min(.6, t * .4) + ')'); v.addColorStop(1, 'rgba(2,4,10,0)'); g.fillStyle = v; g.fillRect(0, 0, W, H); } }];
+    if (who && ok(l0)) cut.push({ d: fit(l0[1]), cap: [(X.who(who) || {}).name || '', l0[1]], draw: (g, t) => { closeUp(g, sv, sp0, t, .05, 1); weather(g, k, 10 + t, sky); } });
+    run(key, E.mood, cut, (shown) => done(shown && !!who && ok(l0)));
+  }
+  return { part, finale, event, firstLine, get on() { return !!live; }, end: () => live && live.end() };
 }

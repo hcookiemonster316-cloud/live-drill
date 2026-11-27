@@ -24,14 +24,21 @@ export function installPolish(H) {
     if (d.coop) rows.push(['🛡️', 'Teamwork', 5, 5, 'Ran backup with ' + d.coop]);
     const base = rows.filter((r) => r[1] !== 'Teamwork' && !r[5]), /* r[5]: a row that informs, not scores (your partner's trust) */ score = Math.min(100, Math.round(base.reduce((a, r) => a + r[2], 0) / base.reduce((a, r) => a + r[3], 0) * 100) + (d.coop ? 5 : 0)), g = grade(score), key = d.title, best = S.grades[key];
     const better = !best || 'DCBAS'.indexOf(g) > 'DCBAS'.indexOf(best); if (better) S.grades[key] = g; H.stat('callGrade' + g); if (g === 'S') H.stat('callS'); H.saveS();
-    H.setMood('debrief'); H.sting(g === 'S' || g === 'A' ? 'gradeS' : 'grade');
+    H.setMood('debrief');
+    // build-up, then payoff: the rows fill one by one while the score counts up, and the grade lands last with the sting
+    const reduce = S.cfg.motion === false || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches), slam = reduce ? 0 : 300 + rows.length * 120 + 850;
+    if (!slam) H.sting(g === 'S' || g === 'A' ? 'gradeS' : 'grade');
     H.openModal('<div class="dbf"><div class="dbfHead"><small>' + esc(d.prio === 1 ? 'PRIORITY 1' : d.prio === 2 ? 'PRIORITY 2' : 'ROUTINE') + ' · CALL CLEARED</small><h2>' + esc(d.title) + '</h2><p>' + esc(d.where) + (d.role ? ' · ' + esc(d.role) : '') + '</p></div>' +
-      '<div class="dbfGrade" style="--g:' + GCOL[g] + '"><b>' + g + '</b><span>' + score + '<i>/100</i></span>' + (better && best ? '<em>New best (was ' + best + ')</em>' : best && !better ? '<em>Best: ' + best + '</em>' : '<em>First time on this call</em>') + '</div>' +
+      '<div class="dbfGrade dg' + g + (slam ? ' wait' : '') + '" style="--g:' + GCOL[g] + ';--slam:' + slam + 'ms"><b>' + g + '</b><span><n>' + (slam ? 0 : score) + '</n><i>/100</i></span>' + (better && best ? '<em>New best (was ' + best + ')</em>' : best && !better ? '<em>Best: ' + best + '</em>' : '<em>First time on this call</em>') + '</div>' +
       (d.loop ? '<div class="dbfLoop"><div><i>🎯</i><span><b>You chose</b>' + esc(d.loop.chose) + '</span></div><div><i>🏙</i><span><b>The city remembers</b>' + esc(d.loop.keep) + '</span></div><div><i>⭐</i><span><b>Your career</b>' + esc(d.loop.rank) + (d.loop.next ? ' · ' + d.loop.pct + '% of the way to ' + esc(d.loop.next) : '') + '<u><s style="--w:' + d.loop.pct + '%"></s></u></span></div></div>' : '') +
       '<div class="dbfRows">' + rows.map((r, k) => '<div class="dbfRow" style="--d:' + (k * 120 + 300) + 'ms"><i>' + r[0] + '</i><div><b>' + r[1] + '<span>' + r[2] + '/' + r[3] + '</span></b><u><s style="--w:' + Math.round(r[2] / r[3] * 100) + '%"></s></u><small>' + esc(r[4]) + '</small></div></div>').join('') + '</div>' +
       ((d.qs || []).length ? '<div class="dbfQs"><b>What came up</b>' + d.qs.map((q) => '<div class="' + (q.ok ? 'ok' : 'no') + '"><i>' + (q.ok ? '✓' : '✗') + '</i><p>' + esc(q.stem) + (!q.ok && q.fact ? '<small>' + esc(q.fact) + '</small>' : '') + '</p></div>').join('') + '</div>' : '') +
       '<div class="dbfXp">+' + d.xp + ' RP' + (g === 'S' ? ' <b>+25 S-rank bonus</b>' : '') + '</div><div class="qAct"><button type="button" id="mDone">Back in service</button></div></div>');
     H.$('mDone').onclick = () => { H.setMood(null); if (g === 'S') H.award(25, 'S-rank call'); onDone && onDone(g); };
+    if (slam) { const box = document.querySelector('.dbfGrade'), num = box && box.querySelector('n'), t0 = performance.now(), run = slam - 250; let last = -1, k = 0;
+      const step = (now) => { if (!box || !box.isConnected) return; const e = Math.min(1, (now - t0) / run), v = Math.round(score * (1 - Math.pow(1 - e, 2))); if (v !== last) { last = v; num.textContent = v; if (++k % 3 === 0 && H.tick) H.tick(Math.min(20, k / 3)); } if (e < 1) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+      setTimeout(() => { if (!box || !box.isConnected) return; box.classList.remove('wait'); box.classList.add('slam'); num.textContent = score; H.sting(g === 'S' || g === 'A' ? 'gradeS' : 'grade'); if (H.shake) H.shake(g === 'S' ? 7 : g === 'A' ? 4 : 2, .35); if (H.buzz) H.buzz(g === 'S' || g === 'A' ? 'ok' : 'tap'); }, slam); }
   }
 
   // ================= 2. DAILY ROUTINES =================

@@ -506,6 +506,12 @@ let SUNLEN = 0; export function setSun(len) { SUNLEN = len || 0; }
 // drawn once into a small cached sprite and stamped, instead of a rotated path fill per figure per frame
 const CSHC = new Map();
 function castShadow(g, sx, sy, w, k) { if (!SUNLEN) return; const L = SUNLEN * k; g.save(); g.translate(sx + L * .42, sy + L * .21); g.rotate(.46); g.fillStyle = 'rgba(10,16,30,.20)'; g.beginPath(); g.ellipse(0, 0, L * .5 + w * .4, w * .45, 0, 0, Math.PI * 2); g.fill(); g.restore(); } /* (a cached sprite was measured slower than this small fill, 0.57 vs 0.42 ms for 120: kept as a fill) */
+// one scratch canvas for sprites that are drawn and then read back (pixelize): kept on the CPU (willReadFrequently), so
+// getImageData doesn't stall on a GPU read-back, and reused instead of making a new canvas for every car or dog
+let RDC = null;
+function readCanvas(w, h, k) { if (!RDC) { const c = document.createElement('canvas'); RDC = [c, c.getContext('2d', { willReadFrequently: true })]; }
+  const [c, g] = RDC, W2 = Math.ceil(w * k), H2 = Math.ceil(h * k); if (c.width !== W2) c.width = W2; c.height = H2; /* setting the size clears it and resets every drawing state */
+  g.noShadow = false; g.imageSmoothingEnabled = true; c.lw = W2 / k; c.lh = H2 / k; g.scale(k, k); return [c, g]; }
 export function hiCanvas(w, h, k) { k = k || 1; const c = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(1, 1); c.width = Math.ceil(w * k); c.height = Math.ceil(h * k); c.lw = c.width / k; c.lh = c.height / k; const g = c.getContext('2d'); g.scale(k, k); return [c, g]; }
 export function drawBuilding(b, night, sun) {
   const R = rng(b.x * 131 + b.y * 977 + b.h);
@@ -1144,7 +1150,7 @@ export function dog(g, sx, sy, face, moving, t, st) {
 const DCACHE = new Map();
 const DPX = new Map();
 function dogPix(f, moving, t, st) {
-  const k = 3, w = 44, h = 34, [bv, bg] = hiCanvas(w, h, k); bg.noShadow = true; dog(bg, 22, 28, f, moving, t, st);
+  const k = 3, w = 44, h = 34, [bv, bg] = readCanvas(w, h, k); bg.noShadow = true; dog(bg, 22, 28, f, moving, t, st);
   const src = bg.getImageData(0, 0, w * k, h * k).data, { out } = pixelize(src, w, h, k);
   let x0 = w, y0 = h, x1 = -1, y1 = -1; out.forEach((c, i) => { if (!c) return; const x = i % w, y = (i / w) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; });
   if (x1 < 0) return Object.assign(document.createElement('canvas'), { x0: 0, y0: 0 });
@@ -1247,7 +1253,7 @@ const VCACHE = new Map();
 function vehiclePix(W, Hh, dir, v, night, on, blink) {
   // only the vehicle's own box is drawn and read (it sits around the anchor, never the whole 150x120 canvas)
   const k = 3, sc = v.scale || 1, x0 = Math.max(0, Math.floor(W / 2 - 26 * sc)), y0 = Math.max(0, Math.floor(Hh * .72 - 32 * sc)), w = Math.min(W - x0, Math.ceil(52 * sc)), h = Math.min(Hh - y0, Math.ceil(46 * sc));
-  const [bv, bg] = hiCanvas(w, h, k); drawVehicle(bg, W / 2 - x0, Hh * .72 - y0, dir, Object.assign({}, v, { noShadow: true }), blink ? 160 : 0, night, on);
+  const [bv, bg] = readCanvas(w, h, k); drawVehicle(bg, W / 2 - x0, Hh * .72 - y0, dir, Object.assign({}, v, { noShadow: true }), blink ? 160 : 0, night, on);
   const src = bg.getImageData(0, 0, w * k, h * k).data, { out } = pixelize(src, w, h, k);
   const pc = document.createElement('canvas'); pc.width = w; pc.height = h; const pg = pc.getContext('2d'), im = pg.createImageData(w, h); out.forEach((c, i) => { if (c) im.data.set([c[0], c[1], c[2], 255], i * 4); }); pg.putImageData(im, 0, 0); pc.x0 = x0; pc.y0 = y0; return pc;
 }

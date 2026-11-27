@@ -120,7 +120,7 @@ export function installSpecial(H) {
     const s = st(), sp = SPECIAL[k], spots = H.places(3, sp.crowd ? 'hub' : 'spread');
     if (spots.length < 3) return;
     cur = s.cur = { id: k, no, did: H.did(), stops: spots.map((p, i) => ({ i, name: p.name, x: p.x, y: p.y, done: false })), right: 0, hub: spots.hub || null };
-    setTimeout(() => { if (!cur) return; H.radio('Dispatch', sp.radio); H.banner(sp.icon, sp.name, 'A special shift. Routine calls are on hold.'); setTimeout(() => H.whenFree(() => H.dialogue(sp.brief, null, { kicker: 'SPECIAL SHIFT · ' + sp.kick })), 2600); }, 3200);
+    setTimeout(() => { if (!cur) return; H.radio('Dispatch', sp.radio); H.banner(sp.icon, sp.name, 'A special shift. Routine calls are on hold.'); setTimeout(() => H.whenFree(() => { const talk = (said) => { const b = said ? sp.brief.slice(1) : sp.brief; if (b.length) H.dialogue(b, null, { kicker: 'SPECIAL SHIFT · ' + sp.kick }); }; if (H.scene) H.scene(k, sp, talk); else talk(false); }), 2600); /* the night opens on a scene (storycine.js), then the brief */ }, 3200);
   }
   // the rules for the night
   function apply() {
