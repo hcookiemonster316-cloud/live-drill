@@ -26,7 +26,7 @@
 <link rel="modulepreload" href="events.js">
 <link rel="modulepreload" href="feel.js">
 <link rel="modulepreload" href="friends.js">
-<link rel="modulepreload" href="friends2.js"><link rel="modulepreload" href="friendsx.js"><link rel="modulepreload" href="emotions.js"><link rel="modulepreload" href="recap.js"><link rel="modulepreload" href="callvoice.js"><link rel="modulepreload" href="conduct.js"><link rel="modulepreload" href="units.js"><link rel="modulepreload" href="persona.js"><link rel="modulepreload" href="reach.js">
+<link rel="modulepreload" href="friends2.js"><link rel="modulepreload" href="friendsx.js"><link rel="modulepreload" href="emotions.js"><link rel="modulepreload" href="recap.js"><link rel="modulepreload" href="callvoice.js"><link rel="modulepreload" href="conduct.js"><link rel="modulepreload" href="units.js"><link rel="modulepreload" href="persona.js"><link rel="modulepreload" href="creator.js"><link rel="modulepreload" href="reach.js">
 <link rel="modulepreload" href="interiors.js">
 <link rel="modulepreload" href="items.js">
 <link rel="modulepreload" href="learn.js">
@@ -1288,6 +1288,14 @@ body.wasted #view{filter:grayscale(1) contrast(1.1) brightness(.75);transition:f
 .ecBody{max-width:560px;text-align:center;color:#e2e8f0;opacity:0;transform:translateY(10px);transition:opacity .8s,transform .8s}.endCareer.body .ecBody{opacity:1;transform:none}
 .ecBody p{margin:8px 0;line-height:1.5}.ecWhy{font-size:1.05rem;color:#fff}.ecCs{color:#94a3b8;font-size:.85rem}.ecKeep{color:#86efac;font-size:.85rem}
 .ecBtns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:14px}.ecBtns button{padding:12px 16px;border-radius:12px;font-weight:700;border:0;background:var(--gold);color:#0b1020;cursor:pointer}.ecBtns button+button{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25)}
+/* the cadet creator (creator.js) */
+.cc{display:grid;grid-template-columns:minmax(0,200px) minmax(0,1fr);gap:16px;align-items:start}
+.ccPrev{display:grid;gap:10px;position:sticky;top:0}.ccPrev figure{margin:0;background:radial-gradient(ellipse at 50% 70%,rgba(255,255,255,.08),rgba(0,0,0,.2));border:1px solid var(--line);border-radius:14px;padding:8px;text-align:center}
+.ccPrev canvas{width:150px;height:150px;image-rendering:pixelated}.ccPrev figcaption{font-size:.72rem;color:#94a3b8;letter-spacing:.08em;text-transform:uppercase}
+.ccRows{display:grid;gap:12px}.ccRow b{display:block;font-size:.78rem;color:#cbd5e1;margin-bottom:6px;letter-spacing:.04em}.ccRow>div{display:flex;flex-wrap:wrap;gap:6px}
+.ccOpt{padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:#e2e8f0;font:inherit;font-size:.85rem;cursor:pointer}.ccOpt.on{background:var(--gold);color:#0b1020;border-color:var(--gold);font-weight:700}
+.ccSw{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:var(--c);cursor:pointer;padding:0}.ccSw.on{outline:3px solid var(--gold);outline-offset:2px}
+@media (max-width:560px){.cc{grid-template-columns:1fr}.ccPrev{position:static;grid-template-columns:1fr 1fr}.ccPrev canvas{width:120px;height:120px}}
 </style>
 </head>
 <body>

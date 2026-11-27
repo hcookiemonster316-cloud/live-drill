@@ -214,7 +214,20 @@ export function gearTotals(S) {
   const t = {}; const o = OUTFITS[S.outfit || 'std']; if (o) Object.keys(o.perk).forEach((k) => { t[k] = (t[k] || 0) + o.perk[k]; }); Object.values(S.gear || {}).forEach((id) => { const it = itemById(id); if (it && it.perk) Object.keys(it.perk).forEach((k) => { t[k] = (t[k] || 0) + it.perk[k]; }); });
   return t;
 }
-export function looks(ids) { const L = {}; (ids || []).forEach((id) => { const it = itemById(id); if (it && it.look) Object.assign(L, it.look); }); return L; }
+// what every equipped item looks like on you (owner's call, 2026-11-27: if you wear it, you can see it). Marks are
+// drawn by the people renderer (pixelfolk.js): chest, shoulders and duty belt. A few things live inside a pocket or a
+// boot (gel insoles, a challenge coin, lip balm, an RSA token, a dingle), and those stay out of sight, as they would.
+export const VIS = {
+  nametag: { m: 'nametag' }, stays: { m: 'gig' }, creases: { m: 'crease' }, gig: { m: 'gig' }, pressed: { m: 'crease' }, polo2: { shirt: '#6b7280' }, ptshirt2: { shirt: '#9ca3af', m: 'gig' }, lanyard: { lanyard: '#1d4ed8' }, patchset: { m: ['patch', 'patch2'] },
+  brokenin: { boots: '#3a2a1f' }, bootbands: { m: 'gig' }, wetboots: { boots: '#14213d' }, jungle: { boots: '#4b5320' },
+  flashlight: { m: 'flash' }, tacflash: { m: 'flash' }, keepers: { m: 'keepers' }, goldkeeper: { m: 'keepersG' }, earpiece: { m: 'wire' }, firstaid: { m: 'aid' }, radiokit: { m: 'radioL' }, radio: { m: 'radioL' },
+  cuffkey: { m: 'keys' }, glovepouch: { m: 'glove' }, whistle: { m: 'whistle' }, tourniquet: { m: 'tq' }, trainingtaser: { m: 'taser' }, baton: { m: 'baton' }, simholster: { m: 'blueholster' }, multitool: { m: 'tool' }, radioclip: { m: 'mic' }, velvetmic: { m: 'mic' },
+  pen: { m: 'pen' }, sharpie: { m: 'marker' }, notebook: { m: 'notebook' }, phonetic: { lanyard: '#334155', m: 'card' }, bodycamtrainer: { m: 'bodycam' }, squadpatch: { m: 'patch' },
+  laptop: { prop: 'laptop' }, textbooks: { prop: 'books' }, binder: { prop: 'books' }, mapbook: { prop: 'books' }, flashcards: { prop: 'books' }, citationbook: { prop: 'clipboard' }, carkit: { camelbak: true }, snackbag: { prop: 'bag' }, thermos: { prop: 'coffee' }, gusreel: { prop: 'rod' }, squadflag: { prop: 'flag' }, umbrella: { prop: 'cane' }
+};
+export function looks(ids) { const L = {}; (ids || []).forEach((id) => { const it = itemById(id); if (it && it.look) Object.assign(L, it.look); const v = VIS[id]; if (!v) return;
+  if (v.m) L.marks = (L.marks || []).concat(v.m); ['prop', 'shirt', 'boots', 'lanyard', 'camelbak'].forEach((k) => { if (v[k] != null) L[k] = v[k]; }); });
+  if (L.shine) L.marks = (L.marks || []).concat('shine'); if (L.brass) L.marks = (L.marks || []).concat('brass'); if (L.cord) L.marks = (L.marks || []).concat('cord:' + L.cord); return L; }
 
 // pick a rank, then an item; min raises the floor. Nine pulls without Inspection Ready or better guarantees one.
 export function roll(S, min) {

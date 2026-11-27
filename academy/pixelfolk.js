@@ -21,7 +21,7 @@ export function ramp(hex) { if (RAMPS.has(hex)) return RAMPS.get(hex); const [h,
 const mix = (a, b, k) => [Math.round(a[0] + (b[0] - a[0]) * k), Math.round(a[1] + (b[1] - a[1]) * k), Math.round(a[2] + (b[2] - a[2]) * k)];
 const band = (dot, gloss) => dot > .62 && gloss ? .9 : dot > .22 ? .68 : dot < -.72 ? .14 : dot < -.3 ? .27 : .47;
 const ANG = [0, Math.PI / 4, Math.PI / 2, Math.PI * 3 / 4, Math.PI];
-const DEF = { chev: '#e3b341', card: '#b98a52', book2: '#2f5d8a', book3: '#c9a227', prop2: '#d9822b', eye: '#2a1b1d', mouth: '#9a4f48', lips: '#b2475a', belt: '#1c1d22', buckle: '#c9b46a', badge: '#f2c94c', patch: '#f5b800', strip: '#e8edf2', metal: '#9aa3ad', dark: '#1b1d24', white: '#f1eee6', wood: '#8a5a2e', paper: '#f4efe2', red: '#c0392b', glass: '#2a3440', lens: '#a8c4d6' };
+const DEF = { chev: '#e3b341', card: '#b98a52', book2: '#2f5d8a', book3: '#c9a227', prop2: '#d9822b', eye: '#2a1b1d', mouth: '#9a4f48', lips: '#b2475a', belt: '#1c1d22', buckle: '#c9b46a', badge: '#f2c94c', patch: '#f5b800', strip: '#e8edf2', metal: '#9aa3ad', dark: '#1b1d24', white: '#f1eee6', wood: '#8a5a2e', paper: '#f4efe2', red: '#c0392b', glass: '#2a3440', lens: '#a8c4d6', gold: '#d4a017', silver: '#c9ced6', black: '#15171c', yellow: '#f2c400', orange: '#ea6a17', navy: '#1e2a4a', blue: '#2f6fe0', crease: '#ffffff' };
 
 // ---------- one pose from one angle, as a list of flat shapes ----------
 const HELD = new Set(['coffee', 'pot', 'clipboard', 'books', 'laptop', 'tongs', 'ladle', 'spatula', 'medbag', 'football', 'binoculars', 'box', 'donuts', 'icecream', 'chess', 'gavel', 'mic', 'plant', 'phone', 'folder', 'tablet', 'basket', 'flashlight', 'gloves', 'wrench']);
@@ -152,6 +152,24 @@ function figure(D, v, mir, ph, mv) {
   if (D.bag) { const p = place(6.2 * bw, 1); acc(p.d >= 0 ? over : behind, () => {}); limb('torso', tx + place(-4.6 * bw, 3).x, topY + .6, tx + place(4.6 * bw, 3).x, botY - 1, .55, .55, 'strap', { f: .3 }); }
   if (D.holster && v !== 4) { const p = place(-5.6 * bw, .8); ell(p.d >= -1 ? 'torso' : 'hips', tx + p.x, botY + 1, 1.3, 2.6, 'dark', { f: .3 }); }
   if (D.radio && front) { const p = place(4 * bw, 3.8); if (p.d > 0) rect('torso', tx + p.x - .7, topY + 2.6, tx + p.x + .7, topY + 5.4, 'dark'); }
+  // what you've equipped shows (items.js VIS): chest, shoulders and the duty belt, each a few pixels in its own colour
+  if (D.marks && v !== 4) for (const m of D.marks) { const chest = (lx, y0, y1, w, mat) => { const p = place(lx * bw, 3.7); if (p.d > 0) rect('torso', tx + p.x - w, topY + y0, tx + p.x + w, topY + y1, mat); };
+    const hip = (lx, y0, y1, w, mat) => { const p = place(lx * bw, 2.6); if (p.d > -1.5) rect('torso', tx + p.x - w, botY + y0, tx + p.x + w, botY + y1, mat, { f: .35 }); };
+    if (m === 'bodycam') chest(0, 4.2, 6.6, .95, 'black'); else if (m === 'pen') chest(-3, 1.8, 4.4, .25, 'silver'); else if (m === 'marker') chest(-3, 1.8, 4.4, .3, 'black');
+    else if (m === 'nametag') chest(-3.3, 5, 5.9, 1.15, 'gold'); else if (m === 'notebook') chest(-3, 2.2, 4.6, .9, 'paper'); else if (m === 'card') chest(0, 6.4, 9, 1.05, 'white');
+    else if (m === 'brass') { chest(-2.3, .3, 1.2, .45, 'gold'); chest(2.3, .3, 1.2, .45, 'gold'); }
+    else if (m.indexOf('cord') === 0) { D.cols.cord = m.slice(5) || '#c0c0c0'; const a1 = place(-4.6 * bw, 2.4), a2 = place(-1.6 * bw, 3.8); if (a2.d > 0) { limb('torso', tx + a1.x, topY + .6, tx + a2.x, topY + 4.6, .4, .4, 'cord'); limb('torso', tx + a1.x, topY + 1.6, tx + a2.x, topY + 5.6, .35, .35, 'cord'); } }
+    else if (m === 'crease') { for (const lx of [-3, 3]) { const p = place(lx * bw, 3.7); if (p.d > 0) rect('torso', tx + p.x - .12, topY + 2.2, tx + p.x + .12, botY - 1, 'crease', { f: .6 }); } }
+    else if (m === 'gig') { const p = place(0, 3.8); if (p.d > 0) { rect('torso', tx + p.x - .12, topY + 1, tx + p.x + .12, botY - 1, 'top2'); rect('torso', tx + p.x - .9, botY - .9, tx + p.x + .9, botY + .5, 'gold'); } }
+    else if (m === 'patch' || m === 'patch2') { const p = place((m === 'patch' ? 5.6 : -5.6) * bw, 1); if (p.d > -1) ell('torso', tx + p.x, topY + 2.4, 1.1, 1.4, 'patch'); }
+    else if (m === 'mic') chest(4.6, .2, 2.2, .7, 'black'); else if (m === 'wire') { const p = place(4.4 * bw, 2.4); if (p.d > 0) limb('torso', tx + p.x, topY + 2.2, tx + p.x * .7, topY - 3.6, .2, .2, 'black'); }
+    else if (m === 'flash') hip(5.4, -1.2, 3.6, .45, 'black'); else if (m === 'baton') hip(-6.2, -1, 6.4, .35, 'black'); else if (m === 'taser') hip(-3.6, -.6, 2.2, .7, 'yellow');
+    else if (m === 'tq') hip(3.4, -.6, 1.8, .6, 'orange'); else if (m === 'aid') { hip(-2.4, -.8, 1.6, .9, 'red'); hip(-2.4, .2, .6, .5, 'white'); } else if (m === 'glove') hip(2.2, -.6, 1.4, .6, 'navy');
+    else if (m === 'keys') hip(1.2, .2, 1.8, .35, 'gold'); else if (m === 'tool') hip(-1.4, -.4, 1.6, .45, 'dark'); else if (m === 'keepers' || m === 'keepersG') { for (const lx of [-4.2, -1.4, 1.4, 4.2]) hip(lx, -1.1, .3, .2, m === 'keepersG' ? 'gold' : 'black'); }
+    else if (m === 'radioL') { const p = place(4 * bw, 3.8); if (p.d > 0) { rect('torso', tx + p.x - .9, topY + 2.2, tx + p.x + .9, topY + 6, 'black'); rect('torso', tx + p.x + .3, topY - 1.2, tx + p.x + .55, topY + 2.2, 'black'); } }
+    else if (m === 'whistle') { const p = place(-2.6 * bw, 3.7); if (p.d > 0) limb('torso', tx + p.x, topY + 2, tx + p.x + .8, topY + 5.6, .2, .2, 'silver'); }
+    else if (m === 'shine') { for (const lx of [-2, 2]) { const p = place(lx * bw, 2.2); if (p.d > -1) rect('torso', tx + p.x - .35, Y(-1.6), tx + p.x + .35, Y(-1.1), 'white', { f: .9 }); } }
+    else if (m === 'blueholster') { const p = place(-5.6 * bw, .8); ell(p.d >= -1 ? 'torso' : 'hips', tx + p.x, botY + 1, 1.4, 2.7, 'blue', { f: .3 }); } }
   propsBody();
   if (!twoSided) { drawArm(nearArm, false); }
   propsHand();
@@ -178,13 +196,15 @@ function figure(D, v, mir, ph, mv) {
   if (!['hardhat', 'helmetF', 'bike', 'pith', 'chef', 'beanie', 'headwrap', 'veil', 'campaign'].includes(hat) || !back || true) {
     if (hs === 'bald') { if (!hat) hairShape(-99, { clip: (x, y) => y > HCY - 2.6 && (v === 4 || (x - HCX) < backEdge || Math.abs(x - HCX) > 5.4) }); }
     else if (hs === 'shaved') {}
-    else if (['short', 'messy', 'buzz', 'bun', 'afro', 'puff', 'side', 'spiky', 'flattop', 'curly', 'ponytail', 'braids', 'mohawk', 'locs', 'perm', 'beehive', 'swoop', 'pigtails', 'updo'].includes(hs)) hairShape(hs === 'buzz' ? -.8 : hs === 'side' || hs === 'swoop' ? .4 : 0, { g: hs === 'buzz' ? .3 : hs === 'perm' || hs === 'curly' ? 1.2 : .7, sideLow: hs === 'mohawk' ? 4 : 0, clip: hs === 'mohawk' ? (x, y) => Math.abs(x - HCX - place(0, 0).x) < (v === 0 || v === 4 ? 2.2 : 9) || y > HCY - 2 : null });
+    else if (['short', 'messy', 'buzz', 'bun', 'afro', 'puff', 'side', 'spiky', 'flattop', 'curly', 'ponytail', 'braids', 'mohawk', 'locs', 'perm', 'beehive', 'swoop', 'pigtails', 'updo'].includes(hs)) hairShape(hs === 'buzz' ? -.8 : hs === 'side' || hs === 'swoop' ? .4 : 0, { g: hs === 'buzz' ? -.1 : hs === 'perm' || hs === 'curly' ? 1.2 : .7, sideLow: hs === 'mohawk' ? 4 : 0, clip: hs === 'mohawk' ? (x, y) => Math.abs(x - HCX - place(0, 0).x) < (v === 0 || v === 4 ? 2.2 : 9) || y > HCY - 2 : hs === 'buzz' ? (x, y) => y < HCY - 3.4 : null }); /* high and tight: the sides are clipped to the skin */
     if (hs === 'long' || hs === 'bob' || hs === 'waves') { hairShape(.8); if (back) put('hair', (x, y) => Math.abs(x - HCX) < 7.4 - Math.max(0, y - HCY - 4) * .2 && y > HCY && y < HCY + (hs === 'bob' ? 5.6 : 11), [HCX - 8, HCY, HCX + 8, HCY + 12], 'hair', (x) => band(((x - HCX) / 7) * LX, true)); if (v === 0 && hs === 'bob') { limb('hair', HCX - 6, HCY - 2, HCX - 6.2, HCY + 4.4, 1.8, 1.6, 'hair'); limb('hair', HCX + 6, HCY - 2, HCX + 6.2, HCY + 4.4, 1.8, 1.6, 'hair'); } }
     if (!hatLow) {
       if (hs === 'messy' || hs === 'spiky') for (const [ax, az, ay, r] of [[-4.4, 0, -5.8, 2], [-1.6, 1, -7.4, 2.2], [1.6, 1, -7.6, 2.1], [4.4, 0, -6, 1.9], [0, -3, -7, 2]]) { const p = place(ax, az); ell('hair', HCX + p.x, HCY + ay - (hs === 'spiky' ? 1.2 : 0), r * (hs === 'spiky' ? .8 : 1), r * (hs === 'spiky' ? 1.3 : .85), 'hair', { gloss: true }); }
       if (hs === 'bun' || hs === 'updo') ell('hair', HCX + place(0, -3.4).x, HCY - 7.6 + (back ? 1 : 0) - (hs === 'updo' ? 1.2 : 0), hs === 'updo' ? 3.4 : 2.8, hs === 'updo' ? 3 : 2.5, 'hair', { gloss: true });
       if (hs === 'beehive') ell('hair', HCX + place(0, -1).x, HCY - 7.4, 5.8 * Math.max(.75, Math.abs(ca)) + 1, 5.6, 'hair', { gloss: true });
-      if (hs === 'flattop') trap('hair', HCX + place(0, -.6).x, HCY - 12.4, HCY - 4, HRX - .4, HRX + .2, 'hair', { cr: .6 });
+      if (hs === 'flattop') trap('hair', HCX + place(0, -.6).x, HCY - 9.4, HCY - 4, HRX - .6, HRX - .1, 'hair', { cr: .5 });
+      if (hs === 'side' && !back) { const a1 = place(-2.2, 1.5), a2 = place(-2.2, -2); limb('hair', HCX + a1.x, HCY - 7.4, HCX + a2.x, HCY - 6.6, .22, .22, 'skin'); ell('hair', HCX + place(1.6, .6).x, HCY - 7, 3.6, 1.6, 'hair', { gloss: true }); } /* the part, and the hair combed over */
+      if (hs === 'braids') { ell('hair', HCX + place(0, -4).x, HCY - 1.6, 2.4, 2.2, 'hair', { gloss: true }); ell('hair', HCX + place(0, -4.2).x, HCY + 1.2, 2, 1.8, 'hair', { gloss: true }); } /* braids pinned up at the nape */
       if (hs === 'mohawk') { const p = place(0, -1); limb('hair', HCX + place(0, 4).x, HCY - 7.2, HCX + place(0, -5).x, HCY - 6.6, 2.2, 2.2, 'hair', { gloss: true }); }
       if (hs === 'pigtails') for (const lx of [-6.6, 6.6]) { const p = place(lx, -1.6); if (p.d > -4) ell('hair', HCX + p.x * 1.15, HCY - 2.6, 2.4, 2.8, 'hair', { gloss: true }); }
       if (hs === 'swoop') { const p = place(-2, 4); ell('hair', HCX + p.x, HCY - 5.8, 4.4, 2.4, 'hair', { gloss: true }); }
@@ -384,11 +404,11 @@ export function fromLook(o) {
   const top = civ ? (o.top || ['tee', 'tee', 'jacket', 'hoodie', 'dress', 'tank', 'button', 'tee'][Math.floor(rr(2) * 8)]) : 'uniform';
   const acc = civ ? (o.acc || ['none', 'none', 'backpack', 'bag', 'phone', 'coffee', 'shopping', 'shades', 'none'][Math.floor(rr(3) * 9)]) : 'none';
   const pants = K ? K.pants : o.pants || '#3b4a5c', shirt = K ? K.shirt : o.shirt || '#c0392b', skin = o.skin || '#e0b48f';
-  const old = civ && !o.kid && AG !== 'teen' && (o.old != null ? o.old : rr(13) < .13);
+  const old = civ && !o.kid && !o.me && AG !== 'teen' && (o.old != null ? o.old : rr(13) < .13);
   const hair = senior && !o.hair ? (elder ? '#eef0f3' : '#c4c9d1') : old ? ['#d1d5db', '#e5e7eb', '#9ca3af'][Math.floor(rr(14) * 3)] : o.hair || '#2b1d14', jacket = JACK[Math.floor(rr(4) * JACK.length)];
   const hs = o.hs != null ? o.hs : Math.floor(rr(5) * 9);
   const shoe = K ? (K.boots || '#111216') : o.shoes || ['#16181d', '#eeeeee', '#5d4037', '#16181d', '#b91c1c'][Math.floor(rr(6) * 5)];
-  const bare = (K && K.shorts) || (civ && top !== 'dress' && rr(7) < .12);
+  const bare = (K && K.shorts) || (civ && (o.me ? !!o.shorts : top !== 'dress' && rr(7) < .12));
   const bwv = o.build === 'heavy' ? 1.16 : o.build === 'slim' ? .9 : civ ? .92 + rr(1) * .22 : 1;
   const D = { hair: HS[hs % 9], age: elder ? 'elder' : senior ? 'senior' : o.kid ? 'teen' : null, build: bwv > 1.08 ? 'heavy' : bwv < .95 ? 'slim' : 'avg', cols: { skin, hair, pants, shoe, top: shirt } };
   if (o.kid && !o.s) D.scale = .78; else if (AG === 'teen') D.scale = .94; // o.s (overall size) is applied when the sprite is drawn, not here
@@ -406,17 +426,19 @@ export function fromLook(o) {
     D.top = tk; if (top === 'jacket') { D.cols.top = jacket; D.cols.top2 = shirt; } if (top === 'hoodie') { D.cols.top = shadeHex(shirt, .85); if (rr(11) < .4) D.hood = 1; } if (top === 'button') D.placket = 1, D.cols.top2 = shadeHex(shirt, .8);
     if (acc === 'backpack') { D.pack = 1; D.cols.pack = shadeHex(jacket, 1.25); } if (acc === 'bag') { D.bag = 1; D.cols.strap = '#3b2a1c'; } if (acc === 'phone') D.prop = 'phone'; if (acc === 'coffee') D.prop = 'coffee'; if (acc === 'shades') D.glasses = 'shades';
     if (acc === 'shopping') { D.prop = 'bag'; D.cols.bag = ['#f5f5f5', '#c0392b', '#2980b9', '#f5b800'][Math.floor(rr(8) * 4)]; }
-    const hat = rr(9) < .14 ? 'cap' : rr(9) < .2 ? 'beanie' : rr(9) < .25 ? 'straw' : null; if (hat) { D.hat = { kind: hat }; D.cols.hat = ['#1f2937', '#b91c1c', '#1d4ed8', '#f5f5f5', '#166534'][Math.floor(rr(10) * 5)]; if (hat === 'straw') D.cols.hat = ['#f5e6c8', '#e9d5a1', '#fde68a', '#f5f5f5'][Math.floor(rr(15) * 4)]; D.cols.hat2 = shadeHex(D.cols.hat, .72); }
+    const hat = o.me ? null : rr(9) < .14 ? 'cap' : rr(9) < .2 ? 'beanie' : rr(9) < .25 ? 'straw' : null; if (hat) { D.hat = { kind: hat }; D.cols.hat = ['#1f2937', '#b91c1c', '#1d4ed8', '#f5f5f5', '#166534'][Math.floor(rr(10) * 5)]; if (hat === 'straw') D.cols.hat = ['#f5e6c8', '#e9d5a1', '#fde68a', '#f5f5f5'][Math.floor(rr(15) * 4)]; D.cols.hat2 = shadeHex(D.cols.hat, .72); }
     if (elder && o.cane !== false) D.prop = D.prop || 'cane'; }
   // who they are (persona.js): a man or a woman, and what they'd wear to work
   // a passer-by with no stated sex still gets one, steady for their look, so nobody is half one and half the other
   const SX = o.sex || (civ && o.ph != null ? (rr(30) < .5 ? 'f' : 'm') : null);
   if (SX) { const HF = ['long', 'ponytail', 'bun', 'braids', 'waves', 'long', 'ponytail', 'long', 'updo'], HM = ['short', 'buzz', 'swoop', 'side', 'messy', 'flattop', 'afro', 'short', 'locs'], grown = !o.kid && AG !== 'teen';
-    if (o.hs == null) D.hair = (SX === 'f' ? HF : HM)[Math.floor(rr(17) * 9)];
+    if (o.hs == null && !o.hst) D.hair = (SX === 'f' ? HF : HM)[Math.floor(rr(17) * 9)];
     if (SX === 'm' && grown && senior && rr(18) < .35) D.hair = 'bald';
     if (SX === 'm' && D.top && D.top.kind === 'dress') { D.top = { kind: 'shirt' }; D.placket = 1; D.cols.top2 = shadeHex(shirt, .8); }
-    if (SX === 'm' && grown && !o.beard && rr(19) < .3) { D.beard = ['stache', 'goatee', 'full'][Math.floor(rr(20) * 3)]; D.cols.beard = D.cols.hair; }
-    if (SX === 'f') { delete D.beard; D.fem = 1; if (D.glasses === 'shades') delete D.glasses; if (D.hat && D.hat.kind === 'cap') delete D.hat; /* nothing hides the face or the hair */ if (K && ['long', 'waves', 'curly', 'updo'].indexOf(D.hair) >= 0) D.hair = rr(29) < .5 ? 'bun' : 'ponytail'; /* hair up in uniform */ } }
+    if (SX === 'm' && grown && !o.beard && !o.me && rr(19) < .3) { D.beard = ['stache', 'goatee', 'full'][Math.floor(rr(20) * 3)]; D.cols.beard = D.cols.hair; }
+    if (SX === 'f') { delete D.beard; D.fem = 1; if (D.glasses === 'shades' && !o.me) delete D.glasses; if (D.hat && D.hat.kind === 'cap' && !o.me) delete D.hat; /* nothing hides the face or the hair */ if (K && ['long', 'waves', 'curly', 'updo'].indexOf(D.hair) >= 0) D.hair = rr(29) < .5 ? 'bun' : 'ponytail'; /* hair up in uniform */ } }
+  if (o.hst) D.hair = o.hst; // your own hair, as you chose it
+  { const MK = (K && K.marks) || o.marks; if (MK && MK.length) { D.marks = MK.slice(); D.cols.crease = shadeHex(D.cols.top || shirt, 1.22); } const pr = (K && K.prop) || (o.me && o.prop); if (pr && !D.prop) D.prop = pr; }
   const J = o.job; if (J && !K) {
     const dark = ['#1f2937', '#334155', '#3f3f46', '#1e293b', '#44403c'][Math.floor(rr(21) * 5)], light = ['#f8fafc', '#e0f2fe', '#fef3c7', '#f1f5f9'][Math.floor(rr(22) * 4)];
     const tidy = () => { delete D.pack; delete D.bag; delete D.hood; delete D.shorts; if (D.prop === 'bag') delete D.prop; if (D.glasses === 'shades') delete D.glasses; if (D.hat && ['cap', 'beanie', 'straw'].indexOf(D.hat.kind) >= 0) delete D.hat; };
