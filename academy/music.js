@@ -17,6 +17,11 @@ function dyn(m, b, s) { const p = (b * 16 + s) / 16, sec = sectionOf(b);
 const MOTIF_IN = 'r:16 4:3/2 7:1/2 6:1/3 7:1/3 6:1/3 4:1 r:4 4:3/2 7:1/2 6:1/3 7:1/3 6:1/3 4:1 1:4', MOTIF_OUT = '4:3 7:1 6:2/3 7:2/3 6:2/3 4:2 0:8 r:16';
 const LEADX = 1.7, BANDX = .82, DUCK = .72; // melody up, band down a touch, and the band ducks under each melody note
 const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+// the pyramid of sound (owner's call, 2026-11-27): the lower the note, the louder it sits, and every step up the register
+// is softer, because high notes carry over low ones on their own. A note loses about half its level every octave and a
+// half up (bass around D2 ~1.3, chords around D3 ~0.8, melodies up top ~0.5); drums follow the same rule by weight.
+const PYR = (m) => Math.min(1.7, Math.max(.45, Math.pow(2, -(m - 45) / 18)));
+const DRUMK = { impact: 1.25, taiko: 1.2, timp: 1.15, kick: 1.1, tom: 1, conga: .9, snare: .8, ghost: 1, clap: .8, brush: .8, rim: .75, hat: .7, open: .65, shaker: .65, ride: .6, crash: .6 };
 const SCALES = { maj: [0, 2, 4, 5, 7, 9, 11], min: [0, 2, 3, 5, 7, 8, 10], dor: [0, 2, 3, 5, 7, 9, 10], mix: [0, 2, 4, 5, 7, 9, 10] };
 // the theme: scale degree and length in beats ('r' is a rest). Two four-bar phrases.
 const THEME = [[2, 1], [4, 1], [5, 2], [4, 1], [2, 1], [1, 2], [0, 1], [1, 1], [2, 2], ['r', 4],
@@ -99,7 +104,7 @@ export function createMusic(getCtx) {
   }
   // ---- instruments: each call schedules one note ----
   function voice(L, kind, m, t, dur, v, pan) {
-    v *= L.gainK || 1; // a swelling intro scales every voice
+    v *= (L.gainK || 1) * PYR(m) * (L.m && L.m.hiK && m > 64 ? L.m.hiK : 1); // a swelling intro scales every voice; the pyramid weighs each note by its register (hiK: a track with bright instruments trims its top further)
     const a = ctx(), f = hz(m), g = a.createGain(), p = a.createStereoPanner ? a.createStereoPanner() : null; let endT = t + dur;
     const dest = (L.route === 'lead' && L.leadBus) || (L.route === 'band' && L.bandBus) || L.bus; // the melody gets its own lane in the mix
     if (p) { p.pan.value = pan || 0; g.connect(p); p.connect(dest); } else g.connect(dest);
@@ -148,7 +153,7 @@ export function createMusic(getCtx) {
     oscs.forEach((o) => { o.start(t); o.stop(endT + .1); });
     return { g, end: endT };
   }
-  function drum(L, kind, t, v) { v *= L.gainK || 1; // the kit follows the dynamics too
+  function drum(L, kind, t, v) { v *= (L.gainK || 1) * (DRUMK[kind] || 1); // the kit follows the dynamics, and the pyramid: heavy drums up, cymbals down
     const a = ctx(), g = a.createGain(), p = a.createStereoPanner ? a.createStereoPanner() : null;
     if (kind === 'ghost') return drum(L, 'snare', t, v * .22);
     if (kind === 'conga') { if (p) { p.pan.value = -.35; g.connect(p); p.connect(L.bus); } else g.connect(L.bus); const o = a.createOscillator(); o.frequency.setValueAtTime(240, t); o.frequency.exponentialRampToValueAtTime(175, t + .1); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.09 * v, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + .22); o.connect(g); o.start(t); o.stop(t + .25); return; }
@@ -291,7 +296,7 @@ export function createMusic(getCtx) {
       if (!on) return; const a = ctx(), t = a.currentTime + .05, L = { bus: master };
       // every signal is a piece of the Port Meridian hook (A, up to D, the C-D-C turn, A, then G-A E D), so players learn one tune and hear it everywhere
       const seq = { accept: [[69, 0], [74, .12], [72, .2]], done: [[69, 0], [74, .12], [72, .2], [69, .3], [64, .46], [65, .6], [62, .7], [74, .7]], promo: [[69, 0], [74, .16], [72, .26], [69, .38], [76, .56], [74, .7], [62, .9], [69, .9], [77, .9]], fail: [[64, 0], [62, .26]], p1: [[74, 0], [74, .1], [72, .2], [74, .3], [69, .48]], grade: [[69, 0], [74, .1], [72, .18], [69, .26], [76, .4]], gradeS: [[69, 0], [72, .1], [69, .2], [74, .32], [78, .46], [81, .46]], card: [[50, 0], [57, 0], [62, .3], [69, .3], [72, .6], [76, .6]], set: [[69, 0], [72, .08], [74, .16], [81, .26]] }[kind] || [];
-      seq.forEach(([n, d]) => { voice(L, kind === 'fail' ? 'mute' : 'horns', n, t + d, kind === 'promo' ? 1.4 : .7, .04, 0); voice(L, 'rhodes', n, t + d, .9, .03, 0); });
+      seq.forEach(([n, d]) => { voice(L, kind === 'fail' ? 'mute' : 'horns', n, t + d, kind === 'promo' ? 1.4 : .7, .04 * 1.9, 0); voice(L, 'rhodes', n, t + d, .9, .03 * 1.9, 0); /* lifted to sit as before over the pyramid */ });
     },
     // a timed cue: every note at its own time, for music scored to picture (the briefing). events: {k, m, t, d, v, p} for
     // a note (seconds), {k, t, v} for a drum. Plays on the same instruments and hall as the score.

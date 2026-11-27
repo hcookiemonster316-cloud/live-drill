@@ -175,15 +175,15 @@ export function installEpic(H) {
       .concat([['castillo', 'Twenty-two years, and I keep a list of every cadet who called me "ma\'am" on their first day. You\'re on it. You\'re also on my other list. The short one.'], ['narr', 'Sergeant Castillo pins the badge on your chest. Her hands are steady. For once, her voice isn\'t.'], ['castillo', 'Officer ' + H.S.cs + '. Go keep them safe.']]), () => credits(), { kicker: 'GRADUATION · FLORIDA BASIC RECRUIT TRAINING', voiced: true });
   }
   function credits() {
-    H.setMood('title'); const st = H.S.stats || {}, cast = ['Sgt. Dana Castillo', 'Lt. Okonkwo', 'Velvet (Dispatch)', 'Officer Pike', 'Det. Navarro', 'Lena Marsh', 'Cadet Devin Vance'];
+    H.setMood('title'); const stopCue = H.creditsMusic ? H.creditsMusic() : null; /* "Last Watch", the credits' own score */ const st = H.S.stats || {}, cast = ['Sgt. Dana Castillo', 'Lt. Okonkwo', 'Velvet (Dispatch)', 'Officer Pike', 'Det. Navarro', 'Lena Marsh', 'Cadet Devin Vance'];
     const nums = [['Calls cleared', H.S.calls || st.calls || 0], ['S-rank calls', st.callS || 0], ['Friends made', Object.keys(H.S.npc || {}).filter((k) => H.S.npc[k] >= 3).length], ['Field journal pages', Object.keys(H.S.lore || {}).length], ['Ledger pages', Object.keys(S.clues).length + ' / ' + CLUES.length], ['Endings seen', Object.values(S.endings).reduce((a, e) => a + Object.keys(e).length, 0) + ' / 15']];
     const el = document.createElement('div'); el.className = 'gradCred';
     el.innerHTML = '<div class="gcRoll"><h1>PATROL CITY</h1><p class="gcSub">' + esc(H.studio || 'Meridian Forge') + '</p><h3>Your watch</h3>' + nums.map((n) => '<div class="gcRow"><span>' + esc(n[0]) + '</span><b>' + esc(String(n[1])) + '</b></div>').join('') +
       '<h3>Starring</h3><p class="gcBig">' + esc(H.S.cs) + '</p><h3>With</h3>' + cast.map((c) => '<p>' + esc(c) + '</p>').join('') + '<h3>And the people of Port Meridian</h3><p class="gcSmall">' + H.NPCS.map((n) => esc(n.name)).join(' · ') + '</p>' +
       '<h3>Made for</h3><p>Florida Basic Recruit Training Program cadets</p><h3>Special thanks</h3><p>Exhibit A, for her patience</p><p class="gcEnd">Thank you for keeping Port Meridian safe.</p></div><button type="button" class="icSkip">Close ▸</button>';
     document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on')); H.pause(true); busy = true;
-    const close = () => { el.classList.add('out'); setTimeout(() => { el.remove(); H.pause(false); busy = false; H.setMood(null); H.banner('🎓', 'Graduated', 'Officer ' + H.S.cs + '. Port Meridian is yours to keep patrolling.'); }, 700); };
-    el.querySelector('.icSkip').onclick = close; setTimeout(close, 52000);
+    const close = () => { if (stopCue) stopCue(); el.classList.add('out'); setTimeout(() => { el.remove(); H.pause(false); busy = false; H.setMood(null); H.banner('🎓', 'Graduated', 'Officer ' + H.S.cs + '. Port Meridian is yours to keep patrolling.'); }, 700); };
+    el.querySelector('.icSkip').onclick = close; setTimeout(close, 70000); // as long as the score, so the motif lands
   }
 
   // ================= 10. district reputation =================

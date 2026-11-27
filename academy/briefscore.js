@@ -10,7 +10,7 @@
 //   bars 9-10   "Own it. Learn it."       still climbing: horns on the theme over the choir, taiko pulse, a heartbeat
 //   bars 11-12  "On your feet."           a snare roll and a rising choir on the dominant, then half a beat of silence
 //   bars 13-14  the title                 the biggest braam and impact, then the Port Meridian motif, broad
-//   all along   heavy low end: a sub under the harmony, braams (low brass and an impact) on each section's downbeat
+//   all along   the pyramid of sound: the lower the voice, the louder it sits; heavy low end: a sub under the harmony, braams (low brass and an impact) on each section's downbeat
 export const BPM = 72, BEAT = 60 / BPM, BAR = 4 * BEAT, CUTS = [0, 1, 3, 5, 7, 9, 11, 13, 15].map((b) => b * BAR);
 
 const CH = { Dm: [50, 53, 57, 62], Bb: [46, 50, 53, 58], C: [48, 52, 55, 60], F: [53, 57, 60, 65], Gm: [43, 50, 55, 58], A: [45, 52, 57, 61], D: [50, 54, 57, 62] };
@@ -76,6 +76,7 @@ export function briefScore() {
   for (const e of E) if (e.d) e.v *= 1.6; // the orchestra sits up with the drums, not under them
   // one long build: everything grows from the first light to the title, and the title is the biggest moment of all
   for (const e of E) e.v *= e.t >= T - .01 ? 1.15 : .55 + .45 * Math.pow(e.t / T, 1.15);
+  // the pyramid of sound is applied by the instruments themselves (music.js), as it is for all the music
   return E;
 }
 export const CUE_LEN = 15 * BAR + 4; // the last chord rings past the title

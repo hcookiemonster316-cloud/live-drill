@@ -1,3 +1,4 @@
+import { ORIG } from './scoreorig.js';
 // The Patrol City soundtrack, volume three: a cop-show jazz-funk band (Rhodes, clavinet, wah guitar, finger bass,
 // horns, tenor sax, muted trumpet, vibes, a breakbeat kit) playing one theme, "Port Meridian". Every situation has two
 // arrangements; there are three themes: "Port Meridian" (the main theme), "End of Watch" (the heart) and "All Units"
@@ -269,6 +270,14 @@ for (const id in TRACKS) { const t = TRACKS[id], w = WEIGHT(id); if (/^title_/.t
   if (!t.choir) t.choirB = { v: .009 * w + .004 }; if (!t.choir2) t.choir2 = { v: .013 * w + .005 };
   if (!t.drone && w >= .8) t.drone = { v: .012 };
   if (t.intro === 'band' || !t.intro) t.intro = 'swell'; if (t.outro === 'band' || !t.outro) t.outro = 'final'; }
+// every track but the main title sings its own original melody (scoreorig.js); the Port Meridian hook is snuck into
+// some intros and bridges, and the main title keeps it whole
+for (const id in ORIG) if (TRACKS[id]) Object.assign(TRACKS[id], ORIG[id]);
+// bright instruments (bells, vibes, marimba, plucks) put their overtones in the mids, so these tracks trim notes above E4
+// further to keep the pyramid: each step up the spectrum quieter than the one below (measured on the rendered files)
+Object.assign(TRACKS.inside_3, { hiK: .5 }); Object.assign(TRACKS.title_3, { hiK: .62 });
+// the two ballads: the melody up an octave on the lead lane (which has its own presence lift) and soft brushes carry the mids
+[TRACKS.inside_3, TRACKS.title_3].forEach((t) => { ['lead', 'leadB'].forEach((k) => { if (t[k]) t[k] = Object.assign({}, t[k], { v: t[k].v * .6 }); }); if (t.drums) t.drums = Object.assign({}, t.drums, { v: t.drums.v * .55 }); if (t.band && t.band.rhodes) t.band = Object.assign({}, t.band, { rhodes: Object.assign({}, t.band.rhodes, { v: t.band.rhodes.v * .55 }) }); t.pad = { v: .03 }; }); // the bell-like Rhodes down, and a low pad for body under it [TRACKS.debrief_2, TRACKS.friend_3, TRACKS.unit_sro].forEach((t) => { t.hiK = .72; });
 export const META = {}; for (const k in TRACKS) META[k] = { name: TRACKS[k].name, bpm: TRACKS[k].bpm };
 // which tracks play for each situation, in rotation
 export const ROTATION = {};
