@@ -26,7 +26,9 @@ const { chromium } = require('playwright');
   console.log('next step', JSON.stringify(call));
   // with Bell's number, the debrief can be a call: the button shows on the objective bar, and the scene opens on the phone
   await a.evaluate(() => { const pc = window.__pc; pc.S.contacts = Object.assign({}, pc.S.contacts, { bell: { name: 'Engineer Bell' } }); });
-  await a.waitForSelector('#objCall', { timeout: 6000 }).catch(async () => fail.push('no call button for a step with someone in your contacts: ' + await a.evaluate(() => { const e = document.getElementById('objBar'); return (e ? e.hidden + ' ' + e.innerHTML.slice(0, 200) : 'no bar') + ' scene=' + window.__pc.dbg().scene + ' ' + JSON.stringify(window.__pc.phoneable()) + ' KEY=' + (e && e.dataset.t) + ' TAIL=' + (e && e.innerHTML.slice(-160)); })));
+  // a loot reveal or a lore card from the first step waits for a tap and pauses the clock (and the objective bar) until it gets one
+  for (let i = 0; i < 20 && !(await a.$('#objCall')); i++) { await a.evaluate(() => { document.querySelectorAll('.rv').forEach((x) => { x.click(); const k = x.querySelector('[data-a="keep"]'); if (k) k.click(); }); document.querySelectorAll('.lorePop [data-a]:not([data-a="read"])').forEach((x) => x.click()); }); await a.waitForTimeout(400); }
+  await a.waitForSelector('#objCall', { timeout: 6000 }).catch(() => fail.push('no call button for a step with someone in your contacts'));
   if (await a.$('#objCall')) { await a.screenshot({ path: 'w_phone.png' }); await a.evaluate(() => document.getElementById('objCall').click());
     await a.waitForFunction(() => /work cell|call Engineer Bell/i.test((document.querySelector('.sceneCap, #dlgP') || {}).innerText || '') || /call Engineer Bell|work cell/i.test(document.body.innerText), null, { timeout: 6000 }).catch(() => fail.push('the step did not open as a phone call')); }
   console.log(fail.length ? 'ERRORS ' + fail.join(' / ') : 'no errors'); await b.close(); process.exit(fail.length ? 1 : 0);

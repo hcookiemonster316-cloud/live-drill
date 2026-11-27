@@ -1822,9 +1822,13 @@ function stepHint(nx) {
 }
 const He = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 // a step with someone on your phone: step aside and call instead of driving over (the work cell, not the radio)
-function phoneable(st) { if (!st || !st.who || st.give || st.take || st.need || st.twist) return false; const n = TEMP[st.who] || CAST[st.who] || NPCS.find((x) => x.id === st.who); return OFFICERISH(st.who) || (!!n && hasCell(st.who, n.name)); }
+// one name for whoever a step is with: someone met this shift, the cast, a unit lead, a resident, or a saved contact
+function stepName(id) { const n = TEMP[id] || CAST[id] || UNIT_CAST[id] || NPCS.find((x) => x.id === id); if (n && n.name) return n.name; const c = (S.contacts || {})[id] || (S.cell || {})[id]; return c && c.name ? c.name : null; }
+// the objective bar asks every frame; the answer only changes with the step or your numbers, so it is worked out once per change
+let PHC = { st: null, c: null, l: null, v: -1, r: false }, CONTACT_V = 0;
+function phoneable(st) { if (!st || !st.who || st.give || st.take || st.need || st.twist) return false; if (PHC.st === st && PHC.c === S.contacts && PHC.l === S.cell && PHC.v === CONTACT_V) return PHC.r; const nm = stepName(st.who); if (!nm) return false; /* a name can arrive later in the shift, so no answer is kept without one */ PHC = { st, c: S.contacts, l: S.cell, v: CONTACT_V, r: OFFICERISH(st.who) || hasCell(st.who, nm) }; return PHC.r; }
 let PHONE_STEP = null;
-function phoneStep() { const A = activeQ(), st = A && A.step; if (!phoneable(st) || storyBusy || scene || !$('dlg').hidden) return; const n = TEMP[st.who] || CAST[st.who] || NPCS.find((x) => x.id === st.who) || { name: 'them' }; PHONE_STEP = n.name; stat('phoneSteps'); playStep(st); }
+function phoneStep() { const A = activeQ(), st = A && A.step; if (!phoneable(st) || storyBusy || scene || !$('dlg').hidden) return; PHONE_STEP = stepName(st.who) || 'them'; stat('phoneSteps'); playStep(st); }
 function playStep(st) {
   if (st.need && !S.qitems[st.need]) { const it = QITEMS[st.need]; toast('You need ' + (it ? it.icon + ' ' + it.name : 'something') + ' for this. Check Quest Items.'); storyCool = 4; return; }
   storyBusy = true; paused = true; P.path = []; const byPhone = PHONE_STEP; PHONE_STEP = null;
@@ -1892,8 +1896,8 @@ function objectiveHud() {
     objSet(el, Math.atan2(ty - py, tx - px), Math.round(d * 4) * 5 + ' ft'); return; } }
   if (!st || !t || scene) { if (!el.hidden) el.hidden = true; return; }
   const d = Math.hypot(t.x - P.x, t.y - P.y), [tx, ty] = iso(t.x, t.y), [px, py] = iso(P.x, P.y), ang = Math.atan2(ty - py, tx - px);
-  const txt = t.exit ? 'Head outside: ' + st.goal : st.goal, ph = phoneable(st) && d >= 2.5, key = txt + (ph ? '|p' : '');
-  if (el.dataset.t !== key) { el.dataset.t = key; const n = ph ? (TEMP[st.who] || CAST[st.who] || NPCS.find((x) => x.id === st.who)) : null; el.innerHTML = '<i class="objArr">➤</i><span><small>' + (A.side ? 'Side case · ' : '') + esc(A.title) + '</small><b>' + esc(txt) + '</b></span><em id="objD"></em>' + (n ? '<button type="button" class="objCall" id="objCall">📱 Call ' + esc(n.name) + '</button>' : ''); el.classList.toggle('side', !!A.side); const cb = $('objCall'); if (cb) cb.onclick = (e) => { e.stopPropagation(); phoneStep(); }; }
+  const txt = t.exit ? 'Head outside: ' + st.goal : st.goal, nm = phoneable(st) && d >= 2.5 ? stepName(st.who) : null, key = txt + (nm ? '|p' + nm : '');
+  if (el.dataset.t !== key) { el.dataset.t = key; el.innerHTML = '<i class="objArr">➤</i><span><small>' + (A.side ? 'Side case · ' : '') + esc(A.title) + '</small><b>' + esc(txt) + '</b></span><em id="objD"></em>' + (nm ? '<button type="button" class="objCall" id="objCall">📱 Call ' + esc(nm) + '</button>' : ''); el.classList.toggle('side', !!A.side); const cb = $('objCall'); if (cb) cb.onclick = (e) => { e.stopPropagation(); phoneStep(); }; }
   objSet(el, ang, d < 2.5 ? 'here' : Math.round(d * 4) * 5 + ' ft');
 }
 function storyMarker(now) {
@@ -2082,8 +2086,8 @@ const TEMP_IDS = /^(caller|cit|amb|staff|busker|truck|mate|partner|evp|inc|serve
 const contactKey = (id, name) => (TEMP_IDS.test(id) ? 'n:' + name : id);
 const hasCell = (id, name) => !!(S.cell || {})[id] || !!(S.contacts || {})[contactKey(id, name || '')];
 const OFFICERISH = (id) => !!(id && (id === 'castillo' || CAST[id] || UNIT_CAST[id] || /^(officer|plain|dispatch)$/.test((castLook(id) || {}).job || '')));
-function addContact(id, n) { S.contacts = S.contacts || {}; const k = contactKey(id, n.name); if (S.contacts[k]) return; S.contacts[k] = { name: n.name, role: n.role || '', d: W ? W.did : 0, at: Date.now() }; saveS(); toast('📇 You and ' + n.name + ' swapped numbers. You can call each other now.'); stat('contacts'); }
-function cellCheck(id) { if (!id || hasCell(id) || (S.npc[id] || 0) < 3) return; /* friends have it already */ const n = NPCS.find((x) => x.id === id) || TEMP[id]; if (!n || n.cat) return; S.cell = S.cell || {}; S.cell[id] = 1; toast('📱 You gave ' + n.name + ' your work cell. Next time they see something, they can call you directly.'); }
+function addContact(id, n) { S.contacts = S.contacts || {}; const k = contactKey(id, n.name); if (S.contacts[k]) return; CONTACT_V++; S.contacts[k] = { name: n.name, role: n.role || '', d: W ? W.did : 0, at: Date.now() }; saveS(); toast('📇 You and ' + n.name + ' swapped numbers. You can call each other now.'); stat('contacts'); }
+function cellCheck(id) { if (!id || hasCell(id) || (S.npc[id] || 0) < 3) return; /* friends have it already */ const n = NPCS.find((x) => x.id === id) || TEMP[id]; if (!n || n.cat) return; S.cell = S.cell || {}; S.cell[id] = 1; CONTACT_V++; toast('📱 You gave ' + n.name + ' your work cell. Next time they see something, they can call you directly.'); }
 function tipsUpdate(dt) { if (!hasSk('com4') || inside) return; tipT -= dt; if (tipT > 0) return; tipT = 120 + Math.random() * 80; const r = regs.filter((x) => (S.npc || {})[x.n.id] > 0); const c = FX.caches.find((x) => !x.shown) || null; if (!r.length) return; const who = r[Math.floor(Math.random() * r.length)].n; const tip = (msg) => hasCell(who.id) ? radio('📱 ' + who.name + ' (work cell)', msg) : radio('Dispatch', who.name + ' called the non-emergency line and asked us to pass this to you: ' + msg); /* people call it in, or call your work cell if you gave them the number */
   if (c) { c.shown = true; tip('There\'s something out on the street you should see. I marked where.'); } else { const o = newObserve(); o.seen = true; observes.push(o); tip('Something doesn\'t look right near ' + esc(W.D.name) + '. Thought you should know.'); } }
 // the skill tree screen
