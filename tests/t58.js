@@ -7,7 +7,8 @@ const { chromium } = require('playwright');
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(400); await a.click('#mDone'); await a.waitForTimeout(3000);
   for (let k = 0; k < 14; k++) { await a.evaluate(() => { document.querySelectorAll('.lorePop [data-a]:not([data-a="read"])').forEach((x) => x.click()); /* a well-traveled save queues several lore cards */ const b = [...document.querySelectorAll('button')].find((x) => /back to patrol|keep patrolling|save for later/i.test(x.innerText) && x.offsetParent); if (b) b.click(); }); await a.waitForTimeout(500); }
   await a.waitForTimeout(4000);
-  await a.evaluate(() => document.querySelector('#bPause').click()); await a.waitForTimeout(500);
+  // a lore card can still land late on a slow machine; clear it, then open the pause menu and wait for it
+  for (let k = 0; k < 20 && !(await a.$('.pmBox [data-i]')); k++) { await a.evaluate(() => { document.querySelectorAll('.lorePop [data-a]:not([data-a="read"])').forEach((x) => x.click()); if (!document.querySelector('.lorePop')) document.querySelector('#bPause').click(); }); await a.waitForTimeout(600); }
   console.log('has NG item:', await a.evaluate(() => [...document.querySelectorAll('.pmBox [data-i]')].some((x) => /new game\+/i.test(x.innerText))));
   await a.evaluate(() => [...document.querySelectorAll('.pmBox [data-i]')].find((x) => /new game\+/i.test(x.innerText)).click()); await a.waitForTimeout(500);
   await a.screenshot({ path: 'ng1.png' });

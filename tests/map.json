@@ -236,6 +236,9 @@
   "stage.js": [
    "tstage"
   ],
+  "storycine.js": [
+   "tstory"
+  ],
   "subjects.js": [
    "t96"
   ],
