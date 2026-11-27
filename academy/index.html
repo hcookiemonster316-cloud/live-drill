@@ -26,7 +26,7 @@
 <link rel="modulepreload" href="events.js">
 <link rel="modulepreload" href="feel.js">
 <link rel="modulepreload" href="friends.js">
-<link rel="modulepreload" href="friends2.js"><link rel="modulepreload" href="friendsx.js"><link rel="modulepreload" href="emotions.js"><link rel="modulepreload" href="recap.js"><link rel="modulepreload" href="callvoice.js"><link rel="modulepreload" href="conduct.js"><link rel="modulepreload" href="units.js"><link rel="modulepreload" href="persona.js"><link rel="modulepreload" href="creator.js"><link rel="modulepreload" href="reach.js">
+<link rel="modulepreload" href="investigate.js"><link rel="modulepreload" href="friends2.js"><link rel="modulepreload" href="friendsx.js"><link rel="modulepreload" href="emotions.js"><link rel="modulepreload" href="recap.js"><link rel="modulepreload" href="callvoice.js"><link rel="modulepreload" href="conduct.js"><link rel="modulepreload" href="units.js"><link rel="modulepreload" href="persona.js"><link rel="modulepreload" href="creator.js"><link rel="modulepreload" href="reach.js">
 <link rel="modulepreload" href="interiors.js">
 <link rel="modulepreload" href="items.js">
 <link rel="modulepreload" href="learn.js">
@@ -822,6 +822,14 @@ body.cine #nod{bottom:auto;top:calc(92px + env(safe-area-inset-top))} /* in a sc
 .readyBar>i{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--g1);border-radius:2px}
 .readyWeak{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:6px}.readyWeak li{display:flex;justify-content:space-between;gap:10px;font-size:.88rem}
 .readyWeak small{opacity:.7;white-space:nowrap}
+.ivTabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}.ivTabs button{flex:1 1 auto;min-height:40px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);font-weight:700;font-size:.84rem}.ivTabs button.on{background:rgba(245,184,0,.18);border-color:var(--gold)}.ivTabs button:disabled{opacity:.45}
+.ivBody{min-height:150px}.ivBody .woOpt{display:block;width:100%;margin:6px 0}.ivBody #woNext,.ivBody #ivSend{width:100%;min-height:44px;margin-top:8px;border-radius:12px;background:var(--gold);color:var(--navy);font-weight:800}
+.ivSay{margin:4px 0 8px;font-size:.94rem;line-height:1.45}.ivSay b{color:var(--gold)}
+.ivDoors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:6px 0 10px}.ivDoor{display:grid;gap:2px;min-height:62px;padding:8px;border-radius:12px;border:1.5px solid rgba(147,197,253,.4);background:rgba(59,130,246,.08);text-align:left}.ivDoor b{font-size:.84rem;overflow-wrap:anywhere}.ivDoor small{font-size:.72rem;color:var(--soft)}.ivDoor.seen{border-color:rgba(245,184,0,.5);background:rgba(245,184,0,.08)}.ivDoor:disabled{cursor:default}
+@media (max-width:520px){.ivDoors{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ivCam{display:block;width:100%;height:auto;aspect-ratio:320/150;border-radius:10px;border:2px solid #111827;image-rendering:pixelated;background:#111}.ivScrub{width:100%;margin:10px 0 4px;accent-color:#f5b800}.ivCamRow{display:flex;align-items:center;gap:10px;justify-content:space-between}.ivCamRow span{font:700 1.05rem 'Meridian Text',monospace}.ivCamRow button{min-height:42px;padding:0 16px;border-radius:10px;background:var(--gold);color:var(--navy);font-weight:800}.ivCamRow button:disabled{opacity:.4}
+.ivNotes{margin:12px 0 0;padding-top:10px;border-top:1px dashed var(--line);display:flex;flex-wrap:wrap;gap:6px}.ivNotes small{width:100%;color:var(--soft);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase}.ivChip{padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid var(--line);font-size:.8rem}.ivChip em{font-style:normal;color:var(--soft);font-size:.72rem}
+.ivRow{display:grid;grid-template-columns:90px minmax(0,1fr);gap:8px;align-items:center;margin:6px 0}.ivRow span{font-weight:700;font-size:.88rem}.ivRow select{min-height:42px;border-radius:10px;padding:0 8px;background:#0b1428;color:var(--ink);border:1px solid var(--line);font-size:.88rem;max-width:100%}
 .woWrap{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:14px;align-items:start;margin:4px 0 10px}
 @media (max-width:520px){.woWrap{grid-template-columns:1fr}.woCar{max-height:36vh;width:auto;justify-self:center}}
 .woOn #dlg,.woOn #dlgRadio{visibility:hidden}.woLbl{font:700 8px 'Meridian Text',system-ui,sans-serif;letter-spacing:.08em;fill:rgba(226,232,240,.75);pointer-events:none}
