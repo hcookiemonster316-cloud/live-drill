@@ -26,7 +26,7 @@
 <link rel="modulepreload" href="events.js">
 <link rel="modulepreload" href="feel.js">
 <link rel="modulepreload" href="friends.js">
-<link rel="modulepreload" href="friends2.js"><link rel="modulepreload" href="friendsx.js"><link rel="modulepreload" href="emotions.js"><link rel="modulepreload" href="recap.js"><link rel="modulepreload" href="callvoice.js"><link rel="modulepreload" href="reach.js">
+<link rel="modulepreload" href="friends2.js"><link rel="modulepreload" href="friendsx.js"><link rel="modulepreload" href="emotions.js"><link rel="modulepreload" href="recap.js"><link rel="modulepreload" href="callvoice.js"><link rel="modulepreload" href="conduct.js"><link rel="modulepreload" href="units.js"><link rel="modulepreload" href="reach.js">
 <link rel="modulepreload" href="interiors.js">
 <link rel="modulepreload" href="items.js">
 <link rel="modulepreload" href="learn.js">
@@ -1269,6 +1269,25 @@ body.phHud .stopBtn{bottom:calc(172px + var(--safe-b))}
 .vgPt.on circle:first-child{fill:rgba(245,184,0,.3);stroke:#f5b800}.vgPt.on circle:last-child{fill:#f5b800}
 @media (prefers-reduced-motion:reduce){.vgMini,.vgCard{transition:none}.vgBar i{animation-duration:5s}}
 .chWay{margin:2px auto 10px;max-width:34em;font-size:.92rem;line-height:1.4;color:var(--ink)}.chWay b{display:block;font:800 .72rem 'Meridian Text',system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#f5b800;margin-bottom:3px}
+/* career board (units.js) and your file (conduct.js) */
+.uCard.lock{opacity:.92}.uCard.lock .uIco{filter:grayscale(.6)}.uCard.have{border-top-color:var(--uc)}
+.uCard .uTop em{font-style:normal;font-size:.72rem;color:#cbd5e1}.uCard.have .uTop em{color:#86efac}
+.uReq{display:grid;gap:4px;margin-top:2px}.uReq div{display:grid;grid-template-columns:1fr auto;column-gap:8px;font-size:.72rem;color:#cbd5e1}.uReq div .rchBar{grid-column:1/-1;margin-top:2px;height:4px}.uReq div b{font-weight:700;color:#e2e8f0}.uReq div.ok b{color:#86efac}.uReq div.ok .rchBar i{background:#22c55e}
+.uTry{justify-self:start;padding:4px 10px;border-radius:999px;background:var(--uc);color:#0b1020;font-weight:700;font-size:.78rem}
+.cdFile{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);font-size:.82rem}.cdTop{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}.cdTop .rchBar{margin:0}
+.cdFile ul{margin:8px 0 0;padding-left:18px}.cdFile li{margin:3px 0;color:#cbd5e1}.cdFile li b{color:#fca5a5}.cdDeb{color:#fcd34d;margin:6px 0 0}.cdPast{color:#94a3b8;margin:6px 0 0}
+.stUnit{font-size:.9rem}
+/* the end of a career: FIRED / ARRESTED */
+body.wasted #trToast,body.wasted .lorePop,body.wasted .banner,body.wasted #toast{visibility:hidden}
+body.wasted #view{filter:grayscale(1) contrast(1.1) brightness(.75);transition:filter 1.6s}
+.endCareer{position:fixed;inset:0;z-index:400;display:grid;place-items:center;align-content:center;gap:18px;padding:24px 16px;background:radial-gradient(ellipse at 50% 45%,rgba(4,6,12,.62),rgba(4,6,12,.94));opacity:0;transition:opacity 1.2s}
+.endCareer.on{opacity:1}
+.ecStamp{font-family:'Meridian',sans-serif;font-weight:700;font-size:clamp(3rem,13vw,7.5rem);letter-spacing:.06em;color:#dc2626;text-shadow:0 4px 0 #450a0a,0 0 40px rgba(220,38,38,.45);transform:scale(1.6) rotate(-4deg);opacity:0;transition:transform .55s cubic-bezier(.2,1.4,.4,1) .35s,opacity .3s .35s}
+.endCareer.arrested .ecStamp{color:#e5e7eb;text-shadow:0 4px 0 #1e3a8a,0 0 40px rgba(59,130,246,.5)}
+.endCareer.on .ecStamp{transform:scale(1) rotate(-4deg);opacity:1}
+.ecBody{max-width:560px;text-align:center;color:#e2e8f0;opacity:0;transform:translateY(10px);transition:opacity .8s,transform .8s}.endCareer.body .ecBody{opacity:1;transform:none}
+.ecBody p{margin:8px 0;line-height:1.5}.ecWhy{font-size:1.05rem;color:#fff}.ecCs{color:#94a3b8;font-size:.85rem}.ecKeep{color:#86efac;font-size:.85rem}
+.ecBtns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:14px}.ecBtns button{padding:12px 16px;border-radius:12px;font-weight:700;border:0;background:var(--gold);color:#0b1020;cursor:pointer}.ecBtns button+button{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25)}
 </style>
 </head>
 <body>

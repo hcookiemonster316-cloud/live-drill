@@ -3,7 +3,7 @@
 const { chromium } = require('playwright');
 (async () => { const b = await chromium.launch(); const a = await b.newPage({ viewport: { width: 420, height: 860 } }); const errs = []; a.on('pageerror', (e) => errs.push(e.message));
   await a.goto('http://localhost:8765/academy/?mock&skiptitle');
-  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Adam-12', home: 0, unlocked: [0], shift: 'day', unit: 'k9', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, ucalls: { k9: 4, patrol: 12 }, cfg: { callCine: false, text: 'instant' } })));
+  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Adam-12', home: 0, unlocked: [0], shift: 'day', unit: 'k9', unitsV: 1, units: { patrol: 1, k9: 1 }, xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, ucalls: { k9: 4, patrol: 12 }, cfg: { callCine: false, text: 'instant' } })));
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.evaluate(() => { const m = document.getElementById('mDone'); if (m) m.click(); }); await a.waitForFunction(() => window.__pc && window.__pc.CAR, null, { timeout: 20000 });
   const r = await a.evaluate(() => { const pc = window.__pc, C = pc.CAR, S = pc.S, out = {};
     out.t0 = C.title('k9'); out.sig0 = [...Array(200)].some(() => !!C.sigCall()); C.onCall(); out.t1 = C.title('k9'); out.rung1 = C.rung('k9');

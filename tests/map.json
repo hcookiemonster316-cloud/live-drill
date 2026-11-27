@@ -25,6 +25,9 @@
   "citysound.js": [
    "tsound"
   ],
+  "conduct.js": [
+   "tconduct"
+  ],
   "coop.js": [
    "t65"
   ],
@@ -220,6 +223,9 @@
   ],
   "together.js": [
    "tsq"
+  ],
+  "units.js": [
+   "tunits"
   ],
   "variety.js": [
    "t89",
