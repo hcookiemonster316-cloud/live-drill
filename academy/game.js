@@ -3758,7 +3758,7 @@ function drsTick(now, ms) {
 let FE_EL = null, coverN = 0;
 // the driving course covers the whole screen with its own canvas: the city underneath isn't drawn while it's open
 let DRILL_EL = null;
-function covered() { const e = FE_EL || (FE_EL = $('fe')); if (!DRILL_EL || !DRILL_EL.isConnected) DRILL_EL = document.getElementById('drill'); const c = !!DRILL_EL || !e.hidden && (e.classList.contains('menuBg') || (paused && e.classList.contains('pauseBg'))); coverN = c ? coverN + 1 : 0; return coverN > 18; }
+function covered() { const e = FE_EL || (FE_EL = $('fe')); if (!DRILL_EL || !DRILL_EL.isConnected) DRILL_EL = document.getElementById('drill'); const c = !!DRILL_EL || BRIEF.on || !e.hidden && (e.classList.contains('menuBg') || e.classList.contains('boot') /* the boot screens and the studio cards are opaque: the city behind them isn't drawn */ || (paused && e.classList.contains('pauseBg'))); coverN = c ? coverN + 1 : 0; return coverN > 18; }
 // while the game is paused behind a conversation and the camera has settled, the street only has slow ambient motion
 // (a tree sway, a blinking light), so it is redrawn every other frame; anything faster brings back every frame
 let QS = 0;
