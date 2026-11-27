@@ -8,6 +8,7 @@
 // (scoredata.js) and every other sound is synthesized here. Plays once per new cadet; replay it from the main menu.
 // Loop: the academy is the frame. Reads the cadet (name, call sign) and the city (districts); feeds the start screen.
 import { sprite, fromLook } from './pixelfolk.js';
+import { BAR } from './briefscore.js';
 
 const W = 480, H = 270, NUM = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
 export function installBriefing(X) {
@@ -20,7 +21,7 @@ export function installBriefing(X) {
   function hum(on) { const a = A(); if (!a) return; if (on && !humN) { const o = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain(); o.type = 'sawtooth'; o.frequency.value = 60; f.type = 'lowpass'; f.frequency.value = 240; g.gain.value = .0001; g.gain.exponentialRampToValueAtTime(.018 * vol(), a.currentTime + .6); o.connect(f).connect(g).connect(a.destination); o.start(); humN = { o, g }; }
     if (!on && humN) { const n = humN; humN = null; n.g.gain.exponentialRampToValueAtTime(.0001, a.currentTime + .5); n.o.stop(a.currentTime + .6); } }
   function beat(at) { const a = A(); if (!a) return; [0, .22].forEach((d, k) => { const t = a.currentTime + (at || 0) + d, o = a.createOscillator(), g = a.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(k ? 52 : 64, t); o.frequency.exponentialRampToValueAtTime(34, t + .16); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime((k ? .22 : .34) * vol(), t + .015); g.gain.exponentialRampToValueAtTime(.0001, t + .28); o.connect(g).connect(a.destination); o.start(t); o.stop(t + .3); }); }
-  function riser(dur) { const a = A(); if (!a) return; const t = a.currentTime, s = noise(a, dur), f = a.createBiquadFilter(), g = a.createGain(); f.type = 'bandpass'; f.Q.value = 6; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(5200, t + dur); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.16 * vol(), t + dur * .95); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .05); s.connect(f).connect(g).connect(a.destination); s.start(t); }
+  function riser(dur) { const a = A(); if (!a) return; const t = a.currentTime, s = noise(a, dur), f = a.createBiquadFilter(), g = a.createGain(); f.type = 'bandpass'; f.Q.value = 6; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(5200, t + dur); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.08 * vol(), t + dur * .95); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .05); s.connect(f).connect(g).connect(a.destination); s.start(t); }
   function key(at) { const a = A(); if (!a) return; const t = a.currentTime + (at || 0), o = a.createOscillator(), g = a.createGain(); o.type = 'square'; o.frequency.value = 1900 + Math.random() * 500; g.gain.setValueAtTime(.012 * vol(), t); g.gain.exponentialRampToValueAtTime(.0001, t + .02); o.connect(g).connect(a.destination); o.start(t); o.stop(t + .03); }
 
   // ---------- pictures: drawn once per shot, then only the light moves ----------
@@ -45,7 +46,10 @@ export function installBriefing(X) {
     if (kind === 'map') { g.fillStyle = '#0b1630'; g.fillRect(150, 22, 180, 100); const n = D.length; D.forEach((d, i) => { const on = t > .5 + i * .55, x = 160 + (i % 4) * 42, y = 32 + Math.floor(i / 4) * 44; g.fillStyle = on ? d.color : '#1e2a44'; g.globalAlpha = on ? 1 : .6; g.fillRect(x, y, 36, 36); g.globalAlpha = 1; if (on) { g.fillStyle = '#0b1630'; g.font = '700 6px "Meridian Text",monospace'; g.fillText(d.name.split(' ')[0].toUpperCase().slice(0, 10), x + 2, y + 33); } }); }
     g.restore(); }
   // the one light: the projector beam from behind the class, onto the screen
-  function beam(g, k) { const gr = g.createLinearGradient(240, H, 240, 22); gr.addColorStop(0, 'rgba(255,244,214,0)'); gr.addColorStop(1, 'rgba(255,244,214,' + (.16 * k) + ')'); g.fillStyle = gr; g.beginPath(); g.moveTo(232, H); g.lineTo(150, 22); g.lineTo(330, 22); g.lineTo(248, H); g.closePath(); g.fill(); }
+  // the beam is painted once at full strength and stamped at the strength each frame needs (no new gradient per frame)
+  let BEAM = null;
+  function beam(g, k) { if (!BEAM) { const [c, b] = C(W, H), gr = b.createLinearGradient(240, H, 240, 22); gr.addColorStop(0, 'rgba(255,244,214,0)'); gr.addColorStop(1, 'rgba(255,244,214,.3)'); b.fillStyle = gr; b.beginPath(); b.moveTo(232, H); b.lineTo(150, 22); b.lineTo(330, 22); b.lineTo(248, H); b.closePath(); b.fill(); BEAM = c; }
+    const a = Math.min(1, .16 * k / .3); if (a <= 0) return; g.globalAlpha = a; g.drawImage(BEAM, 0, 0); g.globalAlpha = 1; }
   function shade(g, k) { if (k < 1) { g.fillStyle = 'rgba(2,4,10,' + (1 - k) + ')'; g.fillRect(0, 0, W, H); } }
   // Castillo up close: her sprite, large, cropped to the shoulders, lit from the screen
   function close(g, t, push) { const lk = X.castLook('castillo') || { officer: true, sex: 'f' }, s = spr(lk, 0, 'cas0'), sc = 7 + push * t; g.fillStyle = '#0c1220'; g.fillRect(0, 0, W, H); const gr = g.createRadialGradient(150, 40, 10, 150, 40, 360); gr.addColorStop(0, 'rgba(255,244,214,.18)'); gr.addColorStop(1, 'rgba(255,244,214,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
@@ -59,40 +63,48 @@ export function installBriefing(X) {
   function shots(D) {
     const nm = X.addressed ? X.addressed() : 'Cadet', cs = S.cs || null;
     return [
-      { d: 4.2, cap: ['', 'PORT MERIDIAN POLICE ACADEMY · BRIEFING ROOM B · 0547 HOURS'], go: () => { [0, .35, .5, 1.4, 1.55, 2.2].forEach((x) => flick(x)); setTimeout(() => hum(true), 2200); },
+      { d: BAR, cap: ['', 'PORT MERIDIAN POLICE ACADEMY · BRIEFING ROOM B · 0547 HOURS'], go: () => { [0, .35, .5, 1.4, 1.55, 2.2].forEach((x) => flick(x)); setTimeout(() => hum(true), 2200); },
         draw: (g, t) => { g.drawImage(room(), 0, 0); screenArt(g, 'badge', t); const on = t > 2.2 ? 1 : [0, .35, .5, 1.4, 1.55].some((x) => t > x && t < x + .08) ? .6 : 0; shade(g, on * .55); if (t > 2.2) beam(g, Math.min(1, (t - 2.2) * 2)); } },
-      { d: 6.5, cap: ['Sgt. Castillo', 'Eyes up. Phones down. This is the last briefing you get as a classroom.'], go: () => X.music('brief'),
+      { d: 2 * BAR, cap: ['Sgt. Castillo', 'Eyes up. Phones down. This is the last briefing you get as a classroom.'],
         draw: (g, t) => { const z = 1 + t * .012; g.save(); g.translate(W / 2, H / 2); g.scale(z, z); g.translate(-W / 2, -H / 2); g.drawImage(room(), 0, 0); screenArt(g, 'badge', t); shade(g, .55); beam(g, 1); const lk = X.castLook('castillo') || { officer: true, sex: 'f' }, s = spr(lk, 0, 'cas0'); g.drawImage(s, 381 - 24 * 1.25, 152 - 61 * 1.25, 60, 80); g.restore(); } },
-      { d: 6.5, cap: ['Sgt. Castillo', 'Tomorrow the city does the teaching. It does not grade on a curve, and it does not forget.'], go: () => beat(.2),
+      { d: 2 * BAR, cap: ['Sgt. Castillo', 'Tomorrow the city does the teaching. It does not grade on a curve, and it does not forget.'],
         draw: (g, t) => close(g, t, .08) },
-      { d: 7.5, cap: ['Sgt. Castillo', NUM[D.length] + ' districts. Every call you take, every door you knock on, every promise you make, the city remembers.'], go: () => [0, 1, 2, 3].forEach((k) => beat(.6 + k * 1.6)),
+      { d: 2 * BAR, cap: ['Sgt. Castillo', NUM[D.length] + ' districts. Every call you take, every door you knock on, every promise you make, the city remembers.'], 
         draw: (g, t) => { const z = 1.12 + t * .025; g.save(); g.translate(240, 72); g.scale(z, z); g.translate(-240, -72); g.drawImage(room(), 0, 0); screenArt(g, 'map', t, D); shade(g, .62); beam(g, 1); g.restore(); } },
-      { d: 6, cap: ['Dispatch', 'All units, stand by.'], go: () => { for (let k = 0; k < 40; k++) key(k * .11); X.chirp(); [0, 1, 2, 3, 4].forEach((k) => beat(k * .9)); },
+      { d: 2 * BAR, cap: ['Dispatch', 'All units, stand by.'], go: () => { for (let k = 0; k < 40; k++) key(k * .11); X.chirp(); },
         draw: (g, t) => cad(g, t, ['P1  BURGLARY JUST OCCURRED  BAYFRONT MALL', 'P2  WELL-BEING CHECK  RIVERSIDE APTS', 'P1  VEHICLE FAILS TO STOP  HARBOR BLVD', 'P2  CHILD RAN INTO THE ROAD  EASTGATE', 'P3  CITIZEN NEEDS ASSISTANCE  CENTRAL']) },
-      { d: 7.5, cap: ['Sgt. Castillo', 'Some calls you will get wrong. Own it. Learn it. Do it right the next time.'], go: () => beat(.1),
+      { d: 2 * BAR, cap: ['Sgt. Castillo', 'Some calls you will get wrong. Own it. Learn it. Do it right the next time.'],
         draw: (g, t) => close(g, t, .16) },
-      { d: 6.5, cap: ['Sgt. Castillo', 'Doing it right is not the slow way. It is the only way. On your feet.'], go: () => { riser(6.2); },
-        draw: (g, t) => { g.drawImage(room(), 0, 0); screenArt(g, 'badge', t); shade(g, .5 - Math.min(.3, t * .05)); beam(g, 1 + t * .1); const lk = X.castLook('castillo') || { officer: true, sex: 'f' }, s = spr(lk, 0, 'cas0'); g.drawImage(s, 381 - 30, 152 - 76, 60, 80); if (t > 4.6) { g.fillStyle = 'rgba(255,255,255,' + Math.min(.9, (t - 4.6) * .6) + ')'; g.fillRect(0, 0, W, H); } } },
-      { d: 5.5, cap: ['', (cs ? nm + ', ' + cs + '. ' : nm + '. ') + 'Port Meridian is waiting.'], title: true, go: () => X.boom(),
+      { d: 2 * BAR, cap: ['Sgt. Castillo', 'Doing it right is not the slow way. It is the only way. On your feet.'], go: () => { riser(2 * BAR - .45); },
+        draw: (g, t) => { g.drawImage(room(), 0, 0); screenArt(g, 'badge', t); shade(g, .5 - Math.min(.3, t * .05)); beam(g, 1 + t * .1); const lk = X.castLook('castillo') || { officer: true, sex: 'f' }, s = spr(lk, 0, 'cas0'); g.drawImage(s, 381 - 30, 152 - 76, 60, 80); if (t > 5.2) { g.fillStyle = 'rgba(255,255,255,' + Math.min(.9, (t - 5.2) * .9) + ')'; g.fillRect(0, 0, W, H); } } },
+      { d: 2 * BAR, cap: ['', (cs ? nm + ', ' + cs + '. ' : nm + '. ') + 'Port Meridian is waiting.'], title: true,
         draw: (g, t) => { g.fillStyle = '#05080f'; g.fillRect(0, 0, W, H); const k = Math.min(1, t * 3); g.globalAlpha = k; const gr = g.createRadialGradient(240, 120, 4, 240, 120, 260); gr.addColorStop(0, 'rgba(245,184,0,.22)'); gr.addColorStop(1, 'rgba(245,184,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H); g.globalAlpha = 1; } }];
   }
+  // ---------- the score: "Hold the Line" (briefscore.js), rendered to an MP3 and started on the first frame ----------
+  let CUE = null, cueSrc = null, cueGain = null;
+  function prefetch() { if (CUE || !S.sound) return CUE; const a = X.audio(); if (!a) return null; CUE = fetch('music/brief_cue.mp3' + (X.mv || '')).then((r) => r.arrayBuffer()).then((b) => new Promise((ok, no) => a.decodeAudioData(b, ok, no))).catch(() => null); return CUE; }
+  function cueStart(buf) { const a = A(); if (!a || !buf) return; cueGain = a.createGain(); cueGain.gain.value = .9 * (S.cfg && S.cfg.music != null ? S.cfg.music : .8); cueSrc = a.createBufferSource(); cueSrc.buffer = buf; cueSrc.connect(cueGain).connect(a.destination); cueSrc.start(); }
+  function cueStop(fast) { const a = A(); if (!a || !cueSrc) return; const t = a.currentTime, s0 = cueSrc; cueGain.gain.cancelScheduledValues(t); cueGain.gain.setValueAtTime(cueGain.gain.value, t); cueGain.gain.linearRampToValueAtTime(0, t + (fast ? .6 : 3.5)); setTimeout(() => { try { s0.stop(); } catch (e) {} }, fast ? 700 : 3600); cueSrc = null; }
   // ---------- the player ----------
   let live = null;
   function play(done) {
-    if (live) return; const D = X.districts(), cut = shots(D), el = document.createElement('div'); el.className = 'brief';
+    if (live) return; if (S.sound) { X.musicStop(); const p = prefetch(); if (p) { live = { end: () => {} }; const go = (buf) => { live = null; run(done, buf); }; let fired = false; const once = (b) => { if (!fired) { fired = true; go(b); } }; p.then(once); setTimeout(() => once(null), 2500); return; } }
+    run(done, null);
+  }
+  function run(done, buf) { const D = X.districts(), cut = shots(D), el = document.createElement('div'); el.className = 'brief';
     el.innerHTML = '<div class="bfBars t"></div><canvas class="bfCv" width="' + W + '" height="' + H + '"></canvas><div class="bfBars b"></div><div class="bfTitle" hidden><h1><span>PATROL</span><span>CITY</span></h1><p>Learn it on the street.</p></div><div class="bfCap"><b></b><p></p></div><button type="button" class="bfSkip">Skip ›</button>';
     document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
     const cv = el.querySelector('.bfCv'), g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
     const capB = el.querySelector('.bfCap b'), capP = el.querySelector('.bfCap p');
     let i = -1, t0 = 0, raf = 0, typed = 0;
-    const end = () => { if (!live) return; live = null; cancelAnimationFrame(raf); hum(false); S.seenBrief = 1; X.save(); el.classList.add('out'); setTimeout(() => { el.remove(); done && done(); }, 700); };
-    const next = () => { i++; if (i >= cut.length) return end(); const s = cut[i]; t0 = performance.now(); typed = 0; capB.textContent = s.cap[0]; capP.textContent = ''; el.querySelector('.bfCap').classList.toggle('narr', !s.cap[0]); el.querySelector('.bfTitle').hidden = !s.title; if (s.title) el.querySelector('.bfTitle').classList.add('in'); try { s.go && s.go(); } catch (e) {} };
+    const end = (natural) => { if (!live) return; live = null; cancelAnimationFrame(raf); hum(false); cueStop(natural !== true); S.seenBrief = 1; X.save(); el.classList.add('out'); setTimeout(() => { el.remove(); done && done(); }, 700); };
+    const next = () => { i++; if (i >= cut.length) return end(true); const s = cut[i]; t0 = performance.now(); typed = 0; capB.textContent = s.cap[0]; capP.textContent = ''; el.querySelector('.bfCap').classList.toggle('narr', !s.cap[0]); el.querySelector('.bfTitle').hidden = !s.title; if (s.title) el.querySelector('.bfTitle').classList.add('in'); try { s.go && s.go(); } catch (e) {} };
     const loop = (now) => { if (!live) return; const s = cut[i], t = (now - t0) / 1000; s.draw(g, t);
       const want = Math.min(s.cap[1].length, Math.floor(t * 38)); if (want !== typed) { typed = want; capP.textContent = s.cap[1].slice(0, typed); }
       if (t >= s.d) next(); raf = requestAnimationFrame(loop); };
     el.querySelector('.bfSkip').onclick = (e) => { e.stopPropagation(); end(); };
     addEventListener('keydown', function k(e) { if (!live) { removeEventListener('keydown', k); return; } if (e.key === 'Escape') end(); });
-    live = { end }; next(); raf = requestAnimationFrame(loop);
+    live = { end }; cueStart(buf); next(); raf = requestAnimationFrame(loop);
   }
-  return { play, get on() { return !!live; }, end: () => live && live.end() };
+  return { play, prefetch, get on() { return !!live; }, end: () => live && live.end() };
 }

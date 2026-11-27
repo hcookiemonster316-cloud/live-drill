@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
   await a.goto('http://localhost:8765/academy/?mock&skiptitle');
   await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Alpha-12', home: 0, unlocked: [0, 1, 2, 3, 4], shift: 'day', unit: 'patrol', xp: 9000, calls: 40, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 99, 1: 99, 2: 99, 3: 99, 4: 99 }, graduated: Date.now(), cards: { ch0: 1, ch1: 1, ch2: 1, ch3: 1, ch4: 1 }, titles: { 'Honor Cadet': 1 } })));
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(400); await a.click('#mDone'); await a.waitForTimeout(3000);
-  for (let k = 0; k < 5; k++) { await a.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /back to patrol|keep patrolling|save for later/i.test(x.innerText) && x.offsetParent); if (b) b.click(); }); await a.waitForTimeout(500); }
+  for (let k = 0; k < 14; k++) { await a.evaluate(() => { document.querySelectorAll('.lorePop [data-a]:not([data-a="read"])').forEach((x) => x.click()); /* a well-traveled save queues several lore cards */ const b = [...document.querySelectorAll('button')].find((x) => /back to patrol|keep patrolling|save for later/i.test(x.innerText) && x.offsetParent); if (b) b.click(); }); await a.waitForTimeout(500); }
   await a.waitForTimeout(4000);
   await a.evaluate(() => document.querySelector('#bPause').click()); await a.waitForTimeout(500);
   console.log('has NG item:', await a.evaluate(() => [...document.querySelectorAll('.pmBox [data-i]')].some((x) => /new game\+/i.test(x.innerText))));

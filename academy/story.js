@@ -3,7 +3,7 @@
 
 export const WORLD = {
   city: 'Port Meridian',
-  tagline: 'Field Immersion Program · Class 26-04',
+  tagline: 'Field Immersion Program · Class 26-10',
   intro: [
     'Port Meridian, Florida. A river town that grew into a county seat: citrus, then rail, then everything else.',
     'The Port Meridian Police Department built Patrol City to train its cadets: a full-scale replica of the real streets, every call based on something that really happened.',

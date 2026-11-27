@@ -106,6 +106,7 @@ import { installUnits, UNIT_QUESTS, UNIT_CAST } from './units.js';
 import { installInvestigate, installColdCases } from './investigate.js';
 import { installBriefing } from './brief.js';
 import { installIntranet } from './intranet.js';
+import { installSplash } from './splash.js';
 import { installReach } from './reach.js';
 import { ARCS } from './friends.js';
 import { createMusic } from './music.js';
@@ -872,11 +873,13 @@ const INV = installInvestigate({ S, esc, openModal: (h) => openModal(h), closeMo
   caseNote: (t) => CASE.note(t), addContact: (id, n) => addContact(id, n), coldAdd: (c, sp) => COLD.add(c, sp), nowMin: () => Math.round(hourNow() * 60) });
 const COLD = installColdCases({ S, did: () => (W ? W.did : 0), stat: (k) => stat(k), caseNote: (t) => CASE.note(t), sayAs: (i, o) => sayAs(i, o), dialogue: (l, d, o) => dialogue(l, d || (() => {}), o), award: (n, w) => award(n, w), toast: (t) => toast(t),
   ready: () => !ATTRACT && !looting && !loreBusy && !storyBusy && !scene && !paused && !inside && $('start').hidden && $('modal').hidden && fe().hidden && $('dlg').hidden && !document.querySelector('.lorePop, .tCard') }, INV);
+// the studio and engine cards (splash.js)
+const SPL = installSplash({ S, audio: () => audio() });
 // the menus as the department intranet (intranet.js): the title is the portal, every menu page wears the same shell
 const IX = installIntranet({ S, esc, hour: () => hourNow(), rank: () => L.rankOf(S.xp).name, ver: () => STUDIO.ver + ' · A ' + STUDIO.name.replace(/\b(\w)(\w*)/g, (m, a, b) => a + b.toLowerCase()) + ' production' });
 // the briefing before the start screen (brief.js): once per new cadet, and from the main menu
 const BRIEF = installBriefing({ S, esc, audio: () => audio(), boom: () => boom(), chirp: () => chirp(), castLook: (id) => castLook(id), districts: () => DISTRICTS, save: () => saveS(),
-  addressed: () => (S.lname ? 'Cadet ' + S.lname : 'Cadet'), music: (m) => { if (S.sound) { audio(); music.start(m); } } });
+  addressed: () => (S.lname ? 'Cadet ' + S.lname : 'Cadet'), musicStop: () => music.stop() });
 // echoes you can see: road hazards you report get fixed and stay fixed
 const ECHO = installEchoes({ S, T, N, W: () => W, shiftKey: () => MEM.shiftNo, saveS: () => saveS(), radio: (w, m) => radio(w, m), toast: (t) => toast(t), iso, hiCanvas, did: () => W.did, inside: () => !!inside, nearName: (x, y) => nearName(x, y) });
 // contrast and a color script: the shift's tension and closed cases color the screen
@@ -2257,7 +2260,7 @@ function titleScreen() {
   const t = $('title'); t.hidden = false;
   t.innerHTML = IX.home({ badge: '<div class="tiBadge"><svg viewBox="0 0 64 72"><defs><linearGradient id="tiG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset=".5" stop-color="#f5b800"/><stop offset="1" stop-color="#a86f00"/></linearGradient></defs><path d="M32 3l25 9v19c0 18-11 31-25 38C18 62 7 49 7 31V12z" fill="url(#tiG)" stroke="#5c3d00" stroke-width="1.6"/><path d="M32 10l19 7v14c0 14-8 24-19 30-11-6-19-16-19-30V17z" fill="#0b1630" stroke="#ffe27a" stroke-width="1.2"/><path d="M32 17l3 6.2 6.8 1-4.9 4.8 1.2 6.8-6.1-3.2-6.1 3.2 1.2-6.8-4.9-4.8 6.8-1z" fill="#ffe27a"/><text x="32" y="52" text-anchor="middle" font-family="Meridian,sans-serif" font-weight="800" font-size="8" fill="#ffe27a" letter-spacing="1">PMPD</text></svg></div>', sub: WORLD.city + ' · Field Immersion Program · ' + (WORLD.tagline.split('·')[1] || '').trim() + ' · ' + CHAPTER.name, pitch: PITCH,
     tools: '<button type="button" id="tiSnd">' + (S.sound ? '🔊 Sound on' : '🔇 Sound off') + '</button>' });
-  requestAnimationFrame(() => t.classList.add('in'));
+  requestAnimationFrame(() => t.classList.add('in')); if (!S.seenBrief) BRIEF.prefetch(); // the briefing's score loads while the title is up
   $('tiSnd').onclick = (e) => { e.stopPropagation(); S.sound = !S.sound; saveS(); $('tiSnd').textContent = S.sound ? '🔊 Sound on' : '🔇 Sound off'; if (S.sound) { audio(); music.start('title'); } else music.stop(); };
   let started = false; const go = () => { if (started) return; started = true; if (S.sound) { audio(); music.start('title'); } /* no audio engine at all until sound is on */ if (S.sound) { beep(392, .5, 'triangle', .05); beep(587, .7, 'triangle', .05, .15); } t.classList.add('out'); setTimeout(() => { t.hidden = true; t.classList.remove('in', 'out'); const on = () => { if (!S.seenIntro) coldOpen(startScreen); else startScreen(); }; if (!S.seenBrief && !FAST) BRIEF.play(() => { if (S.sound) music.start('title'); on(); }); else on(); }, 900); };
   mainMenu(go); t.onclick = null; if (S.sound) { audio(); music.volume(S.cfg.music); music.start('title'); }
@@ -3368,16 +3371,15 @@ function bootSequence(done) {
   el.onclick = go; addEventListener('keydown', function k(e) { if (el.querySelector('.bootGate')) { removeEventListener('keydown', k); go(); } });
   const logos = () => {
     const seq = [
-      '<div class="stLogo"><svg viewBox="0 0 120 120" class="stMark"><defs><linearGradient id="mfG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#c98a00"/></linearGradient></defs><circle cx="60" cy="60" r="54" fill="none" stroke="url(#mfG)" stroke-width="3" class="draw"/><path d="M60 18 L71 49 L104 49 L77 68 L87 100 L60 81 L33 100 L43 68 L16 49 L49 49 Z" fill="none" stroke="url(#mfG)" stroke-width="3" stroke-linejoin="round" class="draw d2"/><path d="M38 74h44M44 84h32" stroke="#ffe9a8" stroke-width="3" stroke-linecap="round" class="draw d3"/></svg><b>' + STUDIO.name + '</b><span>' + STUDIO.sub + '</span><i class="stSweep"></i></div>',
-      '<div class="stLogo eng"><div class="engMark"><i></i><i></i><i></i></div><b>' + STUDIO.engine + '</b><span>Real-time city simulation</span></div>',
       '<div class="advis fbrtp"><small>MADE FOR</small><h3>FBRTP Cadets</h3><p>Every fact in Port Meridian comes from the Florida Basic Recruit Training Program. Learn it on the street, then prove it in class.</p></div>',
       '<div class="advis"><h3>Training Simulation Advisory</h3><p>Patrol City is a training simulation. Every scenario uses <b>simulation rounds</b>. Nothing here replaces your agency\'s policy, your instructors, or the law.</p><p class="advSave"><span class="saveIco"></span>This game saves automatically. Don\'t close the page while this icon is showing.</p></div>'];
     let i = -1, tm = 0;
     const next = () => { clearTimeout(tm); i++; if (i >= seq.length) { el.onclick = null; el.classList.add('out'); setTimeout(() => { el.hidden = true; el.className = 'fe'; el.innerHTML = ''; done(); }, 700); return; }
-      el.innerHTML = '<div class="bootSlide">' + seq[i] + '</div><button type="button" class="bootSkip">Skip ›</button>'; if (i === 0) boom(); if (i === 1) [523, 784].forEach((f, k) => beep(f, .5, 'triangle', .03, k * .12));
+      el.className = 'fe boot'; el.innerHTML = '<div class="bootSlide">' + seq[i] + '</div><button type="button" class="bootSkip">Skip ›</button>';
       el.querySelector('.bootSkip').onclick = (e) => { e.stopPropagation(); i = seq.length - 1; next(); };
       tm = setTimeout(next, i === seq.length - 1 ? 4200 : 3200); };
-    el.onclick = next; next();
+    // the studio and the engine first, as their own cinematic cards (splash.js), then the advisories
+    el.onclick = null; SPL.play(el, () => { el.onclick = next; next(); }, () => { el.onclick = next; i = seq.length - 2; next(); });
   };
 }
 // ---- settings ----

@@ -1,6 +1,9 @@
 {
  "note": "Built by tests/mkmap.js. Module -> regression tests that exercise it. Core files (see run.sh) always add the quick set.",
  "map": {
+  "brief.js": [
+   "tbrief"
+  ],
   "builds.js": [
    "tbuilds"
   ],
