@@ -84,7 +84,7 @@ export const OPS = {
         S0('Try the knob and walk right in', [[C, '(over the radio) Not yet. You haven\'t got a reason to go in yet. Knock, announce, look around first.']])]],
       ['No answer. What next?', [
         S2('Check the windows and talk to the neighbors', [['narr', 'Through the back window you can see the TV on. A neighbor says she hasn\'t seen the lights change in two days.']]),
-        S1('Call the caller back for more information', [['velvet', '(over the radio) She says he takes heart medication and always answers by the second ring.']]),
+        S1('Call the caller back for more information', [['narr', 'You call the caller back on your work cell. She tells you he takes heart medication and always answers by the second ring.']]),
         S0('Leave a card on the door and clear the call', [[C, '(over the radio) Three days, car in the driveway, no answer? You don\'t leave. Keep working it.']])]],
       ['You have reason to think he needs help. How do you get in?', [
         S2('Get a key from the landlord or a family member', [['narr', 'The landlord lives two doors down. He jogs over with a key ring.']]),
