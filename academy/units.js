@@ -19,7 +19,8 @@ export const UNIT_CAST = {
   hoimoss: { name: 'Ofc. Calvin Reddick', icon: '🏠', role: 'Homeless outreach' },
   detrourke: { name: 'Det. Sgt. Ivy Rourke', icon: '🔎', role: 'Detective bureau' },
   sropak: { name: 'Ofc. Lorraine Pak', icon: '🎓', role: 'School resource officers' },
-  iacroft: { name: 'Lt. Adele Croft', icon: '🗂️', role: 'Internal Affairs' }
+  iacroft: { name: 'Lt. Adele Croft', icon: '🗂️', role: 'Internal Affairs' },
+  unionrep: { name: 'Sgt. Ruth Ann Lacombe', icon: '🤝', role: 'Union representative' }
 };
 
 // what each unit asks for. need: [label, value(H), target]. rank is an index into RANKS.
@@ -200,9 +201,18 @@ export function installUnits(H) {
       if (pass) { H.dialogue([[R.lead, call.pass]], () => accept(u, false), { noLeave: true }); }
       else { T.failSh = H.shiftNo(); T.fails = (T.fails || 0) + 1; H.saveS(); H.dialogue([[R.lead, (good ? 'Good instincts. ' : 'That last call is the one that matters most in my unit. ') + (res.right < 2 ? 'And you need the fundamentals cold. ' : '') + 'Try again next shift.']], null, { noLeave: true }); } }, { kicker: 'TRYOUT · ' + U.name.toUpperCase() });
   }
+  // the patch: in front of the squad at roll call, from the lead, with a word from your partner and from Castillo
   function accept(u, moved) {
     own()[u] = 1; trk()[u] = Object.assign(trk()[u] || {}, { at: Date.now(), moved: !!moved }); H.saveS(); H.stat('unitsEarned');
-    const U = UNITS.find((x) => x.id === u);
+    const U = UNITS.find((x) => x.id === u), R = UNIT_REQ[u], lead = H.who(R.lead).name, pt = H.partner();
+    const lines = [['narr', (moved ? 'After the envelope, ' : 'At the next roll call, ') + 'Castillo calls your name and the room goes quiet. ' + lead + ' walks up with a ' + U.name + ' patch in hand and pins it on your sleeve.'],
+      [R.lead, FIRSTDAY[u]]];
+    if (pt) lines.push([pt.id, H.pick('patchPt_' + pt.k, PARTNER_PATCH[pt.k] || PARTNER_PATCH.walsh)]);
+    lines.push(['castillo', H.pick('patchC', ['Patrol taught you to see the street. Don\'t stop seeing it now.', 'You earned that the slow way. That\'s the only way that lasts.', 'Every unit in this building still answers the radio. Remember that.'])]);
+    H.dialogue(lines, () => card(U, moved), { noLeave: true, kicker: 'ROLL CALL · ' + U.name.toUpperCase() });
+  }
+  function card(U, moved) {
+    const u = U.id;
     H.openModal('<div class="chEnd side"><span class="chKick">' + (moved ? 'Transfer order' : 'Tryout passed') + '</span><h2>' + U.icon + ' ' + esc(U.name) + '</h2><p>' + esc(U.perkText) + '</p><div class="chStamp">ACCEPTED</div><p class="chNext">Switch to it now, or any time from your career board. Patrol is always yours too.</p></div><div class="qAct"><button type="button" id="uNow">Switch to ' + esc(U.name) + '</button><button type="button" class="ghost" id="uLater">Later</button></div>');
     H.good(); document.getElementById('uNow').onclick = () => { H.closeModal(); H.switchTo(u); }; document.getElementById('uLater').onclick = H.closeModal;
   }
@@ -216,6 +226,22 @@ export function installUnits(H) {
   }
   return { bar, stage, has, own, tryout, transfer, accept, questDone, boardHtml, noticed, barOk };
 }
+
+// what the lead says as the patch goes on: your first day in the unit
+const FIRSTDAY = {
+  swat: 'Welcome to the team. First rule: you\'re never the first one through a door alone. Second rule: you bring coffee on Mondays.',
+  k9: 'Bosco already decided he likes you. Tomorrow you start learning how to read him. It takes years. Start now.',
+  neg: 'You listen like it matters. In this unit, it\'s the only tool we carry. Your first callout, you sit next to me and say nothing.',
+  marine: 'You\'re crew now. Life jacket on every time you step on the boat, even if it\'s ninety-eight degrees. Especially then.',
+  brt: 'No arrest, no report anyone reads, and somebody sleeps safe tonight. That\'s a good shift here. Welcome.',
+  hoi: 'Thursday, eight in the morning. Socks, water, and names. You\'ll learn every one of them.',
+  det: 'Desk by the window is yours. Nothing goes in a report that you can\'t prove. Nothing.',
+  sro: 'Five hundred kids, and every one of them is watching how you treat the one who\'s in trouble. Welcome to Eastside Middle.'
+};
+const PARTNER_PATCH = {
+  walsh: ['Look at you. I remember when you couldn\'t parallel park.', 'Don\'t forget who taught you to back into a parking spot.', 'Good. Somebody from this car should make it out of patrol.'],
+  park: ['That is so cool. Can I take a picture? For my notes.', 'Okay, I\'m writing down that I knew you before the patch.', 'You\'re going to be great at it. I mean that.']
+};
 
 // each unit's tryout call: the situation, the lead's line, and three ways to handle it (first is the one they want)
 const TRYCALL = {

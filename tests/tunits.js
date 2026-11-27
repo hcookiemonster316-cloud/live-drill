@@ -13,8 +13,10 @@ const { chromium } = require('playwright');
   await a.click('#stGo'); await a.waitForTimeout(300); await a.click('#mDone'); await a.waitForFunction(() => window.__pc && window.__pc.W, null, { timeout: 20000 });
   const clear = async () => { for (let i = 0; i < 8; i++) { await a.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /back to patrol|keep patrolling|just patrol|got it|close/i.test(x.innerText) && x.offsetParent && !x.closest('#dlg')); if (b) b.click(); }); await a.waitForTimeout(250); } };
   await a.waitForTimeout(2500); await clear();
-  const play = async (pick) => { for (let s = 0; s < 80; s++) { const st = await a.evaluate(() => { const d = document.getElementById('dlg'); if (d.hidden) return null; return { ch: [...d.querySelectorAll('.dlgOpts:not(.q) [data-k]:not([disabled])')].map((x) => x.innerText.replace(/\s+/g, ' ')), q: d.querySelectorAll('.dlgOpts.q [data-k]:not([disabled])').length }; });
-      if (!st) return; if (st.ch.length) { const i = Math.max(0, st.ch.findIndex((t) => pick.test(t))); await a.evaluate((i) => document.querySelectorAll('#dlg .dlgOpts:not(.q) [data-k]:not([disabled])')[i].click(), i); await a.waitForTimeout(350); continue; }
+  const play = async (pick) => { for (let s = 0; s < 80; s++) { const st = await a.evaluate(() => { const d = document.getElementById('dlg'); if (d.hidden) return null; return { tx: (d.querySelector('#dlgP') || {}).innerText || '', ch: [...d.querySelectorAll('.dlgOpts:not(.q) [data-k]:not([disabled])')].map((x) => x.innerText.replace(/\s+/g, ' ')), q: d.querySelectorAll('.dlgOpts.q [data-k]:not([disabled])').length }; });
+      if (!st) return; if (/Pins it on your sleeve/i.test(st.tx) && !global.__shot) { global.__shot = 1; await a.waitForTimeout(900); await a.screenshot({ path: 'w_units_patch.png' }); }
+      if (/Pins it on your sleeve|first one through a door|Thursday, eight|Bosco already/i.test(st.tx)) global.__cer = 1;
+      if (st.ch.length) { const i = Math.max(0, st.ch.findIndex((t) => pick.test(t))); await a.evaluate((i) => document.querySelectorAll('#dlg .dlgOpts:not(.q) [data-k]:not([disabled])')[i].click(), i); await a.waitForTimeout(350); continue; }
       if (st.q) { await a.evaluate(() => { const q = window.__curQ; const b = document.querySelector('#dlg .dlgOpts.q [data-k="' + (Array.isArray(q.c) ? q.c[0] : q.c) + '"]'); b.click(); const ok = document.getElementById('dlgOk'); if (ok) { ok.disabled = false; ok.click(); } }); await a.waitForTimeout(1100); continue; }
       await a.evaluate(() => document.getElementById('dlg').click()); await a.waitForTimeout(160); } };
   const s0 = await a.evaluate(() => ({ unit: window.__pc.S.unit, hoi: window.__pc.UNITX.stage('hoi'), swat: window.__pc.UNITX.stage('swat') }));
@@ -35,7 +37,8 @@ const { chromium } = require('playwright');
   await a.evaluate(() => window.__pc.careerBoard()); await a.waitForTimeout(400);
   await a.evaluate(() => document.querySelector('.uCard[data-u="hoi"]').click()); await a.waitForTimeout(800);
   await play(/shelter safe/i); await a.waitForTimeout(600);
-  const acc = await a.evaluate(() => !!document.getElementById('uNow')); if (!acc) fail.push('tryout passed but no acceptance');
+  await a.waitForFunction(() => !!document.getElementById('uNow'), null, { timeout: 8000 }).catch(() => {});
+  const acc = await a.evaluate(() => !!document.getElementById('uNow')); if (!acc) fail.push('tryout passed but no acceptance'); if (!global.__cer) fail.push('no patch ceremony at roll call');
   if (acc) { await a.evaluate(() => document.getElementById('uNow').click()); await a.waitForTimeout(2500); }
   const s1 = await a.evaluate(() => ({ unit: window.__pc.S.unit, units: Object.keys(window.__pc.S.units).sort().join() }));
   console.log('after tryout', JSON.stringify(s1)); if (s1.unit !== 'hoi' || s1.units !== 'hoi,patrol') fail.push('after tryout: ' + JSON.stringify(s1));

@@ -840,7 +840,7 @@ const UNITX = installUnits({ S, esc: (x) => esc(x), UNITS, rankIdx: () => rankId
   stat: (k) => (S.stat || {})[k] || 0, way: (k) => (S.ways || {})[k] || 0, trust: (d) => (S.trust || {})[d] || 50, bestTrust: () => Math.max(50, ...Object.values(S.trust || {}).map((x) => +x || 0)),
   facts: () => Object.keys(S.facts || {}).length, mastered: () => { let n = 0; for (let l = 0; l < 12; l++) if (L.mastery(S, l).done) n++; return n; }, unlocked: (d) => (S.unlocked || []).includes(d), districtName: (d) => DISTRICTS[d].name,
   sideClosed: (q) => !!q && sideClosed(q), sideLive: (q) => !!q && sideLive(q), toast: (t) => toast(t), who: (id) => TEMP[id] || CAST[id] || NPCS.find((n) => n.id === id) || { name: id }, pick: (k, a) => VAR.pick(k, a),
-  dialogue: (l, d, o) => dialogue(l, d || (() => {}), o), shiftNo: () => (S.stat || {}).shifts || 0, pickQs: (ls, n) => L.pickFacts(S, ls, n), saveS: () => saveS(), openModal: (h) => openModal(h), closeModal: () => closeModal(), good: () => good(), switchTo: (u) => switchUnit(u) });
+  dialogue: (l, d, o) => dialogue(l, d || (() => {}), o), shiftNo: () => (S.stat || {}).shifts || 0, pickQs: (ls, n) => L.pickFacts(S, ls, n), saveS: () => saveS(), openModal: (h) => openModal(h), closeModal: () => closeModal(), good: () => good(), switchTo: (u) => switchUnit(u), partner: () => VAR.partner() });
 const CV = installCallVoice({ pick: (k, a) => VAR.pick(k, a), partnerId: () => { const p = VAR.partner(); return p ? p.id : null; } });
 // choices that come back: people and places remember what you did and bring it up later (memory.js)
 // nothing else is on screen or going on: free to start a street moment
@@ -1582,6 +1582,7 @@ const exprOf = (t) => { const m = EXPR_RE.find(([re]) => re.test(t || '')); retu
 const EXPRC = new WeakMap(); // one look object per expression, so its portrait sprite is drawn once
 function exprLook(lk, ex) { if (!ex || ex === 'calm' || lk.cat) return lk; let m = EXPRC.get(lk); if (!m) EXPRC.set(lk, m = {}); return m[ex] || (m[ex] = Object.assign({}, lk, { folk: Object.assign({}, lk.folk || folkFromLookG(lk), { expr: ex }), _spr: null })); }
 function dialogue(lines, done, opts) { QUIET_T = Date.now();
+  { const lp = document.querySelector('.lorePop:not(.out)'); if (lp && lp.__yield) lp.__yield(); } // nothing sits on top of a conversation
   opts = opts || {}; const box = $('dlg'); let seq = lines.slice(), i = -1, typing = null, full = '', auto = !!(S.cfg && S.cfg.autoDlg), skipping = false, autoT = 0, alive = true, lastSp = null, lastName = '';
   const res = { right: 0, n: 0, choices: [] }; let said = '', lastC = null;
   const flow = !S.cfg || S.cfg.dlgFlow !== false; // smart flow: merge short lines, radio in a strip, captions, beats
@@ -2014,6 +2015,7 @@ function lorePop() {
   if (S.sound) [523, 659, 784, 1047, 1319].forEach((f, i) => beep(f, .5, 'sine', .025, i * .11));
   const close = (read) => { el.classList.remove('in'); el.classList.add('out'); setTimeout(() => { cancelAnimationFrame(raf); el.remove(); paused = false; loreBusy = false; if (read) { jTab = 'lore'; JLORE = e.id; journal(); } else setTimeout(lorePop, 400); }, 380); };
   el.querySelectorAll('[data-a]').forEach((b) => b.onclick = (ev) => { ev.stopPropagation(); close(b.dataset.a === 'read'); });
+  el.__yield = () => { cancelAnimationFrame(raf); el.remove(); loreBusy = false; paused = false; loreQ.unshift(es); setTimeout(lorePop, 700); }; // a conversation that starts now goes first; the card comes back after it
 }
 let JLORE = null;
 const LORE_DIST = {}; DISTRICTS.forEach((D) => { const put = (x) => { if (Array.isArray(x) && x[1]) LORE_DIST[x[1]] = D.name; else if (x && x.strip) x.strip.forEach(put); }; D.lots.forEach(put); });

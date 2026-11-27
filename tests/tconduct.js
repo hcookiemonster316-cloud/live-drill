@@ -14,9 +14,10 @@ const { chromium } = require('playwright');
   const clear = async () => { for (let i = 0; i < 8; i++) { await a.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /back to patrol|keep patrolling|just patrol|got it|close|later/i.test(x.innerText) && x.offsetParent && !x.closest('#dlg') && !x.closest('.endCareer')); if (b) b.click(); }); await a.waitForTimeout(250); } };
   await a.waitForTimeout(2500); await clear();
   // play a dialogue to the end, choosing options whose text matches pick (or the first)
+  const SEEN = [];
   const play = async (pick, shot) => { let shotDone = false;
-    for (let s = 0; s < 80; s++) { const st = await a.evaluate(() => { const d = document.getElementById('dlg'); if (d.hidden) return null; return { ch: [...d.querySelectorAll('.dlgOpts:not(.q) [data-k]:not([disabled])')].map((x) => x.innerText.replace(/\s+/g, ' ')), q: d.querySelectorAll('.dlgOpts.q [data-k]:not([disabled])').length, who: (d.querySelector('.dlgPlate b') || {}).innerText || '' }; });
-      if (!st) return true; if (shot && !shotDone && /Croft/.test(st.who)) { shotDone = true; await a.waitForTimeout(700); await a.screenshot({ path: shot }); }
+    for (let s = 0; s < 80; s++) { const st = await a.evaluate(() => { const d = document.getElementById('dlg'); if (d.hidden) return null; return { ch: [...d.querySelectorAll('.dlgOpts:not(.q) [data-k]:not([disabled])')].map((x) => x.innerText.replace(/\s+/g, ' ')), q: d.querySelectorAll('.dlgOpts.q [data-k]:not([disabled])').length, who: (d.querySelector('.dlgPlate b') || {}).innerText || '', text: (d.querySelector('#dlgP') || {}).innerText || '' }; });
+      if (!st) return true; if (st.text && SEEN[SEEN.length - 1] !== st.text) SEEN.push(st.text); if (shot && !shotDone && /Croft/.test(st.who)) { shotDone = true; await a.waitForTimeout(700); await a.screenshot({ path: shot }); }
       if (st.ch.length) { const i = Math.max(0, st.ch.findIndex((t) => pick.test(t))); await a.evaluate((i) => document.querySelectorAll('#dlg .dlgOpts:not(.q) [data-k]:not([disabled])')[i].click(), i); await a.waitForTimeout(350); continue; }
       if (st.q) { await a.evaluate(() => { const q = window.__curQ; const b = document.querySelector('#dlg .dlgOpts.q [data-k="' + (Array.isArray(q.c) ? q.c[0] : q.c) + '"]'); b.click(); const ok = document.getElementById('dlgOk'); if (ok) { ok.disabled = false; ok.click(); } }); await a.waitForTimeout(1100); continue; }
       await a.evaluate(() => document.getElementById('dlg').click()); await a.waitForTimeout(160); }
@@ -30,6 +31,8 @@ const { chromium } = require('playwright');
   await a.evaluate(() => { const S = window.__pc.S; S.stat.shifts++; S.cond.pending.forEach((p) => { p.seen = true; }); window.__pc.COND.rollCall(() => { window.__rc = 1; }); });
   await play(/truth/i, 'w_conduct_ia.png');
   const after1 = await a.evaluate(() => ({ rc: window.__rc, file: window.__pc.S.cond.file.map((f) => f.out), com: window.__pc.stats().com, st: window.__pc.S.cond.standing }));
+  // the hearing follows the officers' bill of rights: told who complained, shown the evidence, a representative, the law named
+  const heard = SEEN.join(' | '); ['complaint comes from', 'recorded', 'fire lane', 'Lacombe', '112.532'].forEach((w) => { if (heard.indexOf(w) < 0) fail.push('hearing never said: ' + w); });
   if (!after1.rc || after1.file[0] !== 'Written reprimand' || !(after1.com < com0)) fail.push('owned minor offense: ' + JSON.stringify(after1) + ' com before ' + com0);
   // 2) force on someone who was only yelling, then denied: termination and the FIRED screen
   await a.evaluate(() => { const pc = window.__pc; const l = pc.COND.tempt({ title: 'Disturbance in progress', text: '', where: 'Eastgate Motel' }, 'castillo', false, 'shove'); pc.dlg(l); });

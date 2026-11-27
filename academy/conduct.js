@@ -110,6 +110,23 @@ export const TEMPT = [
     seen: .35, later: .4, what: 'Slept on duty and missed two radio calls.', epi: 'sleep' }
 ];
 
+// for the hearing: who complained, and what they have (what you see if you ask to review it first)
+export const EVIDENCE = {
+  bribe: ['the driver\'s employer, who reviewed his dashcam', 'The dashcam video: the license, the folded bill behind it, your hand, the wave goodbye. Eleven seconds.'],
+  cash: ['the owner of the property', 'The owner\'s bank withdrawal slip says three hundred and eighty dollars. Your property log says three hundred and forty.'],
+  gift: ['another business owner on your beat', 'A photo of you taking the gift card at the counter, and a text from the owner: "Officer\'s taken care of now."'],
+  friend: ['the caller', 'The caller\'s statement and phone video: you talking to the subject, then the subject walking away. The call was cleared as gone on arrival.'],
+  report: ['the fleet supervisor', 'Your signed report says the check was done. The fleet\'s GPS log shows the car never stopped long enough to do it.'],
+  cover: ['the other driver', 'A business camera across the street shows the patrol car rolling back into the other car. Your report says the opposite.'],
+  testimony: ['the State Attorney\'s Office', 'Your deposition, under oath, against your own report, which says you didn\'t see the bag drop.'],
+  shove: ['three witnesses at the scene', 'Your body camera, and three phone videos from three angles. The person never touched you.'],
+  cuffed: ['your cover officer', 'Your cover officer\'s sworn statement, and the booking photo with fresh bruising that wasn\'t there at the arrest.'],
+  chase: ['the shift supervisor', 'The radio recording: "Terminate. Terminate the pursuit." Your car\'s GPS shows six more blocks at seventy miles an hour.'],
+  plate: ['the records audit team', 'The database audit log: your user ID, a plate with no case attached, and a blank reason field.'],
+  errand: ['a resident who sent in a photo', 'A photo of your marked patrol car in the fire lane, time-stamped during your shift.'],
+  sleep: ['dispatch', 'Dispatch logs: two calls to your unit, no answer. Your car\'s GPS shows it parked behind the warehouse for an hour.']
+};
+
 // what discipline looks like, step by step. Owning it honestly takes one step off; denying it when there's proof adds
 // one (lying to Internal Affairs is its own offense).
 export const LADDER = [
@@ -183,28 +200,43 @@ export function installConduct(H) {
     hearing(due[0], () => { k.pending = k.pending.concat(due.slice(1).map((p) => Object.assign(p, { seen: true }))); H.saveS(); done && done(); });
   }
   // the hearing: what they have, your answer, the outcome
+  // the hearing follows Florida's Law Enforcement Officers' Bill of Rights (s. 112.532): one interrogator, recorded,
+  // you're told what it's about and who complained, you may review the complaint and evidence first and have a
+  // representative present, nobody may threaten you or promise you anything, and if it may be criminal you hear your
+  // rights before any question. Then you answer, and the ladder decides.
   function hearing(p, done) {
-    const T = TEMPT.find((t) => t.id === p.id), k = C();
-    const prior = k.file.filter((f) => f.sev >= 2).length, lines = [
+    const T = TEMPT.find((t) => t.id === p.id), k = C(), E = EVIDENCE[T.id] || ['a complainant', T.what];
+    const prior = k.file.filter((f) => f.sev >= 2).length, crime = T.sev >= 4, call = p.title ? 'your ' + p.title.toLowerCase() + ' call' + (p.at ? ' at ' + p.at : '') : 'your last shift';
+    let owned = null, silent = false;
+    const lines = [
       ['narr', 'Before roll call, Castillo stops you at the door. Someone from Internal Affairs is waiting in the sergeant\'s office.'],
-      ['iacroft', 'Sit down, cadet. I\'m Lt. Croft. I\'ll keep this short.'],
-      ['iacroft', 'On your ' + (p.title ? p.title.toLowerCase() + ' call' : 'last shift') + (p.at ? ' at ' + p.at : '') + ': ' + T.what],
-      ['iacroft', prior ? 'This isn\'t the first entry in your file. You know that.' : 'Tell me what happened.']];
-    let owned = null;
-    lines.push(['choice', [
+      ['iacroft', 'Sit down, cadet. I\'m Lt. Adele Croft, Internal Affairs. Sergeant Castillo stays as a witness. I\'m the only one who will ask you questions.'],
+      ['iacroft', 'This interview is recorded from start to finish, including any breaks. You can have a copy.'],
+      ['iacroft', 'This is about ' + call + '. The complaint comes from ' + E[0] + '.']];
+    if (crime) lines.push(['iacroft', 'Because this may become a criminal case, you\'ll hear your rights before I ask anything. You have the right to remain silent. Anything you say can be used against you.']);
+    lines.push(['iacroft', 'Before we start, you\'re entitled to review the complaint and the evidence, and to have a representative here with you.'],
+      ['choice', [
+        { t: 'Review the evidence first', say: [['@you', 'I\'d like to see the evidence before I say anything.']], reply: [['narr', E[1]], ['iacroft', 'That\'s what we have.']] },
+        { t: 'Waive it and go ahead', say: [['@you', 'I don\'t need to see it. Go ahead.']], reply: [['iacroft', 'For the record: you were told you could review it, and you waived that.']] }], 'You can see what they have before you answer.'],
+      ['choice', [
+        { t: 'Ask for your union representative', say: [['@you', 'I\'d like my representative here.']], reply: [['narr', 'Ten minutes later, Sgt. Ruth Ann Lacombe from the union sits down beside you.'], ['unionrep', H.pick('repAdv', ['My advice is simple: tell the truth. Lying in this room ends more careers than anything anybody did out there.', 'I\'m here so this is fair, not so it goes away. Answer honestly, and let me worry about the process.'])]] },
+        { t: 'Go ahead without one', say: [['@you', 'I\'ll speak for myself.']], reply: [['iacroft', 'Noted.']] }], 'You can have someone with you.']);
+    lines.push(['iacroft', prior ? 'This isn\'t the first entry in your file. Tell me what happened.' : 'Tell me what happened.']);
+    const answers = [
       { t: 'Tell the truth, all of it', say: [['@you', pick('ownIt', ['I did it. I knew it was wrong when I did it.', 'That\'s what happened. I don\'t have an excuse.', 'Yes. It was me. I\'m not going to lie to you about it.'])]], reply: [['iacroft', 'Thank you for not wasting my time. That counts for something.']], fx: () => { owned = true; } },
-      { t: 'Deny it', say: [['@you', pick('denyIt', ['That\'s not what happened.', 'I don\'t know what you\'re talking about.', 'Whoever said that is lying.'])]], reply: [['iacroft', 'We have the record, cadet. Now we also have you lying to me about it.']], fx: () => { owned = false; } }
-    ], 'Lt. Croft is waiting.']);
-    lines.push(['fx', () => { const out = decide(T, owned, prior); return out.lines; }]);
+      { t: 'Deny it', say: [['@you', pick('denyIt', ['That\'s not what happened.', 'I don\'t know what you\'re talking about.', 'Whoever said that is lying.'])]], reply: [['iacroft', 'We have the evidence, cadet. Now we also have you lying to me about it, on the record.']], fx: () => { owned = false; } }];
+    if (crime) answers.push({ t: 'Use your right to remain silent', say: [['@you', 'I\'m going to use my right to remain silent.']], reply: [['iacroft', 'That\'s your right, and I won\'t hold it against you. The evidence will have to speak for itself.']], fx: () => { silent = true; } });
+    lines.push(['choice', answers, 'Lt. Croft is waiting.']);
+    lines.push(['fx', () => { const out = decide(T, owned, prior, silent && p.seen); return out.lines.concat([['castillo', 'What happened in there is the law: section 112.532. You\'re told what it\'s about and who complained. You can see the evidence first and have a representative. It\'s recorded, and nobody can threaten you or promise you anything for an answer.']]); }]);
     H.dialogue(lines, () => { const r = LAST; LAST = null; if (r && (r.fired || r.arrested)) end(r.arrested ? 'arrested' : 'fired', r.epi, done); else done && done(); }, { noLeave: true });
   }
   let LAST = null;
   // the outcome on the ladder, applied
-  function decide(T, owned, prior) {
-    const k = C(); let step = T.sev + (owned === false ? 1 : 0) - (owned && T.sev <= 3 ? 1 : 0) + (prior >= 2 && T.sev >= 2 ? 1 : 0); step = Math.max(1, Math.min(5, step));
+  function decide(T, owned, prior, strong) {
+    const k = C(); let step = T.sev + (owned === false ? 1 : 0) - (owned && T.sev <= 3 ? 1 : 0) + (prior >= 2 && T.sev >= 2 ? 1 : 0) + (strong ? 1 : 0); step = Math.max(1, Math.min(5, step)); // silence isn't held against you, but a crime caught on camera stands on its own
     if (step === 5 && T.sev < 4) step = 4; // only a crime gets you arrested
     const R = LADDER[step], out = { lines: [], epi: T.epi };
-    k.file.push({ id: T.id, kind: T.kind, sev: T.sev, what: T.what, owned: owned !== false, out: R.name, sh: shiftNo(), when: Date.now() });
+    k.file.push({ id: T.id, kind: T.kind, sev: T.sev, what: T.what, owned: owned !== false, ans: owned === true ? 'owned' : owned === false ? 'denied' : 'silent', out: R.name, sh: shiftNo(), when: Date.now() });
     if (R.arrested) { out.arrested = true; out.lines.push(['iacroft', 'Stand up and turn around, please. You have the right to remain silent.']); }
     else if (R.fired) { out.fired = true; out.lines.push(['iacroft', 'Your employment is terminated, effective now. Leave your badge and your ID on the desk.']); }
     else {
@@ -246,7 +278,7 @@ export function installConduct(H) {
     const k = C(), d = k.debuffs.filter((x) => x.left > 0);
     return '<div class="cdFile"><div class="cdTop"><b>Standing</b><i class="rchBar"><i style="width:' + k.standing + '%"></i></i><span>' + k.standing + ' / 100</span></div>' +
       (d.length ? '<p class="cdDeb">' + d.map((x) => esc(x.why) + ' (' + x.left + ' shift' + (x.left > 1 ? 's' : '') + ' left)').join(' · ') + '</p>' : '') +
-      (k.file.length ? '<ul>' + k.file.slice(-6).reverse().map((f) => '<li><b>' + esc(f.out) + '</b> ' + esc(f.what) + (f.owned ? ' You owned it.' : ' You denied it.') + '</li>').join('') + '</ul>' : '<p>Your file is clean.</p>') +
+      (k.file.length ? '<ul>' + k.file.slice(-6).reverse().map((f) => '<li><b>' + esc(f.out) + '</b> ' + esc(f.what) + (f.ans === 'silent' ? ' You stayed silent.' : f.owned ? ' You owned it.' : ' You denied it.') + '</li>').join('') + '</ul>' : '<p>Your file is clean.</p>') +
       ((S.past || []).length ? '<p class="cdPast">Careers before this one: ' + S.past.map((x) => esc(x.cs) + ' (' + (x.kind === 'arrested' ? 'arrested' : 'fired') + ')').join(', ') + '</p>' : '') + '</div>';
   }
   return { tempt, rollCall, endWatch, checkpoint, hasCheckpoint, mods, standing, bump, fileHtml, end, decide, hearing, keepLearning, get state() { return C(); } };
