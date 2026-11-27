@@ -160,6 +160,12 @@
   "patrolops.js": [
    "t85"
   ],
+  "persona.js": [
+   "tlooks"
+  ],
+  "pixelfolk.js": [
+   "tlooks"
+  ],
   "pixelsign.js": [
    "tsign"
   ],

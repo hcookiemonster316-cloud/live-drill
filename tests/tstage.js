@@ -21,13 +21,13 @@ const { chromium } = require('playwright');
   await a.screenshot({ path: 'tstage.png' });
   // teach it back: a good explanation
   await free(); await a.evaluate(() => window.__pc.TEACH.play('abs')); await play();
-  await a.waitForSelector('.tbChip', { timeout: 8000 }).catch(() => errs.push('no explanation builder'));
-  await a.evaluate(() => { const want = ['Push the brake hard and keep it down', 'Let the ABS do the pumping for you', 'Keep steering where you want to go']; want.forEach((w) => [...document.querySelectorAll('.tbChip')].find((x) => x.textContent.indexOf(w) >= 0).click()); });
+  await a.waitForFunction(() => [...document.querySelectorAll('.tbChip')].some((x) => x.offsetParent), null, { timeout: 12000 }) /* any visible chip: an earlier builder's hidden chips can still be first in the page */.catch(() => errs.push('no explanation builder'));
+  await a.evaluate(() => { const want = ['Push the brake hard and keep it down', 'Let the ABS do the pumping for you', 'Keep steering where you want to go']; want.forEach((w) => [...document.querySelectorAll('.tbChip')].filter((x) => x.offsetParent).find((x) => x.textContent.indexOf(w) >= 0).click()); });
   await a.waitForTimeout(300); await a.screenshot({ path: 'tteach.png' }); await a.click('#tbSay'); const r3 = await play();
   const t1 = await a.evaluate(() => !!(window.__pc.S.teach || {}).done && !!window.__pc.S.teach.done.abs); console.log('taught abs', t1, '|', r3.txt.match(/stops straight[^|]*/) ? 'she stopped straight' : ''); if (!t1) errs.push('a good explanation did not count');
   // a bad one: the mistake gets named, and you can walk away
-  await free(); await a.evaluate(() => window.__pc.TEACH.play('back')); await play(); await a.waitForSelector('.tbChip', { timeout: 8000 });
-  await a.evaluate(() => { ['Trust the backup camera and go', 'Go slow, slower than feels right', 'Turn your body and look out the back'].forEach((w) => [...document.querySelectorAll('.tbChip')].find((x) => x.textContent.indexOf(w) >= 0).click()); }); await a.click('#tbSay'); const r4 = await play();
+  await free(); await a.evaluate(() => window.__pc.TEACH.play('back')); await play(); await a.waitForFunction(() => [...document.querySelectorAll('.tbChip')].some((x) => x.offsetParent), null, { timeout: 12000 }) /* any visible chip: an earlier builder's hidden chips can still be first in the page */;
+  await a.evaluate(() => { ['Trust the backup camera and go', 'Go slow, slower than feels right', 'Turn your body and look out the back'].forEach((w) => [...document.querySelectorAll('.tbChip')].filter((x) => x.offsetParent).find((x) => x.textContent.indexOf(w) >= 0).click()); }); await a.click('#tbSay'); const r4 = await play();
   if (!/camera can.t see/.test(r4.txt)) errs.push('the mistake was not named'); const t2 = await a.evaluate(() => !!window.__pc.S.teach.done.back); if (t2) errs.push('a bad explanation counted');
   await a.waitForSelector('#tbLater', { timeout: 6000 }).then(() => a.click('#tbLater')).catch(() => errs.push('no way to walk away from the builder'));
   console.log(errs.length ? 'ERRORS ' + errs.join(' / ') : 'no errors'); await b.close(); process.exit(errs.length ? 1 : 0); })();

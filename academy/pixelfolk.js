@@ -21,7 +21,7 @@ export function ramp(hex) { if (RAMPS.has(hex)) return RAMPS.get(hex); const [h,
 const mix = (a, b, k) => [Math.round(a[0] + (b[0] - a[0]) * k), Math.round(a[1] + (b[1] - a[1]) * k), Math.round(a[2] + (b[2] - a[2]) * k)];
 const band = (dot, gloss) => dot > .62 && gloss ? .9 : dot > .22 ? .68 : dot < -.72 ? .14 : dot < -.3 ? .27 : .47;
 const ANG = [0, Math.PI / 4, Math.PI / 2, Math.PI * 3 / 4, Math.PI];
-const DEF = { chev: '#e3b341', card: '#b98a52', book2: '#2f5d8a', book3: '#c9a227', prop2: '#d9822b', eye: '#2a1b1d', mouth: '#9a4f48', belt: '#1c1d22', buckle: '#c9b46a', badge: '#f2c94c', patch: '#f5b800', strip: '#e8edf2', metal: '#9aa3ad', dark: '#1b1d24', white: '#f1eee6', wood: '#8a5a2e', paper: '#f4efe2', red: '#c0392b', glass: '#2a3440', lens: '#a8c4d6' };
+const DEF = { chev: '#e3b341', card: '#b98a52', book2: '#2f5d8a', book3: '#c9a227', prop2: '#d9822b', eye: '#2a1b1d', mouth: '#9a4f48', lips: '#b2475a', belt: '#1c1d22', buckle: '#c9b46a', badge: '#f2c94c', patch: '#f5b800', strip: '#e8edf2', metal: '#9aa3ad', dark: '#1b1d24', white: '#f1eee6', wood: '#8a5a2e', paper: '#f4efe2', red: '#c0392b', glass: '#2a3440', lens: '#a8c4d6' };
 
 // ---------- one pose from one angle, as a list of flat shapes ----------
 const HELD = new Set(['coffee', 'pot', 'clipboard', 'books', 'laptop', 'tongs', 'ladle', 'spatula', 'medbag', 'football', 'binoculars', 'box', 'donuts', 'icecream', 'chess', 'gavel', 'mic', 'plant', 'phone', 'folder', 'tablet', 'basket', 'flashlight', 'gloves', 'wrench']);
@@ -216,6 +216,8 @@ function figure(D, v, mir, ph, mv) {
       if (v === 0) { if (ex === 'angry') face.push([mx + 1, my, 'mouth']); else if (ex === 'worried' || ex === 'hurt') face.push([mx - 2, my + 1, 'mouth'], [mx + 1, my + 1, 'mouth']); else if (ex === 'laugh') face.push([mx - 1, my + 1, 'mouthIn'], [mx, my + 1, 'mouthIn']); }
       else if (v === 1 && ex) { /* three-quarter view (portraits): the near corner of the mouth does the talking */ if (ex === 'angry') face.push([mx - 1, my, 'mouth'], [mx + 1, my, 'mouth']); else if (ex === 'worried' || ex === 'hurt') face.push([mx - 1, my + 1, 'mouth'], [mx + 1, my + 1, 'mouth']); else if (ex === 'laugh') face.push([mx - 1, my, 'mouth'], [mx, my + 1, 'mouthIn'], [mx - 1, my + 1, 'mouthIn'], [mx + 1, my - 1, 'mouth']); else if (ex === 'proud') face.push([mx - 1, my, 'mouth'], [mx + 1, my - 1, 'mouth']); }
       if (ex === 'hurt' && eyes.length) { const tx0 = Math.round(OX + eyes[eyes.length - 1]); face.push([tx0, ey + 2, 'tear'], [tx0, ey + 3, 'tear']); } }
+    if (D.fem && D.glasses !== 'shades') eyes.forEach((x) => face.push([Math.round(OX + x) + out(x), ey - 1, 'eye'])); /* lashes */
+    if (D.fem) for (const f of face) if (f[2] === 'mouth') f[2] = 'lips';
     if (D.cheeks && v === 0) for (const x of eyes) face.push([Math.round(OX + x + (x > HCX ? 1 : -1)), ey + 3, 'cheek']);
     if (D.lines && eyes.length) face.push([Math.round(OX + eyes[eyes.length - 1] + 1), ey + 2, 'line']); }
   return { S, face };
@@ -372,6 +374,9 @@ export function sprite(D, d, ph, mv) { const out = pixels(D, d, ph, mv), c = doc
 // Same random picks as the detailed drawing (seeded by o.ph), so every citizen keeps their outfit.
 const JACK = ['#2f3b4c', '#5a3e2b', '#3b5249', '#7a2e2e', '#1f2937', '#4b4f8a', '#6b5b3e'];
 const HS = ['short', 'buzz', 'swoop', 'bun', 'long', 'curly', 'bob', 'bald', 'afro'];
+// the sex a passer-by with this look reads as (citizens use it for their name and icon)
+export function sexOfLook(o) { if (o.sex) return o.sex; const ph = o.ph || 0, v = Math.sin((ph + 1.37) * (12.9898 + 30 * 7.233)) * 43758.5453; return v - Math.floor(v) < .5 ? 'f' : 'm'; }
+export function oldOfLook(o) { if (o.kit || o.kid || o.officer) return false; if (o.old != null) return !!o.old; const ph = o.ph || 0, v = Math.sin((ph + 1.37) * (12.9898 + 13 * 7.233)) * 43758.5453; return v - Math.floor(v) < .13; }
 export function fromLook(o) {
   const ph = o.ph || 0, rr = (k) => { const v = Math.sin((ph + 1.37) * (12.9898 + k * 7.233)) * 43758.5453; return v - Math.floor(v); };
   const K = o.kit || (o.officer ? { shirt: '#22355e', pants: '#1b2a4a', hat: 'cap', hatCol: '#16213d', patch: '#f5b800' } : null), civ = !K;
@@ -379,7 +384,7 @@ export function fromLook(o) {
   const top = civ ? (o.top || ['tee', 'tee', 'jacket', 'hoodie', 'dress', 'tank', 'button', 'tee'][Math.floor(rr(2) * 8)]) : 'uniform';
   const acc = civ ? (o.acc || ['none', 'none', 'backpack', 'bag', 'phone', 'coffee', 'shopping', 'shades', 'none'][Math.floor(rr(3) * 9)]) : 'none';
   const pants = K ? K.pants : o.pants || '#3b4a5c', shirt = K ? K.shirt : o.shirt || '#c0392b', skin = o.skin || '#e0b48f';
-  const old = civ && !o.kid && (o.old != null ? o.old : rr(13) < .13);
+  const old = civ && !o.kid && AG !== 'teen' && (o.old != null ? o.old : rr(13) < .13);
   const hair = senior && !o.hair ? (elder ? '#eef0f3' : '#c4c9d1') : old ? ['#d1d5db', '#e5e7eb', '#9ca3af'][Math.floor(rr(14) * 3)] : o.hair || '#2b1d14', jacket = JACK[Math.floor(rr(4) * JACK.length)];
   const hs = o.hs != null ? o.hs : Math.floor(rr(5) * 9);
   const shoe = K ? (K.boots || '#111216') : o.shoes || ['#16181d', '#eeeeee', '#5d4037', '#16181d', '#b91c1c'][Math.floor(rr(6) * 5)];
@@ -403,6 +408,26 @@ export function fromLook(o) {
     if (acc === 'shopping') { D.prop = 'bag'; D.cols.bag = ['#f5f5f5', '#c0392b', '#2980b9', '#f5b800'][Math.floor(rr(8) * 4)]; }
     const hat = rr(9) < .14 ? 'cap' : rr(9) < .2 ? 'beanie' : rr(9) < .25 ? 'straw' : null; if (hat) { D.hat = { kind: hat }; D.cols.hat = ['#1f2937', '#b91c1c', '#1d4ed8', '#f5f5f5', '#166534'][Math.floor(rr(10) * 5)]; if (hat === 'straw') D.cols.hat = ['#f5e6c8', '#e9d5a1', '#fde68a', '#f5f5f5'][Math.floor(rr(15) * 4)]; D.cols.hat2 = shadeHex(D.cols.hat, .72); }
     if (elder && o.cane !== false) D.prop = D.prop || 'cane'; }
+  // who they are (persona.js): a man or a woman, and what they'd wear to work
+  // a passer-by with no stated sex still gets one, steady for their look, so nobody is half one and half the other
+  const SX = o.sex || (civ && o.ph != null ? (rr(30) < .5 ? 'f' : 'm') : null);
+  if (SX) { const HF = ['long', 'ponytail', 'bun', 'braids', 'waves', 'long', 'ponytail', 'long', 'updo'], HM = ['short', 'buzz', 'swoop', 'side', 'messy', 'flattop', 'afro', 'short', 'locs'], grown = !o.kid && AG !== 'teen';
+    if (o.hs == null) D.hair = (SX === 'f' ? HF : HM)[Math.floor(rr(17) * 9)];
+    if (SX === 'm' && grown && senior && rr(18) < .35) D.hair = 'bald';
+    if (SX === 'm' && D.top && D.top.kind === 'dress') { D.top = { kind: 'shirt' }; D.placket = 1; D.cols.top2 = shadeHex(shirt, .8); }
+    if (SX === 'm' && grown && !o.beard && rr(19) < .3) { D.beard = ['stache', 'goatee', 'full'][Math.floor(rr(20) * 3)]; D.cols.beard = D.cols.hair; }
+    if (SX === 'f') { delete D.beard; D.fem = 1; if (D.glasses === 'shades') delete D.glasses; if (D.hat && D.hat.kind === 'cap') delete D.hat; /* nothing hides the face or the hair */ if (K && ['long', 'waves', 'curly', 'updo'].indexOf(D.hair) >= 0) D.hair = rr(29) < .5 ? 'bun' : 'ponytail'; /* hair up in uniform */ } }
+  const J = o.job; if (J && !K) {
+    const dark = ['#1f2937', '#334155', '#3f3f46', '#1e293b', '#44403c'][Math.floor(rr(21) * 5)], light = ['#f8fafc', '#e0f2fe', '#fef3c7', '#f1f5f9'][Math.floor(rr(22) * 4)];
+    const tidy = () => { delete D.pack; delete D.bag; delete D.hood; delete D.shorts; if (D.prop === 'bag') delete D.prop; if (D.glasses === 'shades') delete D.glasses; if (D.hat && ['cap', 'beanie', 'straw'].indexOf(D.hat.kind) >= 0) delete D.hat; };
+    if (J === 'suit' || J === 'plain') { tidy(); D.top = { kind: J === 'plain' && rr(25) < .5 ? 'coat' : 'blazer' }; D.cols.top = dark; D.cols.top2 = light; D.cols.coat = '#6b5a48'; D.cols.pants = dark; D.cols.shoe = '#111216';
+      if (o.sex !== 'f' || rr(23) < .25) { D.tie = 1; D.cols.tie = ['#7f1d1d', '#1e3a8a', '#14532d', '#3f3f46'][Math.floor(rr(24) * 4)]; } if (J === 'plain') D.badge = 1; }
+    else if (J === 'medic') { tidy(); const sc = ['#3b6fb0', '#0f766e', '#6d5bd0', '#2563eb'][Math.floor(rr(26) * 4)]; D.top = { kind: 'tee', sleeve: .35 }; D.cols.top = sc; D.cols.pants = sc; D.lanyard = 1; D.cols.lanyard = '#b23a3a'; D.cols.shoe = '#eeeeee'; }
+    else if (J === 'clergy') { tidy(); D.top = { kind: 'shirt' }; D.cols.top = '#111827'; D.cols.top2 = '#1f2937'; D.collar = 1; D.cols.pants = '#111827'; D.cols.shoe = '#111216'; }
+    else if (J === 'cook') { delete D.pack; delete D.shorts; D.apron = 1; D.cols.apron = ['#f5f5f5', '#7c2d12', '#14532d', '#1e3a8a'][Math.floor(rr(27) * 4)]; }
+    else if (J === 'work') { delete D.shorts; delete D.bag; if (rr(28) < .5) { D.vest = 1; D.cols.vest = '#d4ff3a'; } else D.overalls = 1; D.boots = 1; }
+    else if (J === 'dispatch') { tidy(); D.top = { kind: 'cardigan' }; D.cols.top2 = light; D.hat = { kind: 'headset' }; D.cols.hat = '#1a1a1a'; D.cols.hat2 = '#3a3a3a'; }
+    else if (J === 'fire') { tidy(); D.top = { kind: 'tee', sleeve: .42 }; D.cols.top = '#1e293b'; D.cols.pants = '#1f2937'; D.boots = 1; } }
   if (o.wave) D.pose = 'up'; if (o.sit) D.sit = 1;
   if (o.mic) { D.pose = 'mic'; delete D.prop; } // a hand to the shoulder mic while you talk on the radio
   // rank you can see: chevrons (ranks 1, 3, 5), a collar pin (6) and a gold cap band (8)

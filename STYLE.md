@@ -27,6 +27,13 @@ is the cool thing.**
 
 ## Art
 
+**People look like who they are** (owner's call, 2026-11-26). A woman reads as a woman and a man as a man; an officer
+wears the uniform with their rank (Lt. and up go without the cap); a manager, clerk of court or attorney dresses for
+work; a nurse wears scrubs; clergy wear the collar; kids are kid-sized and never gray. Anyone without a hand-made design
+in `folkcast.js` gets a look from `persona.js` (name, title and role), and that same look is used on the map and in
+the dialogue portrait. When the story calls someone he or she and the name doesn't say, add them to `SAID` in
+`persona.js`. `tests/tlooks.js` checks it.
+
 **One light, one line.**
 - Key light from the upper left on everything: people, cars, props, buildings. Shadows lean cool and blue,
   highlights lean warm (hue shifting, not just darker or lighter).
