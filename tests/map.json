@@ -21,6 +21,9 @@
   "ch5data.js": [
    "t93"
   ],
+  "cinema.js": [
+   "tcinema"
+  ],
   "city.js": [
    "t70",
    "tshare"
@@ -29,6 +32,7 @@
    "tsound"
   ],
   "conduct.js": [
+   "tcinema",
    "tconduct",
    "tinvest"
   ],
@@ -102,6 +106,7 @@
   ],
   "investigate.js": [
    "tcallvoice",
+   "tcinema",
    "tinvest"
   ],
   "lassiter.js": [
@@ -249,6 +254,7 @@
    "t93",
    "t96",
    "tarc",
+   "tcinema",
    "tcons",
    "tcourt",
    "tinvest",

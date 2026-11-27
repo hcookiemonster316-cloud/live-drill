@@ -1,14 +1,15 @@
 // Renders a timed cue (academy/briefscore.js) offline with the game's own instruments (music.js) and encodes an MP3
 // with ffmpeg, at one fixed gain to a cinematic loudness (the cue keeps its whole dynamic arc).
-// Needs the local server on :8765. Usage: node tools/render-cue.js [brief|credits]
+// Needs the local server on :8765. Usage: node tools/render-cue.js [brief|credits|mood_<name>]
 const { chromium } = require('playwright'); const fs = require('fs'); const { execFileSync, spawnSync } = require('child_process');
 const CUES = { brief: ['briefscore.js', 'briefScore', 'CUE_LEN', 'brief_cue', -17], credits: ['creditscore.js', 'creditScore', 'CREDIT_LEN', 'credits_cue', -20] };
-const [MOD, FN, LEN, NAME, TARGET] = CUES[process.argv[2] || 'brief'];
+const ARG = process.argv[2] || 'brief', MOODK = /^mood_/.test(ARG) ? ARG.slice(5) : null; // mood_<name>: a cue from the mood library
+const [MOD, FN, LEN, NAME, TARGET] = MOODK ? ['moodscore.js', 'moodScore', 'MOOD_LEN', ARG, -18] : CUES[ARG];
 const OUT = require('os').tmpdir() + '/' + NAME + '.raw', DEST = require('path').join(__dirname, '../academy/music/' + NAME + '.mp3');
 (async () => {
   const b = await chromium.launch(); const a = await b.newPage(); const errs = []; a.on('pageerror', (e) => errs.push(e.message));
   await a.goto('http://localhost:8765/academy/index.html?norun'); await a.setContent('<html><body>render</body></html>');
-  await a.addScriptTag({ type: 'module', content: "import { createMusic } from 'http://localhost:8765/academy/music.js'; import * as C from 'http://localhost:8765/academy/" + MOD + "'; window.R = { createMusic, score: C['" + FN + "'], len: C['" + LEN + "'] };" });
+  await a.addScriptTag({ type: 'module', content: "import { createMusic } from 'http://localhost:8765/academy/music.js'; import * as C from 'http://localhost:8765/academy/" + MOD + "'; window.R = { createMusic, score: () => C['" + FN + "'](" + JSON.stringify(MOODK) + "), len: C['" + LEN + "'] };" });
   await a.waitForFunction(() => window.R);
   const b64 = await a.evaluate(async () => { const { createMusic, score, len } = window.R, sr = 32000, oc = new OfflineAudioContext(2, Math.ceil(sr * len), sr);
     const mu = createMusic(() => oc); mu.cue(score(), .02); const buf = await oc.startRendering();

@@ -109,6 +109,7 @@ export function installPremium(H) {
     return '<label>Interface text size<div class="seg">' + [[1, 'Normal'], [1.12, 'Large'], [1.25, 'Largest']].map(([k, t]) => '<button type="button" data-ui="' + k + '" class="' + ((S.cfg.uiScale || 1) === k ? 'on' : '') + '">' + t + '</button>').join('') + '</div></label>' +
       '<label>Controls<div class="seg">' + [[0, 'Standard'], [1, 'One-handed']].map(([k, t]) => '<button type="button" data-oh="' + k + '" class="' + ((S.cfg.oneHand ? 1 : 0) === k ? 'on' : '') + '">' + t + '</button>').join('') + '</div></label>' +
       '<label>Vibration<div class="seg">' + [[1, 'On'], [0, 'Off']].map(([k, t]) => '<button type="button" data-hp="' + k + '" class="' + ((S.cfg.haptics === false ? 0 : 1) === k ? 'on' : '') + '">' + t + '</button>').join('') + '</div></label>' +
+      '<label>Cutscenes<div class="seg">' + [['all', 'All'], ['big', 'Big moments'], ['off', 'Off']].map(([k, t]) => '<button type="button" data-cut="' + k + '" class="' + ((S.cfg.cutscenes || 'all') === k ? 'on' : '') + '">' + t + '</button>').join('') + '</div></label>' +
       '<label>Call openings<div class="seg">' + [[1, 'Cinematic'], [0, 'Off']].map(([k, t]) => '<button type="button" data-cc="' + k + '" class="' + ((S.cfg.callCine === false ? 0 : 1) === k ? 'on' : '') + '">' + t + '</button>').join('') + '</div></label>' +
       '<label>Subject voices<div class="seg">' + [[1, 'On'], [0, 'Off']].map(([k, t]) => '<button type="button" data-sv="' + k + '" class="' + ((S.cfg.voices === false ? 0 : 1) === k ? 'on' : '') + '">' + t + '</button>').join('') + '</div></label>';
   }
@@ -117,6 +118,7 @@ export function installPremium(H) {
     root.querySelectorAll('[data-oh]').forEach((b) => b.onclick = () => { S.cfg.oneHand = b.dataset.oh === '1'; applyComfort(); H.saveS(); redraw(); });
     root.querySelectorAll('[data-hp]').forEach((b) => b.onclick = () => { S.cfg.haptics = b.dataset.hp === '1'; if (S.cfg.haptics) buzz('ok'); H.saveS(); redraw(); });
     root.querySelectorAll('[data-cc]').forEach((b) => b.onclick = () => { S.cfg.callCine = b.dataset.cc === '1'; H.saveS(); redraw(); });
+    root.querySelectorAll('[data-cut]').forEach((b) => b.onclick = () => { S.cfg.cutscenes = b.dataset.cut; H.saveS(); redraw(); });
     root.querySelectorAll('[data-sv]').forEach((b) => b.onclick = () => { S.cfg.voices = b.dataset.sv === '1'; H.saveS(); redraw(); });
   }
 
