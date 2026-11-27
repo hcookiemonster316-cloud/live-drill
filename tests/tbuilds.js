@@ -2,7 +2,7 @@
 // talker: a read of what the person needs before the ways choice; observer: a case-file note per call; driver: longer
 // first-on-scene window; by the book: no arguments. Plus the style card on the skill tree and the banner when it lands.
 const { chromium } = require('playwright');
-const base = { cs: '1-Adam-12', home: 0, unlocked: [0], shift: 'day', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, cfg: { callCine: false, text: 'instant', checkEvery: 9999 } };
+const base = { cs: '1-Alpha-12', home: 0, unlocked: [0], shift: 'day', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, cfg: { callCine: false, text: 'instant', checkEvery: 9999 } };
 const SAVES = {
   talker: { skills: { com1: 1, com2: 1 }, ways: { talk: 9 } },
   observer: { skills: { inv1: 1, inv2: 1 }, ways: { observe: 9 } },

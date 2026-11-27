@@ -3,7 +3,7 @@ const { chromium, devices } = require('playwright');
 (async () => { const b = await chromium.launch(); const c = await b.newContext({ ...devices['iPhone 13'] }); const a = await c.newPage(); const errs = []; a.on('pageerror', (e) => errs.push(e.message));
   await a.goto('http://localhost:8765/academy/?mock&skiptitle');
   const facts = {}; for (let i = 0; i < 120; i++) facts['F' + i] = 1;
-  await a.evaluate((facts) => localStorage.setItem('patrolcity:v1', JSON.stringify({ ch: 'vo', cs: '1-Adam-12', home: 0, unlocked: [0, 1, 2, 3, 4], shift: 'day', unit: 'patrol', sound: false, seenIntro: 1, seenCine: 1, tutDone: 1, facts, fmiss: { F5: Date.now() - 6 * 60000, F60: Date.now() - 60000 }, cfg: { autoQ: false, callCine: false } })), facts);
+  await a.evaluate((facts) => localStorage.setItem('patrolcity:v1', JSON.stringify({ ch: 'vo', cs: '1-Alpha-12', home: 0, unlocked: [0, 1, 2, 3, 4], shift: 'day', unit: 'patrol', sound: false, seenIntro: 1, seenCine: 1, tutDone: 1, facts, fmiss: { F5: Date.now() - 6 * 60000, F60: Date.now() - 60000 }, cfg: { autoQ: false, callCine: false } })), facts);
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.click('#mDone').catch(() => {}); await a.waitForFunction(() => window.__pc && window.__pc.W, null, { timeout: 20000 }); await a.waitForTimeout(1500);
   const r = await a.evaluate(() => { const pc = window.__pc, L = pc.L, S = pc.S; const f5 = L.factById('F5'), f60 = L.factById('F60');
     const due = L.dueReviews(S, [f5.les, f60.les]).map((f) => f.id); const ws = []; for (let i = 0; i < 20; i++) ws.push(L.weakest(S, 0));

@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 8765;
     await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.click('#mDone').catch(() => {}); await a.waitForFunction(() => window.__pc && window.__pc.W, null, { timeout: 20000 }); await a.waitForTimeout(2500);
     for (let k = 0; k < 14; k++) { await a.evaluate(() => { document.querySelectorAll('.tCard').forEach((x) => { const bb = [...x.querySelectorAll('button')].pop(); if (bb) bb.click(); }); document.querySelectorAll('.lorePop button').forEach((x) => { if (/patrol/i.test(x.innerText)) x.click(); }); document.querySelectorAll('#modal:not([hidden]) #mClose,#modal:not([hidden]) #mDone').forEach((x) => x.click()); }); await a.waitForTimeout(200); }
     return a; };
-  const A = await mk('1-Adam-12'), B = await mk('1-Boy-7');
+  const A = await mk('1-Alpha-12'), B = await mk('1-Bravo-7');
   for (const p of [A, B]) await p.addStyleTag({ content: '.lorePop,.tCard{display:none!important}' });
   await A.click('#bRadio'); await A.click('.chTabs [data-t="s"]'); await A.fill('#sqName', 'Night Owls'); await A.click('#sqMake button'); await A.waitForTimeout(1500);
   const code = await A.evaluate(() => window.__pc.S.squad && window.__pc.S.squad.code); console.log('squad', code);
@@ -33,7 +33,7 @@ const PORT = process.env.PORT || 8765;
   await B.screenshot({ path: 'sq_board.png' });
   // co-op jobs: B backs up A
   await B.click('#chX').catch(() => {}); await B.waitForTimeout(300);
-  await B.evaluate(() => window.__pc.backupScene('uadam12', { c: '1-Adam-12', u: 'patrol', b: { l: 'Pursuit northbound on Harbor', x: 10, y: 10, t: Date.now() } }));
+  await B.evaluate(() => window.__pc.backupScene('ualpha12', { c: '1-Alpha-12', u: 'patrol', b: { l: 'Pursuit northbound on Harbor', x: 10, y: 10, t: Date.now() } }));
   const lines = [];
   for (let k = 0; k < 120; k++) { await B.waitForTimeout(90); const st = await B.evaluate(() => { const d = document.getElementById('dlg'); if (d.hidden) return null; const t = (d.querySelector('.dlgTxt') || {}).innerText || '';
       const qb = [...d.querySelectorAll('.dlgOpts.q [data-k]:not([disabled])')]; if (qb.length) { qb[0].click(); return 'Q'; }

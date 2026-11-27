@@ -1,7 +1,7 @@
 // certifications from driving-course golds: earned when the last gold lands, and each changes play (quicker cruiser,
 // a certified Code 3, night calls pay more, Air One sooner in pursuits); silver earns nothing
 const { chromium } = require('playwright');
-const base = { cs: '1-Adam-12', home: 0, unlocked: [0], shift: 'night', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, cfg: { callCine: false, text: 'instant' } };
+const base = { cs: '1-Alpha-12', home: 0, unlocked: [0], shift: 'night', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, cfg: { callCine: false, text: 'instant' } };
 const G = (m) => ({ m, t: 20 });
 (async () => { const b = await chromium.launch(); const errs = []; const out = {};
   for (const [k, drills] of [['gold', { brake: G(3), corner: G(3), skid: G(3), back: G(3), emerg: G(3), night: G(3), pursuit: G(3) }], ['silver', { brake: G(2), corner: G(3), skid: G(3), back: G(3), emerg: G(2), night: G(2), pursuit: G(2) }]]) {

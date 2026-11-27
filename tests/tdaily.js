@@ -3,7 +3,7 @@
 const { chromium } = require('playwright');
 (async () => { const b = await chromium.launch(); const a = await b.newPage({ viewport: { width: 900, height: 640 } }); const errs = []; a.on('pageerror', (e) => errs.push(e.message));
   await a.goto('http://localhost:8765/academy/?mock&skiptitle');
-  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Adam-12', home: 0, unlocked: [0], shift: 'day', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, cfg: { text: 'instant' } })));
+  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Alpha-12', home: 0, unlocked: [0], shift: 'day', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, cfg: { text: 'instant' } })));
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.evaluate(() => { const m = document.getElementById('mDone'); if (m) m.click(); }); await a.waitForFunction(() => window.__pc && window.__pc.W, null, { timeout: 20000 });
   const td = await a.evaluate(async () => { const D = await window.__pc.drillsLoad(); window.__D = D; const t = D.today(); const host = document.createElement('div'); host.id = 'ddHost'; host.innerHTML = D.menuHtml(); document.body.appendChild(host); D.bindMenu(host); return { t, card: host.querySelector('.ddCard').innerText.replace(/\s+/g, ' '), again: JSON.stringify(D.today()) === JSON.stringify(t) }; });
   console.log(JSON.stringify(td)); if (!/TODAY'S DRILL/.test(td.card) || td.card.indexOf(td.t.name) < 0) errs.push('no daily card'); if (!td.again) errs.push('today\'s drill is not stable');

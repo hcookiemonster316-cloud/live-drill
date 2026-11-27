@@ -3,7 +3,7 @@
 const { chromium } = require('playwright');
 (async () => { const b = await chromium.launch(); const a = await b.newPage({ viewport: { width: 420, height: 860 } }); const errs = []; a.on('pageerror', (e) => errs.push(e.message));
   await a.goto('http://localhost:8765/academy/?mock&skiptitle');
-  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Adam-12', home: 0, unlocked: [0], shift: 'day', unit: 'patrol', xp: 1500, calls: 20, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 6 }, cfg: { callCine: false, text: 'instant' } })));
+  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Alpha-12', home: 0, unlocked: [0], shift: 'day', unit: 'patrol', xp: 1500, calls: 20, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 6 }, cfg: { callCine: false, text: 'instant' } })));
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.evaluate(() => { const m = document.getElementById('mDone'); if (m) m.click(); }); await a.waitForFunction(() => window.__pc && window.__pc.COURT, null, { timeout: 20000 });
   // an arrest with a missed step comes due: you deny it on the stand, so the report has a hole
   await a.evaluate(() => { const S = window.__pc.S; S.court = { pend: [{ how: 'arrest', title: 'Shoplifting', where: 'Oak Street', sh: 0, due: 0, miss: ['cover'], proc: 2 }], hist: [] }; window.__pc.closeModal(); window.__pc.COURT.testify(S.court.pend[0]); });

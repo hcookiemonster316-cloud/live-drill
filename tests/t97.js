@@ -1,7 +1,7 @@
 const { chromium, devices } = require('playwright');
 (async () => { const b = await chromium.launch(); const c = await b.newContext({ ...devices['iPhone 13'], deviceScaleFactor: 1 }); const a = await c.newPage(); const errs = []; a.on('pageerror', (e) => errs.push(e.message));
   await a.goto('http://localhost:8765/academy/?mock&skiptitle');
-  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Adam-12', home: 0, unlocked: [0], shift: 'day', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 99 }, cards: { ch0: 1 }, cfg: { autoQ: false, drs: false }, cal: { day: 7 }, npc: { delgado: 4, pruitt: 1, dot: 7 } })));
+  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Alpha-12', home: 0, unlocked: [0], shift: 'day', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 99 }, cards: { ch0: 1 }, cfg: { autoQ: false, drs: false }, cal: { day: 7 }, npc: { delgado: 4, pruitt: 1, dot: 7 } })));
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.click('#mDone'); await a.waitForFunction(() => window.__pc && window.__pc.W, null, { timeout: 20000 }); await a.waitForTimeout(2500);
   const r1 = await a.evaluate(() => { const C = window.__pc.CAL; const radio = document.getElementById('radio').innerText; return { day: C.day(), left: C.left(), cls: [1, 7, 19, 20].map((d) => C.classOf(d).join(',')), radioHasDay: /Academy day 7 of 20/.test(radio) }; });
   console.log(JSON.stringify(r1));

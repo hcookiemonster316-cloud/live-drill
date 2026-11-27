@@ -7,7 +7,7 @@ const { chromium, devices } = require('playwright');
     await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.click('#mDone'); await a.waitForFunction(() => window.__pc && window.__pc.W, null, { timeout: 20000 }); await a.waitForTimeout(2500);
     for (let i = 0; i < 5; i++) { await a.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /back to patrol|keep patrolling/i.test(x.innerText) && x.offsetParent); if (b) b.click(); document.querySelectorAll('.tCard').forEach((x) => x.click()); document.querySelectorAll('.lorePop').forEach((x) => x.remove()); }); await a.waitForTimeout(500); }
     return a; };
-  const A = await boot('1-Adam-12'); const B = await boot('2-Baker-14');
+  const A = await boot('1-Alpha-12'); const B = await boot('2-Bravo-14');
   await A.bringToFront(); await A.evaluate(() => window.__pc.dispatchCall()); await A.waitForTimeout(400);
   await A.evaluate(() => document.getElementById('ccBk').click()); await A.waitForTimeout(2500);
   await B.bringToFront(); await B.waitForTimeout(1500);

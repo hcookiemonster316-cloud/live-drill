@@ -67,7 +67,7 @@ export function installVariety(H) {
   function dispatcher() { const d = dcast(H.did()).disp, k = d.id; const id = d.id === 'velvet' ? 'velvet' : H.sayAs(d.id, { name: d.name, icon: d.icon, role: d.role, look: d.look }); return { k, id, d, label: 'Dispatch (' + d.short + ')' }; }
   const fill = (t, o) => t.replace(/\{(\w+)\}/g, (_, k) => (o[k] != null ? o[k] : ''));
   const ord = (n) => n === 2 ? 'second' : n === 3 ? 'third' : n === 4 ? 'fourth' : n + 'th';
-  const UNITS = () => (H.did() + 1) + '-' + rnd(['Adam', 'Baker', 'Charlie', 'David', 'Edward']) + '-' + (10 + Math.floor(Math.random() * 80));
+  const UNITS = () => (H.did() + 1) + '-' + rnd(['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo']) + '-' + (10 + Math.floor(Math.random() * 80));
 
   // ---------- addresses remember you ----------
   S.addr = S.addr || {};
@@ -323,7 +323,7 @@ export function installVariety(H) {
     return mkQ(2, 'Dispatch reads a tag back to you: "' + said + '." What do you write down?', right, [...wr].slice(0, 3), /phonetic-alphabet system uses words/i, 'dec2');
   }
   function missingQ() {
-    const parts = [['Officer identification', '"' + (S.cs || '1-Adam-12') + '"'], ['Current location', '"at Bay and Fifth"'], ['Reason for the call', '"on a suspicious vehicle"'], ['Situation details', '"one occupant, engine running"']];
+    const parts = [['Officer identification', '"' + (S.cs || '1-Alpha-12') + '"'], ['Current location', '"at Bay and Fifth"'], ['Reason for the call', '"on a suspicious vehicle"'], ['Situation details', '"one occupant, engine running"']];
     const m = Math.random() * 4 | 0, msg = parts.filter((_, i) => i !== m).map((p) => p[1].replace(/"/g, '')).join(', ');
     return mkQ(2, 'You key up: "' + msg + '." Dispatch asks you to repeat. What did you leave out?', parts[m][0], parts.filter((_, i) => i !== m).map((p) => p[0]), /brief and accurate with officer identification/i, 'miss');
   }

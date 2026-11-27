@@ -153,7 +153,8 @@ export const SHIFTS = [
 export const SEES = { day: ['day', 'mid'], mid: ['day', 'mid', 'night'], night: ['night', 'mid'] };
 export const SHIFT_MIN = 720; // every shift is 12 hours
 
-export const PHONETIC = ['Adam', 'Boy', 'Charles', 'David', 'Edward', 'Frank', 'George', 'Henry', 'Ida', 'John', 'King', 'Lincoln', 'Mary', 'Nora', 'Ocean', 'Paul', 'Queen', 'Robert', 'Sam', 'Tom', 'Union', 'Victor', 'William', 'Young', 'Zebra'];
+// the military (NATO) phonetic alphabet (owner's call, 2026-11-27). X-ray is written Xray so a call sign stays three parts.
+export const PHONETIC = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India', 'Juliet', 'Kilo', 'Lima', 'Mike', 'November', 'Oscar', 'Papa', 'Quebec', 'Romeo', 'Sierra', 'Tango', 'Uniform', 'Victor', 'Whiskey', 'Xray', 'Yankee', 'Zulu'];
 export const QUICK = ['10-4', 'En route', 'On scene', 'Need backup', 'Code 4, all clear', 'Clear, back in service', 'Good job', 'Thanks for the assist', '👋'];
 // same ranks and point steps as the study hub (called RP, Reputation Points, in the game): RP to reach rank L is 100 x L x (L - 1)
 export const RANKS = ['Cadet', 'Squad Leader 4', 'Squad Leader 3', 'Squad Leader 2', 'Squad Leader 1', 'Guide', 'Vice President', 'President', 'State Certified', 'Graduate'].map((n, i) => [100 * (i + 1) * i, n]);

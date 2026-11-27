@@ -1,7 +1,7 @@
 // limited off-duty time: end of watch offers one evening (partner, a regular, study group, rest); each choice plays a
 // short scene, starts the next shift and shows up in it (trust, friendship, two review questions, calls that wait longer)
 const { chromium } = require('playwright');
-const base = { cs: '1-Adam-12', home: 0, unlocked: [0], shift: 'day', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, npc: {}, cfg: { callCine: false, text: 'instant', checkEvery: 9999 } };
+const base = { cs: '1-Alpha-12', home: 0, unlocked: [0], shift: 'day', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, npc: {}, cfg: { callCine: false, text: 'instant', checkEvery: 9999 } };
 (async () => { const b = await chromium.launch(); const errs = []; const out = {};
   for (const k of ['partner', 'regular', 'study', 'rest']) {
     const a = await b.newPage({ viewport: { width: 420, height: 860 } }); a.on('pageerror', (e) => errs.push(k + ': ' + e.message));

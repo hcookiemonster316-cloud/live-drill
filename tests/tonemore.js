@@ -3,7 +3,7 @@
 const { chromium } = require('playwright');
 (async () => { const b = await chromium.launch(); const a = await b.newPage({ viewport: { width: 420, height: 860 } }); const errs = []; a.on('pageerror', (e) => errs.push(e.message));
   await a.goto('http://localhost:8765/academy/?mock&skiptitle');
-  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Adam-12', home: 0, unlocked: [0], shift: 'day', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, cfg: { callCine: false, text: 'instant', pursuits: false } })));
+  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Alpha-12', home: 0, unlocked: [0], shift: 'day', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, cfg: { callCine: false, text: 'instant', pursuits: false } })));
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.evaluate(() => { const m = document.getElementById('mDone'); if (m) m.click(); }); await a.waitForFunction(() => window.__pc && window.__pc.HK, null, { timeout: 20000 }); await a.waitForTimeout(1500);
   for (let i = 0; i < 6; i++) { await a.evaluate(() => { document.querySelectorAll('.lorePop [data-a="ok"], .tCard, .promo button, .rv button').forEach((x) => x.click()); window.__pc.closeModal(); }); await a.waitForTimeout(400); }
   const early = await a.evaluate(() => { const pc = window.__pc; pc.setClock(200); let c = null; for (let i = 0; i < 8 && !c; i++) { pc.dropCall(); pc.dispatchCall(); c = pc.curCall; } const r = c && { ot: !!c.overtime }; pc.dropCall(); return r; });

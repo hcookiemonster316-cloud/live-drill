@@ -4,7 +4,7 @@
 const { chromium } = require('playwright');
 (async () => { const b = await chromium.launch(); const a = await b.newPage({ viewport: { width: 420, height: 860 } }); const errs = []; a.on('pageerror', (e) => errs.push(e.message));
   await a.goto('http://localhost:8765/academy/?mock&skiptitle');
-  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Adam-12', home: 0, unlocked: [0, 1], shift: 'day', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, nightRun: 1, nightRuns: 1, cfg: { callCine: false, text: 'instant' } })));
+  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Alpha-12', home: 0, unlocked: [0, 1], shift: 'day', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, nightRun: 1, nightRuns: 1, cfg: { callCine: false, text: 'instant' } })));
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo');
   await a.waitForFunction(() => window.__pc && window.__pc.NR && window.__pc.NR.active(), null, { timeout: 20000 }).catch(() => errs.push('the run never started'));
   await a.waitForTimeout(3500);
@@ -17,7 +17,7 @@ const { chromium } = require('playwright');
 
   // the title menu: hidden before graduating; after, a Shift Rotation entry that explains itself before starting
   const menu = async (grad) => { const p = await b.newPage({ viewport: { width: 420, height: 860 } }); p.on('pageerror', (e) => errs.push(e.message)); await p.goto('http://localhost:8765/academy/?mock');
-    await p.evaluate((g) => localStorage.setItem('patrolcity:v1', JSON.stringify(Object.assign({ cs: '1-Adam-12', home: 0, unlocked: [0, 1], shift: 'day', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, nightBest: 812 }, g ? { graduated: Date.now() } : {}))), grad);
+    await p.evaluate((g) => localStorage.setItem('patrolcity:v1', JSON.stringify(Object.assign({ cs: '1-Alpha-12', home: 0, unlocked: [0, 1], shift: 'day', unit: 'patrol', xp: 900, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, nightBest: 812 }, g ? { graduated: Date.now() } : {}))), grad);
     await p.reload(); for (let i = 0; i < 80 && !(await p.evaluate(() => document.querySelectorAll('#title .tiMenu button').length > 2)); i++) { await p.evaluate(() => document.querySelectorAll('.bgGo, .bootSkip, .fe.boot').forEach((x) => x.click())); await p.waitForTimeout(500); } /* through the press-to-start gate and the logos */ await p.waitForFunction(() => !document.querySelector('.fe.boot'), null, { timeout: 15000 }).catch(() => {}); await p.waitForTimeout(1200);
     const labels = await p.evaluate(() => [...document.querySelectorAll('#title .tiMenu button b')].map((x) => x.textContent)); let info = '';
     if (grad) { await p.evaluate(() => [...document.querySelectorAll('#title .tiMenu button')].find((x) => /Shift Rotation/.test(x.textContent)).click()); await p.waitForSelector('#rotGo'); info = await p.evaluate(() => { const r = document.querySelector('.rotInfo'); return r ? r.innerText : 'NO PANEL: ' + document.getElementById('rotGo').closest('div').parentElement.className; }); await p.screenshot({ path: 'tnight_info.png' }); }

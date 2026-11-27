@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 (async () => { const b = await chromium.launch(); const a = await b.newPage({ viewport: { width: 420, height: 860 } }); const errs = []; a.on('pageerror', (e) => errs.push(e.message));
   await a.goto('http://localhost:8765/academy/?mock&skiptitle');
   const npc = await a.evaluate(async () => (await import('/academy/data.js')).NPCS[0]);
-  await a.evaluate((id) => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Adam-12', home: 0, unlocked: [0], shift: 'day', unit: 'patrol', xp: 590, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, npc: { [id]: 4 }, pmem: { walsh: { t: 80, log: [] } }, cfg: { callCine: false, text: 'instant' } })), npc.id);
+  await a.evaluate((id) => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Alpha-12', home: 0, unlocked: [0], shift: 'day', unit: 'patrol', xp: 590, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 1 }, npc: { [id]: 4 }, pmem: { walsh: { t: 80, log: [] } }, cfg: { callCine: false, text: 'instant' } })), npc.id);
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.evaluate(() => { const m = document.getElementById('mDone'); if (m) m.click(); }); await a.waitForFunction(() => window.__pc && window.__pc.OT, null, { timeout: 20000 }); await a.waitForTimeout(1500);
   // anything the boot itself awarded is settled first, then exactly enough RP for the next rank
   for (let i = 0; i < 6; i++) { await a.evaluate(() => { document.querySelectorAll('.promo button, .rv button, .tCard').forEach((x) => x.click()); window.__pc.closeModal(); }); await a.waitForTimeout(500); }

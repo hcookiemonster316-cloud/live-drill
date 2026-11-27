@@ -4,7 +4,7 @@ const OUT = process.argv[2];
   const b = await chromium.launch(); const errs = [];
   const a = await b.newPage({ viewport: { width: 1280, height: 800 } }); a.on('pageerror', (e) => errs.push(e.message + ' @ ' + (e.stack || '').split('\n')[1]));
   await a.goto('http://localhost:8765/academy/?mock&skiptitle');
-  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ ch: 'vo', cs: '1-Adam-12', home: 0, unlocked: [0, 1, 2, 3, 4], shift: 'day', unit: 'patrol', xp: 700, sound: false, seenIntro: 1, trophies: { stripes: 1, first: 1 } })));
+  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ ch: 'vo', cs: '1-Alpha-12', home: 0, unlocked: [0, 1, 2, 3, 4], shift: 'day', unit: 'patrol', xp: 700, sound: false, seenIntro: 1, trophies: { stripes: 1, first: 1 } })));
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(400); await a.click('#mDone'); await a.waitForTimeout(1200);
   let shots = 0;
   const drive = async (name) => { const seen = { choice: 0, q: 0, line: 0 }; for (let k = 0; k < 80; k++) { await a.waitForTimeout(160);

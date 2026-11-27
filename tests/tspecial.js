@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
   for (const k of only ? [only] : ['hurricane', 'festival', 'blackout', 'parade']) {
     const a = await b.newPage({ viewport: { width: 900, height: 640 } }); a.on('pageerror', (e) => errs.push(k + ': ' + e.message + ' ' + (e.stack || '').split('\n')[1]));
     await a.goto('http://localhost:8765/academy/?mock&skiptitle&special=' + k);
-    await a.evaluate((night) => localStorage.setItem('patrolcity:v1', JSON.stringify({ ch: 'vo', cs: '1-Adam-12', home: 0, unlocked: [0], shift: night ? 'night' : 'day', unit: 'patrol', sound: false, seenIntro: 1, seenCine: 1, tutDone: 1, cfg: { autoQ: false, text: 'instant' } })), k === 'blackout');
+    await a.evaluate((night) => localStorage.setItem('patrolcity:v1', JSON.stringify({ ch: 'vo', cs: '1-Alpha-12', home: 0, unlocked: [0], shift: night ? 'night' : 'day', unit: 'patrol', sound: false, seenIntro: 1, seenCine: 1, tutDone: 1, cfg: { autoQ: false, text: 'instant' } })), k === 'blackout');
     await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.click('#mDone').catch(() => {}); await a.waitForFunction(() => window.__pc && window.__pc.W, null, { timeout: 20000 });
     const drive = async () => { const seen = []; for (let i = 0; i < 90; i++) { await a.waitForTimeout(150);
       const st = await a.evaluate(() => { document.querySelectorAll('.lorePop button').forEach((x) => { if (/patrol/i.test(x.innerText)) x.click(); }); document.querySelectorAll('.tCard, .rv [data-a="keep"], .promo button').forEach((x) => x.click()); const m = document.getElementById('modal'); if (!m.hidden) { const x = m.querySelector('#mClose,#mDone'); if (x) x.click(); }

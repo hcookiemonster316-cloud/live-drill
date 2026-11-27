@@ -3,7 +3,7 @@
 const { chromium } = require('playwright');
 (async () => { const b = await chromium.launch(); const a = await b.newPage({ viewport: { width: 420, height: 860 } }); const errs = []; a.on('pageerror', (e) => errs.push(e.message));
   await a.goto('http://localhost:8765/academy/?mock&skiptitle');
-  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Adam-12', home: 0, unlocked: [0, 1, 2, 3, 4], shift: 'day', unit: 'patrol', xp: 6000, calls: 90, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 6, 1: 5, 2: 5, 3: 4, 4: 5 },
+  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Alpha-12', home: 0, unlocked: [0, 1, 2, 3, 4], shift: 'day', unit: 'patrol', xp: 6000, calls: 90, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 6, 1: 5, 2: 5, 3: 4, 4: 5 },
     flags: { paidDelgado: 1, lasWant: 1 }, npc: { delgado: 3 }, las: { seen: { coffee: 'lasAsk', photo: 'lasWant' }, letter: 'logged' }, pcase: { walsh: { rides: 6, stage: 3, out: 'talk', last: -1 }, park: { rides: 1, stage: 0, out: null, last: -1 } }, cfg: { callCine: false, text: 'instant' } })));
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.evaluate(() => { const m = document.getElementById('mDone'); if (m) m.click(); }); await a.waitForFunction(() => window.__pc && window.__pc.S, null, { timeout: 20000 }); await a.waitForTimeout(1500);
   await a.evaluate(() => { const pc = window.__pc; pc.closeModal(); pc.journalTab('cast'); }); await a.waitForSelector('.cbCard');

@@ -6,7 +6,7 @@ const { chromium } = require('playwright');
   const b = await chromium.launch(); const c = await b.newContext({ viewport: { width: 1280, height: 800 } }); const a = await c.newPage(); const errs = []; a.on('pageerror', (e) => errs.push(e.message));
   const url = 'http://localhost:' + (process.env.PORT || 8765) + '/' + (process.env.ROOT_PATH || '') + 'academy/?mock&skiptitle';
   await a.goto(url);
-  await a.evaluate(() => { localStorage.clear(); localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Adam-12', home: 0, unlocked: [0], shift: 'day', unit: 'k9', xp: 1300, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 99 }, facts: { f1: 1, f2: 1, f3: 1 }, stat: { shifts: 4 }, gear: { boots: 'boots1' }, items: { boots1: 1 } })); });
+  await a.evaluate(() => { localStorage.clear(); localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Alpha-12', home: 0, unlocked: [0], shift: 'day', unit: 'k9', xp: 1300, calls: 9, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 99 }, facts: { f1: 1, f2: 1, f3: 1 }, stat: { shifts: 4 }, gear: { boots: 'boots1' }, items: { boots1: 1 } })); });
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.click('#mDone'); await a.waitForFunction(() => window.__pc && window.__pc.W, null, { timeout: 20000 });
   const fail = [];
   const mig = await a.evaluate(() => ({ unit: window.__pc.S.unit, units: window.__pc.S.units }));

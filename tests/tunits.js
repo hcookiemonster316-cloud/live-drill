@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
 (async () => {
   const b = await chromium.launch(); const c = await b.newContext({ viewport: { width: 1280, height: 800 } }); const a = await c.newPage(); const errs = []; a.on('pageerror', (e) => errs.push(e.message));
   await a.goto('http://localhost:' + (process.env.PORT || 8765) + '/' + (process.env.ROOT_PATH || '') + 'academy/?mock&skiptitle');
-  await a.evaluate(() => { localStorage.clear(); localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Adam-12', home: 0, unlocked: [0, 1, 2], shift: 'day', unit: 'swat', xp: 700, calls: 22, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 99, 1: 99, 2: 99 }, stat: { helped: 16, shifts: 3 }, trust: { 1: 62 }, ways: { observe: 4 } })); });
+  await a.evaluate(() => { localStorage.clear(); localStorage.setItem('patrolcity:v1', JSON.stringify({ cs: '1-Alpha-12', home: 0, unlocked: [0, 1, 2], shift: 'day', unit: 'swat', xp: 700, calls: 22, sound: false, seenIntro: 1, seenCine: 1, ch: 'vo', tutDone: 1, story: { 0: 99, 1: 99, 2: 99 }, stat: { helped: 16, shifts: 3 }, trust: { 1: 62 }, ways: { observe: 4 } })); });
   await a.reload(); await a.waitForSelector('#start:not([hidden])');
   const fail = [];
   const startTxt = await a.evaluate(() => document.querySelector('#start').innerText);

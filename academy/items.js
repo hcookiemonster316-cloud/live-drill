@@ -73,7 +73,7 @@ export const ITEMS = [
   { id: 'laptop', r: 'r', icon: '💻', name: 'Laptop, Charger AND Mouse', slot: 'carry', perk: { rpStudy: 20, per: 1 }, text: 'All three. Same bag. Same day. The instructors are speechless.' },
   { id: 'textbooks', r: 'e', icon: '📚', name: 'Both Textbooks', slot: 'carry', perk: { rpStudy: 30, rpCall: 10, speed: -5 }, text: 'Heavy enough to count as PT. Smart enough to count as studying.' },
   { id: 'carkit', r: 'r', icon: '🚗', name: 'The Backup Kit in Your Car', slot: 'carry', perk: { com: 2 }, text: 'Grey polo, two PT shirts, BDU pants, PT shorts, both kinds of black socks. Spill whatever you want.' },
-  { id: 'phonetic', r: 'u', icon: '🪪', name: 'Laminated Phonetic Card', slot: 'carry', perk: { com: 1, wait: 10 }, text: 'Adam, Boy, Charles, David... You will recite these in your sleep. Your family has noticed.' },
+  { id: 'phonetic', r: 'u', icon: '🪪', name: 'Laminated Phonetic Card', slot: 'carry', perk: { com: 1, wait: 10 }, text: 'Alpha, Bravo, Charlie, Delta... You will recite these in your sleep. Your family has noticed.' },
   { id: 'clipboard', r: 'u', icon: '📋', name: 'Clipboard of Authority', slot: 'carry', look: { clipboard: true }, perk: { rap: 1, secret: 1 }, text: 'Carry it, walk with purpose and nobody will ever ask what you are doing here.' },
   { id: 'coin', r: 'r', icon: '🪙', name: 'Lucky Challenge Coin', slot: 'carry', perk: { loot: 8, rap: 1 }, text: 'Slap it on the table and somebody owes you a coffee. Those are the rules.' },
   { id: 'nod', r: 'e', icon: '🫡', name: "The Instructor's Approving Nod", slot: 'carry', perk: { com: 2, rpCall: 10 }, text: 'Witnessed exactly once. Might have been a sneeze. You carry it with you anyway.' },

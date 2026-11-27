@@ -386,6 +386,7 @@ function groundAhead(dl) {
 let sprHour = -1;
 function tileSig(W) { let h = 2166136261; for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { h ^= W.at(x, y) + 1; h = Math.imul(h, 16777619); } return W.did + ':' + (h >>> 0); }
 function load(did) {
+  if (!ATTRACT) S.lastD = did; // where you were: the next session starts here
   refreshGear();
   inside = null; if (net && net.inside) net.inside(-1);
   const G0 = G, d0 = W && !inside ? W.did : -1;
@@ -1581,6 +1582,8 @@ const EXPR_RE = [[/\((laugh|grin|chuckl|snort)|\bha(ha)+\b|\bheh\b/i, 'laugh'], 
 const exprOf = (t) => { const m = EXPR_RE.find(([re]) => re.test(t || '')); return m ? m[1] : ''; };
 const EXPRC = new WeakMap(); // one look object per expression, so its portrait sprite is drawn once
 function exprLook(lk, ex) { if (!ex || ex === 'calm' || lk.cat) return lk; let m = EXPRC.get(lk); if (!m) EXPRC.set(lk, m = {}); return m[ex] || (m[ex] = Object.assign({}, lk, { folk: Object.assign({}, lk.folk || folkFromLookG(lk), { expr: ex }), _spr: null })); }
+// when you've given your last name, people use it: "Sit down, cadet." becomes "Sit down, Cadet Rivera."
+function addressed(t) { const L = S.lname; if (!L || t.indexOf('adet') < 0) return t; return t.replace(/,\s*cadet(?=[.?!,])/g, ', Cadet ' + L).replace(/(^|[.?!]\s+)Cadet(?=[,.?!])/g, '$1Cadet ' + L); }
 function dialogue(lines, done, opts) { QUIET_T = Date.now();
   { const lp = document.querySelector('.lorePop:not(.out)'); if (lp && lp.__yield) lp.__yield(); } // nothing sits on top of a conversation
   opts = opts || {}; const box = $('dlg'); let seq = lines.slice(), i = -1, typing = null, full = '', auto = !!(S.cfg && S.cfg.autoDlg), skipping = false, autoT = 0, alive = true, lastSp = null, lastName = '';
@@ -1687,7 +1690,7 @@ function dialogue(lines, done, opts) { QUIET_T = Date.now();
         if (ob) { const on = (v) => () => pn.classList.toggle('on', v); ob.addEventListener('pointerenter', on(true)); ob.addEventListener('pointerleave', on(false)); ob.addEventListener('focus', on(true)); ob.addEventListener('blur', on(false)); } });
       return;
     }
-    let text = ln[1];
+    let text = ln[1]; if (typeof text === 'string' && ln[0] !== '@you') text = addressed(text);
     const narr = ln[0] === 'narr', id = narr ? '' : ln[0], c = narr ? null : who(id), radio = !narr && /^\(over the radio\)/.test(text), mood = ln[2] && ln[2].quiz;
     if (flow && !skipping) {
       // radio traffic doesn't stop the scene: it plays in a strip at the top while the conversation keeps going
@@ -1829,8 +1832,12 @@ function playStep(st) {
   // a scene that ends without saying where to go next gets a closing line that points the way
   const nx = A.pre ? (c.steps[idx].pre.slice(A.x + 1).find(stepOn) || c.steps[idx]) : !last ? c.steps[nextI] : null, endsQuiz = seq.length && (seq[seq.length - 1][0] === 'q' || seq[seq.length - 1][0] === 'gate');
   if (nx && (endsQuiz || !(st.after || []).length) && nx.goal && (st.who || 'castillo') !== nx.who) {
-    const g = nx.goal.replace(/\.$/, ''), sp2 = st.who || 'castillo', radio = !(st.who) ? '(over the radio) ' : '';
-    seq.push([sp2, radio + rnd(['Okay. If I were you, I\'d ', 'So here\'s what I\'d do next. I\'d ', 'Alright. Next thing I\'d do is ']) + g.charAt(0).toLowerCase() + g.slice(1) + '.']);
+    // the next step comes from someone who'd send you there: the officer you're with, your partner, or Castillo on the
+    // radio. Never a civilian who couldn't know (a homeowner doesn't assign you a debrief at the fire station).
+    const g = nx.goal.replace(/\.$/, ''), gl = g.charAt(0).toLowerCase() + g.slice(1), cw = st.who && (CAST[st.who] || (castLook(st.who) || {}).job === 'officer' || (castLook(st.who) || {}).job === 'plain' || UNIT_CAST[st.who]), pt = VAR.partner();
+    if (cw) seq.push([st.who, (st.who === 'castillo' && !say.some((l) => l[0] === 'castillo' && !/^\(over the radio\)/.test(l[1] || '')) ? '(over the radio) ' : '') + rnd(['Okay. Next, ', 'Good. Now ', 'Alright. From here, ']) + gl + '.']);
+    else if (pt) seq.push([pt.id, rnd(['Okay. Next stop: ', 'Alright, let\'s keep moving. Next we ', 'Good. Now we ']) + gl + '.']);
+    else seq.push(['castillo', rnd(['(over the radio) Good work out there. Next, ', '(over the radio) Copy that. When you\'re clear, ', '(over the radio) Nice. Now ']) + gl + '.']);
   }
   seq = VAR.questSeq({ c, st, seq, side: A.side, quiet: !!(st.twist || HEAVY_EMO[emoOf(c)]) });
   seq = WAYS.seq(c, st, seq, last, A.side); // the last scene of a side case: talk, look into it, or by the book (ways.js)
@@ -2294,11 +2301,11 @@ function floatsDraw(now) {
 // your rank as a number (0 Cadet ... 9 Graduate): it shows on your sleeve, your collar, your cap and your cruiser
 // your officer's look and sprite key, rebuilt four times a second instead of every frame (it reads the outfit, gear, events and season, then stringifies)
 let MELOOK = null, MELOOKT = -1e9;
-function meLook(now) { if (MELOOK && now - MELOOKT < 250 && now >= MELOOKT) return MELOOK; MELOOKT = now; const kt = kitWith(myKit(), myLooks()), sk = S.skin || '#c68e63', rk = rankLvl(); return (MELOOK = { kt, sk, rk, kk: 'me|' + JSON.stringify(kt) + sk + '|r' + rk }); }
+function meLook(now) { if (MELOOK && now - MELOOKT < 250 && now >= MELOOKT) return MELOOK; MELOOKT = now; const kt = kitWith(myKit(), myLooks()), sk = S.skin || '#c68e63', rk = S.cfg.rankShow ? rankLvl() : 0; /* rank on the sleeve only if you want it (Settings) */ return (MELOOK = { kt, sk, rk, kk: 'me|' + JSON.stringify(kt) + sk + '|r' + rk }); }
 const RANK_XP = [0, 200, 600, 1200, 2000, 3000, 4200, 5600, 7200, 9000];
 function rankLvl() { return RANK_XP.filter((t) => (S.xp || 0) >= t).length - 1; }
 let MYCAR = null, MYCARK = null; // one object per ride, so the vehicle sprite cache keeps hitting
-function myCruiser() { const r = LIFE.ride(U().ride), rk = rankLvl() >= 4; if (MYCARK !== r || MYCAR.rk !== rk) { MYCARK = r; MYCAR = Object.assign({}, r, rk ? { stripe: '#d4a017', roofBar: '#e3b341' } : {}); Object.defineProperty(MYCAR, 'rk', { value: rk }); } return MYCAR; } // the gold stripe and roof bar come with Squad Leader 1 (rank 4)
+function myCruiser() { const r = LIFE.ride(U().ride), rk = !!S.cfg.rankShow && rankLvl() >= 4; if (MYCARK !== r || MYCAR.rk !== rk) { MYCARK = r; MYCAR = Object.assign({}, r, rk ? { stripe: '#d4a017', roofBar: '#e3b341' } : {}); Object.defineProperty(MYCAR, 'rk', { value: rk }); } return MYCAR; } // the gold stripe and roof bar come with Squad Leader 1 (rank 4)
 // the people you ride with notice: once after each promotion, your partner's first line is about it
 const RANK_LINES = {
   walsh: ['Squad Leader, huh? Don\'t let it go to your head. Let it go to your paperwork.', 'Look at the stripes on you. Fine. You pick lunch today.', 'They\'re putting cadets behind you now. Drive like somebody\'s watching.', 'State certified. I still remember mine. I\'m proud of you, kid.'],
@@ -3217,27 +3224,31 @@ function callsign(did) { return (did + 1) + '-' + rnd(PHONETIC) + '-' + (10 + Ma
 function startScreen() {
   let did = S.home != null ? S.home : 0, shift = SHIFTS.some((x) => x.id === S.shift) ? S.shift : 'day', unit = S.unit && (S.units || {})[S.unit] ? S.unit : 'patrol';
   // call sign: district number - phonetic letter - unit number the cadet picks
-  const old = /^\d-([A-Za-z]+)-(\d{1,3})$/.exec(S.cs || ''); let phon = old && PHONETIC.includes(old[1]) ? old[1] : 'Adam', num = old ? old[2] : String(10 + Math.floor(Math.random() * 89)); /* a new cadet gets a number to start with (change it any time) so the start button works right away */
-  const csNow = () => (did + 1) + '-' + phon + '-' + (num || '##');
+  const old = /^(\d)-([A-Za-z]+)-(\d{1,3})$/.exec(S.cs || ''); let pre = old ? old[1] : String((S.home != null ? S.home : 0) + 1), phon = old ? (PHONETIC.includes(old[2]) ? old[2] : PHONETIC.find((p) => p[0] === old[2][0].toUpperCase()) || 'Alpha') : 'Alpha', num = old ? old[3] : String(10 + Math.floor(Math.random() * 89)), lname = S.lname || '', byName = !!S.lname; /* an older call sign keeps its letter in the military alphabet (Adam becomes Alpha) */ /* a new cadet gets a number to start with (change it any time) so the start button works right away */
+  const csNow = () => (pre || '#') + '-' + phon + '-' + (num || '##');
   const draw = () => {
     $('start').innerHTML = '<div class="stBox"><div class="stBrand"><span class="stBadge" data-noicon><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17l-5.6 3 1.1-6.3L2.9 9.3l6.3-.9z" fill="#0f1a33" stroke="#fff3b0" stroke-width=".8" stroke-linejoin="round"/></svg></span><div><b>PATROL CITY</b><small>Learn the job on the street · ' + CHAPTER.name + '</small></div></div>' +
       '<label class="stL">Your call sign</label><div class="stCs"><b id="stCsNow">' + esc(csNow()) + '</b></div>' +
-      '<div class="stCsPick"><span class="stPre" title="Your district number">' + (did + 1) + '</span><select id="stPhon" aria-label="Phonetic letter">' + PHONETIC.map((p) => '<option' + (p === phon ? ' selected' : '') + '>' + p + '</option>').join('') + '</select><input id="stNum" inputmode="numeric" maxlength="3" placeholder="Unit #" aria-label="Unit number, 1 to 999" value="' + esc(num) + '"></div><p class="stNote">The first number is your district. Pick your phonetic letter and type your unit number (1 to 999).</p>' +
+      '<div class="stCsPick"><input id="stPre" class="stPre" inputmode="numeric" maxlength="1" aria-label="First number, 1 to 9" value="' + esc(pre) + '"><select id="stPhon" aria-label="Phonetic letter">' + PHONETIC.map((p) => '<option' + (p === phon ? ' selected' : '') + '>' + p + '</option>').join('') + '</select><input id="stNum" inputmode="numeric" maxlength="3" placeholder="Unit #" aria-label="Unit number, 1 to 999" value="' + esc(num) + '"></div><p class="stNote">Your whole unit number: the first number (1 to 9), a letter in the military alphabet, and your unit number (1 to 999).</p>' +
+      '<label class="stL">What people call you</label><div class="stS stName"><button type="button" data-nm="0" class="' + (byName ? '' : 'on') + '"><b>Cadet</b><small>Just "Cadet"</small></button><button type="button" data-nm="1" class="' + (byName ? 'on' : '') + '"><b>Your last name</b><small>"Cadet ' + esc(lname || 'Rivera') + '"</small></button></div>' + (byName ? '<input id="stLname" class="stLname" maxlength="18" autocomplete="family-name" placeholder="Last name" aria-label="Your last name" value="' + esc(lname) + '">' : '') +
       '<label class="stL">Pick your shift</label><div class="stS">' + SHIFTS.map((s) => '<button type="button" class="' + (s.id === shift ? 'on' : '') + '" data-s="' + s.id + '"><b>' + s.name + '</b><span>' + s.hours + '</span><small>' + s.note + '</small></button>').join('') + '</div>' +
       (S.home == null ? '<label class="stL">Pick your district</label><div class="stD">' + DISTRICTS.map((d) => '<button type="button" class="' + (d.id === did ? 'on' : '') + '" data-d="' + d.id + '" style="--dc:' + d.color + '"><b>' + esc(d.name) + '</b><span>' + esc(d.unit) + '</span></button>').join('') + '</div><p class="stNote">You start locked to this district. Master it to open the next one.</p>' : '<p class="stNote">Your district: <b>' + esc(DISTRICTS[S.home].name) + '</b>. Change districts from the city map once others are open.</p>') +
       '<label class="stL">Today\'s uniform</label><div class="stS stO">' + ['std', 'pt', 'unit'].map((k) => '<button type="button" class="' + (k === (S.outfit || 'std') ? 'on' : '') + '" data-o="' + k + '"><b>' + OUTFITS[k].icon + ' ' + OUTFITS[k].name + '</b><span>' + esc(OUTFITS[k].text) + '</span></button>').join('') + '</div>' +
       '<label class="stL">Your unit</label><p class="stNote stUnit">' + esc(unitOf(unit).icon + ' ' + unitName(unitOf(unit))) + (Object.keys(S.units || {}).length > 1 ? '. Switch between your earned units from the career board.' : '. Specialty units are earned on the street: meet a lead\'s bar, finish their quests and pass the tryout.') + '</p>' +
       
       '<button type="button" class="stGo" id="stGo">Start roll call</button><p class="stFine">Sim training game for FBRTP cadets. Answers come from your ' + CHAPTER.name + ' study material.</p></div>';
-    const csOk = () => /^[1-9]\d{0,2}$/.test(num);
-    const goState = () => { const b = $('stGo'); b.disabled = !unit || !csOk(); b.textContent = !csOk() ? 'Type your unit number' : !unit ? 'Pick a specialty unit' : 'Start roll call'; $('stCsNow').textContent = csNow(); };
+    const csOk = () => /^[1-9]\d{0,2}$/.test(num) && /^[1-9]$/.test(pre) && (!byName || lname.length >= 2);
+    const goState = () => { const b = $('stGo'); b.disabled = !unit || !csOk(); b.textContent = !/^[1-9]$/.test(pre) ? 'Pick a first number, 1 to 9' : !/^[1-9]\d{0,2}$/.test(num) ? 'Type your unit number' : !csOk() ? 'Type your last name' : !unit ? 'Pick a specialty unit' : 'Start roll call'; $('stCsNow').textContent = csNow(); };
     $('stPhon').onchange = (e) => { phon = e.target.value; goState(); };
+    $('stPre').oninput = (e) => { pre = e.target.value.replace(/[^1-9]/g, '').slice(0, 1); e.target.value = pre; goState(); };
+    document.querySelectorAll('[data-nm]').forEach((b) => b.onclick = () => { byName = b.dataset.nm === '1'; draw(); const ln = $('stLname'); if (ln) ln.focus(); });
+    { const ln = $('stLname'); if (ln) ln.oninput = (e) => { lname = e.target.value.replace(/[^A-Za-z' -]/g, '').replace(/^\s+/, '').slice(0, 18); if (lname) lname = lname[0].toUpperCase() + lname.slice(1); e.target.value = lname; goState(); }; }
     $('stNum').oninput = (e) => { num = e.target.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 3); e.target.value = num; goState(); };
     document.querySelectorAll('[data-d]').forEach((b) => b.onclick = () => { did = +b.dataset.d; draw(); });
     document.querySelectorAll('[data-s]').forEach((b) => b.onclick = () => { shift = b.dataset.s; draw(); });
     document.querySelectorAll('[data-o]').forEach((b) => b.onclick = () => { S.outfit = b.dataset.o; draw(); });
     goState();
-    $('stGo').onclick = () => { if (!unit || !csOk()) return; if (S.sound) audio(); endAttract(); const freshCareer = !S.cs; S.cs = csNow(); if (freshCareer) UIS.start(); S.shift = shift; S.unit = unit; S.unitsUsed = S.unitsUsed || {}; S.unitsUsed[unit] = 1; if (S.home == null) { S.home = did; S.unlocked = [did]; } saveS(); $('start').hidden = true; clock = 0; travel(S.home != null && S.unlocked.includes(did) ? did : S.home, rollCall); };
+    $('stGo').onclick = () => { if (!unit || !csOk()) return; if (S.sound) audio(); endAttract(); const freshCareer = !S.cs; S.cs = csNow(); S.lname = byName ? lname.trim() : ''; if (freshCareer) UIS.start(); S.shift = shift; S.unit = unit; S.unitsUsed = S.unitsUsed || {}; S.unitsUsed[unit] = 1; if (S.home == null) { S.home = did; S.unlocked = [did]; } saveS(); $('start').hidden = true; clock = 0; travel(S.lastD != null && (S.unlocked || []).includes(S.lastD) ? S.lastD : S.home != null && S.unlocked.includes(did) ? did : S.home, rollCall); }; // you pick up where you left off: the last district you were in
   };
   draw(); $('start').hidden = false;
 }
@@ -3258,7 +3269,7 @@ function rollCall() {
 // ---------- front end: studio boot, main menu, settings, pause, loading, trophies, photo mode, credits ----------
 // Meridian Forge is the game's fictional in-world studio (it belongs to the Port Meridian setting).
 const STUDIO = { name: 'MERIDIAN FORGE', sub: 'INTERACTIVE', engine: 'SENTRY ENGINE', ver: 'v1.5.0' };
-S.cfg = Object.assign({ music: .8, sfx: .8, quality: 'high', shake: true, text: 'normal', motion: !(typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches), autoQ: true }, S.cfg || {}); // a device set to reduce motion starts with Reduced
+S.cfg = Object.assign({ music: .8, sfx: .8, quality: 'high', shake: true, text: 'normal', motion: !(typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches), autoQ: true, rankShow: false }, S.cfg || {}); // rank on the uniform and car is off unless you turn it on // a device set to reduce motion starts with Reduced
 const fe = () => $('fe');
 function feSound(kind) { if (!S.sound) return; if (kind === 'move') beep(880, .03, 'triangle', .02); else if (kind === 'ok') { beep(660, .06, 'triangle', .04); beep(990, .09, 'triangle', .035, .05); } else if (kind === 'back') beep(440, .07, 'triangle', .035); }
 // low boom and shimmer for the studio logo
@@ -3359,6 +3370,7 @@ function settingsPanel(back) {
     '<label>Effects volume<input type="range" min="0" max="1" step=".05" value="' + c.sfx + '" data-r="sfx"></label>' +
     '<label>Graphics quality' + seg('quality', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra 4K']]) + '</label>' +
     '<label>Auto-adjust graphics' + seg('autoQ', [[true, 'On'], [false, 'Off']]) + '</label>' +
+    '<label>Show rank on your uniform and car' + seg('rankShow', [[false, 'Off'], [true, 'On']]) + '</label>' +
     '<label>Shift length' + seg('shiftLen', [['full', 'Full (16 min)'], ['short', 'Short (8 min)']]) + '</label>' +
     '<label>Text speed' + seg('text', [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast'], ['instant', 'Instant']]) + '</label>' +
     '<label>Camera shake' + seg('shake', [[true, 'On'], [false, 'Off']]) + '</label>' +

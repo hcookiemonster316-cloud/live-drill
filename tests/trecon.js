@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 const OUT = process.argv[2] || 'tests/out';
 (async () => { const b = await chromium.launch(); const a = await b.newPage({ viewport: { width: 900, height: 760 } }); const errs = []; a.on('pageerror', (e) => errs.push(e.message + ' ' + (e.stack || '').split('\n')[1]));
   await a.goto('http://localhost:8765/academy/?mock&skiptitle');
-  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ ch: 'vo', cs: '1-Adam-12', home: 0, unlocked: [0, 1, 2, 3, 4], story: { 0: 99, 1: 99, 2: 99, 3: 99, 4: 99 }, shift: 'day', unit: 'patrol', sound: false, seenIntro: 1, seenCine: 1, tutDone: 1, cfg: { pursuits: false } })));
+  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ ch: 'vo', cs: '1-Alpha-12', home: 0, unlocked: [0, 1, 2, 3, 4], story: { 0: 99, 1: 99, 2: 99, 3: 99, 4: 99 }, shift: 'day', unit: 'patrol', sound: false, seenIntro: 1, seenCine: 1, tutDone: 1, cfg: { pursuits: false } })));
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.click('#mDone').catch(() => {}); await a.waitForFunction(() => window.__pc && window.__pc.W && window.__booted, null, { timeout: 20000 }); await a.waitForTimeout(2000);
   await a.addStyleTag({ content: '.lorePop,.tCard{display:none!important}' });
   const open = (id) => a.evaluate((id) => { window.__rows = null; const pc = window.__pc; pc.EP.sceneTest(id, { where: 'Main St', vcn: 'Ms. Ruiz', x: pc.P.x, y: pc.P.y }, (rows) => { window.__rows = rows; pc.closeModal(); }); }, id);

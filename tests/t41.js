@@ -3,7 +3,7 @@ const { chromium } = require('playwright');
   const b = await chromium.launch(); const errs = [];
   const a = await b.newPage({ viewport: { width: 390, height: 844 } }); a.on('pageerror', (e) => errs.push(e.message));
   await a.goto('http://localhost:8765/academy/?mock&skiptitle');
-  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ ch: 'vo', cs: '1-Adam-12', home: 0, unlocked: [0,1,2,3,4], shift: 'day', unit: 'patrol', xp: 9000, sound: false, seenIntro: 1, story: { 0: 6, 1: 6, 2: 6, 3: 6, 4: 6 } })));
+  await a.evaluate(() => localStorage.setItem('patrolcity:v1', JSON.stringify({ ch: 'vo', cs: '1-Alpha-12', home: 0, unlocked: [0,1,2,3,4], shift: 'day', unit: 'patrol', xp: 9000, sound: false, seenIntro: 1, story: { 0: 6, 1: 6, 2: 6, 3: 6, 4: 6 } })));
   await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(400); await a.click('#mDone'); await a.waitForTimeout(2500);
   const SQ = await a.evaluate(async () => (await import('./sidequests.js')).SIDE2.map((q) => ({ id: q.id, d: q.d, giver: q.giver, giverAt: q.giverAt, at: q.steps.map((s) => s.at) })));
   for (let d = 0; d < 5; d++) {

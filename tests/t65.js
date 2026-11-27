@@ -7,7 +7,7 @@ const { chromium, devices } = require('playwright');
     await a.reload(); await a.waitForSelector('#start:not([hidden])'); await a.click('#stGo'); await a.waitForTimeout(300); await a.click('#mDone'); await a.waitForFunction(() => window.__pc && window.__pc.W, null, { timeout: 20000 }); await a.waitForTimeout(2500);
     for (let i = 0; i < 5; i++) { await a.evaluate(() => { const b = [...document.querySelectorAll('button')].find((x) => /back to patrol|keep patrolling/i.test(x.innerText) && x.offsetParent); if (b) b.click(); document.querySelectorAll('.tCard').forEach((x) => x.click()); document.querySelectorAll('.lorePop').forEach((x) => x.remove()); const m = document.getElementById('modal'); if (!m.hidden) { const bb = [...m.querySelectorAll('button')].pop(); bb && bb.click(); } }); await a.waitForTimeout(500); }
     return a; };
-  const A = await boot('1-Adam-12', 'patrol'); const B = await boot('2-Baker-14', 'patrol');
+  const A = await boot('1-Alpha-12', 'patrol'); const B = await boot('2-Bravo-14', 'patrol');
   const uidOf = (p) => p.evaluate(() => window.__pc.myUid);
   const ua = await uidOf(A), ub = await uidOf(B); console.log('uids', !!ua, !!ub, ua !== ub);
   // 1. unit-specific: A asks for a K9; B (patrol) should NOT get a card
@@ -17,17 +17,17 @@ const { chromium, devices } = require('playwright');
   await B.bringToFront(); await B.waitForTimeout(1500); console.log('B card for K9 request (should be hidden):', await B.evaluate(() => document.getElementById('bkCard').hidden));
   await A.bringToFront(); await A.evaluate(() => document.getElementById('ccBk').click()); await A.waitForTimeout(800);
   // 2. partner request B -> A
-  await B.bringToFront(); await B.evaluate((u) => window.__pc.COOP.partnerAsk(u, '1-Adam-12', false), ua); await B.waitForTimeout(1200);
+  await B.bringToFront(); await B.evaluate((u) => window.__pc.COOP.partnerAsk(u, '1-Alpha-12', false), ua); await B.waitForTimeout(1200);
   await A.bringToFront(); await A.waitForTimeout(1800); console.log('A partner card:', await A.evaluate(() => { const e = document.getElementById('ptCard'); return e && !e.hidden ? e.innerText.replace(/\n+/g, ' | ') : 'none'; }));
   await A.screenshot({ path: 'co_pt.png' });
   await A.evaluate(() => { const y = document.getElementById('ptYes'); y && y.click(); }); await A.waitForTimeout(1500);
   await B.bringToFront(); await B.waitForTimeout(1800);
   console.log('partners:', await A.evaluate(() => JSON.stringify(window.__pc.S.partner && window.__pc.S.partner.c)), await B.evaluate(() => JSON.stringify(window.__pc.S.partner && window.__pc.S.partner.c)));
   // 3. commendation A -> B
-  await A.bringToFront(); await A.evaluate((u) => { window.__pc.COOP.commendPrompt(u, '2-Baker-14', 'test'); }, ub); await A.waitForTimeout(400); await A.evaluate(() => document.querySelector('#cmCard [data-k="1"]').click()); await A.waitForTimeout(1500);
+  await A.bringToFront(); await A.evaluate((u) => { window.__pc.COOP.commendPrompt(u, '2-Bravo-14', 'test'); }, ub); await A.waitForTimeout(400); await A.evaluate(() => document.querySelector('#cmCard [data-k="1"]').click()); await A.waitForTimeout(1500);
   await B.bringToFront(); await B.waitForTimeout(2000); console.log('B commends:', await B.evaluate(() => JSON.stringify(window.__pc.S.comms2)));
   // 4. ride-along: A invites B
-  await A.bringToFront(); await A.evaluate((u) => window.__pc.COOP.partnerAsk(u, '2-Baker-14', true), ub); await A.waitForTimeout(1200);
+  await A.bringToFront(); await A.evaluate((u) => window.__pc.COOP.partnerAsk(u, '2-Bravo-14', true), ub); await A.waitForTimeout(1200);
   await B.bringToFront(); await B.waitForTimeout(2000); console.log('B ride card:', await B.evaluate(() => { const e = document.getElementById('ptCard'); return e && !e.hidden ? e.innerText.slice(0, 60).replace(/\n+/g, ' | ') : 'none'; }));
   await B.evaluate(() => { const y = document.getElementById('ptYes'); y && y.click(); }); await B.waitForTimeout(2500);
   console.log('B riding:', await B.evaluate(() => window.__pc.RIDING), 'chip:', await B.evaluate(() => { const e = document.getElementById('rideChip'); return e && !e.hidden ? e.innerText : 'none'; }));
