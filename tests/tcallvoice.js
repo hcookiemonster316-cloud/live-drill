@@ -15,7 +15,7 @@ const { chromium } = require('playwright');
     await a.waitForTimeout(400);
     // a scene call (pursuits, patrol operations and talk-downs run their own flows)
     // the shift director sometimes holds calls for a moment (a quiet stretch), so keep asking for a few seconds
-    let title = null; for (let w = 0; w < 25 && !title; w++) { title = await a.evaluate(() => { const pc = window.__pc; let c = null; for (let k = 0; k < 30 && !c; k++) { pc.dispatchCall(); const x = pc.curCall; if (x && !x.ops && !x.deesc && !x.pursuit && x.les !== 0) c = x; else if (x) pc.dropCall(); } if (!c) return null; pc.dropCall(); c.pre = null; pc.openCallScene(c); return c.title; }); if (!title) await a.waitForTimeout(400); }
+    let title = null; for (let w = 0; w < 25 && !title; w++) { title = await a.evaluate(() => { const pc = window.__pc; let c = null; for (let k = 0; k < 30 && !c; k++) { pc.dispatchCall(); const x = pc.curCall; if (x && !x.ops && !x.deesc && !x.pursuit && x.les !== 0 && !(pc.INV && pc.INV.fits(x))) c = x; /* investigations have their own test (tinvest) */ else if (x) pc.dropCall(); } if (!c) return null; pc.dropCall(); c.pre = null; pc.openCallScene(c); return c.title; }); if (!title) await a.waitForTimeout(400); }
     if (!title) { fail.push('no call dispatched'); continue; }
     await a.waitForFunction(() => !document.getElementById('dlg').hidden, null, { timeout: 8000 }).catch(() => {});
     const log = []; let lastSig = '', still = 0;

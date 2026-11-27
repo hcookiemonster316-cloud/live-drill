@@ -17,6 +17,7 @@ export function installSplash(X) {
     const n = noise(a, .2), f = a.createBiquadFilter(), g = a.createGain(); f.type = 'highpass'; f.frequency.value = 3000; env(a, g, t, .32 * V(), .001, .12); n.connect(f).connect(g).connect(o); n.start(t); }
   function boom(at, f0, dur, v) { const a = A(); if (!a) return; const t = a.currentTime + at, s = a.createOscillator(), g = a.createGain(); s.type = 'sine'; s.frequency.setValueAtTime(f0 || 90, t); s.frequency.exponentialRampToValueAtTime(28, t + (dur || 2)); env(a, g, t, (v || .55) * V(), .03, dur || 2); s.connect(g).connect(out(a)); s.start(t); s.stop(t + (dur || 2) + .2); }
   function shimmer(at, dur) { const a = A(); if (!a) return; const t = a.currentTime + at, o = out(a); [1568, 2093, 2637, 3136].forEach((f, k) => { const s = a.createOscillator(), g = a.createGain(), lfo = a.createOscillator(), lg = a.createGain(); s.type = 'sine'; s.frequency.value = f; lfo.frequency.value = 5 + k * 1.3; lg.gain.value = 6; lfo.connect(lg).connect(s.frequency); env(a, g, t + k * .08, .028 * V(), .4, dur); s.connect(g).connect(o); s.start(t); lfo.start(t); s.stop(t + dur + .6); lfo.stop(t + dur + .6); }); }
+  function rumble(at, dur) { const a = A(); if (!a) return; const t = a.currentTime + at, n = noise(a, dur + .2), f = a.createBiquadFilter(), g = a.createGain(); f.type = 'lowpass'; f.frequency.setValueAtTime(90, t); f.frequency.linearRampToValueAtTime(220, t + dur); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.22 * V(), t + dur); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .15); n.connect(f).connect(g).connect(out(a)); n.start(t); n.stop(t + dur + .2); }
   function zap(at) { const a = A(); if (!a) return; const t = a.currentTime + at, s = a.createOscillator(), g = a.createGain(); s.type = 'sawtooth'; s.frequency.setValueAtTime(2400, t); s.frequency.exponentialRampToValueAtTime(60, t + .25); env(a, g, t, .08 * V(), .005, .25); s.connect(g).connect(out(a)); s.start(t); s.stop(t + .3); }
   function sweep(at, dur) { const a = A(); if (!a) return; const t = a.currentTime + at, o = out(a); [0, 7].forEach((det) => { const s = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain(); s.type = 'sawtooth'; s.frequency.value = 55 * Math.pow(2, det / 12); f.type = 'lowpass'; f.Q.value = 9; f.frequency.setValueAtTime(120, t); f.frequency.exponentialRampToValueAtTime(3200, t + dur); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.06 * V(), t + dur * .8); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .3); s.connect(f).connect(g).connect(o); s.start(t); s.stop(t + dur + .4); }); }
   function ping(at, f) { const a = A(); if (!a) return; const t = a.currentTime + at, s = a.createOscillator(), g = a.createGain(); s.type = 'sine'; s.frequency.value = f || 1320; env(a, g, t, .06 * V(), .004, .5); s.connect(g).connect(out(a)); s.start(t); s.stop(t + .6); }
@@ -40,14 +41,14 @@ export function installSplash(X) {
     const { cv, g, dpr } = stage(el), W = cv.width, H = cv.height, cx = W / 2, cy = H * .42, R = Math.min(W, H) * .11, M = motion();
     // painted before the first frame: the forge glow (a quarter size, it is all soft gradient) and the star's points
     const [glow, gb] = off(W / 4, H / 4); { const gr = gb.createRadialGradient(cx / 4, cy / 4, 0, cx / 4, cy / 4, R * 4.2 / 4); gr.addColorStop(0, 'rgba(255,170,40,.32)'); gr.addColorStop(.45, 'rgba(200,70,10,.12)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); gb.fillStyle = gr; gb.fillRect(0, 0, W / 4, H / 4); }
-    const star = starPath(cx, cy, R), sparks = [], embers = []; let struck = false, last = 0, raf = 0, live = true;
-    const T = clock((lag) => { clang(.55 + lag); boom(.56 + lag, 95, 2.4, .5); shimmer(1.6 + lag, 2.2); // sound and the CSS parts start with the first frame
-      setTimeout(() => { if (!live) return; el.insertAdjacentHTML('beforeend', '<div class="spName forge"><b>' + 'MERIDIAN FORGE'.split('').map((c, i) => '<i style="--i:' + i + '">' + (c === ' ' ? '&nbsp;' : c) + '</i>').join('') + '</b><span>INTERACTIVE</span></div>'); }, lag * 1000);
-      if (M) setTimeout(() => { if (live) el.classList.add('spShake'); }, (lag + .55) * 1000 - 550); });
-    const loop = (now) => { const t = T(now), k = last ? Math.min(3, (t - last) * 60) : 1; last = t; // k: frames' worth of motion, so a slow phone moves the sparks just as far
+    const star = starPath(cx, cy, R), sparks = [], embers = [], S0 = 1.1, END = 6.4; let struck = false, last = 0, raf = 0, live = true; // S0: the strike, after a slow build in the dark
+    const T = clock((lag) => { rumble(.1 + lag, S0 - .1); clang(S0 + lag); boom(S0 + .01 + lag, 95, 3.2, .55); shimmer(S0 + 1.05 + lag, 3.4); // sound and the CSS parts start with the first frame
+      setTimeout(() => { if (!live) return; el.insertAdjacentHTML('beforeend', '<div class="spName forge"><b>' + 'MERIDIAN FORGE'.split('').map((c, i) => '<i style="--i:' + i + '">' + (c === ' ' ? '&nbsp;' : c) + '</i>').join('') + '</b><span>INTERACTIVE</span></div>'); }, (lag + S0 - .55) * 1000);
+      if (M) setTimeout(() => { if (live) el.classList.add('spShake'); }, (lag + S0) * 1000 - 550); });
+    const loop = (now) => { const tt = T(now), k = last ? Math.min(3, (tt - last) * 60) : 1; last = tt; const t = tt - (S0 - .55); // t: the old timeline, with the strike at .55 // k: frames' worth of motion, so a slow phone moves the sparks just as far
       g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.fillStyle = '#04060c'; g.fillRect(0, 0, W, H);
       if (!struck && t > .55) { struck = true; for (let i = 0; i < (M ? 140 : 40); i++) { const a = Math.random() * Math.PI * 2, v = (3 + Math.random() * 11) * dpr; sparks.push({ x: cx, y: cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 3 * dpr, l: 1, w: (1 + Math.random() * 1.6) * dpr }); } }
-      const heat = t < .55 ? t / .55 * .15 : Math.min(1, .5 + (t - .55) * .6) * (t > 3.6 ? Math.max(0, 1 - (t - 3.6) * 2) : 1);
+      const FADE = END - .8 - (S0 - .55), heat = t < .55 ? Math.max(0, (tt / S0)) * .22 : Math.min(1, .5 + (t - .55) * .6) * (t > FADE ? Math.max(0, 1 - (t - FADE) * 2) : 1); // the glow builds in the dark before the strike
       if (heat > 0) { g.globalAlpha = heat; g.drawImage(glow, 0, 0, W, H); g.globalAlpha = 1; }
       if (M && t > .55 && t < .75) { g.fillStyle = 'rgba(255,240,210,' + (1 - (t - .55) / .2) * .4 + ')'; g.fillRect(0, 0, W, H); } // the flash of the strike
       g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
@@ -64,8 +65,8 @@ export function installSplash(X) {
         [[16 - cool * 6, .12], [9 - cool * 3, .22]].forEach(([w, a]) => { g.lineWidth = w * dpr; g.strokeStyle = 'rgba(255,170,40,' + a + ')'; g.stroke(); });
         g.lineWidth = 3.2 * dpr; g.strokeStyle = 'rgb(255,' + Math.round(235 - cool * 51) + ',' + Math.round(180 - cool * 180) + ')'; g.stroke(); }
       g.globalCompositeOperation = 'source-over';
-      if (t > 3.75) { g.fillStyle = 'rgba(4,6,12,' + Math.min(1, (t - 3.75) * 2.5) + ')'; g.fillRect(0, 0, W, H); }
-      if (t < 4.2 && live) raf = requestAnimationFrame(loop); else finish(); };
+      if (tt > END - .55) { g.fillStyle = 'rgba(4,6,12,' + Math.min(1, (tt - (END - .55)) * 2.5) + ')'; g.fillRect(0, 0, W, H); }
+      if (tt < END && live) raf = requestAnimationFrame(loop); else finish(); };
     const finish = () => { if (!live) return; live = false; cancelAnimationFrame(raf); done(); };
     raf = requestAnimationFrame(loop); el.classList.add('spForge');
     return () => finish();
@@ -80,12 +81,13 @@ export function installSplash(X) {
     // the radar wedge, painted once (a soft fan) and turned each frame
     const [wedge, wb] = off(RR * 2, RR * 2); for (let q = 0; q < 14; q++) { wb.fillStyle = 'rgba(56,189,248,' + .07 * (1 - q / 14) + ')'; wb.beginPath(); wb.moveTo(RR, RR); wb.arc(RR, RR, RR, -q * .05 - .05, -q * .05); wb.closePath(); wb.fill(); }
     let raf = 0, live = true;
-    const T = clock((lag) => { zap(.05 + lag); sweep(.3 + lag, 1.8); boom(2.2 + lag, 70, 2, .6); ping(2.2 + lag, 880);
-      setTimeout(() => { if (live) el.insertAdjacentHTML('beforeend', '<div class="spName eng"><b data-t="SENTRY ENGINE">SENTRY ENGINE</b><span>REAL-TIME CITY SIMULATION</span></div>'); }, lag * 1000); });
+    const HIT = 2.7, END = 6; // the name and the bass hit, and the end
+    const T = clock((lag) => { zap(.05 + lag); sweep(.3 + lag, HIT - .4); boom(HIT + lag, 70, 2.6, .6); ping(HIT + lag, 880);
+      setTimeout(() => { if (live) el.insertAdjacentHTML('beforeend', '<div class="spName eng"><b data-t="SENTRY ENGINE">SENTRY ENGINE</b><span>REAL-TIME CITY SIMULATION</span></div>'); }, (lag + HIT - 2.15) * 1000); });
     const AL = 6; // block brightness in six steps: six strokes a frame instead of one per block
     const loop = (now) => { const t = T(now); g.globalCompositeOperation = 'source-over'; g.fillStyle = '#02060d'; g.fillRect(0, 0, W, H);
       if (t < .35) { const k = t / .35; g.fillStyle = 'rgba(200,235,255,' + (1 - k) * .9 + ')'; g.fillRect(0, cy - 1 * dpr, W, 2 * dpr * (1 + k * 3)); } // the screen powering on
-      const grow = Math.max(0, (t - .3) / 1.4) * N * 1.15, beamA = t > 1.4 ? (t - 1.4) * 3.2 : -9, fade = t > 3.6 ? Math.max(0, 1 - (t - 3.6) * 2.5) : 1, gold = t > 2.2 && t < 2.6 ? 1 - Math.abs(t - 2.4) / .2 : 0;
+      const grow = Math.max(0, (t - .3) / 1.9) * N * 1.15, beamA = t > 1.6 ? (t - 1.6) * 2.6 : -9, fade = t > END - .5 ? Math.max(0, 1 - (t - (END - .5)) * 2.5) : 1, gold = t > HIT && t < HIT + .4 ? 1 - Math.abs(t - HIT - .2) / .2 : 0;
       g.globalCompositeOperation = 'lighter'; g.lineWidth = 1 * dpr;
       // the ground grid, drawn out from the middle: one path
       g.strokeStyle = 'rgba(56,189,248,' + .22 * fade + ')'; g.beginPath();
@@ -103,7 +105,7 @@ export function installSplash(X) {
       // the radar sweep
       if (beamA > 0 && fade > 0) { g.save(); g.globalAlpha = fade; g.translate(cx, cy); g.scale(1, .5); g.rotate(beamA); g.drawImage(wedge, -RR, -RR); g.restore(); }
       g.globalCompositeOperation = 'source-over';
-      if (t < 4.1 && live) raf = requestAnimationFrame(loop); else finish(); };
+      if (t < END && live) raf = requestAnimationFrame(loop); else finish(); };
     const finish = () => { if (!live) return; live = false; cancelAnimationFrame(raf); done(); };
     raf = requestAnimationFrame(loop); el.classList.add('spEng');
     return () => finish();
