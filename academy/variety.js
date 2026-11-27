@@ -182,7 +182,9 @@ export function installVariety(H) {
     if (p && Math.random() < .7) out.push([p.id, pLine(p, 'arrive')]);
     if (c.vtw) out.push(...c.vtw.on);
     if (C.pre) out.push(['narr', rnd(C.pre)]);
-    if (a && c.vret) out.push([cid, pick('ret', ["Oh, it's you again. You were here for the " + a.t.toLowerCase() + ".", "Hey! You're the one who came last time. Okay, good. That makes this easier.", "Back again. I'm starting to feel bad about how often I call."])]);
+    if (a && c.vret) out.push([cid, a.e === 0 ? pick('retBad', ["Oh. It's you. Last time, with the " + a.t.toLowerCase() + ", didn't exactly go great.", "You again. Let's hope this one goes better than last time.", "I remember you. I'm hoping you remember how last time went, too."])
+      : a.e === 1 ? pick('retGood', ["Oh, good, it's you. You handled the " + a.t.toLowerCase() + " last time. I told everybody.", "Hey! You're the one who fixed it last time. Okay. I feel better already.", "It's you. Good. Last time you actually listened."])
+      : pick('ret', ["Oh, it's you again. You were here for the " + a.t.toLowerCase() + ".", "Hey! You're the one who came last time. Okay, good. That makes this easier.", "Back again. I'm starting to feel bad about how often I call."])]);
     else if (!c.rep) out.push([cid, pick('open_' + (C.k || 'x'), C.open || ["Officer! Over here. Thank goodness.", "You got here fast. Okay, here's what happened."])]);
     if (cond && cond.remark && Math.random() < .45) out.push([cid, pick('rem_' + S.vcond, cond.remark)]);
     if (c.vrev) { const R = REVEAL.find((x) => x.re.test(c.title)); out.push(...R.l); }
@@ -222,7 +224,7 @@ export function installVariety(H) {
   }
   // a call wrapped up: remember the address and how it went, and tell the director how intense it was
   function afterScene(c, res) {
-    const k = aKey(c), a = S.addr[k] || { n: 0 }; a.n++; a.t = c.title; a.w = c.wrap; a.when = Date.now();
+    const k = aKey(c), a = S.addr[k] || { n: 0 }; a.n++; a.t = c.title; a.w = c.wrap; a.when = Date.now(); if (c.ended) a.e = c.ended.good ? 1 : 0; /* how it ended: the next visit opens on it */
     if (c.vc && c.vcn) { a.cal = c.vc.k; a.cn = c.vcn; a.ci = c.vci; }
     S.addr[k] = a; const keys = Object.keys(S.addr); if (keys.length > 40) keys.sort((x, y) => S.addr[x].when - S.addr[y].when).slice(0, keys.length - 40).forEach((x) => delete S.addr[x]);
     logEvent(c.prio === 1 ? 3 : c.prio === 2 ? 2 : 1); void res;

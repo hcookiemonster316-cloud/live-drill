@@ -19,5 +19,14 @@ for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.js'))) {
     if (who === 'lassiter' && /\b(damn|hell|shut up|kill you|you'?ll regret|or else)\b/i.test(t)) errs.push('Lassiter curses or threatens: ' + where);
   }
 }
+// your own voice on calls (callvoice.js): plain and polite, no exclamation marks, no sentence over 22 words; and the
+// partners' quiz reactions there keep their own limits
+const cvSrc = fs.readFileSync(path.join(dir, 'callvoice.js'), 'utf8');
+const pool = (name) => { const m = cvSrc.match(new RegExp('export const ' + name + ' = (\\{[\\s\\S]*?\\n\\});')); return m ? Function('return ' + m[1])() : null; };
+const lines = (o) => (Array.isArray(o) ? o.flatMap(lines) : o && typeof o === 'object' ? Object.values(o).flatMap(lines) : typeof o === 'string' ? [o] : []);
+const chk = (who, t, max, loud) => { n++; per[who] = (per[who] || 0) + 1; const where = 'callvoice.js: ' + who + ': "' + t.slice(0, 70) + '"'; if (!loud && t.indexOf('!') >= 0) errs.push('exclamation mark: ' + where);
+  for (const s of t.replace(/^\([^)]*\)\s*/, '').split(/(?<=[.?])\s+/)) { const w = s.split(/\s+/).filter(Boolean).length; if (w > max) errs.push('sentence of ' + w + ' words (max ' + max + '): ' + where); } };
+for (const P of ['YOU_WAY', 'YOU_ARGUE', 'YOU_MID', 'YOU_WRAP', 'YOU_COVER']) { const o = pool(P); if (!o) { errs.push('callvoice.js: ' + P + ' not found'); continue; } lines(o).forEach((t) => chk('you', t, 22)); }
+{ const pr = pool('PARTNER_REACT'); if (!pr) errs.push('callvoice.js: PARTNER_REACT not found'); else for (const k of Object.keys(pr)) lines(pr[k]).forEach((t) => chk(k, t, MAX[k] || 22)); }
 console.log('checked', n, 'lines', JSON.stringify(per)); if (n < 200) errs.push('found only ' + n + ' lines; the pattern may have broken');
 console.log(errs.length ? 'ERRORS ' + errs.slice(0, 12).join(' / ') + (errs.length > 12 ? ' / and ' + (errs.length - 12) + ' more' : '') : 'no errors'); process.exit(errs.length ? 1 : 0);

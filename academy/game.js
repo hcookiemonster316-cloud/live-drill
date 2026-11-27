@@ -98,6 +98,7 @@ import { MAIN_PRE, MAIN_CAST } from './mainx.js';
 import { ARC_CAST } from './friendsx.js';
 import { EMO, EMO_LABEL, HEAVY_EMO, emoOf, contrast } from './emotions.js';
 import { installRecap } from './recap.js';
+import { installCallVoice } from './callvoice.js';
 import { installReach } from './reach.js';
 import { ARCS } from './friends.js';
 import { createMusic } from './music.js';
@@ -820,6 +821,8 @@ const VAR = installVariety({ S, L, CALLS, P, partnerStart: (k) => rankLine(k) ||
   radio: (w, m) => radio(w, m), chirp: () => chirp(), toast: (t) => toast(t), dialogue: (...a) => dialogue(...a), sayAs: (...a) => sayAs(...a), award: (...a) => award(...a), stat: (...a) => stat(...a), saveS: () => saveS(),
   call: () => call, callCard: () => callCard(), landmark: () => { const ls = W.lots.map((l) => l.name || (LANDMARKS[l.kind] || {}).name).filter(Boolean); return ls.length ? rnd(ls) : 'the plaza'; },
   free: () => !!W && !inside && !scene && !call && !PUR && !storyBusy && !paused && $('dlg').hidden && $('modal').hidden && !ATTRACT && !OPSM.busy && !RIDING && !S.offDuty });
+// your voice on a call: lines you say, replies that fit the person, and how each call ended (callvoice.js)
+const CV = installCallVoice({ pick: (k, a) => VAR.pick(k, a), partnerId: () => { const p = VAR.partner(); return p ? p.id : null; } });
 // choices that come back: people and places remember what you did and bring it up later (memory.js)
 // nothing else is on screen or going on: free to start a street moment
 function streetFree(pendingOK) { return !!W && !inside && !scene && !(call && (!pendingOK || call.accepted || call.prio === 1)) && !PUR && !storyBusy && !paused && $('dlg').hidden && $('modal').hidden && !ATTRACT && !OPSM.busy && !RIDING && !S.offDuty; }
@@ -1548,7 +1551,7 @@ function dialogue(lines, done, opts) { QUIET_T = Date.now();
   opts = opts || {}; const box = $('dlg'); let seq = lines.slice(), i = -1, typing = null, full = '', auto = !!(S.cfg && S.cfg.autoDlg), skipping = false, autoT = 0, alive = true, lastSp = null, lastName = '';
   const res = { right: 0, n: 0, choices: [] }; let said = '', lastC = null;
   const flow = !S.cfg || S.cfg.dlgFlow !== false; // smart flow: merge short lines, radio in a strip, captions, beats
-  const who = (id) => TEMP[id] || CAST[id] || NPCS.find((n) => n.id === id) || { name: id, icon: '💬', role: '' };
+  const who = (id) => id === '@you' ? { name: 'You', icon: '', role: S.cs || '' } : TEMP[id] || CAST[id] || NPCS.find((n) => n.id === id) || { name: id, icon: '💬', role: '' };
   const kick = opts.kicker ? '<div class="dlgKick">' + esc(opts.kicker) + '</div>' : '';
   // the frame is built once; each line swaps the body so the portrait and controls can animate between speakers
   box.innerHTML = '<div class="dlgBar top">' + kick + '</div><div class="dlgBar bot"></div><div class="dlgMem" hidden></div>' +
@@ -1604,9 +1607,9 @@ function dialogue(lines, done, opts) { QUIET_T = Date.now();
       body.innerHTML = '<div class="dlgTxt"><div class="dlgOpts">' + opts2.map((o, k) => { const [ti, tl, cut] = toneOf(o), seen = S.seenCh[ctxKey + ':' + hashStr(o.t)]; return '<button type="button" data-k="' + k + '" class="' + (seen ? 'seen' : '') + (o.read ? ' read' : '') + '" style="--d:' + (k * 60) + 'ms"><span class="kk">' + (k + 1) + '</span><span class="tone" title="' + tl + '">' + ti + '</span><span class="ot">' + esc(cut ? o.t.slice(cut) : o.t) + '</span>' + (o.read ? '<span class="rd">💬 Your read</span>' : '') + '</button>'; }).join('') + '</div></div>';
       setChoiceMode(true); const bs = [...body.querySelectorAll('[data-k]')]; bs.forEach((b, k) => b.onmouseenter = () => b.focus());
       bs.forEach((b) => b.onclick = (e) => { e.stopPropagation(); const o = opts2[+b.dataset.k]; S.seenCh[ctxKey + ':' + hashStr(o.t)] = 1; const ks = Object.keys(S.seenCh); if (ks.length > 800) delete S.seenCh[ks[0]];
-        said = o.t; res.choices.push(o); COOP.onChoice(o); if (o.take) qTake(o.take); if (o.give) qGive(o.give); applyChoice(o); beep(660, .08, 'triangle', .04); log('You', o.t, '#f5b800');
+        said = o.say || (o.reply && o.reply[0] && o.reply[0][0] === '@you') ? '' : o.t; /* you say it yourself: no echo of the button */ res.choices.push(o); COOP.onChoice(o); if (o.take) qTake(o.take); if (o.give) qGive(o.give); applyChoice(o); beep(660, .08, 'triangle', .04); log('You', o.t, '#f5b800');
         if ((o.set || o.npc || o.trust > 0) && lastName && !o.accept && !o.bye) remember('🧠  ' + lastName + ' will remember that.');
-        if (o.fx) { try { o.fx(res); } catch (er) {} } { const rc = o.good === 0 || o.trust < 0 || o.npc < 0 || o.bad ? 'bad' : o.good || o.trust > 0 || o.npc > 0 ? 'good' : ''; /* faces react to what you said */ seq.splice(i + 1, 0, ...(o.reply || []).map((l) => (rc && Array.isArray(l) && l[0] !== 'narr' && typeof l[1] === 'string' && l.length === 2 ? [l[0], l[1], { react: rc }] : l))); } setChoiceMode(false); next(); });
+        if (o.fx) { try { o.fx(res); } catch (er) {} } { const rc = o.good === 0 || o.trust < 0 || o.npc < 0 || o.bad ? 'bad' : o.good || o.trust > 0 || o.npc > 0 ? 'good' : ''; /* faces react to what you said */ seq.splice(i + 1, 0, ...(o.say || []).filter(Boolean), ...(o.reply || []).map((l) => (rc && Array.isArray(l) && l[0] !== 'narr' && typeof l[1] === 'string' && l.length === 2 ? [l[0], l[1], { react: rc }] : l))); } setChoiceMode(false); next(); });
       return;
     }
     if (ln[0] === 'q' && ln[1] && ln[1].act && !ln[1]._v && Math.random() < .6) { ln[1]._v = 1; const vl = SUBJ.nudge(ln[1].les); if (vl) { seq.splice(i, 0, vl); return show(); } }
@@ -1631,7 +1634,7 @@ function dialogue(lines, done, opts) { QUIET_T = Date.now();
           const tx = body.querySelector('.dlgQs'); if (tx) tx.innerHTML = '<b class="dlgRetry">Not quite. One more try.</b>'; if (q.multi && $('dlgOk')) $('dlgOk').disabled = true; return; }
         const ok = scoreAnswer(q, ans, tries > 0); if (ok && COMBO >= 3 && COMBO % 3 === 0) EP.slowMo(.7); res.qs = res.qs || []; res.qs.push({ stem: q.stem, ok, fid: q.fid, fact: (q.fact || q.ex || '').trim(), q: q.act && !q.multi ? { id: q.id, fid: q.fid, kind: q.kind, stem: q.stem, opts: q.opts.slice(), c: q.c, les: q.les, fact: q.fact, act: 1, good: q.good, bad: q.bad } : null }); /* a missed decision can come back as a scene */ res.n++; if (ok) res.right++; if (tries && ok) res.retry = (res.retry || 0) + 1; showEmote(ok ? '✨' : '📘');
         body.querySelectorAll('[data-k]').forEach((b) => { const k = +b.dataset.k, isC = q.multi ? q.c.indexOf(k) >= 0 : k === q.c; b.disabled = true; b.classList.add(isC ? 'ok' : picked.indexOf(k) >= 0 ? 'no' : 'dim'); });
-        const fact = (q.fact || q.ex || '').trim(); setTimeout(() => { const V = VOICES[sp] || VOICES[String(sp).replace(/^reg_/, '')] || ANYONE, nx = seq[i + 1], more = !nx || nx[0] !== 'q', add = q.act && (ok ? q.good : q.bad)
+        const fact = (q.fact || q.ex || '').trim(); setTimeout(() => { const V = VOICES[sp] || VOICES[String(sp).replace(/^reg_/, '')] || (SCENE_C && SCENE_C.cid === sp && CV.voice(SCENE_C)) || (() => { const pt = VAR.partner(); return pt && pt.id === sp ? CV.partnerVoice(pt.k) : null; })() || ANYONE, nx = seq[i + 1], more = !nx || nx[0] !== 'q', add = q.act && (ok ? q.good : q.bad)
             // a decision plays out in the scene: what happens next, then the person with you says why
             ? (ok ? [['narr', q.good]].concat(Math.random() < .35 && SUBJ.right(q.les) ? [SUBJ.right(q.les)] : []).concat([[sp, rnd(V.p), { quiz: 'ok' }]])
               // a wrong call is a story beat: what happens, then the subject's voice names the rule, then the scene goes on
@@ -2377,12 +2380,12 @@ function waysChoice(c, cid, qs) { S.ways = S.ways || {}; const use = (k) => { S.
   if (R.block >= 7 && !c.witness) { const q = qs[0]; if (q && !q.multi && q.opts && q.opts.length > 2) { const w = q.opts.findIndex((o, i) => i !== q.c); if (w >= 0) { q.opts.splice(w, 1); if (w < q.c) q.c--; c.witness = 1; } } } /* the neighbor who saw it narrows the first question */
   const rulesFx = (k) => { if (!R.intent) return; const right = INTENT[R.intent].best === k; c.readRight = right; if (right) { blockTrust(1); setTimeout(() => toast('Right read: ' + (R.intent === 'lying' ? 'watching first caught the story not adding up.' : R.intent === 'calm' ? 'they wanted it handled, and you handled it.' : 'they needed someone to slow down and listen.')), 900); }
       if (k === 'enforce' && R.crowd === 'crowd' && R.partner !== 'good') blockTrust(-1); /* a partner who trusts you holds the crowd */ if (k === 'talk' && (R.weather === 'rain' || R.weather === 'storm')) clock += 2; if (R.partner === 'good' && right) blockTrust(1); };
-  const best = BLD.read(R.intent), opt = (k, reply, fx) => ({ read: best === k, t: WAY3[k].icon + ' ' + WAY3[k].name + ' (Lv ' + wayLvl(k) + ')', eff: k === 'talk' ? 'quiet' : k === 'observe' ? 'observe' : 'direct', reply: reply.concat(R.partner === 'short' && k === 'enforce' ? [[VAR.partner().id, 'Real smooth. Can we get through one call without a scene?']] : R.partner === 'good' && k === 'enforce' && R.crowd === 'crowd' ? [[VAR.partner().id, 'I\'ve got the crowd. Do your thing.']] : R.partner === 'good' && R.intent && INTENT[R.intent].best === k ? [[VAR.partner().id, 'Good read. I saw it too.']] : []), fx: () => { use(k); rulesFx(k); fx && fx(); if (k === 'enforce') clock += BLD.bookTime(); BLD.afterWay(c); } });
+  const best = BLD.read(R.intent), opt = (k, reply, fx) => ({ read: best === k, t: WAY3[k].icon + ' ' + WAY3[k].name + ': ' + CV.wayAct(k).replace(/^./, (x) => x.toLowerCase()) + ' (Lv ' + wayLvl(k) + ')', eff: k === 'talk' ? 'quiet' : k === 'observe' ? 'observe' : 'direct', reply: CV.way(k, c, cid, reply.slice(0, 1)).concat(reply.slice(1), R.partner === 'short' && k === 'enforce' ? [[VAR.partner().id, 'Real smooth. Can we get through one call without a scene?']] : R.partner === 'good' && k === 'enforce' && R.crowd === 'crowd' ? [[VAR.partner().id, 'I\'ve got the crowd. Do your thing.']] : R.partner === 'good' && R.intent && INTENT[R.intent].best === k ? [[VAR.partner().id, 'Good read. I saw it too.']] : []), fx: () => { use(k); rulesFx(k); fx && fx(); if (k === 'enforce') clock += BLD.bookTime(); BLD.afterWay(c); } });
   return ['choice', [
-    opt('talk', [['narr', 'You take your time. Names first, then what happened, in their words.'], [cid, 'Thank you for actually listening. Most people don\'t.']], () => { clock += 3; blockTrust(wayLvl('talk') >= 3 ? 2 : 1); }),
+    opt('talk', [['narr', 'You take your time. Names first, then what happened, in their words.']], () => { clock += 3; blockTrust(wayLvl('talk') >= 3 ? 2 : 1); }),
     opt('observe', [['narr', 'You stand back for a minute and take it all in: hands, exits, the car, who keeps looking where.']], () => { clock += 2; const q = qs[0]; if (q && !q.multi && q.opts && q.opts.length > 2) { const drop = R.weather === 'fog' ? 1 : (wayLvl('observe') >= 4 && q.opts.length > 3) ? 2 : 1; for (let k = 0; k < drop; k++) { const w = q.opts.findIndex((o, i) => i !== q.c); if (w < 0) break; q.opts.splice(w, 1); if (w < q.c) q.c--; } q.observed = true; } }),
     opt('enforce', [['narr', 'You go straight to it: identify, explain the law, state what happens next.']].concat(Math.random() < BLD.argue(Math.max(.08, .32 - .05 * wayLvl('enforce'))) ? [[cid, 'Hold on, you can\'t just walk up and start telling me what happens!'], ['choice', [
-      { t: 'Lower your voice and explain why you\'re here', eff2: 'calm', reply: [[cid, '...Okay. Okay. Go ahead.']] }, { t: 'Repeat the order, louder', reply: [[cid, 'Fine. Whatever you say.'], ['narr', 'It works, but nobody on the block will forget how it sounded.']], fx: () => blockTrust(-1) }].sort(() => Math.random() - .5), 'It\'s turning into an argument.']] : []), () => { blockTrust(-1); })
+      { t: 'Lower your voice and explain why you\'re here', eff2: 'calm', say: [CV.say('argue', 'calm', c)], reply: [[cid, '...Okay. Okay. Go ahead.']] }, { t: 'Repeat the order, louder', say: [CV.say('argue', 'loud', c)], reply: [[cid, 'Fine. Whatever you say.'], ['narr', 'It works, but nobody on the block will forget how it sounded.']], fx: () => blockTrust(-1) }].sort(() => Math.random() - .5), 'It\'s turning into an argument.']] : []), () => { blockTrust(-1); })
   ], 'How do you want to handle this?']; }
 function approachFor(les) { const a = APPROACH.filter((x) => x.les.indexOf(les) >= 0); return a.length ? a[Math.floor(Math.random() * a.length)] : null; }
 // consequences, some immediate and some later in the shift
@@ -2465,16 +2468,17 @@ function npcTalk(r) {
 }
 function nearestLotTo(x, y) { let best = null, bd = 1e9; (inside ? inside.O.W : W).lots.forEach((l) => { if (!l.name) return; const d = Math.hypot(l.door[0] - x, l.door[1] - y); if (d < bd) { bd = d; best = l.name; } }); return best; }
 // calls: dispatch, arrival, your approach, the people on scene, then how you wrap it up
+let SCENE_C = null; // the call whose scene is playing: its caller answers in their own voice (callvoice.js)
 function openCallScene(c) { openCallSceneQ(c); }
 function openCallSceneQ(c) {
   if (net) net.status('call'); paused = true; beat('arrive');
-  const n = 3, qs = VAR.mixQs(c.les, L.pickFacts(S, [c.les], n)), fast = clock - c.t0 < BLD.fastWin(), a = approachFor(c.les), cl = VAR.caller(c), rw = c.rep ? REPS.who(c.rep) : null, cid = sayAs('caller', rw || { name: cl[0], icon: cl[1], role: 'Caller · ' + c.where }), dsp = VAR.dispatcher();
+  const n = 3, qs = VAR.mixQs(c.les, L.pickFacts(S, [c.les], n)), fast = clock - c.t0 < BLD.fastWin(), a = approachFor(c.les), cl = VAR.caller(c), rw = c.rep ? REPS.who(c.rep) : null, cid = sayAs('caller', rw || { name: cl[0], icon: cl[1], role: 'Caller · ' + c.where }), dsp = VAR.dispatcher(); c.cid = cid; SCENE_C = c;
   const lines = [['narr', c.title + '. ' + c.where + '.' + (c.swNotes && c.swNotes.length ? ' Before going in, you ' + c.swNotes.join(' and ') + '.' : '')], [dsp.id, '(over the radio) ' + VAR.pick('onScene', [S.cs + ', you\'re on scene. ', 'Showing you on scene, ' + S.cs + '. ', S.cs + ', you\'re out at ' + c.where + '. ']) + c.text]];
   const cover = c.cover || (COVER && Date.now() - COVER.t < 180000 ? COVER.c : null); c.coop = cover;
   if (cover) lines.push(['castillo', '(over the radio) ' + cover + ' is right behind you on this one.'], ['choice', [
-    { t: 'Tell dispatch you\'re both on scene', ok: 1, reply: [['narr', 'Dispatch logs both units. Everybody knows where the two of you are.'], ['castillo', '(over the radio) Good. Stay in contact the whole time.']] },
-    { t: 'Skip the radio, you can see each other', reply: [['narr', 'The two of you go to work. Dispatch still shows ' + cover + ' en route.'], ['castillo', '(over the radio) Dispatch can\'t see you. Tell them who\'s on scene.']] },
-    { t: 'Wave them off to the next call holding', reply: [['narr', cover + ' pulls back out. You\'re on your own again.'], ['castillo', '(over the radio) They came to help. Use them, and tell dispatch they\'re there.']] }].sort(() => Math.random() - .5), 'Your backup just pulled in behind you.']);
+    { t: 'Tell dispatch you\'re both on scene', ok: 1, say: [CV.say('cover', 'ok', c)], reply: [['narr', 'Dispatch logs both units. Everybody knows where the two of you are.'], ['castillo', '(over the radio) Good. Stay in contact the whole time.']] },
+    { t: 'Skip the radio, you can see each other', say: [CV.say('cover', 'skip', c)], reply: [['narr', 'The two of you go to work. Dispatch still shows ' + cover + ' en route.'], ['castillo', '(over the radio) Dispatch can\'t see you. Tell them who\'s on scene.']] },
+    { t: 'Wave them off to the next call holding', say: [CV.say('cover', 'wave', c)], reply: [['narr', cover + ' pulls back out. You\'re on your own again.'], ['castillo', '(over the radio) They came to help. Use them, and tell dispatch they\'re there.']] }].sort(() => Math.random() - .5), 'Your backup just pulled in behind you.']);
   if (cover) { c.job = TG.jobFor(c.title, true); TG.jobLines(c.job, 'castillo').forEach((x) => lines.push(x)); } // two officers, two jobs (item 12)
   if (c.aiBk && c.aiBk.arrived && cover === c.aiBk.name) { lines.push(['narr', c.aiBk.name + ' ' + c.aiBk.job + '.']); c.bkRow = ['🤝', 'Backup', c.prio <= 2 ? 10 : 6, 10, 'Called ' + c.aiBk.name.replace(/ \(.*\)/, '') + ' and let them do their job']; }
   { const rv = EP.rivalCameo(); if (rv) lines.push(rv); const tr = NG.cameo(); if (tr) lines.push(tr); }
@@ -2485,9 +2489,10 @@ function openCallSceneQ(c) {
   if (c.open === 'assess') lines.push(['narr', 'You stop short of the door and take in the whole scene: exits, hands, who is watching.']); else if (c.open === 'id') lines.push(['narr', 'You ask for ID up front. The caller fumbles for a wallet, then hands it over.']);
   VAR.callerLines(c, cid).forEach((x) => lines.push(x)); MEM.callerLine(c, cid).forEach((x) => lines.push(x)); { const ov = SUBJ.open(c.les); if (ov) lines.push(ov); } if (!c.rep) VAR.complication(c, cid).forEach((x) => lines.push(x)); { const mg = VAR.sceneMini(c); if (mg) lines.push(mg); }
   PREM.threadLines(c, 'velvet').forEach((x) => lines.push(x));
-  const pt = VAR.partner(); if (HANDS.fits(c)) lines.push(['castillo', '(over the radio) Walk around it like you mean it. Tires, under the hood, under the car, inside, the trunk.'], ['wait', (res, resume) => HANDS.inspect(c, res, resume)]); else qs.forEach((q, k) => { lines.push(['q', q, k % 2 ? (pt ? pt.id : 'castillo') : cid]); if (k === 0 && qs.length > 2) lines.push(VAR.midChoice(c, cid, () => { const z = newCitizen(); z.les = c.les; citizens.push(z); })); });
+  const pt = VAR.partner(); if (HANDS.fits(c)) lines.push(['castillo', '(over the radio) Walk around it like you mean it. Tires, under the hood, under the car, inside, the trunk.'], ['wait', (res, resume) => HANDS.inspect(c, res, resume)]); else qs.forEach((q, k) => { lines.push(['q', q, k % 2 ? (pt ? pt.id : 'castillo') : cid]); if (k === 0 && qs.length > 2) lines.push(CV.dressMid(VAR.midChoice(c, cid, () => { const z = newCitizen(); z.les = c.les; citizens.push(z); }), c, cid)); });
+  lines.push(['fx', (res) => CV.ending(c, cid, res)]); // how it ended, then their last word
   lines.push(['fx', (res) => VAR.afterLines(c, res)]);
-  { const wc = VAR.wrapChoice(c, cid, () => { nextCall = Math.max(8, nextCall - 10); }); if (c.x != null && c.vcn) wc[1].splice(2, 0, MEM.promiseOption(c, cid)); lines.push(wc); }
+  { const wc = CV.dressWrap(VAR.wrapChoice(c, cid, () => { nextCall = Math.max(8, nextCall - 10); }), c, cid); if (c.x != null && c.vcn) wc[1].splice(2, 0, MEM.promiseOption(c, cid)); lines.push(wc); } lines.push(['fx', () => CV.lastWord(c, cid)]);
   dialogue(lines, (res) => {
     if (c.backup && net) { net.backup(null); c.backup = false; } if (c.aiBk && c.aiBk.car) { const bc = c.aiBk.car; bc.on = false; bc.bk = false; } c.backup = false;
     if (c.sq) { try { c.sq(); } catch (e) {} } COOP.dgAdd(); if (LV.precinct()) COOP.dgAdd(); CITY.beatAdd('calls', 1); if (c.thread && c.threadOk) CITY.openCase(c.thread, c.where); const cov = COVER && COVER.uid ? COVER : null; COOP.coopEnd(); if (cov) setTimeout(() => COOP.commendPrompt(cov.uid, cov.c, 'your cover officer'), 6000); setTimeout(() => toast(COOP.dgLine()), 3500);

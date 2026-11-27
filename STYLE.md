@@ -72,6 +72,11 @@ instead of saying the sentimental thing, then says it anyway.
 shouts, never makes a threat he can be quoted on.
 *"Justice Row next, isn't it? Hattie at the clerk's office has the cleanest handwriting in the county. Say hello."*
 
+**You**, the cadet, on calls (academy/callvoice.js). Plain, polite, steady. You say what you're doing and why, use
+the person's name, and never raise your voice except when an order has to be repeated. No exclamation marks, no
+sentence over 22 words. The same choice sounds different to a frightened caller than to an angry one.
+*"Okay. You're upset, and you've got a reason. Start from the top. I'm listening."*
+
 **District casts** (academy/districts.js). Each district has its own dispatcher, sergeant and officer, and you
 should know who's talking without a name:
 - Central: **Velvet Hale** (dispatch) says sugar, hon, baby, and never rushes. **Castillo** runs roll call.
@@ -91,6 +96,8 @@ happens ("WE PASSED!"). The four above are not.
 **What the checker enforces** (tests/tvoice.js, run with the rest of the suite):
 - Castillo, Walsh, Park and Lassiter never use an exclamation mark or a shouted word in capitals.
 - Longest sentence: Castillo 28 words, Lassiter 24, Walsh 22, Park 18.
+- Your own lines on calls (callvoice.js) have no exclamation marks and no sentence over 22 words; Walsh's and Park's
+  quiz reactions there keep their limits.
 - Castillo uses no slang ("gonna", "wanna", "gotta") and no pet names ("buddy", "kiddo", "honey").
 - Lassiter never curses or threatens out loud.
 - District casts: Whitfield's sentences stay at 12 words or fewer, Duarte's at 15, Saito's at 16, Carrasco's at 16 and
