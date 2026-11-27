@@ -109,6 +109,10 @@ export const TRACKS = {
   // the menu: the same story told quieter, piano and strings, then the choir and brass carry it home
   title_2: { name: 'Port Meridian (Overture)', bpm: 68, root: 62, scale: 'min', form: true, swing: 0, intro: 'motif', introTheme: SUB.inM, outro: 'final', prog: [0, 5, 2, 6, 0, 5, 3, 4], progB: [5, 6, 0, 4, 5, 6, 3, 4], theme: JT.calm, themeB: JT.heart,
     keys: { voice: 'piano', pat: 'arp8', v: .034 }, strings: { v: .03 }, strings2: { v: .04 }, choir: { v: .016 }, bass: { pat: 'whole', v: .07 }, drumsB: { pat: 'epic', v: .55 }, lead: { voice: 'piano', v: .05, oct: 12 }, leadB: { voice: 'brass', v: .034, oct: 0 }, leadA2: { voice: 'horns', v: .036, oct: 0 }, choir2: { v: .026 }, drumsA2: { pat: 'epic', v: .75 }, counter: { voice: 'strings', v: .02, oct: 0 } },
+  // the briefing before the start screen: a held drone and a heartbeat kit, the main hook arriving in low brass, then
+  // the bridge lifted by choir and full drums. Tense first, then proud (owner's call: intense and motivational)
+  brief_1: { name: 'The Briefing', bpm: 84, root: 62, scale: 'min', form: true, swing: 0, intro: 'swell', outro: 'final', prog: [0, 0, 5, 5, 3, 3, 4, 4], progB: [5, 6, 0, 4, 5, 6, 3, 4], theme: JT.main, themeB: JT.bridge,
+    drone: { v: .03 }, strings: { v: .03 }, strings2: { v: .05 }, bass: { pat: 'whole', v: .09 }, drums: { pat: 'epic', v: .5 }, drumsB: { pat: 'epic', v: 1 }, drumsA2: { pat: 'epic', v: 1.25 }, lead: { voice: 'brass', v: .036, oct: 0 }, leadB: { voice: 'strings', v: .044, oct: 12 }, leadA2: { voice: 'brass', v: .05, oct: 12 }, choir: { v: .012 }, choir2: { v: .045 }, counter: { voice: 'horns', v: .024, oct: 0 } },
   // ---- day patrol ----
   day_1: { name: 'Day Watch', bpm: 96, root: 62, scale: 'dor', form: true, themeA1: JT.frag, intro: 'hits', outro: 'motif', outroTheme: SUB.outM, swing: .14, prog: JF.vamp, progB: JF.bridge, theme: JT.main, themeB: JT.bridge,
     band: { rhodes: { pat: 'funk', v: .032 }, wah: { v: .02, busy: true }, clav: { v: .016 }, bass: { pat: 'funk', v: .1 } }, drums: { pat: 'funk', v: .85 }, lead: { voice: 'mute', v: .036, oct: 12 }, leadB: { voice: 'sax', v: .04, oct: 0 }, counter: { voice: 'vibes', v: .02, oct: 12 } },
@@ -246,7 +250,7 @@ export const TRACKS = {
 
 // the original Patrol City themes (the live synth score), rendered to files as the first track of each mood
 const BASE = { title: ['Port Meridian', 72], day: ['Day Watch', 100], night: ['Night Watch', 78], inside: ['Indoors', 70], story: ['The Gray Sedan', 64], side: ['Side Case', 104],
-  call: ['En Route', 112], urgent: ['Priority One', 136], scene: ['On Scene', 84], debrief: ['Debrief', 76], friend: ['Neighbors', 80], water: ['Marine Patrol', 84] };
+  call: ['En Route', 112], brief: ['The Briefing', 84], urgent: ['Priority One', 136], scene: ['On Scene', 84], debrief: ['Debrief', 76], friend: ['Neighbors', 80], water: ['Marine Patrol', 84] };
 // each main character has a short phrase taken from one of the three melodies; it plays when they enter a scene, so you
 // hear who is coming: Castillo the brisk opening of "All Units", Walsh the first sigh of "End of Watch", Park the
 // Port Meridian hook up high and quick, and Lassiter the same hook turned minor, low and slow

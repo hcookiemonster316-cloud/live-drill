@@ -26,7 +26,7 @@
 <link rel="modulepreload" href="events.js">
 <link rel="modulepreload" href="feel.js">
 <link rel="modulepreload" href="friends.js">
-<link rel="modulepreload" href="investigate.js"><link rel="modulepreload" href="friends2.js"><link rel="modulepreload" href="friendsx.js"><link rel="modulepreload" href="emotions.js"><link rel="modulepreload" href="recap.js"><link rel="modulepreload" href="callvoice.js"><link rel="modulepreload" href="conduct.js"><link rel="modulepreload" href="units.js"><link rel="modulepreload" href="persona.js"><link rel="modulepreload" href="creator.js"><link rel="modulepreload" href="reach.js">
+<link rel="modulepreload" href="investigate.js"><link rel="modulepreload" href="brief.js"><link rel="modulepreload" href="intranet.js"><link rel="modulepreload" href="friends2.js"><link rel="modulepreload" href="friendsx.js"><link rel="modulepreload" href="emotions.js"><link rel="modulepreload" href="recap.js"><link rel="modulepreload" href="callvoice.js"><link rel="modulepreload" href="conduct.js"><link rel="modulepreload" href="units.js"><link rel="modulepreload" href="persona.js"><link rel="modulepreload" href="creator.js"><link rel="modulepreload" href="reach.js">
 <link rel="modulepreload" href="interiors.js">
 <link rel="modulepreload" href="items.js">
 <link rel="modulepreload" href="learn.js">
@@ -830,6 +830,55 @@ body.cine #nod{bottom:auto;top:calc(92px + env(safe-area-inset-top))} /* in a sc
 .ivCam{display:block;width:100%;height:auto;aspect-ratio:320/150;border-radius:10px;border:2px solid #111827;image-rendering:pixelated;background:#111}.ivScrub{width:100%;margin:10px 0 4px;accent-color:#f5b800}.ivCamRow{display:flex;align-items:center;gap:10px;justify-content:space-between}.ivCamRow span{font:700 1.05rem 'Meridian Text',monospace}.ivCamRow button{min-height:42px;padding:0 16px;border-radius:10px;background:var(--gold);color:var(--navy);font-weight:800}.ivCamRow button:disabled{opacity:.4}
 .ivNotes{margin:12px 0 0;padding-top:10px;border-top:1px dashed var(--line);display:flex;flex-wrap:wrap;gap:6px}.ivNotes small{width:100%;color:var(--soft);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase}.ivChip{padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid var(--line);font-size:.8rem}.ivChip em{font-style:normal;color:var(--soft);font-size:.72rem}
 .ivRow{display:grid;grid-template-columns:90px minmax(0,1fr);gap:8px;align-items:center;margin:6px 0}.ivRow span{font-weight:700;font-size:.88rem}.ivRow select{min-height:42px;border-radius:10px;padding:0 8px;background:#0b1428;color:var(--ink);border:1px solid var(--line);font-size:.88rem;max-width:100%}
+.brief{position:fixed;inset:0;z-index:450;background:#000;display:grid;place-items:center;opacity:0;transition:opacity .6s}.brief.on{opacity:1}.brief.out{opacity:0;transition:opacity .7s}
+.bfCv{width:min(100vw,calc(82vh * 16 / 9));height:auto;aspect-ratio:16/9;image-rendering:pixelated;display:block}
+.bfBars{position:absolute;left:0;right:0;height:9vh;background:#000;z-index:2}.bfBars.t{top:0}.bfBars.b{bottom:0}
+.bfCap{position:absolute;left:50%;bottom:calc(9vh + 18px + var(--safe-b));transform:translateX(-50%);width:min(820px,calc(100% - 32px));z-index:3;text-align:center;text-shadow:0 2px 8px #000,0 0 2px #000}
+.bfCap b{display:block;font:800 .78rem 'Meridian',system-ui;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin-bottom:6px}.bfCap p{margin:0;min-height:2.8em;font:500 clamp(1rem,2.6vw,1.45rem)/1.4 'Meridian Text',system-ui;color:#f8fafc}
+.bfCap.narr p{font:700 clamp(.72rem,1.6vw,.9rem)/1.6 'Meridian Text',monospace;letter-spacing:.18em;color:#cbd5e1}
+.bfTitle{position:absolute;inset:0;z-index:2;display:grid;place-content:center;text-align:center;pointer-events:none}.bfTitle h1{margin:0;font:800 clamp(2.6rem,9vw,6rem)/.95 'Meridian',system-ui;letter-spacing:.06em;color:#ffe9a8;text-shadow:0 0 40px rgba(245,184,0,.45)}.bfTitle h1 span{display:block}.bfTitle p{margin:14px 0 0;font:700 .85rem 'Meridian Text',system-ui;letter-spacing:.3em;text-transform:uppercase;color:#cbd5e1}
+.bfTitle.in h1{animation:bfSlam .7s cubic-bezier(.2,1.4,.4,1) both}.bfTitle.in p{animation:bfFade 1.2s .5s both}@keyframes bfSlam{0%{transform:scale(1.6);opacity:0;filter:blur(6px)}100%{transform:none;opacity:1;filter:none}}@keyframes bfFade{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:none}}
+.bfSkip{position:absolute;right:16px;top:calc(9vh + 12px);z-index:4;padding:8px 14px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#e2e8f0;font-weight:700;font-size:.85rem}
+@media (prefers-reduced-motion:reduce){.bfTitle.in h1{animation:none}}
+@media (orientation:portrait){.brief{overflow:hidden}.bfCv{width:auto;height:min(54vh,calc(100vw * 1.3));max-width:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-56%)}.bfCap{bottom:calc(6vh + 14px + var(--safe-b))}}
+/* PMPD Connect: the menus as the department intranet (intranet.js) */
+.ix{width:min(1120px,calc(100vw - 32px));max-height:calc(100dvh - 28px - var(--safe-b));display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:rgba(8,14,29,.95);border:1px solid rgba(148,163,184,.24);border-radius:14px;box-shadow:0 30px 90px -20px #000,0 0 0 1px rgba(0,0,0,.4);overflow:hidden;text-align:left;cursor:default;animation:ixIn .45s cubic-bezier(.2,1,.3,1) both}
+@keyframes ixIn{0%{opacity:0;transform:translateY(14px) scale(.985)}100%{opacity:1;transform:none}}
+.ixTop{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 16px;background:linear-gradient(180deg,#14254a,#0c1730);border-bottom:2px solid var(--gold)}
+.ixSeal svg{width:30px;height:34px;display:block;filter:drop-shadow(0 0 8px rgba(245,184,0,.35))}
+.ixBrand b{display:block;font:800 .95rem 'Meridian',system-ui;letter-spacing:.14em;color:#fff}.ixBrand small{display:block;font-size:.66rem;color:#94a3b8}
+.ixCrumb{justify-self:center;display:flex;gap:7px;flex-wrap:wrap;font:600 .78rem 'Meridian Text',system-ui;color:#93c5fd}.ixCrumb i{font-style:normal;color:#475569}.ixCrumb span:last-child{color:#e2e8f0}
+.ixUser{display:flex;gap:9px;align-items:center;text-align:right}.ixUser b{display:block;font-size:.84rem;color:#f8fafc}.ixUser small{display:block;font-size:.68rem;color:#94a3b8}.ixUser em{font-style:normal;color:#cbd5e1;font-variant-numeric:tabular-nums}
+.ixDot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;flex:none}
+.ixBody{overflow:auto;min-height:0;overscroll-behavior:contain}
+.ixFoot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:7px 16px;font:700 .6rem 'Meridian Text',system-ui;letter-spacing:.12em;color:#64748b;border-top:1px solid rgba(148,163,184,.16);background:#070d1b}
+/* the portal home */
+.title.in .ix{opacity:1}.title{place-content:center}.title>.ix{pointer-events:auto}
+.ixHome .ixBody{display:grid;grid-template-columns:270px minmax(0,1fr)}
+.ixNav{padding:16px;border-right:1px solid rgba(148,163,184,.16);background:rgba(15,23,42,.55)}
+.ixNav>small,.ixBull>small{display:block;margin-bottom:10px;font:800 .64rem 'Meridian Text',system-ui;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
+.ixNav .tiMenu{margin:0;width:auto;gap:6px}.ixNav .tiMenu button{min-height:46px;padding:7px 12px;border-radius:9px;background:rgba(255,255,255,.03)}.ixNav .tiMenu button b{font-size:.95rem;letter-spacing:.08em}.ixNav .tiMenu button small{font-size:.7rem}
+.ixNav .tiMenu button.pri{background:linear-gradient(90deg,rgba(245,184,0,.26),rgba(245,184,0,.06))}
+.ixMain{padding:18px 22px 20px;display:grid;gap:14px;align-content:start}
+.ixHero{display:flex;gap:18px;align-items:center}.ixHero .tiBadge svg{width:64px;height:72px}.ixHero .tiLogo{margin:0;font-size:clamp(2.4rem,5.6vw,4.4rem);line-height:.84}.ixHero .tiSub{margin:8px 0 0;font-size:clamp(.62rem,1.3vw,.78rem);letter-spacing:.2em}
+.ixPitch{margin:0;color:#cbd5e1;font-size:.95rem}
+.ixAssign .tiCont{margin:0;width:auto}
+.ixBull{display:grid;gap:6px}.ixBull>div{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;padding:8px 10px;border-radius:9px;background:rgba(255,255,255,.035);border-left:3px solid rgba(147,197,253,.5);font-size:.84rem}.ixBull b{font:800 .66rem 'Meridian Text',system-ui;letter-spacing:.14em;color:#93c5fd;padding-top:2px}.ixBull span{color:#cbd5e1}
+.ixTools{display:flex;gap:10px;align-items:center}.ixTools button{min-height:36px;padding:0 12px;border-radius:99px;border:1px solid var(--line);background:rgba(11,22,48,.6);font-weight:700;font-size:.82rem}
+/* every other menu page in the same shell */
+.fe>.ix.ixPanel{width:min(980px,calc(100vw - 24px))}#start:has(>.ix){display:grid;place-items:center;padding:14px}#start>.ix.ixStart{width:min(880px,calc(100vw - 24px))}.ixStart .ixBody>.stBox{width:100%}.stLname{width:100%;max-width:320px;min-height:42px;margin-top:6px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:#0b1428;color:var(--ink);font-size:.95rem}.ixPanel .ixBody{padding:16px;display:grid;justify-items:center}.ixPanel .ixBody>.feCard,.ixPanel .ixBody>.pmBox{width:100%;max-width:none;margin:0;box-shadow:none;border:0;background:transparent}
+.ixPanel .feHead span{color:#93c5fd}
+@media (max-width:760px){
+  .ix{width:100vw;max-height:100dvh;height:100dvh;border-radius:0;border:0}
+  .ixTop{grid-template-columns:auto minmax(0,1fr) auto;gap:10px;padding:calc(8px + var(--safe-t)) 12px 8px}.ixBrand small{display:none}.ixCrumb{grid-column:1/-1;justify-self:start;order:4;font-size:.72rem}
+  .ixUser small{max-width:44vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ixHome .ixBody{grid-template-columns:minmax(0,1fr);display:flex;flex-direction:column}.ixHome .ixMain{order:1;padding:14px 14px 6px}.ixNav{order:2;border-right:0;border-top:1px solid rgba(148,163,184,.16);padding:12px 14px}.ixBull,.ixPitch{display:none}
+  .ixNav .tiMenu button{min-height:52px}.ixNav .tiMenu button small{display:block}
+  .ixFoot{padding:6px 12px calc(6px + var(--safe-b));font-size:.54rem}.ixFoot span+span{display:none}
+  .ixPanel .ixBody{padding:12px}
+  #start:has(>.ix){padding:0}
+  .title:has(>.ix){padding:0;place-content:stretch}.ixBrand b{font-size:.8rem;letter-spacing:.1em;white-space:nowrap}.ixDot{display:none}
+}
 .woWrap{display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:14px;align-items:start;margin:4px 0 10px}
 @media (max-width:520px){.woWrap{grid-template-columns:1fr}.woCar{max-height:36vh;width:auto;justify-self:center}}
 .woOn #dlg,.woOn #dlgRadio{visibility:hidden}.woLbl{font:700 8px 'Meridian Text',system-ui,sans-serif;letter-spacing:.08em;fill:rgba(226,232,240,.75);pointer-events:none}
