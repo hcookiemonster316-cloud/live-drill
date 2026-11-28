@@ -17,6 +17,9 @@
 // the honest ways through, the wrong way and its lure, how likely someone saw (seen) or finds out later (later),
 // what goes in your file, and how a career that ends over it is summed up.
 export const TEMPT = [
+  // offered only at the end of the Copper Ring thread (replay.js), never on a call
+  { id: 'scrapdeal', re: /(?!)/, kind: 'corruption', sev: 3, set: [], q: 'The scrap yard owner wants his name left out.', right: [], wrong: { t: 'Trade his name for the tip', say: '', reply: '', lure: 'A good tip and a quick close.', clock: 0 },
+    seen: 1, later: 1, what: 'Agreed to keep a scrap yard owner out of a theft case in exchange for a tip. Bodycam audio recorded it.', epi: 'bribery' },
   { id: 'bribe', re: /speed|reckless|red light|wrong-way|school zone|school bus|racing|traffic|fails to stop/i, kind: 'corruption', sev: 4,
     set: [['narr', 'The driver hands over the license with a folded hundred-dollar bill tucked behind it.'], ['$caller', 'Look, I really can\'t afford a ticket. Maybe we just forget this happened?']],
     q: 'There\'s money folded behind the license.',
@@ -281,5 +284,7 @@ export function installConduct(H) {
       (k.file.length ? '<ul>' + k.file.slice(-6).reverse().map((f) => '<li><b>' + esc(f.out) + '</b> ' + esc(f.what) + (f.ans === 'silent' ? ' You stayed silent.' : f.owned ? ' You owned it.' : ' You denied it.') + '</li>').join('') + '</ul>' : '<p>Your file is clean.</p>') +
       ((S.past || []).length ? '<p class="cdPast">Careers before this one: ' + S.past.map((x) => esc(x.cs) + ' (' + (x.kind === 'arrested' ? 'arrested' : 'fired') + ')').join(', ') + '</p>' : '') + '</div>';
   }
-  return { tempt, rollCall, endWatch, checkpoint, hasCheckpoint, mods, standing, bump, fileHtml, end, decide, hearing, keepLearning, get state() { return C(); } };
+  // a wrong choice made outside a call (a thread's ending): Internal Affairs finds it like any other
+  function wrong(id) { const T = TEMPT.find((t) => t.id === id); if (!T) return; const k = C(); H.stat('wrongs'); k.pending.push({ id, sh: shiftNo(), seen: true, at: '', title: '' }); H.saveS(); }
+  return { wrong, tempt, rollCall, endWatch, checkpoint, hasCheckpoint, mods, standing, bump, fileHtml, end, decide, hearing, keepLearning, get state() { return C(); } };
 }

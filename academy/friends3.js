@@ -339,3 +339,38 @@ export const ARCS3 = {
       ['booker', 'I notice who stops. You stopped for me.']]
   ] }
 };
+
+// Choices come back: once a story (or a choice in it) is behind you, the regular's everyday lines remember it, and some
+// of them talk about each other. 'arc:id' = that friend's story is finished; 'flag:x' = a choice you made in it.
+export const MEMORY3 = {
+  walt: [['arc:walt', 'Mrs. Abernathy rode Route 9 to dialysis this morning. On time. She says hi. She says you owe her a visit.'], ['flag:route9Count', 'I still have the clicker. Some mornings I click it for every rider anyway. Habit. Good habit.']],
+  tasha: [['arc:tasha', 'Kayla has nights now. She sat with three people this month. She texts me after. Every time, just one word: "Stayed."'], ['flag:tashaOkonkwo', 'Lt. Okonkwo brought flowers to the hospice room again. He apologized to the flowers for being late.']],
+  leon: [['arc:leon', 'Danny the firefighter came by the school to read to the second graders. He brought his helmet. They drew him. The arms are very long.']],
+  carmen: [['arc:carmen', 'Look up. Over the stove. Yellow, with a little blue flower. I touch it every morning before I light the burner.'], ['flag:carmenSundays', 'Mateo burned the rice on Sunday. Everybody ate it. That\'s how you know it\'s a family.']],
+  priya: [['arc:priya', 'Papa came Thursday. He ordered a five to show off. He cried. He says it was the chilies. It was not the chilies.']],
+  hollis: [['arc:hollis', 'Darnell beat me in thirty-one moves yesterday. He shook my hand and said "think before you move." To me. The nerve.']],
+  mo: [['arc:mo', 'Every morning, five o\'clock: "Baba, we\'re open." The nurses say it with me now. Some of them don\'t even know why.']],
+  bea: [['arc:bea', 'Marisa\'s glaze is better than mine now. Don\'t tell her. Don\'t tell anyone. I\'ll deny it.'], ['flag:beaDaniel', 'Daniel came in with a spreadsheet of next December. Color-coded. I let him. My mother is laughing somewhere.']],
+  lewis: [['arc:lewis', 'Forty-two names on the route now. Every one gets a knock or a letter every week. Mr. Ferris is the pickiest reader.']],
+  andy: [['arc:andy', 'Cole brought a new guy on Thursday. Didn\'t say anything. Just pulled out a chair for him. Facing the door, because the kid needed that. Cole knew.']],
+  sunny: [['arc:sunny', 'The north rows have new leaves. Green, all the way through. Did you plant yours yet? Somewhere you\'re going to stay, remember.']],
+  jamal: [['arc:jamal', 'Block party last Saturday, no fights. The aunties request "your" song now. I tell them it belongs to a cop. They think I\'m joking.']],
+  ines: [['arc:ines', 'Echo, Delacruz\'s new dog, came in for shots. She sat right under Duke\'s photo and wouldn\'t move. Dogs know.']],
+  pearl: [['arc:pearl', 'The historical society man brought me a copy of the 1949 survey. He wrote "Pearl was right" in the margin. In pen.'], ['flag:pearlEli', 'Eli comes by every low tide to take me out to the chimney. He still makes me wear that life jacket. I look like a marshmallow, and I don\'t mind.']],
+  nash: [['arc:nash', 'Luis threw out a runner at second last night. From his knees. I didn\'t say anything. I just nodded. He knew.']],
+  cora: [['arc:cora', 'Forty-two stars. Ms. Hart\'s class sent me a card with a blue flag on it. Twenty-six signatures. One is just a drawing of ice cream.']],
+  eli: [['arc:eli', 'Mrs. Ortiz counted a hundred life jackets off the rack this summer. A hundred. Kenny would have hated the attention. I hope he\'s watching anyway.'], ['flag:pearlEli', 'Took Miss Pearl out to her chimney again. She gave me directions the whole way. I\'ve been paddling this river for thirty years.']],
+  toby: [['arc:toby', 'Jasmine still drinks Mr. Baptiste\'s coffee every morning. She says it\'s not that bad. She\'s lying. That\'s how I know she cares.']],
+  tess: [['arc:tess', 'Ninety-four cars last night. I counted them all. The new kid counted too. Out loud. Grandma would be proud of both of us.']],
+  hector: [['arc:hector', 'My grandson called me "Grandpa Sparks." I\'m keeping it. Don\'t tell anybody at the garage.'], ['arc:wanda', 'Wanda put me on her bird list. "Rare. Very patient." I\'ve been called worse. Never been called better.']],
+  ivy: [['arc:ivy', 'Rosie called me last night to tell me the bees in Ohio are lazy. She\'s nine. She\'s already a snob about bees. I\'m so proud.']],
+  wanda: [['arc:wanda', 'Harold and Mrs. Harold had three chicks this spring. I put them on the list. I put you on there too, you know. Favorite sighting.'], ['arc:hector', 'Hector\'s grandson came up. He made the boy sit still for a scrub jay. The boy lasted four minutes. Hector says that\'s a record.']],
+  pat: [['arc:pat', 'Velvet came over for coffee on Sunday. In person. We still did worst calls first. Then she beat me at cards. Legends don\'t lose gracefully.']],
+  lou: [['arc:lou', 'Danny caught a bad brake line today that I missed. First time anyone\'s ever caught one I missed. I signed it with both our names.']],
+  alvarez: [['arc:alvarez', 'Mr. Webb sent me a picture. His whole group from the center, at their graduation. He wrote on the back: "For what came after."']],
+  nico: [['arc:nico', 'I won my first motion today. Suppression hearing. Bad search. I thought of you. In a good way. Keep your searches clean, okay?']],
+  greer: [['arc:greer', 'My husband and I finally read a transcript together. One of the funny ones. A man tried to sue his own parrot. We laughed for an hour.']],
+  felix: [['arc:felix', 'Mr. Okafor brought me a plant. He said a man who asks questions should have something alive in his shop. It\'s already dying. I\'m trying.']],
+  ada: [['arc:ada', 'Two more unclaimed names found their families this month. I type "claimed" slowly now. It\'s my favorite word in the archive.']],
+  booker: [['arc:booker', 'Ellen\'s kids polished their great-grandfather\'s name on Memorial Day. The little one did it three times. I didn\'t stop her.']]
+};

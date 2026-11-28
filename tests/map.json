@@ -35,7 +35,8 @@
   "conduct.js": [
    "tcinema",
    "tconduct",
-   "tinvest"
+   "tinvest",
+   "treplay"
   ],
   "coop.js": [
    "t65"
@@ -82,7 +83,8 @@
    "t95",
    "t98",
    "tfinal",
-   "trecord"
+   "trecord",
+   "treplay"
   ],
   "fresh.js": [
    "tfresh"
@@ -203,6 +205,9 @@
   ],
   "record.js": [
    "trecord"
+  ],
+  "replay.js": [
+   "treplay"
   ],
   "rewards.js": [
    "t68",

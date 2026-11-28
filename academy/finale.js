@@ -60,6 +60,8 @@ export function installFinale(H) {
     block: ['NOT YET', '{pct}%. Not this time.', 'You need 85%. A few people you helped sent messages anyway. Review your weakest facts and come back.'],
     quiet: ['NOT YET', '{pct}%. Not this time.', 'You need 85%. Run the fact drills in any district, help the people on your beat, and come back.']
   };
+  // where it all went: your city thread and the friends whose stories you finished, in their own words
+  const epi = (H) => { const L = H.epilogue ? H.epilogue() : []; return L.length ? '<p class="finLbl">Where they are now</p><ul class="memList epi">' + L.map((x) => '<li class="memRow"><i>' + x[0] + '</i><span><b>' + H.esc(x[1]) + '</b> · ' + H.esc(x[2]) + '</span></li>').join('') + '</ul>' : ''; };
   function ending(r) {
     const pct = Math.round(r.right / Math.max(1, r.n) * 100), pass = r.right / Math.max(1, r.n) >= .85, h = helpers(), tier = h.length >= 8 ? 'city' : h.length >= 3 ? 'block' : 'quiet', cd = conduct();
     const key = !pass ? null : tier !== 'quiet' ? (cd.clean ? 'asked' : 'liked') : (cd.clean ? 'book' : 'second');
@@ -69,6 +71,7 @@ export function installFinale(H) {
     return { pass, pct, tier, key, html: '<div class="sceneHead ' + (pass ? 'done' : 'p1') + '"><b>' + T[0] + '</b><h2>' + H.esc(T[1]) + '</h2><p>' + H.esc(T[2]) + '</p></div>' +
       '<div class="finRow"><div><b>' + r.right + ' of ' + r.n + '</b><small>What you learned</small></div><div><b>' + h.length + '</b><small>People you helped</small></div><div><b>' + cd.good + ' / ' + cd.bad + '</b><small>Calls by the book / to talk about</small></div></div>' +
       (who ? '<p class="finLbl">' + (pass ? 'Who came to your graduation' : 'Who came by anyway') + '</p><ul class="memList">' + who + '</ul>' : '<p class="finLbl">Nobody you helped on patrol is there yet. Calls, promises and friendships on your beat change that.</p>') +
+      epi(H) +
       (pass ? '<p class="finLbl">Graduation endings found: ' + seen + ' of 4. Trust and how you work decide which one you get.</p>' : '') };
   }
   return { kick, beat, intro, ending, helpers, clock, conduct };

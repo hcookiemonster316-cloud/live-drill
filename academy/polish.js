@@ -133,7 +133,9 @@ export function installPolish(H) {
     cardBusy = true; H.pause(true); H.sting('card');
     const el = document.createElement('div'); el.className = 'tCard'; el.innerHTML = '<div class="tcBar t"></div><div class="tcBar b"></div><div class="tcIn"><small>' + esc(kick) + '</small><h1>' + esc(title) + '</h1><i></i><p>' + esc(sub || '') + '</p><em>Tap to continue</em></div>';
     document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
-    let gone = false; const close = () => { if (gone) return; gone = true; el.classList.add('out'); setTimeout(() => { el.remove(); cardBusy = false; H.pause(false); done && done(); }, 600); };
+    // opening a menu over the card means you've moved on: the card bows out so only one layer holds the light
+    let gone = false; const mo = document.getElementById('modal'), watch = setInterval(() => { if (mo && !mo.hidden) close(); }, 250);
+    const close = () => { if (gone) return; gone = true; clearInterval(watch); el.classList.add('out'); setTimeout(() => { el.remove(); cardBusy = false; H.pause(false); done && done(); }, 600); };
     setTimeout(() => { el.onclick = close; addEventListener('keydown', function k() { removeEventListener('keydown', k); close(); }, { once: true }); }, 900); setTimeout(close, 6500);
   }
   function chapterCards() {
