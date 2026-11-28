@@ -9,7 +9,7 @@ const TRACKS = [
   ['community', '🤝', 'Community', /de-escalat|citizen|small talk|community|friend|morale|integrity|hometown|thank|beat issue|meeting/i],
   ['fitness', '💪', 'Fitness', /\bpt\b|workout|run|inspection|cadence|fitness|gym/i],
   ['team', '🛡️', 'Teamwork', /co-op|squad|ride-along|mutual aid|arena|backup|bowl|relay|bolo|gauntlet|spot the change|dispatch desk|commend|district incident/i],
-  ['explore', '🗺️', 'Exploration', /explor|new place|patch|lore|overlook|rumor|photo|pigeon|cache|ledger|secret|landmark|census/i],
+  ['explore', '🗺️', 'Exploration', /explor|new place|patch|lore|overlook|rumor|photo|pigeon|cache|ledger|secret|landmark|census|rare find/i],
   ['study', '📘', 'Study', /fact|study|story|chapter|exam|side case|notes|case file|tutorial/i],
   ['life', '☕', 'Off-Duty Life', /off.duty|life|hobby|fish|cook|coffee|lunch|garden|game night|volunteer|pet|partner care/i]
 ];

@@ -285,6 +285,8 @@ export function installEpic(H) {
     ['sHotDog', 'Two Dollars Well Spent', 'Pay Delgado for the hot dog.', 'b', () => !!(H.S.flags || {}).paidDelgado],
     ['sLedger', 'Kept the Books Honest', 'Solve the Ledger mystery.', 'p', () => ((H.S.side || {}).ledger5 || 0) >= 2],
     ['sEndings', 'Every Path', 'See all three endings of a chapter.', 'g', () => Object.values(S.endings).some((e) => Object.keys(e).length >= 3)],
+    ['sRare', 'Off the Beaten Beat', 'Find three rare moments in the city.', 's', () => H.st('rare') >= 3],
+    ['sRareAll', 'Seen It All', 'Find every rare moment in Port Meridian.', 'g', () => H.st('rare') >= 5],
     ['sGrad', 'Officer', 'Graduate from the academy.', 'p', () => !!S.graduated]
   ].map((t) => t.concat(['secret']));
   let secT = 10;
