@@ -387,3 +387,6 @@ export const ARCX = {
       add: [['narr', 'Tavion is wearing the old hard hat from the hook. Shonda told him the story eventually. He wears it to welding school on the first day, too.'], ['shonda', 'Mom kept that hat for a kid she couldn\'t save. Now it\'s on a kid who saved himself. That\'s what she was waiting for.']] }
   ]
 };
+// the last thirty regulars' scenes (friends3x.js)
+import { ARCX3 } from './friends3x.js';
+for (const k in ARCX3) if (!ARCX[k]) ARCX[k] = ARCX3[k];

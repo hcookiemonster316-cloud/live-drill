@@ -2698,7 +2698,7 @@ let SCENE_C = null; // the call whose scene is playing: its caller answers in th
 function openCallScene(c) { CIN.callArrive(c, () => openCallSceneQ(c)); }
 function openCallSceneQ(c) {
   if (net) net.status('call'); paused = true; beat('arrive');
-  const n = 3, qs = VAR.mixQs(c.les, L.pickFacts(S, [c.les], n)), fast = clock - c.t0 < BLD.fastWin(), a = approachFor(c.les), cl = VAR.caller(c), rw = c.rep ? REPS.who(c.rep) : null, cid = sayAs('caller', rw || { name: cl[0], icon: cl[1], role: 'Caller · ' + c.where }), dsp = VAR.dispatcher(); c.cid = cid; SCENE_C = c;
+  const n = 3, qs = VAR.mixQs(c.les, L.pickFacts(S, [c.les], n, { near: [c.title, c.text, c.where].filter(Boolean).join(' ') })), /* questions about this call first */ fast = clock - c.t0 < BLD.fastWin(), a = approachFor(c.les), cl = VAR.caller(c), rw = c.rep ? REPS.who(c.rep) : null, cid = sayAs('caller', rw || { name: cl[0], icon: cl[1], role: 'Caller · ' + c.where }), dsp = VAR.dispatcher(); c.cid = cid; SCENE_C = c;
   const lines = [['narr', c.title + '. ' + c.where + '.' + (c.swNotes && c.swNotes.length ? ' Before going in, you ' + c.swNotes.join(' and ') + '.' : '')], [dsp.id, '(over the radio) ' + VAR.pick('onScene', [S.cs + ', you\'re on scene. ', 'Showing you on scene, ' + S.cs + '. ', S.cs + ', you\'re out at ' + c.where + '. ']) + c.text]];
   const cover = c.cover || (COVER && Date.now() - COVER.t < 180000 ? COVER.c : null); c.coop = cover;
   if (cover) lines.push(['castillo', '(over the radio) ' + cover + ' is right behind you on this one.'], ['choice', [

@@ -62,7 +62,7 @@ export async function loadFacts(url) {
   const d = await early(url) || await (await fetch(url, { cache: 'no-cache' })).json(); POOL = d.q;
   // two-statement questions ("Statement A: ... Statement B: ...") are left out everywhere; every fact has other questions
   const two = (k) => POOL[k] && /^\s*Statement A\b/i.test(POOL[k][0]);
-  FACTS = d.f.map((f, i) => ({ id: 'F' + i, les: f[0], text: f[1], pg: f[2], qs: f[3].filter((k) => !two(k)).length ? f[3].filter((k) => !two(k)) : f[3] }));
+  IDF = null; FACTS = d.f.map((f, i) => ({ id: 'F' + i, les: f[0], text: f[1], pg: f[2], qs: f[3].filter((k) => !two(k)).length ? f[3].filter((k) => !two(k)) : f[3] }));
   FACT_BY_ID = new Map(FACTS.map((f) => [f.id, f])); FACT_LISTS = new Map();
   return FACTS.length;
 }
@@ -108,12 +108,25 @@ export function factQ(id) { const f = FACT_BY_ID.get(id); return f ? factQuestio
 // every question is a fact: facts you haven't learned come first and a learned fact never comes back while any are left.
 // opts.wide (default true): if these lessons are all learned, draw unlearned facts from the rest of the chapter instead of repeating.
 // opts.exam: an exam may re-test learned facts in these lessons (oldest first).
+const STOPW = new Set('a an and are as at be by for from has have in is it of on or that the their they this to was were will with you your not but can when what which who than then there these those its into about after before over under while been being also only more most some such very'.split(' '));
+// the content words of a text, lowercased and roughly stemmed (crashes, crashed -> crash)
+const words = (t) => (String(t || '').toLowerCase().match(/[a-z]{4,}/g) || []).filter((w) => !STOPW.has(w)).map((w) => w.replace(/(ing|ed|es|s)$/, ''));
+// how telling each word is across the whole chapter (log of facts / facts using it), worked out once and kept
+let IDF = null;
+function wordIdf() { if (IDF) return IDF; const df = new Map(); for (const f of FACTS) for (const w of new Set(words(f.text))) df.set(w, (df.get(w) || 0) + 1);
+  IDF = new Map(); const N = FACTS.length || 1; df.forEach((d, w) => IDF.set(w, Math.log(1 + N / d))); return IDF; }
 export function pickFacts(S, lessons, n, opts) {
   opts = opts || {}; const done = S.facts || {}, seen = S.fseen || {}, out = [], used = new Set(OUT_NOW);
   const take = (list) => { for (const f of list) { if (out.length >= n) return; if (used.has(f.id)) continue; used.add(f.id); out.push(f); } };
   // facts you haven't mastered yet, the ones you've seen least recently first (never-seen first): you work through all of them,
   // and a missed fact comes back after the others instead of right away
-  const fresh = (list) => shuffle(list.filter((f) => !done[f.id] && !(STAGED && !opts.exam && STAGED.has(f.id) && !seen[f.id]))).sort((a, b) => (seen[a.id] || 0) - (seen[b.id] || 0));
+  // opts.near: words from the call being worked; facts that share its words come first (a crash call asks about crashes),
+  // keeping the usual order among them
+  // shared words count by how rare they are in the chapter (a call's "caller" and "report" match half the book; its
+  // "hydroplaning" matches one fact), so the call's telling word decides
+  const nearW = opts.near ? new Set(words(opts.near)) : null, rel = (f) => { if (!nearW) return 0; const W = wordIdf(); let k = 0; for (const w of new Set(words(f.text))) if (nearW.has(w)) k += W.get(w) || 0; return k; };
+  const byRel = (list) => (nearW ? list.map((f, i) => [f, rel(f), i]).sort((x, y) => (y[1] > 0) - (x[1] > 0) || y[1] - x[1] || x[2] - y[2]).map((x) => x[0]) : list);
+  const fresh = (list) => byRel(shuffle(list.filter((f) => !done[f.id] && !(STAGED && !opts.exam && STAGED.has(f.id) && !seen[f.id]))).sort((a, b) => (seen[a.id] || 0) - (seen[b.id] || 0)));
   take(dueReviews(S, lessons)); // a fact you missed comes back a few minutes later, ahead of new ones
   take(fresh(factList(lessons)));
   if (out.length < n && !opts.exam && opts.wide !== false) take(fresh(FACTS));

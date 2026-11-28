@@ -79,6 +79,9 @@ export const ARCS = {
 
 import { ARCS2 } from './friends2.js';
 for (const k in ARCS2) if (!ARCS[k]) ARCS[k] = ARCS2[k];
+// the last thirty regulars get their own five-part stories (friends3.js): each wants something, changes, and gives you a keepsake
+import { ARCS3 } from './friends3.js';
+for (const k in ARCS3) if (!ARCS[k]) ARCS[k] = ARCS3[k];
 // every visit grows into a short scene (friendsx.js): lines before set the place, lines after give the moment
 import { ARCX } from './friendsx.js';
 for (const k in ARCX) { const A = ARCS[k]; if (!A || A.grown) continue; A.parts = A.parts.map((p, i) => { const x = ARCX[k][i]; return x ? (x.pre || []).concat(p, x.add || []) : p; }); A.grown = 1; }

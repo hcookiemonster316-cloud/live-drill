@@ -223,7 +223,7 @@ export const VIS = {
   flashlight: { m: 'flash' }, tacflash: { m: 'flash' }, keepers: { m: 'keepers' }, goldkeeper: { m: 'keepersG' }, earpiece: { m: 'wire' }, firstaid: { m: 'aid' }, radiokit: { m: 'radioL' }, radio: { m: 'radioL' },
   cuffkey: { m: 'keys' }, glovepouch: { m: 'glove' }, whistle: { m: 'whistle' }, tourniquet: { m: 'tq' }, trainingtaser: { m: 'taser' }, baton: { m: 'baton' }, simholster: { m: 'blueholster' }, multitool: { m: 'tool' }, radioclip: { m: 'mic' }, velvetmic: { m: 'mic' },
   pen: { m: 'pen' }, sharpie: { m: 'marker' }, notebook: { m: 'notebook' }, phonetic: { lanyard: '#334155', m: 'card' }, bodycamtrainer: { m: 'bodycam' }, squadpatch: { m: 'patch' },
-  laptop: { prop: 'laptop' }, textbooks: { prop: 'books' }, binder: { prop: 'books' }, mapbook: { prop: 'books' }, flashcards: { prop: 'books' }, citationbook: { prop: 'clipboard' }, carkit: { camelbak: true }, snackbag: { prop: 'bag' }, thermos: { prop: 'coffee' }, gusreel: { prop: 'rod' }, squadflag: { prop: 'flag' }, umbrella: { prop: 'cane' }
+  laptop: { prop: 'laptop' }, textbooks: { prop: 'books' }, binder: { prop: 'books' }, mapbook: { prop: 'books' }, flashcards: { prop: 'books' }, citationbook: { prop: 'clipboard' }, carkit: { camelbak: true }, snackbag: { prop: 'bag' }, thermos: { prop: 'coffee' }, gusreel: { prop: 'rod' }, squadflag: { prop: 'flag' }, umbrella: { prop: 'umbrella' }
 };
 export function looks(ids) { const L = {}; (ids || []).forEach((id) => { const it = itemById(id); if (it && it.look) Object.assign(L, it.look); const v = VIS[id]; if (!v) return;
   if (v.m) L.marks = (L.marks || []).concat(v.m); ['prop', 'shirt', 'boots', 'lanyard', 'camelbak'].forEach((k) => { if (v[k] != null) L[k] = v[k]; }); });
