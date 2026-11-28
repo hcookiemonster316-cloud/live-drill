@@ -71,6 +71,30 @@ export function installFeel(H) {
     const step = (now) => { const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3); disp.xp = Math.round(fromX + (xp - fromX) * e); disp.cash = Math.round(fromC + (cash - fromC) * e); const t = txt(disp.xp, disp.cash); if (el._t !== t) { el._t = t; el.textContent = t; } barSet(disp.xp); if (up && ++ticks % 4 === 0 && k < 1) UI.tick(); if (k < 1) raf = requestAnimationFrame(step); };
     if (!up || S.cfg.motion === false) { disp.xp = xp; disp.cash = cash; const t = txt(xp, cash); if (el._t !== t) { el._t = t; el.textContent = t; } barSet(xp); } else raf = requestAnimationFrame(step);
   }
+  // ---------- the drive: an engine note that follows the speed, tire marks on hard braking and fast corners ----------
+  // marks are kept in world tiles and stroked in one path per run, two lines (the rear wheels) a little apart; they fade
+  // over half a minute (longer and fainter on wet roads, where a skid runs further)
+  const MARKS = []; let run = null, lastH = null, lastX = 0, lastY = 0, eng = null;
+  function engine(v, on) { const a = S.sound ? H.audio() : null; if (!a) return;
+    if (!eng) { if (!on) return; const o1 = a.createOscillator(), o2 = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain(); o1.type = 'sawtooth'; o2.type = 'square'; o2.detune.value = 9; f.type = 'lowpass'; f.frequency.value = 260; f.Q.value = 2; g.gain.value = 0;
+      o1.connect(f); o2.connect(f); f.connect(g).connect(a.destination); o1.start(); o2.start(); eng = { o1, o2, f, g }; }
+    const t = a.currentTime, vol = (S.cfg.sfx != null ? S.cfg.sfx : .8), k = Math.min(1, v / 7), key = (on ? 1 : 0) + Math.round(k * 40) / 100; if (eng.key === key) return; eng.key = key; /* the audio engine is told only when the speed has changed */
+    eng.o1.frequency.setTargetAtTime(34 + k * 52, t, .25); eng.o2.frequency.setTargetAtTime(17 + k * 26, t, .25); eng.f.frequency.setTargetAtTime(180 + k * 520, t, .3);
+    eng.g.gain.setTargetAtTime(on ? (.008 + k * .016) * vol : 0, t, on ? .3 : .12); }
+  function drive(dt, P, wet, quiet) {
+    const car = P.inCar && !P.boat, v = car ? (P.vel || 0) : 0; engine(v, car && !quiet);
+    if (!car || dt <= 0) { run = null; lastH = null; return; }
+    const dx = P.x - lastX, dy = P.y - lastY, d = Math.hypot(dx, dy); lastX = P.x; lastY = P.y; if (d < .0005 || d > 1) { run = null; return; }
+    const h = Math.atan2(dy, dx), turn = lastH == null ? 0 : Math.abs(Math.atan2(Math.sin(h - lastH), Math.cos(h - lastH))) / dt; lastH = h;
+    const hard = v > 2.6 && ((P.pitch || 0) > .32 || (turn > 2.4 && v > 3.4));
+    if (hard) { const now = performance.now(); if (!run) { run = { pts: [], t: now, wet: !!wet, did: H.W && H.W.did }; MARKS.push(run); if (MARKS.length > 40) MARKS.shift(); if (S.sound) thud(wet ? 2400 : 900, .7, wet ? .03 : .045, .25); }
+      const L = run.pts[run.pts.length - 1]; if (!L || Math.hypot(L[0] - P.x, L[1] - P.y) > .12) { run.pts.push([P.x, P.y, -Math.sin(h), Math.cos(h)]); run.t = now; } if (run.pts.length > 60) run = null; }
+    else run = null; }
+  function marksDraw(g, iso, now) { if (!MARKS.length) return; g.save(); g.lineCap = 'round'; g.lineWidth = 2.8;
+    for (let m = MARKS.length - 1; m >= 0; m--) { const r = MARKS[m], age = (now - r.t) / 1000, life = r.wet ? 45 : 30; if (age > life) { MARKS.splice(m, 1); continue; } if (r.pts.length < 2 || H.inside || !H.W || r.did !== H.W.did) continue; /* marks stay in their own district */
+      const fade = Math.min(1, (1 - age / life) * 1.6); g.strokeStyle = r.wet ? 'rgba(2,3,5,' + (.62 * fade).toFixed(3) + ')' : 'rgba(0,0,0,' + (.88 * fade).toFixed(3) + ')'; /* holds dark most of its life, then fades */ g.beginPath();
+      for (const side of [-.16, .16]) r.pts.forEach(([x, y, px, py], i) => { const [sx, sy] = iso(x + px * side, y + py * side); if (i) g.lineTo(sx, sy); else g.moveTo(sx, sy); }); g.stroke(); }
+    g.restore(); }
   function tick(dt) { steps(dt); faces(dt); }
-  return { UI, tick, rollIn, wetLights, rankLine, fly };
+  return { UI, tick, rollIn, wetLights, rankLine, fly, drive, marksDraw, get marks() { return MARKS.length; } };
 }
