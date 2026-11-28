@@ -7,10 +7,10 @@
 export function installSplash(X) {
   const S = X.S, motion = () => !(S.cfg && S.cfg.motion === false);
   // ---------- sound ----------
-  const A = () => (S.sound ? X.audio() : null), V = () => (S.cfg && S.cfg.sfx != null ? S.cfg.sfx : .8);
+  const V = () => (S.cfg && S.cfg.sfx != null ? S.cfg.sfx : .8), A = () => (S.sound && V() > .001 ? X.audio() : null); // effects at zero: the cards play silent
   const out = (a) => { const c = a.createDynamicsCompressor(); c.threshold.value = -14; c.ratio.value = 4; c.connect(a.destination); return c; };
   function noise(a, dur) { const b = a.createBuffer(1, Math.ceil(a.sampleRate * dur), a.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; const s = a.createBufferSource(); s.buffer = b; return s; }
-  function env(a, g, t, peak, att, dec) { g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + att); g.gain.exponentialRampToValueAtTime(.0001, t + att + dec); }
+  function env(a, g, t, peak, att, dec) { g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(.0002, peak), t + att); /* an exponential ramp to 0 throws, and that froze the card on black */ g.gain.exponentialRampToValueAtTime(.0001, t + att + dec); }
   // a hammer on an anvil: inharmonic ringing partials over a short burst of grit
   function clang(at) { const a = A(); if (!a) return; const t = a.currentTime + at, o = out(a), base = 523;
     [[1, .36, 2.4], [2.76, .2, 1.6], [5.4, .12, 1.1], [8.93, .07, .7], [13.3, .04, .4]].forEach(([m, v, d]) => { const s = a.createOscillator(), g = a.createGain(); s.type = 'sine'; s.frequency.value = base * m; env(a, g, t, v * V(), .002, d); s.connect(g).connect(o); s.start(t); s.stop(t + d + .1); });
@@ -29,7 +29,7 @@ export function installSplash(X) {
   const off = (w, h) => { const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h)); return [c, c.getContext('2d')]; };
   // one clock for picture and sound: it starts on the first frame actually drawn, and the picture waits out the audio
   // output delay (Bluetooth and phone speakers lag), so the strike you see and the clang you hear land together
-  function clock(onStart) { let t0 = 0, lag = 0; return (now) => { if (!t0) { t0 = now; const a = A(); lag = a ? Math.min(.25, (a.outputLatency || 0) + (a.baseLatency || 0)) : 0; onStart(lag); } return Math.max(0, (now - t0) / 1000 - lag); }; }
+  function clock(onStart) { let t0 = 0, lag = 0; return (now) => { if (!t0) { t0 = now; const a = A(); lag = a ? Math.min(.25, (a.outputLatency || 0) + (a.baseLatency || 0)) : 0; try { onStart(lag); } catch (e) { console.warn('splash sound', e); } /* a sound that fails never stops the picture */ } return Math.max(0, (now - t0) / 1000 - lag); }; }
   // the star mark as one path, so it can be drawn like a line of molten metal
   function starPath(cx, cy, R) { const pts = []; for (let i = 0; i < 10; i++) { const r = i % 2 ? R * .42 : R, a = -Math.PI / 2 + i * Math.PI / 5; pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); } return pts; }
   function partPath(g, pts, u) { // a polyline up to fraction u of its length
@@ -66,9 +66,12 @@ export function installSplash(X) {
         g.lineWidth = 3.2 * dpr; g.strokeStyle = 'rgb(255,' + Math.round(235 - cool * 51) + ',' + Math.round(180 - cool * 180) + ')'; g.stroke(); }
       g.globalCompositeOperation = 'source-over';
       if (tt > END - .55) { g.fillStyle = 'rgba(4,6,12,' + Math.min(1, (tt - (END - .55)) * 2.5) + ')'; g.fillRect(0, 0, W, H); }
-      if (tt < END && live) raf = requestAnimationFrame(loop); else finish(); };
+      if (tt < END && live) raf = requestAnimationFrame(safe); else finish(); };
     const finish = () => { if (!live) return; live = false; cancelAnimationFrame(raf); done(); };
-    raf = requestAnimationFrame(loop); el.classList.add('spForge');
+    // a frame that throws ends the card instead of freezing it on black, and a watchdog always moves on
+    function safe(now) { try { loop(now); } catch (e) { console.warn('splash card', e); finish(); } }
+    setTimeout(() => finish(), (END + 2.5) * 1000);
+    raf = requestAnimationFrame(safe); el.classList.add('spForge');
     return () => finish();
   }
 
@@ -105,9 +108,12 @@ export function installSplash(X) {
       // the radar sweep
       if (beamA > 0 && fade > 0) { g.save(); g.globalAlpha = fade; g.translate(cx, cy); g.scale(1, .5); g.rotate(beamA); g.drawImage(wedge, -RR, -RR); g.restore(); }
       g.globalCompositeOperation = 'source-over';
-      if (t < END && live) raf = requestAnimationFrame(loop); else finish(); };
+      if (t < END && live) raf = requestAnimationFrame(safe); else finish(); };
     const finish = () => { if (!live) return; live = false; cancelAnimationFrame(raf); done(); };
-    raf = requestAnimationFrame(loop); el.classList.add('spEng');
+    // a frame that throws ends the card instead of freezing it on black, and a watchdog always moves on
+    function safe(now) { try { loop(now); } catch (e) { console.warn('splash card', e); finish(); } }
+    setTimeout(() => finish(), (END + 2.5) * 1000);
+    raf = requestAnimationFrame(safe); el.classList.add('spEng');
     return () => finish();
   }
   // both cards in order; stop() ends whichever is showing. They start once the audio is actually running (a phone
