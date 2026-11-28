@@ -23,9 +23,9 @@ export function installSplash(X) {
   function ping(at, f) { const a = A(); if (!a) return; const t = a.currentTime + at, s = a.createOscillator(), g = a.createGain(); s.type = 'sine'; s.frequency.value = f || 1320; env(a, g, t, .06 * V(), .004, .5); s.connect(g).connect(out(a)); s.start(t); s.stop(t + .6); }
 
   // ---------- pictures ----------
-  // an opaque canvas (nothing behind it to blend), sized to the screen
+  // a canvas sized to the screen (an ordinary one: an opaque canvas composited as solid black on some Android phones)
   function stage(el) { const cv = document.createElement('canvas'); cv.className = 'spCv'; el.appendChild(cv); const dpr = Math.min(2, devicePixelRatio || 1);
-    cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr); const g = cv.getContext('2d', { alpha: false }); return { cv, g, dpr }; }
+    cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr); const g = cv.getContext('2d'); return { cv, g, dpr }; }
   const off = (w, h) => { const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h)); return [c, c.getContext('2d')]; };
   // one clock for picture and sound: it starts on the first frame actually drawn, and the picture waits out the audio
   // output delay (Bluetooth and phone speakers lag), so the strike you see and the clang you hear land together
