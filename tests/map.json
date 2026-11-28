@@ -237,6 +237,9 @@
   "special.js": [
    "tspecial"
   ],
+  "spend.js": [
+   "tspend"
+  ],
   "stage.js": [
    "tstage"
   ],
