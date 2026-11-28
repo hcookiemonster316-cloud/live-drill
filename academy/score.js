@@ -55,7 +55,18 @@ export function createScore(getCtx, synth) {
     if (e.name && api.onTrack) try { api.onTrack(e.name, e.id); } catch (x) {}
   }
   // keep the rotation moving: when a track (or three rounds of a recorded section) is nearly over, cross-fade to the next
-  function tick() { if (!on || !ready || failed || live < 0 || !playing) return; const el = decks[live].el; if (el.paused || el.readyState < 2) return; const pos = el.currentTime - playing.start;
+  // the pulse (owner's call, 2026-11-27: the score builds with the action): when a call turns Priority 1 or a pursuit
+  // starts, a kick, clap and hats come in locked to the playing track's own beat, a bar or two to fade up, and fade out
+  // when it calms. Scheduled half a beat at a time, a little ahead, on the synth's drums (same room, same pyramid).
+  let pulseK = 0, pulseNext = -1, pulseId = null;
+  function pulse() { const want = on && ready && !failed && vol > .01 && tens >= .95 ? 1 : 0; pulseK += (want - pulseK) * (want ? .22 : .3); if (pulseK < .04) { pulseK = want ? pulseK : 0; pulseNext = -1; return; }
+    const el = live >= 0 && decks[live].el, tr = playing && TRACKS[playing.id]; if (!el || el.paused || !tr || !tr.bpm || !synth.cue) return; if (pulseId !== playing.id) { pulseId = playing.id; pulseNext = -1; }
+    const a = ctx(), hb = 30 / tr.bpm, pos = el.currentTime - playing.start, ev = []; let b = Math.max(pulseNext, Math.ceil((pos + .03) / hb));
+    for (; b * hb < pos + 1; b++) { const at = b * hb - pos, beat = (b / 2) % 4, v = .5 * pulseK;
+      if (b % 2 === 0) { if (beat === 0 || beat === 2) ev.push({ k: 'kick', t: at, v: v * 1.05 }); else ev.push({ k: 'clap', t: at, v: v * .62 }); if (beat === 3 && Math.floor(b / 8) % 4 === 3) ev.push({ k: 'tom', t: at + hb, v: v * .55 }); }
+      ev.push({ k: 'hat', t: at, v: v * (b % 2 ? .28 : .42) }); }
+    pulseNext = b; if (ev.length) synth.cue(ev, a.currentTime); }
+  function tick() { pulse(); if (!on || !ready || failed || live < 0 || !playing) return; const el = decks[live].el; if (el.paused || el.readyState < 2) return; const pos = el.currentTime - playing.start;
     if (pos >= playing.len - 2.3 || el.ended) jump(cur || playing.mood); }
   const api = {
     get mood() { return cur; }, get title() { return playing && playing.name ? playing.name : cur ? NAMES[cur] || '' : ''; }, get usingFile() { return ready && !failed; },
@@ -95,6 +106,7 @@ export function createScore(getCtx, synth) {
       const f = 440 * Math.pow(2, ((tr ? tr.root : 62) - 24 - 69) / 12), t = a.currentTime; stem.o[0].frequency.setTargetAtTime(f, t, .4); stem.o[1].frequency.setTargetAtTime(f * 1.5, t, .4); stem.o[2].frequency.setTargetAtTime(f * 2, t, .4);
       stem.lp.frequency.setTargetAtTime(240 + 1000 * want, t, 1.5); stem.g.gain.setTargetAtTime(.03 * want * vol, t, want ? 1.4 : .8); },
     get layer() { return stem ? stem.g.gain.value : 0; },
+    get pulse() { return pulseK; }, // test hook: how far the drum pulse has come in
     // a character's phrase over the score: built here from oscillators, each character with its own instrument
     motif(key) { const m = CHAR_MOTIFS[key]; if (!on || !m) return false; const a = ctx(); if (!a || a.state !== 'running') return false; const beat = 60 / m.bpm, t0 = a.currentTime + .08, out = a.createGain(); out.gain.value = .9 * vol; out.connect(a.destination);
       parseTheme(m.theme).forEach((n) => { const st = SCL[m.scale], d = n.d, midi = m.root + Math.floor(d / 7) * 12 + st[((d % 7) + 7) % 7] + n.acc, f = 440 * Math.pow(2, (midi - 69) / 12), t = t0 + n.b * beat, len = Math.max(.12, n.l * beat);

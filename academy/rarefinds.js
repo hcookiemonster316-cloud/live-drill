@@ -67,7 +67,7 @@ export function installRareFinds(H) {
   function near(r) { const W = H.W, P = H.P; if (!W || H.inside) return null; let best = null, bd = 7.5;
     for (const l of W.lots) { if (r.kinds.indexOf(l.kind) < 0 || !l.door) continue; const d = Math.hypot(l.door[0] + .5 - P.x, l.door[1] + .5 - P.y); if (d < bd) { bd = d; best = l; } } return best; }
   function tick(dt) {
-    if (busy) return;
+    if (busy || (H.mockOff && H.mockOff())) return; // tests set them off by hand (test()), so nothing fires on its own mid-test
     hintT -= dt; if (hintT <= 0) { hintT = 240; hint(); }
     T -= dt; if (T > 0) return; T = 2.5;
     if (!H.free() || Date.now() - (S.rareT || 0) < 12 * 60e3) return; // at most one rare moment every twelve minutes
